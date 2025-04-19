@@ -213,88 +213,112 @@ export default function KYCViewPage() {
               </div>
 
               {selectedRecord && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-xl max-w-3xl w-full mx-auto shadow-2xl transform transition-all">
-                    <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gray-50 rounded-t-xl">
-                      <h2 className="text-xl font-semibold text-black">KYC Details</h2>
+                <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                  <div className="bg-gray-900 rounded-xl max-w-4xl w-full mx-auto shadow-2xl transform transition-all overflow-hidden max-h-[90vh] flex flex-col border border-gray-700">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-6 border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 sticky top-0 z-10">
+                      <div>
+                        <h2 className="text-2xl font-semibold text-gray-100">KYC Details</h2>
+                        <p className="text-sm text-gray-400 mt-1">ID: {selectedRecord._id}</p>
+                      </div>
                       <button
                         onClick={() => setSelectedRecord(null)}
-                        className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                        className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+                        title="Close"
                       >
-                        <FaTimes className="text-gray-600" />
+                        <FaTimes className="text-gray-400 w-5 h-5 hover:text-gray-200" />
                       </button>
                     </div>
-                    <div className="p-6 space-y-6">
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                          <h3 className="text-sm font-medium text-black mb-2">ID</h3>
-                          <p className="text-sm font-mono bg-white p-2 rounded border border-gray-200 text-black">{selectedRecord._id}</p>
-                        </div>
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                          <h3 className="text-sm font-medium text-gray-500 mb-2">Status</h3>
-                          <div className="flex items-center space-x-4">
-                            <select
-                              value={selectedRecord.complianceStatus}
-                              onChange={(e) => handleStatusUpdate(selectedRecord, e.target.value)}
-                              disabled={updating}
-                              className="pl-3 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                            >
-                              <option value="Passed">Passed</option>
-                              <option value="Pending">Pending</option>
-                              <option value="Failed">Failed</option>
-                            </select>
-                            {updating && <FaSpinner className="animate-spin text-blue-600" />}
-                          </div>
-                          {updateError && (
-                            <p className="text-red-500 text-sm mt-2">{updateError}</p>
-                          )}
+
+                    {/* Modal Content - Scrollable */}
+                    <div className="p-6 space-y-6 overflow-y-auto bg-gray-900">
+                      {/* Status Section */}
+                      <div className="bg-gray-800 p-6 rounded-xl shadow-md border border-gray-700">
+                        <h3 className="text-lg font-medium text-gray-100 mb-4">Compliance Status</h3>
+                        <div className="flex items-center gap-4">
+                          <select
+                            value={selectedRecord.complianceStatus}
+                            onChange={(e) => handleStatusUpdate(selectedRecord, e.target.value)}
+                            disabled={updating}
+                            className="pl-4 pr-10 py-2.5 border bg-gray-700 border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-100 text-base"
+                          >
+                            <option value="Passed" className="bg-gray-700">✅ Passed</option>
+                            <option value="Pending" className="bg-gray-700">⏳ Pending</option>
+                            <option value="Failed" className="bg-gray-700">❌ Failed</option>
+                          </select>
+                          {updating ? (
+                            <div className="flex items-center gap-2 text-blue-600">
+                              <FaSpinner className="animate-spin" />
+                              <span className="text-sm">Updating...</span>
+                            </div>
+                          ) : updateError ? (
+                            <div className="text-red-500 text-sm flex items-center gap-2">
+                              <FaTimes />
+                              <span>{updateError}</span>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
 
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h3 className="text-sm font-medium text-gray-500 mb-3">Documents</h3>
-                        <div className="space-y-3">
+                      {/* Documents Section */}
+                      <div className="bg-gray-800 p-6 rounded-xl shadow-md border border-gray-700">
+                        <h3 className="text-lg font-medium text-gray-100 mb-4">Documents</h3>
+                        <div className="grid gap-4 sm:grid-cols-2">
                           {selectedRecord.documents.map(doc => (
-                            <div key={doc._id} className="bg-white p-4 rounded-lg border border-gray-200">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900">{doc.documentType || doc.type}</p>
-                                  <p className="text-sm text-gray-600 mt-1">Number: {doc.documentNumber}</p>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    {doc.verifiedBy && `Verified by ${doc.verifiedBy}`}
-                                    {getVerificationDate(doc) && ` on ${format(new Date(getVerificationDate(doc)!), 'PPp')}`}
-                                  </p>
-                                  {doc.verificationNotes && (
-                                    <p className="text-xs text-gray-600 mt-1 italic">"{doc.verificationNotes}"</p>
-                                  )}
+                            <div key={doc._id} className="bg-gray-700 p-4 rounded-xl border border-gray-600 hover:border-blue-500 transition-colors">
+                              <div className="flex flex-col h-full">
+                                <div className="flex justify-between items-start mb-3">
+                                  <span className={`px-3 py-1 text-sm font-medium rounded-full 
+                                    ${doc.verificationStatus === 'Verified' ? 'bg-emerald-900 text-emerald-200' : 'bg-amber-900 text-amber-200'}`}>
+                                    {doc.verificationStatus}
+                                  </span>
                                 </div>
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full 
-                                  ${doc.verificationStatus === 'Verified' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                  {doc.verificationStatus}
-                                </span>
+                                <h4 className="text-base font-medium text-gray-100">{doc.documentType || doc.type}</h4>
+                                <p className="text-sm text-gray-300 mt-2">
+                                  <span className="font-medium">Number:</span> {doc.documentNumber}
+                                </p>
+                                {getVerificationDate(doc) && (
+                                  <p className="text-sm text-gray-400 mt-2">
+                                    <span className="font-medium">Verified:</span> {format(new Date(getVerificationDate(doc)!), 'PPp')}
+                                  </p>
+                                )}
+                                {doc.verificationNotes && (
+                                  <p className="text-sm text-gray-300 mt-2 italic bg-gray-800 p-2 rounded-lg">
+                                    "{doc.verificationNotes}"
+                                  </p>
+                                )}
                               </div>
                             </div>
                           ))}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                          <h3 className="text-sm font-medium text-gray-500 mb-2">Verified By</h3>
+                      {/* Verification Details */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="bg-gray-800 p-6 rounded-xl shadow-md border border-gray-700">
+                          <h3 className="text-lg font-medium text-gray-100 mb-4">Verified By</h3>
                           <div className="flex items-center">
-                            <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-sm font-medium text-blue-800">
+                            <div className="h-10 w-10 bg-blue-900 rounded-full flex items-center justify-center">
+                              <span className="text-base font-medium text-blue-200">
                                 {(selectedRecord.verifiedBy || 'NA').substring(0, 2).toUpperCase()}
                               </span>
                             </div>
-                            <span className="ml-3 text-sm text-gray-900">{selectedRecord.verifiedBy || 'Not Assigned'}</span>
+                            <div className="ml-4">
+                              <p className="text-base text-gray-100">{selectedRecord.verifiedBy || 'Not Assigned'}</p>
+                              <p className="text-sm text-gray-400">Verification Officer</p>
+                            </div>
                           </div>
                         </div>
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                          <h3 className="text-sm font-medium text-gray-500 mb-2">Last Updated</h3>
-                          <p className="text-sm text-gray-900">
-                            {format(new Date(selectedRecord.updatedAt), 'PPpp')}
-                          </p>
+                        <div className="bg-gray-800 p-6 rounded-xl shadow-md border border-gray-700">
+                          <h3 className="text-lg font-medium text-gray-100 mb-4">Last Updated</h3>
+                          <div className="space-y-2">
+                            <p className="text-base text-gray-100">
+                              {format(new Date(selectedRecord.updatedAt), 'PPpp')}
+                            </p>
+                            <p className="text-sm text-gray-400">
+                              {format(new Date(selectedRecord.updatedAt), 'dd MMM yyyy HH:mm')}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
