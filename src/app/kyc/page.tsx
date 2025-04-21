@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { KYCRecord, KYCDocument } from '@/types/kyc';
-import { getAllKYCRecords, updateKYCCompliance } from '@/services/kyc';
+import { getAllKYCRecords, updateKYCCompliance, verifyDocument } from '@/services/kyc';
 import { format } from 'date-fns';
 import { FaSpinner, FaSearch, FaEye, FaTimes, FaFilter } from 'react-icons/fa';
 import { isAuthenticated } from '@/services/auth';
@@ -21,6 +21,10 @@ export default function KYCViewPage() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [verifyingDocument, setVerifyingDocument] = useState<string | null>(null);
+  const [documentError, setDocumentError] = useState<string | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<KYCDocument | null>(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const recordsPerPage = 10;
 
   useEffect(() => {
@@ -63,6 +67,29 @@ export default function KYCViewPage() {
       setUpdateError('Failed to update compliance status');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleDocumentVerification = async (employeeId: string, documentId: string) => {
+    setVerifyingDocument(documentId);
+    setDocumentError(null);
+    try {
+      const response = await verifyDocument(employeeId, documentId, { status: 'Verified' });
+      if (response.success) {
+        const updatedRecord = response.data;
+        setKycRecords(prevRecords =>
+          prevRecords.map(r =>
+            r._id === updatedRecord._id ? updatedRecord : r
+          )
+        );
+        setSelectedRecord(prev => prev?._id === updatedRecord._id ? updatedRecord : prev);
+      } else {
+        setDocumentError(response.message || 'Failed to verify document');
+      }
+    } catch (error) {
+      setDocumentError('Failed to verify document');
+    } finally {
+      setVerifyingDocument(null);
     }
   };
 
@@ -119,91 +146,237 @@ export default function KYCViewPage() {
     return null;
   };
 
+  const DocumentViewer = ({ document }: { document: KYCDocument }) => {
+    const isPDF = document.documentPath.toLowerCase().endsWith('.pdf');
+    const isImage = document.documentPath.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/i);
+
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
+        <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 className="text-lg font-medium">{document.documentType} Document</h3>
+            <div className="flex items-center gap-2">
+              <a
+                href={document.documentPath}
+                download={document.documentName}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download
+              </a>
+              <button
+                onClick={() => setIsViewerOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          <div className="p-4 flex-1 overflow-auto">
+            {isPDF ? (
+              <iframe
+                src={document.documentPath}
+                className="w-full h-[calc(90vh-8rem)]"
+                title={document.documentName}
+              />
+            ) : isImage ? (
+              <img
+                src={document.documentPath}
+                alt={document.documentName}
+                className="max-w-full max-h-[calc(90vh-8rem)] mx-auto object-contain"
+                onError={(e) => {
+                  e.currentTarget.src = '/placeholder-image.png';
+                  e.currentTarget.alt = 'Failed to load image';
+                }}
+              />
+            ) : (
+              <div className="text-center py-8">
+                <p>Document preview not available</p>
+                <p className="text-sm text-gray-500">Please download to view</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const DocumentCard = ({ doc, employeeId }: { doc: KYCDocument; employeeId: string }) => (
+    <div className="bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-500 transition-colors">
+      <div className="flex flex-col h-full">
+        <div className="flex justify-between items-start mb-3">
+          <span className={`px-3 py-1 text-sm font-medium rounded-full 
+            ${doc.verificationStatus === 'Verified' 
+              ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-600/20' 
+              : 'bg-amber-100 text-amber-800 ring-1 ring-amber-600/20'}`}>
+            {doc.verificationStatus}
+          </span>
+        </div>
+        <h4 className="text-base font-medium text-gray-900">{doc.documentType || doc.type}</h4>
+        <p className="text-sm text-gray-500 mt-2">
+          <span className="font-medium">Number:</span> {doc.documentNumber}
+        </p>
+        {getVerificationDate(doc) && (
+          <p className="text-sm text-gray-400 mt-2">
+            <span className="font-medium">Verified:</span> {format(new Date(getVerificationDate(doc)!), 'PPp')}
+          </p>
+        )}
+        {doc.verificationNotes && (
+          <p className="text-sm text-gray-500 mt-2 italic bg-gray-50 p-2 rounded-lg">
+            "{doc.verificationNotes}"
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {doc.verificationStatus !== 'Verified' && (
+            <button
+              onClick={() => handleDocumentVerification(employeeId, doc._id)}
+              disabled={verifyingDocument === doc._id}
+              className={`inline-flex items-center px-3 py-1.5 rounded-md
+                ${verifyingDocument === doc._id 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  : 'bg-green-600 text-white hover:bg-green-700'} transition-colors`}
+            >
+              {verifyingDocument === doc._id ? (
+                <>
+                  <FaSpinner className="animate-spin h-4 w-4 mr-2" />
+                  Verifying...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Verify Document
+                </>
+              )}
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setSelectedDocument(doc);
+              setIsViewerOpen(true);
+            }}
+            className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            View Document
+          </button>
+          <a
+            href={doc.documentPath}
+            download={doc.documentName}
+            className="inline-flex items-center px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download
+          </a>
+        </div>
+        {documentError && verifyingDocument === doc._id && (
+          <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded-lg">
+            {documentError}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-4 lg:p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-black">KYC Records</h1>
-            <div className="flex items-center gap-4">
-              <div className="relative">
+        <div className="bg-white rounded-2xl shadow-xl p-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-800">
+              KYC Management
+            </h1>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
+              <div className="relative flex-grow sm:flex-grow-0">
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                  className="w-full sm:w-44 pl-10 pr-4 py-2.5 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 bg-white hover:border-blue-500 transition-colors"
                 >
-                  <option value="all" className="text-black">All Status</option>
-                  <option value="Passed" className="text-black">Passed</option>
-                  <option value="Pending" className="text-black">Pending</option>
-                  <option value="Failed" className="text-black">Failed</option>
+                  <option value="all">All Status</option>
+                  <option value="Passed">✅ Passed</option>
+                  <option value="Pending">⏳ Pending</option>
+                  <option value="Failed">❌ Failed</option>
                 </select>
-                <FaFilter className="absolute left-2 top-3 text-black" />
+                <FaFilter className="absolute left-3 top-3.5 text-gray-400" />
               </div>
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-3 text-black" />
+              <div className="relative flex-grow sm:flex-grow-0">
                 <input
                   type="text"
                   placeholder="Search records..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
+                  className="w-full sm:w-64 pl-10 pr-4 py-2.5 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 placeholder-gray-400 bg-white hover:border-blue-500 transition-colors"
                 />
+                <FaSearch className="absolute left-3 top-3.5 text-gray-400" />
               </div>
             </div>
           </div>
 
           {currentRecords.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-black">No KYC records found</p>
+            <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+              <div className="flex flex-col items-center gap-3">
+                <FaSearch className="text-4xl text-gray-300" />
+                <p className="text-gray-500 text-lg">No KYC records found</p>
+                <p className="text-gray-400 text-sm">Try adjusting your search or filters</p>
+              </div>
             </div>
           ) : (
             <>
-              <div className="overflow-hidden rounded-lg border border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-800">
+              <div className="w-full">
+                <table className="w-full table-fixed">
+                  <thead className="bg-gradient-to-r from-gray-800 to-gray-900">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Verified By</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Verification Date</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Notes</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-24">Actions</th>
+                      <th className="w-[15%] px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+                      <th className="w-[25%] px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Verified By</th>
+                      <th className="w-[25%] px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Verification Date</th>
+                      <th className="w-[20%] px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Notes</th>
+                      <th className="w-[15%] px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-gray-100">
                     {currentRecords.map((record) => (
-                      <tr key={record._id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-3 py-1 inline-flex text-sm leading-5 font-medium rounded-full 
-                            ${record.complianceStatus === 'Passed' ? 'bg-green-100 text-green-800' : 
-                              record.complianceStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 
-                              'bg-red-100 text-red-800'}`}>
+                      <tr key={record._id} className="hover:bg-blue-50/50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <span className={`px-4 py-1.5 inline-flex text-sm font-medium rounded-full 
+                            ${record.complianceStatus === 'Passed' ? 'bg-green-100 text-green-800 ring-1 ring-green-600/20' : 
+                              record.complianceStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800 ring-1 ring-yellow-600/20' : 
+                              'bg-red-100 text-red-800 ring-1 ring-red-600/20'}`}>
                             {record.complianceStatus}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4">
                           <div className="flex items-center">
                             <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                               <span className="text-sm font-medium text-blue-800">
                                 {(record.verifiedBy || 'NA').substring(0, 2).toUpperCase()}
                               </span>
                             </div>
-                            <span className="ml-3 text-sm text-black">{record.verifiedBy || 'Not Assigned'}</span>
+                            <span className="ml-3 text-sm text-gray-900 truncate">{record.verifiedBy || 'Not Assigned'}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
+                        <td className="px-6 py-4 text-sm text-gray-900">
                           {record.verificationDate ? format(new Date(record.verificationDate), 'dd MMM yyyy HH:mm') : 'Pending'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-black">
-                          <div className="max-w-xs truncate">
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <div className="truncate">
                             {record.complianceNotes || record.remarks || 'No notes'}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4">
                           <button
                             onClick={() => setSelectedRecord(record)}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-all duration-200 ease-in-out transform group-hover:scale-105"
                           >
-                            <FaEye className="mr-2" /> Details
+                            <FaEye className="mr-1.5 w-4 h-4" /> View
                           </button>
                         </td>
                       </tr>
@@ -213,12 +386,12 @@ export default function KYCViewPage() {
               </div>
 
               {selectedRecord && (
-                <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="bg-gray-900 rounded-xl max-w-4xl w-full mx-auto shadow-2xl transform transition-all overflow-hidden max-h-[90vh] flex flex-col border border-gray-700">
+                <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-2xl max-w-4xl w-full mx-auto shadow-2xl transform transition-all overflow-hidden max-h-[90vh] flex flex-col">
                     {/* Modal Header */}
-                    <div className="flex justify-between items-center p-6 border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 sticky top-0 z-10">
+                    <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gradient-to-r from-gray-800 to-gray-900 sticky top-0 z-10">
                       <div>
-                        <h2 className="text-2xl font-semibold text-gray-100">KYC Details</h2>
+                        <h2 className="text-2xl font-semibold text-white">KYC Details</h2>
                         <p className="text-sm text-gray-400 mt-1">ID: {selectedRecord._id}</p>
                       </div>
                       <button
@@ -231,20 +404,20 @@ export default function KYCViewPage() {
                     </div>
 
                     {/* Modal Content - Scrollable */}
-                    <div className="p-6 space-y-6 overflow-y-auto bg-gray-900">
+                    <div className="p-6 space-y-6 overflow-y-auto bg-white">
                       {/* Status Section */}
-                      <div className="bg-gray-800 p-6 rounded-xl shadow-md border border-gray-700">
-                        <h3 className="text-lg font-medium text-gray-100 mb-4">Compliance Status</h3>
+                      <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">Compliance Status</h3>
                         <div className="flex items-center gap-4">
                           <select
                             value={selectedRecord.complianceStatus}
                             onChange={(e) => handleStatusUpdate(selectedRecord, e.target.value)}
                             disabled={updating}
-                            className="pl-4 pr-10 py-2.5 border bg-gray-700 border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-100 text-base"
+                            className="pl-4 pr-10 py-2.5 border bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 text-base"
                           >
-                            <option value="Passed" className="bg-gray-700">✅ Passed</option>
-                            <option value="Pending" className="bg-gray-700">⏳ Pending</option>
-                            <option value="Failed" className="bg-gray-700">❌ Failed</option>
+                            <option value="Passed" className="bg-white">✅ Passed</option>
+                            <option value="Pending" className="bg-white">⏳ Pending</option>
+                            <option value="Failed" className="bg-white">❌ Failed</option>
                           </select>
                           {updating ? (
                             <div className="flex items-center gap-2 text-blue-600">
@@ -261,58 +434,40 @@ export default function KYCViewPage() {
                       </div>
 
                       {/* Documents Section */}
-                      <div className="bg-gray-800 p-6 rounded-xl shadow-md border border-gray-700">
-                        <h3 className="text-lg font-medium text-gray-100 mb-4">Documents</h3>
+                      <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-lg font-medium text-gray-900">Documents</h3>
+                          <div className="text-sm text-gray-500">
+                            {selectedRecord.documents.filter(d => d.verificationStatus === 'Verified').length} of {selectedRecord.documents.length} Verified
+                          </div>
+                        </div>
                         <div className="grid gap-4 sm:grid-cols-2">
                           {selectedRecord.documents.map(doc => (
-                            <div key={doc._id} className="bg-gray-700 p-4 rounded-xl border border-gray-600 hover:border-blue-500 transition-colors">
-                              <div className="flex flex-col h-full">
-                                <div className="flex justify-between items-start mb-3">
-                                  <span className={`px-3 py-1 text-sm font-medium rounded-full 
-                                    ${doc.verificationStatus === 'Verified' ? 'bg-emerald-900 text-emerald-200' : 'bg-amber-900 text-amber-200'}`}>
-                                    {doc.verificationStatus}
-                                  </span>
-                                </div>
-                                <h4 className="text-base font-medium text-gray-100">{doc.documentType || doc.type}</h4>
-                                <p className="text-sm text-gray-300 mt-2">
-                                  <span className="font-medium">Number:</span> {doc.documentNumber}
-                                </p>
-                                {getVerificationDate(doc) && (
-                                  <p className="text-sm text-gray-400 mt-2">
-                                    <span className="font-medium">Verified:</span> {format(new Date(getVerificationDate(doc)!), 'PPp')}
-                                  </p>
-                                )}
-                                {doc.verificationNotes && (
-                                  <p className="text-sm text-gray-300 mt-2 italic bg-gray-800 p-2 rounded-lg">
-                                    "{doc.verificationNotes}"
-                                  </p>
-                                )}
-                              </div>
-                            </div>
+                            <DocumentCard key={doc._id} doc={doc} employeeId={selectedRecord.employeeId} />
                           ))}
                         </div>
                       </div>
 
                       {/* Verification Details */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="bg-gray-800 p-6 rounded-xl shadow-md border border-gray-700">
-                          <h3 className="text-lg font-medium text-gray-100 mb-4">Verified By</h3>
+                        <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
+                          <h3 className="text-lg font-medium text-gray-900 mb-4">Verified By</h3>
                           <div className="flex items-center">
-                            <div className="h-10 w-10 bg-blue-900 rounded-full flex items-center justify-center">
-                              <span className="text-base font-medium text-blue-200">
+                            <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-base font-medium text-blue-800">
                                 {(selectedRecord.verifiedBy || 'NA').substring(0, 2).toUpperCase()}
                               </span>
                             </div>
                             <div className="ml-4">
-                              <p className="text-base text-gray-100">{selectedRecord.verifiedBy || 'Not Assigned'}</p>
+                              <p className="text-base text-gray-900">{selectedRecord.verifiedBy || 'Not Assigned'}</p>
                               <p className="text-sm text-gray-400">Verification Officer</p>
                             </div>
                           </div>
                         </div>
-                        <div className="bg-gray-800 p-6 rounded-xl shadow-md border border-gray-700">
-                          <h3 className="text-lg font-medium text-gray-100 mb-4">Last Updated</h3>
+                        <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
+                          <h3 className="text-lg font-medium text-gray-900 mb-4">Last Updated</h3>
                           <div className="space-y-2">
-                            <p className="text-base text-gray-100">
+                            <p className="text-base text-gray-900">
                               {format(new Date(selectedRecord.updatedAt), 'PPpp')}
                             </p>
                             <p className="text-sm text-gray-400">
@@ -326,8 +481,8 @@ export default function KYCViewPage() {
                 </div>
               )}
 
-              <div className="mt-4 flex items-center justify-between">
-                <p className="text-sm text-black">
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-sm text-gray-600">
                   Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredRecords.length)} of {filteredRecords.length} records
                 </p>
                 <div className="flex gap-2">
@@ -335,10 +490,10 @@ export default function KYCViewPage() {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-1 rounded ${
+                      className={`px-4 py-2 rounded-lg transition-all duration-200 ${
                         currentPage === page
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                          : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
                       }`}
                     >
                       {page}
@@ -350,6 +505,9 @@ export default function KYCViewPage() {
           )}
         </div>
       </div>
+      {isViewerOpen && selectedDocument && (
+        <DocumentViewer document={selectedDocument} />
+      )}
     </div>
   );
 }

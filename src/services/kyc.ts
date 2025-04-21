@@ -94,8 +94,27 @@ export const verifyKYCDocument = async (
   }
 };
 
+export const verifyDocument = async (employeeId: string, documentId: string, data: { status: string }) => {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/kyc/employees/${employeeId}/documents/${documentId}/verify`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      }
+    );
+    return await response.json();
+  } catch (error) {
+    throw new Error('Failed to verify document');
+  }
+};
+
 export default {
   getAllKYCRecords,
   updateKYCCompliance,
   verifyKYCDocument,
+  verifyDocument,
 };

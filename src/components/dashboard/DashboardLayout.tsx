@@ -69,10 +69,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     {
       icon: <FaBuilding />,
       label: 'Position Management',
-      subItems: [
-        { icon: <FaBuilding />, label: 'Departments (View & Add)', href: '/departments' },
-        { icon: <FaBriefcase />, label: 'Designations (View & Add)', href: '/designations' }
-      ]
+    href:'/positionmanagement'
     },
   
   ];
