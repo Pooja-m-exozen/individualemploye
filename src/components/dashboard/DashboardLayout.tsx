@@ -1,10 +1,10 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import type { JSX } from 'react';
 import Image from 'next/image';
-import { FaUserFriends, FaBuilding, FaBriefcase, FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronDown, FaChevronRight, FaPlus, FaEye, FaEdit, FaChevronLeft, FaMinus } from 'react-icons/fa';
+import { FaUserFriends, FaBuilding,  FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus,  FaChevronLeft, FaMinus } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { logout, isAuthenticated, isEmployee, getUserRole } from '@/services/auth';
+import { logout, isAuthenticated,getUserRole } from '@/services/auth';
 
 interface DashboardLayoutProps {
   children: ReactNode;

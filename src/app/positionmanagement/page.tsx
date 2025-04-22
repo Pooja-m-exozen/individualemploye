@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FaBuilding, FaBriefcase, FaPlus, FaEdit, FaTrash, FaExclamationCircle, FaInfoCircle } from 'react-icons/fa';
 import { BASE_URL } from '@/services/api';
 import { getAuthToken } from '@/services/auth';
@@ -29,29 +29,7 @@ export default function PositionManagementPage() {
   const [isDeleteDesignationModalOpen, setDeleteDesignationModalOpen] = useState(false);
   const [designationToDelete, setDesignationToDelete] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchDepartments();
-  }, []); 
-
-  const fetchDepartments = async () => {
-    try {
-      setLoading(true);
-      const data = await getDepartments();
-      setDepartments(data);
-      // Set 'all' as default selection
-      setSelectedDepartment('all');
-      // Fetch all designations initially
-      fetchDesignationsByDepartment('all');
-      setError(null);
-    } catch (error) {
-      setError('Error fetching departments');
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchDesignationsByDepartment = async (departmentId: string) => {
+  const fetchDesignationsByDepartment = useCallback(async (departmentId: string) => {
     try {
       setLoading(true);
       const data = await getDesignations(departmentId === 'all' ? undefined : departmentId);
@@ -68,13 +46,35 @@ export default function PositionManagementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const fetchDepartments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getDepartments();
+      setDepartments(data);
+      // Set 'all' as default selection
+      setSelectedDepartment('all');
+      // Fetch all designations initially
+      fetchDesignationsByDepartment('all');
+      setError(null);
+    } catch (error) {
+      setError('Error fetching departments');
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchDesignationsByDepartment]);
+
+  useEffect(() => {
+    fetchDepartments();
+  }, [fetchDepartments, fetchDesignationsByDepartment]); 
 
   useEffect(() => {
     if (selectedDepartment) {
       fetchDesignationsByDepartment(selectedDepartment);
     }
-  }, [selectedDepartment]);
+  }, [selectedDepartment, fetchDesignationsByDepartment]);
 
   const handleAddDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +95,7 @@ export default function PositionManagementPage() {
       } else {
         throw new Error('Failed to add department');
       }
-    } catch (error) {
+    } catch  {
       setError('Error adding department');
     }
   };
@@ -163,7 +163,7 @@ export default function PositionManagementPage() {
       } else {
         throw new Error('Failed to update department');
       }
-    } catch (error) {
+    } catch  {
       setError('Error updating department');
     }
   };
@@ -186,7 +186,7 @@ export default function PositionManagementPage() {
       } else {
         throw new Error('Failed to delete department');
       }
-    } catch (error) {
+    } catch  {
       setError('Error deleting department');
     }
   };
@@ -205,7 +205,7 @@ export default function PositionManagementPage() {
       fetchDesignationsByDepartment(selectedDepartment);
       setEditDesignationModalOpen(false);
       setEditingDesignation(null);
-    } catch (error) {
+    } catch  {
       setError('Error updating designation');
     }
   };
@@ -219,7 +219,7 @@ export default function PositionManagementPage() {
       fetchDesignationsByDepartment(selectedDepartment);
       setDeleteDesignationModalOpen(false);
       setDesignationToDelete(null);
-    } catch (error) {
+    } catch  {
       setError('Error deleting designation');
     }
   };
@@ -234,9 +234,9 @@ export default function PositionManagementPage() {
     }
   };
 
-  const filteredDesignations = selectedDepartment === 'all'
-    ? designations
-    : designations.filter(d => d.department && d.department._id === selectedDepartment);
+  // const filteredDesignations = selectedDepartment === 'all'
+  //   ? designations
+  //   : designations.filter(d => d.department && d.department._id === selectedDepartment);
 
   // Enhanced loading state
   const LoadingSpinner = () => (

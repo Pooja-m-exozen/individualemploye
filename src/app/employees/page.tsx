@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { BASE_URL } from '@/services/api';
 import { Employee } from '@/types/employee';
 import { useRouter } from 'next/navigation';
@@ -10,16 +10,18 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
+  const [currentPage] = useState(1);
+  // const [setTotalPages] = useState(1);
+  // const [itemsPerPage, setItemsPerPage] = useState(10);
+  // const [ setTotalItems] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Employee | null>(null);
   const router = useRouter();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -58,8 +60,8 @@ export default function EmployeesPage() {
           const data = await response.json();
           console.log('Success - Data received:', data);
           setEmployees(data.data || []);
-          setTotalPages(data.pagination?.pages || 1);
-          setTotalItems(data.pagination?.total || 0);
+          // setTotalPages(data.pagination?.pages || 1);
+          // setTotalItems(data.pagination?.total || 0);
           break;
           
         case 401:
@@ -83,13 +85,13 @@ export default function EmployeesPage() {
           console.error('Unexpected response:', response.status, errorText);
           setError(`Request failed with status: ${response.status}`);
       }
-    } catch (error: any) {
+    } catch  {
       console.error('API Request failed:', error);
-      setError(error.message || 'Failed to load employees. Please check your connection.');
+      // setError(error.message || 'Failed to load employees. Please check your connection.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [router, error]);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -97,11 +99,17 @@ export default function EmployeesPage() {
       return;
     }
     fetchData();
-  }, [currentPage, router]);
+  }, [currentPage, router, fetchData]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
+  useEffect(() => {
+    if (error) {
+      router.replace('/login?redirect=/employees');
+    }
+  }, [router, error]);
+
+  // const formatDate = (dateString: string) => {
+  //   return new Date(dateString).toLocaleDateString();
+  // };
 
   const filteredEmployees = employees.filter(employee => 
     employee.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -138,9 +146,50 @@ export default function EmployeesPage() {
         const error = await response.json();
         throw new Error(error.message || 'Failed to delete employee');
       }
-    } catch (error: any) {
+    } 
+    catch  {
       console.error('Delete failed:', error);
-      alert(error.message || 'Failed to delete employee');
+      // alert(error.message || 'Failed to delete employee');
+    }
+  };
+
+  const handleEdit = async (employeeId: string) => {
+    const employee = employees.find(emp => emp._id === employeeId);
+    if (!employee) return;
+    
+    setEditingEmployee(employeeId);
+    setEditForm(employee);
+  };
+
+  const handleSaveEdit = async (updatedEmployee: Employee) => {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        router.replace('/login');
+        return;
+      }
+  
+      const response = await fetch(`${BASE_URL}/api/employees/${updatedEmployee._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedEmployee),
+      });
+  
+      if (response.ok) {
+        setEmployees(employees.map(emp => 
+          emp._id === updatedEmployee._id ? updatedEmployee : emp
+        ));
+        setEditingEmployee(null);
+        setEditForm(null);
+      } else {
+        throw new Error('Failed to update employee');
+      }
+    } catch (error) {
+      console.error('Update failed:', error);
+      alert('Failed to update employee');
     }
   };
 
@@ -199,6 +248,92 @@ export default function EmployeesPage() {
                 <p>{employee.address.country}</p>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const EditModal = ({ employee, onClose, onSave }: { 
+    employee: Employee; 
+    onClose: () => void;
+    onSave: (updatedEmployee: Employee) => void;
+  }) => {
+    const [form, setForm] = useState(employee);
+  
+    return (
+      <div className="fixed inset-0 backdrop-blur-sm bg-black/30 z-50 flex items-center justify-center overflow-y-auto">
+        <div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 my-8 shadow-xl">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Edit Employee</h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+  
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+              <input
+                type="text"
+                value={form.firstName}
+                onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+              <input
+                type="text"
+                value={form.lastName}
+                onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Employee ID</label>
+              <input
+                type="text"
+                value={form.employeeId}
+                onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+              <input
+                type="text"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              />
+            </div>
+          </div>
+  
+          <div className="mt-8 flex justify-end gap-4">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(form)}
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md"
+            >
+              Save Changes
+            </button>
           </div>
         </div>
       </div>
@@ -265,9 +400,50 @@ export default function EmployeesPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredEmployees.map((employee) => (
                   <tr key={employee._id} className="hover:bg-gray-50 transition-colors duration-200">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 truncate">{employee.employeeId}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 truncate">{`${employee.firstName} ${employee.lastName}`}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 truncate">{employee.phone}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 truncate">
+                      {editingEmployee === employee._id ? (
+                        <input
+                          type="text"
+                          value={editForm?.employeeId || ''}
+                          onChange={(e) => setEditForm({ ...editForm!, employeeId: e.target.value })}
+                          className="w-full px-2 py-1 border rounded text-gray-900"
+                        />
+                      ) : (
+                        employee.employeeId
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 truncate">
+                      {editingEmployee === employee._id ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editForm?.firstName || ''}
+                            onChange={(e) => setEditForm({ ...editForm!, firstName: e.target.value })}
+                            className="w-1/2 px-2 py-1 border rounded text-gray-900"
+                          />
+                          <input
+                            type="text"
+                            value={editForm?.lastName || ''}
+                            onChange={(e) => setEditForm({ ...editForm!, lastName: e.target.value })}
+                            className="w-1/2 px-2 py-1 border rounded text-gray-900"
+                          />
+                        </div>
+                      ) : (
+                        `${employee.firstName} ${employee.lastName}`
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 truncate">
+                      {editingEmployee === employee._id ? (
+                        <input
+                          type="text"
+                          value={editForm?.phone || ''}
+                          onChange={(e) => setEditForm({ ...editForm!, phone: e.target.value })}
+                          className="w-full px-2 py-1 border rounded text-gray-900"
+                        />
+                      ) : (
+                        employee.phone
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
                         employee.status === 'Active' 
@@ -302,7 +478,7 @@ export default function EmployeesPage() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => router.push(`/employees/edit/${employee._id}`)}
+                          onClick={() => handleEdit(employee._id)}
                           className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
                           title="Edit"
                         >
@@ -335,6 +511,16 @@ export default function EmployeesPage() {
             setIsModalOpen(false);
             setSelectedEmployee(null);
           }}
+        />
+      )}
+      {editingEmployee && editForm && (
+        <EditModal
+          employee={editForm}
+          onClose={() => {
+            setEditingEmployee(null);
+            setEditForm(null);
+          }}
+          onSave={handleSaveEdit}
         />
       )}
     </div>

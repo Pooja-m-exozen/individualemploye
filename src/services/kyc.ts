@@ -1,17 +1,17 @@
-import { KYCResponse } from '@/types/kyc';
+import { KYCResponse, KYCRecord, KYCDocument } from '@/types/kyc';
 import { BASE_URL, getAuthHeaders } from './api';
 import { getAuthToken, getUserRole } from './auth';
 
 export interface ComplianceUpdateResponse {
   success: boolean;
   message: string;
-  data?: any;
+  data?: KYCRecord;
 }
 
 export interface DocumentVerifyResponse {
   success: boolean;
   message: string;
-  data?: any;
+  data?: KYCDocument;
 }
 
 const EMPLOYEE_ID = "67ecbe7d8c75f122c26617ab";
@@ -114,13 +114,16 @@ export const verifyDocument = async (employeeId: string, documentId: string, dat
     }
 
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error verifying document:', error);
-    throw new Error(error.message || 'Failed to verify document');
+    if (error instanceof Error) {
+      throw new Error(error.message);
+    }
+    throw new Error('Failed to verify document');
   }
 };
 
-export const uploadKYCDocuments = async (formData: FormData): Promise<any> => {
+export const uploadKYCDocuments = async (formData: FormData): Promise<{ success: boolean; message: string; data: KYCDocument[] }> => {
   const userRole = getUserRole();
   if (userRole === 'Employee') {
     throw new Error('Unauthorized: Employees cannot upload documents');
@@ -150,15 +153,19 @@ export const uploadKYCDocuments = async (formData: FormData): Promise<any> => {
     }
 
     return data;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error uploading documents:', error);
     throw error;
   }
 };
 
-export default {
+// Create a named export object
+export const kycService = {
   getAllKYCRecords,
   updateKYCCompliance,
   verifyDocument,
   uploadKYCDocuments
 };
+
+// Export the service as default
+export default kycService;

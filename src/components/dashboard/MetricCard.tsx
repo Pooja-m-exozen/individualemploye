@@ -1,3 +1,4 @@
+"uss client";
 import React, { ReactNode } from 'react';
 
 interface MetricCardProps {

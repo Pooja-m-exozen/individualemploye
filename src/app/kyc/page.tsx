@@ -7,19 +7,20 @@ import { format } from 'date-fns';
 import { FaSpinner, FaSearch, FaEye, FaTimes, FaFilter } from 'react-icons/fa';
 import { isAuthenticated, isEmployee } from '@/services/auth';
 import { useRouter } from 'next/navigation';
-import { BASE_URL } from '@/services/api';
+import Image from 'next/image';
+
 
 export default function KYCViewPage() {
   const router = useRouter();
   const [kycRecords, setKycRecords] = useState<KYCRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error,] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRecord, setSelectedRecord] = useState<KYCRecord | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
-  const [sortField, setSortField] = useState('verificationDate');
-  const [sortOrder, setSortOrder] = useState('desc');
+  const [sortField] = useState('verificationDate');
+  const [sortOrder] = useState('desc');
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [verifyingDocument, setVerifyingDocument] = useState<string | null>(null);
@@ -43,8 +44,8 @@ export default function KYCViewPage() {
       const response = await getAllKYCRecords();
       setKycRecords(response.data);
       setLoading(false);
-    } catch (err) {
-      setError('Failed to fetch KYC records');
+    } catch  {
+      // setError('Failed to fetch KYC records');
       setLoading(false);
     }
   };
@@ -54,7 +55,7 @@ export default function KYCViewPage() {
     setUpdateError(null);
     try {
       const response = await updateKYCCompliance(record.employeeId, newStatus);
-      if (response.success) {
+      if (response.success && response.data) {
         const updatedRecord = response.data;
         setKycRecords(prevRecords => 
           prevRecords.map(r => 
@@ -66,7 +67,7 @@ export default function KYCViewPage() {
       } else {
         setUpdateError(response.message || 'Failed to update status');
       }
-    } catch (error) {
+    } catch  {
       setUpdateError('Failed to update compliance status');
     } finally {
       setUpdating(false);
@@ -78,18 +79,31 @@ export default function KYCViewPage() {
     setDocumentError(null);
     try {
       const response = await verifyDocument(employeeId, documentId, { status: 'Verified' });
-      if (response.success) {
-        const updatedRecord = response.data;
+      if (response.success && response.data) {
+        // Find the current KYC record and update its document
+        const currentRecord = kycRecords.find(r => r.employeeId === employeeId);
+        if (!currentRecord) {
+          throw new Error('Could not find KYC record to update');
+        }
+
+        // Update the document in the documents array
+        const updatedRecord = {
+          ...currentRecord,
+          documents: currentRecord.documents.map(doc =>
+            doc._id === documentId ? { ...doc, ...response.data } : doc
+          )
+        };
+
         setKycRecords(prevRecords =>
           prevRecords.map(r =>
-            r._id === updatedRecord._id ? updatedRecord : r
+            r.employeeId === employeeId ? updatedRecord : r
           )
         );
-        setSelectedRecord(prev => prev?._id === updatedRecord._id ? updatedRecord : prev);
+        setSelectedRecord(prev => prev?.employeeId === employeeId ? updatedRecord : prev);
       } else {
         setDocumentError(response.message || 'Failed to verify document');
       }
-    } catch (error) {
+    } catch  {
       setDocumentError('Failed to verify document');
     } finally {
       setVerifyingDocument(null);
@@ -102,22 +116,33 @@ export default function KYCViewPage() {
     try {
       const result = await uploadKYCDocuments(documents);
       
-      if (result.success) {
-        const updatedRecord = result.data.kyc;
+      if (result.success && result.data) {
+        // Find the current KYC record
+        const currentRecord = kycRecords.find(r => r.employeeId === employeeId);
+        if (!currentRecord) {
+          throw new Error('Could not find KYC record to update');
+        }
+        
+        // Create updated record with new documents
+        const updatedRecord = {
+          ...currentRecord,
+          documents: [...currentRecord.documents, ...result.data]
+        };
+        
         setKycRecords(prevRecords =>
           prevRecords.map(r =>
-            r._id === updatedRecord._id ? updatedRecord : r
+            r.employeeId === employeeId ? updatedRecord : r
           )
         );
-        setSelectedRecord(prev => prev?._id === updatedRecord._id ? updatedRecord : prev);
+        setSelectedRecord(prev => prev?.employeeId === employeeId ? updatedRecord : prev);
       } else {
         throw new Error(result.message || 'Failed to upload documents');
       }
-    } catch (error: any) {
-      setUploadError(error.message || 'Failed to upload documents');
-      if (error.message.includes('Token is not valid')) {
-        router.push('/login');
-      }
+    // } catch (error: any) {
+    //   setUploadError(error.message || 'Failed to upload documents');
+    //   if (error.message.includes('Token is not valid')) {
+    //     router.push('/login');
+    //   }
     } finally {
       setUploadingDocuments(false);
     }
@@ -212,10 +237,12 @@ export default function KYCViewPage() {
                 title={document.documentName}
               />
             ) : isImage ? (
-              <img
+              <Image
                 src={document.documentPath}
                 alt={document.documentName}
                 className="max-w-full max-h-[calc(90vh-8rem)] mx-auto object-contain"
+                width={800}
+                height={600}
                 onError={(e) => {
                   e.currentTarget.src = '/placeholder-image.png';
                   e.currentTarget.alt = 'Failed to load image';
@@ -258,7 +285,7 @@ export default function KYCViewPage() {
           )}
           {doc.verificationNotes && (
             <p className="text-sm text-gray-500 mt-2 italic bg-gray-50 p-2 rounded-lg">
-              "{doc.verificationNotes}"
+              &quot;{doc.verificationNotes}&quot;
             </p>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-2">

@@ -1,6 +1,6 @@
 'use client';
 
-import { FaEdit, FaTrash, FaTimes } from 'react-icons/fa';
+import {  FaTimes } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Department {

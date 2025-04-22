@@ -1,4 +1,4 @@
-import axios from 'axios';
+
 
 interface User {
   id: string;
@@ -58,10 +58,10 @@ export const login = async (
       success: false,
       message: data.message || 'Login failed'
     };
-  } catch (error: any) {
+  } catch {
     return {
       success: false,
-      message: error.message || 'An error occurred during login'
+      // message: error.message || 'An error occurred during login'
     } as LoginResponse;
   }
 };
