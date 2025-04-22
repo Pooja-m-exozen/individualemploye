@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { KYCRecord, KYCDocument } from '@/types/kyc';
-import { getAllKYCRecords, updateKYCCompliance, verifyDocument } from '@/services/kyc';
+import { getAllKYCRecords, updateKYCCompliance, verifyDocument, uploadKYCDocuments } from '@/services/kyc';
 import { format } from 'date-fns';
 import { FaSpinner, FaSearch, FaEye, FaTimes, FaFilter } from 'react-icons/fa';
 import { isAuthenticated } from '@/services/auth';
 import { useRouter } from 'next/navigation';
+import { BASE_URL } from '@/services/api';
 
 export default function KYCViewPage() {
   const router = useRouter();
@@ -99,17 +100,9 @@ export default function KYCViewPage() {
     setUploadingDocuments(true);
     setUploadError(null);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/kyc/employees/${employeeId}/documents`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: documents
-      });
-      const result = await response.json();
-
+      const result = await uploadKYCDocuments(documents);
+      
       if (result.success) {
-        // Update the KYC record with new documents
         const updatedRecord = result.data.kyc;
         setKycRecords(prevRecords =>
           prevRecords.map(r =>
@@ -118,10 +111,13 @@ export default function KYCViewPage() {
         );
         setSelectedRecord(prev => prev?._id === updatedRecord._id ? updatedRecord : prev);
       } else {
-        setUploadError(result.message || result.errors?.join(', ') || 'Failed to upload documents');
+        throw new Error(result.message || 'Failed to upload documents');
       }
-    } catch (error) {
-      setUploadError('Failed to upload documents');
+    } catch (error: any) {
+      setUploadError(error.message || 'Failed to upload documents');
+      if (error.message.includes('Token is not valid')) {
+        router.push('/login');
+      }
     } finally {
       setUploadingDocuments(false);
     }
@@ -336,6 +332,7 @@ export default function KYCViewPage() {
         formData.append('documentNumbers', documentNumbers[index] || '');
       });
       formData.append('remarks', remarks);
+      formData.append('employeeId', employeeId); // Add employeeId to FormData
 
       handleDocumentUpload(employeeId, formData);
     };
