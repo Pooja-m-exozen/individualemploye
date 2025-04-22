@@ -5,7 +5,7 @@ import { KYCRecord, KYCDocument } from '@/types/kyc';
 import { getAllKYCRecords, updateKYCCompliance, verifyDocument, uploadKYCDocuments } from '@/services/kyc';
 import { format } from 'date-fns';
 import { FaSpinner, FaSearch, FaEye, FaTimes, FaFilter } from 'react-icons/fa';
-import { isAuthenticated } from '@/services/auth';
+import { isAuthenticated, isEmployee } from '@/services/auth';
 import { useRouter } from 'next/navigation';
 import { BASE_URL } from '@/services/api';
 
@@ -233,88 +233,94 @@ export default function KYCViewPage() {
     );
   };
 
-  const DocumentCard = ({ doc, employeeId }: { doc: KYCDocument; employeeId: string }) => (
-    <div className="bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-500 transition-colors">
-      <div className="flex flex-col h-full">
-        <div className="flex justify-between items-start mb-3">
-          <span className={`px-3 py-1 text-sm font-medium rounded-full 
-            ${doc.verificationStatus === 'Verified' 
-              ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-600/20' 
-              : 'bg-amber-100 text-amber-800 ring-1 ring-amber-600/20'}`}>
-            {doc.verificationStatus}
-          </span>
-        </div>
-        <h4 className="text-base font-medium text-gray-900">{doc.documentType || doc.type}</h4>
-        <p className="text-sm text-gray-500 mt-2">
-          <span className="font-medium">Number:</span> {doc.documentNumber}
-        </p>
-        {getVerificationDate(doc) && (
-          <p className="text-sm text-gray-400 mt-2">
-            <span className="font-medium">Verified:</span> {format(new Date(getVerificationDate(doc)!), 'PPp')}
-          </p>
-        )}
-        {doc.verificationNotes && (
-          <p className="text-sm text-gray-500 mt-2 italic bg-gray-50 p-2 rounded-lg">
-            "{doc.verificationNotes}"
-          </p>
-        )}
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {doc.verificationStatus !== 'Verified' && (
-            <button
-              onClick={() => handleDocumentVerification(employeeId, doc._id)}
-              disabled={verifyingDocument === doc._id}
-              className={`inline-flex items-center px-3 py-1.5 rounded-md
-                ${verifyingDocument === doc._id 
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                  : 'bg-green-600 text-white hover:bg-green-700'} transition-colors`}
-            >
-              {verifyingDocument === doc._id ? (
-                <>
-                  <FaSpinner className="animate-spin h-4 w-4 mr-2" />
-                  Verifying...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Verify Document
-                </>
-              )}
-            </button>
-          )}
-          <button
-            onClick={() => {
-              setSelectedDocument(doc);
-              setIsViewerOpen(true);
-            }}
-            className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            View Document
-          </button>
-          <a
-            href={doc.documentPath}
-            download={doc.documentName}
-            className="inline-flex items-center px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download
-          </a>
-        </div>
-        {documentError && verifyingDocument === doc._id && (
-          <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded-lg">
-            {documentError}
+  const DocumentCard = ({ doc, employeeId }: { doc: KYCDocument; employeeId: string }) => {
+    const isEmployeeUser = isEmployee();
+
+    return (
+      <div className="bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-500 transition-colors">
+        <div className="flex flex-col h-full">
+          <div className="flex justify-between items-start mb-3">
+            <span className={`px-3 py-1 text-sm font-medium rounded-full 
+              ${doc.verificationStatus === 'Verified' 
+                ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-600/20' 
+                : 'bg-amber-100 text-amber-800 ring-1 ring-amber-600/20'}`}>
+              {doc.verificationStatus}
+            </span>
           </div>
-        )}
+          <h4 className="text-base font-medium text-gray-900">{doc.documentType || doc.type}</h4>
+          <p className="text-sm text-gray-500 mt-2">
+            <span className="font-medium">Number:</span> {doc.documentNumber}
+          </p>
+          {getVerificationDate(doc) && (
+            <p className="text-sm text-gray-400 mt-2">
+              <span className="font-medium">Verified:</span> {format(new Date(getVerificationDate(doc)!), 'PPp')}
+            </p>
+          )}
+          {doc.verificationNotes && (
+            <p className="text-sm text-gray-500 mt-2 italic bg-gray-50 p-2 rounded-lg">
+              "{doc.verificationNotes}"
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {/* Only show verify button for admin */}
+            {!isEmployeeUser && doc.verificationStatus !== 'Verified' && (
+              <button
+                onClick={() => handleDocumentVerification(employeeId, doc._id)}
+                disabled={verifyingDocument === doc._id}
+                className={`inline-flex items-center px-3 py-1.5 rounded-md
+                  ${verifyingDocument === doc._id 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-green-600 text-white hover:bg-green-700'} transition-colors`}
+              >
+                {verifyingDocument === doc._id ? (
+                  <>
+                    <FaSpinner className="animate-spin h-4 w-4 mr-2" />
+                    Verifying...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Verify Document
+                  </>
+                )}
+              </button>
+            )}
+            {/* Always show view document button */}
+            <button
+              onClick={() => {
+                setSelectedDocument(doc);
+                setIsViewerOpen(true);
+              }}
+              className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              View Document
+            </button>
+            <a
+              href={doc.documentPath}
+              download={doc.documentName}
+              className="inline-flex items-center px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download
+            </a>
+          </div>
+          {documentError && verifyingDocument === doc._id && (
+            <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded-lg">
+              {documentError}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const DocumentUploadForm = ({ employeeId }: { employeeId: string }) => {
     const [documents, setDocuments] = useState<File[]>([]);
@@ -408,7 +414,7 @@ export default function KYCViewPage() {
                       </div>
                       <div className="flex items-center mt-2 text-sm text-gray-600">
                         <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-6 0v4a1 1 0 01-2 0V7a1 1 0 00-2 0v4a5 5 0 0010 0V7a3 3 0 00-3-3H8z" clipRule="evenodd" />
+                          <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 012 0v4a1 1 0 102 0V7a1 1 0 00-6 0v4a1 1 0 01-2 0V7a1 1 0 00-2 0v4a5 5 0 0010 0V7a3 3 0 00-3-3H8z" clipRule="evenodd" />
                         </svg>
                         {doc.name}
                       </div>
@@ -474,6 +480,116 @@ export default function KYCViewPage() {
       </div>
     );
   };
+
+  const KycDetailsModal = ({ record, onClose }: { record: KYCRecord; onClose: () => void }) => {
+    const isEmployeeUser = isEmployee();
+
+    return (
+      <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl max-w-4xl w-full mx-auto shadow-2xl transform transition-all overflow-hidden max-h-[90vh] flex flex-col">
+          {/* Modal Header */}
+          <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gradient-to-r from-gray-800 to-gray-900 sticky top-0 z-10">
+            <div>
+              <h2 className="text-2xl font-semibold text-white">KYC Details</h2>
+              <p className="text-sm text-gray-400 mt-1">ID: {record._id}</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+              title="Close"
+            >
+              <FaTimes className="text-gray-400 w-5 h-5 hover:text-gray-200" />
+            </button>
+          </div>
+
+          {/* Modal Content */}
+          <div className="p-6 space-y-6 overflow-y-auto bg-white">
+            {/* Compliance Status - Only for Admin */}
+            {!isEmployeeUser && (
+              <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Compliance Status</h3>
+                <div className="flex items-center gap-4">
+                  <select
+                    value={record.complianceStatus}
+                    onChange={(e) => handleStatusUpdate(record, e.target.value)}
+                    disabled={updating}
+                    className="pl-4 pr-10 py-2.5 border bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 text-base"
+                  >
+                    <option value="Passed">✅ Passed</option>
+                    <option value="Pending">⏳ Pending</option>
+                    <option value="Failed">❌ Failed</option>
+                  </select>
+                  {updating && (
+                    <span className="flex items-center gap-2 text-blue-600">
+                      <FaSpinner className="animate-spin" />
+                      <span className="text-sm">Updating...</span>
+                    </span>
+                  )}
+                  {updateError && (
+                    <span className="text-red-500 text-sm flex items-center gap-2">
+                      <FaTimes />
+                      <span>{updateError}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Documents Section */}
+            <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Documents</h3>
+                <div className="text-sm text-gray-500">
+                  {record.documents.filter(d => d.verificationStatus === 'Verified').length} of {record.documents.length} Verified
+                </div>
+              </div>
+
+              {/* Document Upload Form - Only for Admin */}
+              {!isEmployeeUser && <DocumentUploadForm employeeId={record.employeeId} />}
+
+              {/* Document Cards */}
+              <div className="grid gap-4 sm:grid-cols-2 mt-6">
+                {record.documents.map(doc => (
+                  <DocumentCard key={doc._id} doc={doc} employeeId={record.employeeId} />
+                ))}
+              </div>
+            </div>
+
+            {/* Verification Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Verified By</h3>
+                <div className="flex items-center">
+                  <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-base font-medium text-blue-800">
+                      {(record.verifiedBy || 'NA').substring(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-base text-gray-900">{record.verifiedBy || 'Not Assigned'}</p>
+                    <p className="text-sm text-gray-400">Verification Officer</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Last Updated</h3>
+                <div className="space-y-2">
+                  <p className="text-base text-gray-900">
+                    {format(new Date(record.updatedAt), 'PPpp')}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    {format(new Date(record.updatedAt), 'dd MMM yyyy HH:mm')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+  );
+};
 
   return (
     <div className="p-4 lg:p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
@@ -575,102 +691,7 @@ export default function KYCViewPage() {
               </div>
 
               {selectedRecord && (
-                <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-2xl max-w-4xl w-full mx-auto shadow-2xl transform transition-all overflow-hidden max-h-[90vh] flex flex-col">
-                    {/* Modal Header */}
-                    <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gradient-to-r from-gray-800 to-gray-900 sticky top-0 z-10">
-                      <div>
-                        <h2 className="text-2xl font-semibold text-white">KYC Details</h2>
-                        <p className="text-sm text-gray-400 mt-1">ID: {selectedRecord._id}</p>
-                      </div>
-                      <button
-                        onClick={() => setSelectedRecord(null)}
-                        className="p-2 hover:bg-gray-800 rounded-full transition-colors"
-                        title="Close"
-                      >
-                        <FaTimes className="text-gray-400 w-5 h-5 hover:text-gray-200" />
-                      </button>
-                    </div>
-
-                    {/* Modal Content - Scrollable */}
-                    <div className="p-6 space-y-6 overflow-y-auto bg-white">
-                      {/* Status Section */}
-                      <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">Compliance Status</h3>
-                        <div className="flex items-center gap-4">
-                          <select
-                            value={selectedRecord.complianceStatus}
-                            onChange={(e) => handleStatusUpdate(selectedRecord, e.target.value)}
-                            disabled={updating}
-                            className="pl-4 pr-10 py-2.5 border bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 text-base"
-                          >
-                            <option value="Passed" className="bg-white">✅ Passed</option>
-                            <option value="Pending" className="bg-white">⏳ Pending</option>
-                            <option value="Failed" className="bg-white">❌ Failed</option>
-                          </select>
-                          {updating ? (
-                            <div className="flex items-center gap-2 text-blue-600">
-                              <FaSpinner className="animate-spin" />
-                              <span className="text-sm">Updating...</span>
-                            </div>
-                          ) : updateError ? (
-                            <div className="text-red-500 text-sm flex items-center gap-2">
-                              <FaTimes />
-                              <span>{updateError}</span>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {/* Documents Section */}
-                      <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
-                        <div className="flex justify-between items-center mb-4">
-                          <h3 className="text-lg font-medium text-gray-900">Documents</h3>
-                          <div className="text-sm text-gray-500">
-                            {selectedRecord.documents.filter(d => d.verificationStatus === 'Verified').length} of {selectedRecord.documents.length} Verified
-                          </div>
-                        </div>
-                        
-                        <DocumentUploadForm employeeId={selectedRecord.employeeId} />
-                        
-                        <div className="grid gap-4 sm:grid-cols-2 mt-6">
-                          {selectedRecord.documents.map(doc => (
-                            <DocumentCard key={doc._id} doc={doc} employeeId={selectedRecord.employeeId} />
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Verification Details */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
-                          <h3 className="text-lg font-medium text-gray-900 mb-4">Verified By</h3>
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-base font-medium text-blue-800">
-                                {(selectedRecord.verifiedBy || 'NA').substring(0, 2).toUpperCase()}
-                              </span>
-                            </div>
-                            <div className="ml-4">
-                              <p className="text-base text-gray-900">{selectedRecord.verifiedBy || 'Not Assigned'}</p>
-                              <p className="text-sm text-gray-400">Verification Officer</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
-                          <h3 className="text-lg font-medium text-gray-900 mb-4">Last Updated</h3>
-                          <div className="space-y-2">
-                            <p className="text-base text-gray-900">
-                              {format(new Date(selectedRecord.updatedAt), 'PPpp')}
-                            </p>
-                            <p className="text-sm text-gray-400">
-                              {format(new Date(selectedRecord.updatedAt), 'dd MMM yyyy HH:mm')}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <KycDetailsModal record={selectedRecord} onClose={() => setSelectedRecord(null)} />
               )}
 
               <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">

@@ -52,6 +52,11 @@ export const getAllKYCRecords = async (): Promise<KYCResponse> => {
 };
 
 export const updateKYCCompliance = async (employeeId: string | null, status: string): Promise<ComplianceUpdateResponse> => {
+  const userRole = getUserRole();
+  if (userRole === 'Employee') {
+    throw new Error('Unauthorized: Employees cannot update compliance status');
+  }
+
   const FIXED_EMPLOYEE_ID = "67ecbe7d8c75f122c26617ab";
   
   try {
@@ -83,6 +88,11 @@ export const updateKYCCompliance = async (employeeId: string | null, status: str
 };
 
 export const verifyDocument = async (employeeId: string, documentId: string, data: { status: string }): Promise<DocumentVerifyResponse> => {
+  const userRole = getUserRole();
+  if (userRole === 'Employee') {
+    throw new Error('Unauthorized: Employees cannot verify documents');
+  }
+
   try {
     const headers = getAuthHeaders();
     const userRole = getUserRole();
@@ -111,6 +121,11 @@ export const verifyDocument = async (employeeId: string, documentId: string, dat
 };
 
 export const uploadKYCDocuments = async (formData: FormData): Promise<any> => {
+  const userRole = getUserRole();
+  if (userRole === 'Employee') {
+    throw new Error('Unauthorized: Employees cannot upload documents');
+  }
+
   try {
     const token = getAuthToken();
     const userRole = getUserRole();
