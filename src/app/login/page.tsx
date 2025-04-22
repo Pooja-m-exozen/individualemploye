@@ -97,7 +97,7 @@ export default function LoginPage() {
           },
         });
       }
-    } catch (err: any) {
+    } catch  {
       console.error('Login error:', err);
       toast.error('An unexpected error occurred. Please try again.', {
         duration: 3000,

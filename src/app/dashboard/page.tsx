@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { FaUserFriends, FaBuilding, FaBriefcase, FaFileAlt } from 'react-icons/fa';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, ResponsiveContainer, PieChart, Pie, Cell, Legend, TooltipProps } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, ResponsiveContainer, PieChart, Pie, Cell, Legend, TooltipProps } from 'recharts';
 import MetricCard from '@/components/dashboard/MetricCard';
 
 export default function DashboardPage() {

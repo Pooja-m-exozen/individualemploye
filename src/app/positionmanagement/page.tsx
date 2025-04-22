@@ -7,7 +7,7 @@ import { getAuthToken } from '@/services/auth';
 import DepartmentModals from '@/components/department/DepartmentModals';
 import DepartmentSection from '@/components/department/DepartmentSection';
 import { getDepartments, Department } from '@/services/departments';
-import { getDesignations, getDesignationsByDepartment, Designation, updateDesignation, deleteDesignation } from '@/services/designations';
+import { getDesignations, Designation, updateDesignation, deleteDesignation } from '@/services/designations';
 
 export default function PositionManagementPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -31,18 +31,17 @@ export default function PositionManagementPage() {
 
   useEffect(() => {
     fetchDepartments();
-  }, []); // Removed fetchDesignations from initial load
+  }, []); 
 
   const fetchDepartments = async () => {
     try {
       setLoading(true);
       const data = await getDepartments();
       setDepartments(data);
-      // Set the first department as selected and fetch its designations
-      if (data.length > 0) {
-        setSelectedDepartment(data[0]._id);
-        fetchDesignationsByDepartment(data[0]._id);
-      }
+      // Set 'all' as default selection
+      setSelectedDepartment('all');
+      // Fetch all designations initially
+      fetchDesignationsByDepartment('all');
       setError(null);
     } catch (error) {
       setError('Error fetching departments');
@@ -52,27 +51,20 @@ export default function PositionManagementPage() {
     }
   };
 
-  const fetchDesignations = async () => {
-    try {
-      setLoading(true);
-      const data = await getDesignations();
-      setDesignations(data);
-      setError(null);
-    } catch (error) {
-      setError('Error fetching designations');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchDesignationsByDepartment = async (departmentId: string) => {
     try {
       setLoading(true);
-      const data = await getDesignationsByDepartment(departmentId);
-      setDesignations(data);
-      setError(null);
+      const data = await getDesignations(departmentId === 'all' ? undefined : departmentId);
+      if (Array.isArray(data)) {
+        setDesignations(data);
+        setError(null);
+      } else {
+        throw new Error('Invalid data format received');
+      }
     } catch (error) {
+      console.error('Error fetching designations:', error);
       setError('Error fetching designations');
+      setDesignations([]); // Clear designations on error
     } finally {
       setLoading(false);
     }
@@ -112,23 +104,38 @@ export default function PositionManagementPage() {
     e.preventDefault();
     try {
       const token = getAuthToken();
-      const response = await fetch(`${BASE_URL}/api/designations`, {
+      const response = await fetch(`${BASE_URL}/api/departments/designations`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newDesignation),
+        body: JSON.stringify({
+          title: newDesignation.title,
+          departmentId: newDesignation.departmentId || selectedDepartment, // Use selected department if not specified
+          description: newDesignation.description
+        }),
       });
-      if (response.ok) {
-        fetchDesignations();
+
+      if (!response.ok) {
+        throw new Error('Failed to add designation');
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        // Fetch designations for the current department immediately after adding
+        await fetchDesignationsByDepartment(newDesignation.departmentId || selectedDepartment);
         setAddDesignationModalOpen(false);
         setNewDesignation({ title: '', departmentId: '', description: '' });
+
+        // Show success notification (optional)
+        alert('Designation added successfully');
       } else {
-        throw new Error('Failed to add designation');
+        throw new Error(result.message || 'Failed to add designation');
       }
     } catch (error) {
       setError('Error adding designation');
+      console.error('Error:', error);
     }
   };
 
@@ -191,16 +198,11 @@ export default function PositionManagementPage() {
     try {
       await updateDesignation(editingDesignation._id, {
         title: editingDesignation.title,
-        description: editingDesignation.description,
-        departmentId: editingDesignation.department._id,
+        description: editingDesignation.description || '',
+        departmentId: editingDesignation.department?._id || '',
       });
       
-      if (selectedDepartment === 'all') {
-        fetchDesignations();
-      } else {
-        fetchDesignationsByDepartment(selectedDepartment);
-      }
-      
+      fetchDesignationsByDepartment(selectedDepartment);
       setEditDesignationModalOpen(false);
       setEditingDesignation(null);
     } catch (error) {
@@ -214,12 +216,7 @@ export default function PositionManagementPage() {
     try {
       await deleteDesignation(designationToDelete);
       
-      if (selectedDepartment === 'all') {
-        fetchDesignations();
-      } else {
-        fetchDesignationsByDepartment(selectedDepartment);
-      }
-      
+      fetchDesignationsByDepartment(selectedDepartment);
       setDeleteDesignationModalOpen(false);
       setDesignationToDelete(null);
     } catch (error) {
@@ -239,7 +236,7 @@ export default function PositionManagementPage() {
 
   const filteredDesignations = selectedDepartment === 'all'
     ? designations
-    : designations.filter(d => d.department._id === selectedDepartment);
+    : designations.filter(d => d.department && d.department._id === selectedDepartment);
 
   // Enhanced loading state
   const LoadingSpinner = () => (
@@ -285,13 +282,17 @@ export default function PositionManagementPage() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900">{designation.title}</h3>
           </div>
-          <p className="text-sm text-gray-600 mb-4 leading-relaxed">{designation.description}</p>
-          <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-xl w-fit">
-            <FaBuilding className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-600">
-              {designation.department.name}
-            </span>
-          </div>
+          {designation.description && (
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">{designation.description}</p>
+          )}
+          {designation.department && (
+            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-xl w-fit">
+              <FaBuilding className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-600">
+                {designation.department.name}
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-start gap-2">
           <button 
@@ -373,6 +374,7 @@ export default function PositionManagementPage() {
                   shadow-sm hover:border-purple-400 cursor-pointer
                   transition-all duration-200"
               >
+                <option value="all">All Departments</option>
                 {departments.map((dept) => (
                   <option key={dept._id} value={dept._id}>{dept.name}</option>
                 ))}

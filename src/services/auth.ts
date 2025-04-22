@@ -42,6 +42,14 @@ export const login = async (
     const data = await response.json();
 
     if (response.ok) {
+      // Check if user is Admin
+      if (data.user.role !== 'Admin') {
+        return {
+          success: false,
+          message: 'Access denied. Only Admin users are allowed to login.'
+        } as LoginResponse;
+      }
+
       // Store auth data
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));

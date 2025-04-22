@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { BASE_URL } from '@/services/api';
 import { getAuthToken } from '@/services/auth';
@@ -30,11 +30,7 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
     employeeId: ''
   });
 
-  useEffect(() => {
-    fetchEmployee();
-  }, [params.id]);
-
-  const fetchEmployee = async () => {
+  const fetchEmployee = useCallback(async () => {
     try {
       const token = getAuthToken();
       if (!token) {
@@ -54,12 +50,17 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
       } else {
         throw new Error('Failed to fetch employee');
       }
-    } catch (error) {
+    } catch (err) {
+      console.error('Error fetching employee:', err);
       setError('Error fetching employee data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router]);
+
+  useEffect(() => {
+    fetchEmployee();
+  }, [fetchEmployee]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +95,8 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
       } else {
         throw new Error('Failed to update employee');
       }
-    } catch (error) {
+    } catch (err) {
+      console.error('Error updating employee:', err);
       setError('Failed to update employee');
     }
   };
@@ -122,7 +124,8 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
       } else {
         throw new Error('Failed to update status');
       }
-    } catch (error) {
+    } catch (err) {
+      console.error('Error updating status:', err);
       setError('Failed to update status');
     }
   };

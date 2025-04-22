@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { BASE_URL } from '@/services/api';
 import { getAuthToken } from '@/services/auth';
 
+// interface ApiError extends Error {
+//   message: string;
+// }
+
 export default function NewEmployeePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -58,8 +62,12 @@ export default function NewEmployeePage() {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to create employee');
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred');
+      }
     } finally {
       setLoading(false);
     }

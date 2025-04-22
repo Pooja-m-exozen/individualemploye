@@ -4,16 +4,26 @@ import { Department } from './departments';
 export interface Designation {
   _id: string;
   title: string;
-  department: Department;
-  description: string;
+  department?: Department;  // Make department optional
+  description?: string;    // Make description optional
   createdAt: string;
   updatedAt: string;
   __v: number;
 }
 
+// Add type guard function
+export const hasValidDepartment = (designation: Designation): boolean => {
+  return !!designation.department && typeof designation.department === 'object';
+};
+
 interface DesignationResponse {
   success: boolean;
   data: Designation[];
+}
+
+interface SingleDesignationResponse {
+  success: boolean;
+  data: Designation;
 }
 
 export interface UpdateDesignationData {
@@ -22,9 +32,13 @@ export interface UpdateDesignationData {
   departmentId: string;
 }
 
-export const getDesignations = async (): Promise<Designation[]> => {
+export const getDesignations = async (departmentId?: string): Promise<Designation[]> => {
   try {
-    const response = await fetch(`${BASE_URL}/api/designations`, {
+    const url = departmentId 
+      ? `${BASE_URL}/api/departments/designations?departmentId=${departmentId}`
+      : `${BASE_URL}/api/departments/designations`;
+    
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
 
@@ -40,9 +54,9 @@ export const getDesignations = async (): Promise<Designation[]> => {
   }
 };
 
-export const getDesignationsByDepartment = async (departmentId: string): Promise<Designation[]> => {
+export const getDesignationById = async (id: string): Promise<Designation> => {
   try {
-    const response = await fetch(`${BASE_URL}/api/departments/designations?departmentId=${departmentId}`, {
+    const response = await fetch(`${BASE_URL}/api/departments/designations/${id}`, {
       headers: getAuthHeaders(),
     });
 
@@ -50,10 +64,10 @@ export const getDesignationsByDepartment = async (departmentId: string): Promise
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const result: DesignationResponse = await response.json();
+    const result: SingleDesignationResponse = await response.json();
     return result.data;
   } catch (error) {
-    console.error('Error fetching department designations:', error);
+    console.error('Error fetching designation by ID:', error);
     throw error;
   }
 };
