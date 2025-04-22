@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { login, isAuthenticated } from '@/services/auth';
+import { login, isAuthenticated, getInitialRoute } from '@/services/auth';
 import { FaUser, FaLock } from 'react-icons/fa';
 import Image from 'next/image';
 import toast, { Toaster } from 'react-hot-toast';
@@ -83,8 +83,11 @@ export default function LoginPage() {
             fontWeight: 500,
           },
         });
+        
+        // Use role-based routing
+        const initialRoute = getInitialRoute();
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push(initialRoute);
         }, 1000);
       } else {
         toast.error(response.message || 'Login failed. Please check your credentials.', {
@@ -97,8 +100,8 @@ export default function LoginPage() {
           },
         });
       }
-    } catch  {
-      console.error('Login error:', err);
+    } catch (error) {
+      console.error('Login error:', error);
       toast.error('An unexpected error occurred. Please try again.', {
         duration: 3000,
         position: 'top-center',

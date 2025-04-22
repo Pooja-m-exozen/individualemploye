@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { FaUserFriends, FaBuilding, FaBriefcase, FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronDown, FaChevronRight, FaPlus, FaEye, FaEdit, FaChevronLeft, FaMinus } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { logout, isAuthenticated } from '@/services/auth';
+import { logout, isAuthenticated, isEmployee, getUserRole } from '@/services/auth';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -24,9 +24,27 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      router.replace('/login');
-    }
+    const checkAuth = () => {
+      if (!isAuthenticated()) {
+        router.replace('/login');
+        return;
+      }
+
+      const userRole = getUserRole();
+      if (!userRole) {
+        logout();
+        router.replace('/login');
+        return;
+      }
+
+      // Redirect employees away from dashboard
+      if (userRole === 'Employee') {
+        router.replace('/kyc');
+        return;
+      }
+    };
+
+    checkAuth();
   }, [router]);
 
   const handleLogout = () => {
@@ -46,33 +64,50 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     setSidebarExpanded(!isSidebarExpanded);
   };
 
-  const menuItems: MenuItem[] = [
-    {
-      icon: <FaTachometerAlt />,
-      label: 'Dashboard',
-      href: '/dashboard'
-    },
-    {
-      icon: <FaFileAlt />,
-      label: 'KYC Verification',
+  const getMenuItemsByRole = (): MenuItem[] => {
+    const role = getUserRole();
+    
+    if (role === 'Employee') {
+      return [
+        {
+          icon: <FaFileAlt />,
+          label: 'KYC Verification',
           href: '/kyc'
-      // subItems: [
-      //   { icon: <FaEye />, label: 'View All KYC', href: '/kyc' },
-   
-      // ]
-    },
-    {
-      icon: <FaUserFriends />,
-      label: 'Employee Directory',
-      href: '/employees'
-    },
-    {
-      icon: <FaBuilding />,
-      label: 'Position Management',
-    href:'/positionmanagement'
-    },
-  
-  ];
+        },
+        // {
+        //   icon: <FaUserFriends />,
+        //   label: 'Employee Directory',
+        //   href: '/employees'
+        // }
+      ];
+    }
+
+    // Admin menu items
+    return [
+      {
+        icon: <FaTachometerAlt />,
+        label: 'Dashboard',
+        href: '/dashboard'
+      },
+      {
+        icon: <FaFileAlt />,
+        label: 'KYC Verification',
+        href: '/kyc'
+      },
+      {
+        icon: <FaUserFriends />,
+        label: 'Employee Directory',
+        href: '/employees'
+      },
+      {
+        icon: <FaBuilding />,
+        label: 'Position Management',
+        href: '/positionmanagement'
+      },
+    ];
+  };
+
+  const menuItems: MenuItem[] = getMenuItemsByRole();
 
   const renderMenuItem = (item: MenuItem) => {
     const isExpanded = expandedMenus.includes(item.label);

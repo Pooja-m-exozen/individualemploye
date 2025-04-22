@@ -25,6 +25,8 @@ export default function KYCViewPage() {
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<KYCDocument | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [uploadingDocuments, setUploadingDocuments] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const recordsPerPage = 10;
 
   useEffect(() => {
@@ -90,6 +92,38 @@ export default function KYCViewPage() {
       setDocumentError('Failed to verify document');
     } finally {
       setVerifyingDocument(null);
+    }
+  };
+
+  const handleDocumentUpload = async (employeeId: string, documents: FormData) => {
+    setUploadingDocuments(true);
+    setUploadError(null);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/kyc/employees/${employeeId}/documents`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: documents
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        // Update the KYC record with new documents
+        const updatedRecord = result.data.kyc;
+        setKycRecords(prevRecords =>
+          prevRecords.map(r =>
+            r._id === updatedRecord._id ? updatedRecord : r
+          )
+        );
+        setSelectedRecord(prev => prev?._id === updatedRecord._id ? updatedRecord : prev);
+      } else {
+        setUploadError(result.message || result.errors?.join(', ') || 'Failed to upload documents');
+      }
+    } catch (error) {
+      setUploadError('Failed to upload documents');
+    } finally {
+      setUploadingDocuments(false);
     }
   };
 
@@ -286,6 +320,164 @@ export default function KYCViewPage() {
     </div>
   );
 
+  const DocumentUploadForm = ({ employeeId }: { employeeId: string }) => {
+    const [documents, setDocuments] = useState<File[]>([]);
+    const [documentTypes, setDocumentTypes] = useState<string[]>([]);
+    const [documentNumbers, setDocumentNumbers] = useState<string[]>([]);
+    const [remarks, setRemarks] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      const formData = new FormData();
+      
+      documents.forEach((file, index) => {
+        formData.append('documents', file);
+        formData.append('documentTypes', documentTypes[index] || '');
+        formData.append('documentNumbers', documentNumbers[index] || '');
+      });
+      formData.append('remarks', remarks);
+
+      handleDocumentUpload(employeeId, formData);
+    };
+
+    return (
+      <div className="bg-white p-6 rounded-xl border border-gray-200 mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload New Documents</h3>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-center w-full">
+              <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <svg className="w-8 h-8 mb-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p className="mb-2 text-sm text-gray-700">
+                    <span className="font-semibold">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-gray-500">PDF, PNG, JPG or GIF (MAX. 10MB)</p>
+                </div>
+                <input
+                  id="dropzone-file"
+                  type="file"
+                  className="hidden"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setDocuments(files);
+                    setDocumentTypes(new Array(files.length).fill(''));
+                    setDocumentNumbers(new Array(files.length).fill(''));
+                  }}
+                />
+              </label>
+            </div>
+
+            {documents.length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Selected Documents</h4>
+                <div className="space-y-3">
+                  {documents.map((doc, index) => (
+                    <div key={index} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
+                          <input
+                            type="text"
+                            placeholder="e.g., Passport, ID Card"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                            value={documentTypes[index] || ''}
+                            onChange={(e) => {
+                              const newTypes = [...documentTypes];
+                              newTypes[index] = e.target.value;
+                              setDocumentTypes(newTypes);
+                            }}
+                            required
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Document Number</label>
+                          <input
+                            type="text"
+                            placeholder="Enter document number"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                            value={documentNumbers[index] || ''}
+                            onChange={(e) => {
+                              const newNumbers = [...documentNumbers];
+                              newNumbers[index] = e.target.value;
+                              setDocumentNumbers(newNumbers);
+                            }}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center mt-2 text-sm text-gray-600">
+                        <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-6 0v4a1 1 0 01-2 0V7a1 1 0 00-2 0v4a5 5 0 0010 0V7a3 3 0 00-3-3H8z" clipRule="evenodd" />
+                        </svg>
+                        {doc.name}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
+              <textarea
+                placeholder="Add any additional notes or remarks"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 min-h-[100px]"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                setDocuments([]);
+                setDocumentTypes([]);
+                setDocumentNumbers([]);
+                setRemarks('');
+              }}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Clear All
+            </button>
+            <button
+              type="submit"
+              disabled={uploadingDocuments || documents.length === 0}
+              className={`px-4 py-2 text-sm font-medium rounded-lg ${
+                uploadingDocuments || documents.length === 0
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+              }`}
+            >
+              {uploadingDocuments ? (
+                <span className="flex items-center">
+                  <FaSpinner className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                  Uploading...
+                </span>
+              ) : (
+                'Upload Documents'
+              )}
+            </button>
+          </div>
+
+          {uploadError && (
+            <div className="mt-2 p-4 text-sm text-red-700 bg-red-100 rounded-lg">
+              <div className="flex items-center">
+                <FaTimes className="flex-shrink-0 mr-2" />
+                <span>{uploadError}</span>
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
+    );
+  };
+
   return (
     <div className="p-4 lg:p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       <div className="max-w-7xl mx-auto">
@@ -441,7 +633,10 @@ export default function KYCViewPage() {
                             {selectedRecord.documents.filter(d => d.verificationStatus === 'Verified').length} of {selectedRecord.documents.length} Verified
                           </div>
                         </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        
+                        <DocumentUploadForm employeeId={selectedRecord.employeeId} />
+                        
+                        <div className="grid gap-4 sm:grid-cols-2 mt-6">
                           {selectedRecord.documents.map(doc => (
                             <DocumentCard key={doc._id} doc={doc} employeeId={selectedRecord.employeeId} />
                           ))}

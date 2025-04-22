@@ -42,14 +42,6 @@ export const login = async (
     const data = await response.json();
 
     if (response.ok) {
-      // Check if user is Admin
-      if (data.user.role !== 'Admin') {
-        return {
-          success: false,
-          message: 'Access denied. Only Admin users are allowed to login.'
-        } as LoginResponse;
-      }
-
       // Store auth data
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
@@ -117,4 +109,27 @@ export const getAuthToken = (): string | null => {
 
 export const clearAuthToken = (): void => {
   localStorage.removeItem(TOKEN_KEY);
+};
+
+export const getUserRole = (): string | null => {
+  const user = getUser();
+  return user?.role || null;
+};
+
+export const isEmployee = (): boolean => {
+  const role = getUserRole();
+  return role === 'Employee';
+};
+
+export const isAdmin = (): boolean => {
+  const role = getUserRole();
+  return role === 'Admin';
+};
+
+export const getInitialRoute = (): string => {
+  const role = getUserRole();
+  if (role === 'Employee') {
+    return '/kyc';
+  }
+  return '/dashboard';
 };
