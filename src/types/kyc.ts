@@ -19,25 +19,77 @@ export interface ComplianceCheck {
   notes: string;
 }
 
-export interface KYCRecord {
-  _id: string;
+export interface PersonalDetails {
   employeeId: string;
-  employee?: string;
-  documents: KYCDocument[];
-  complianceStatus: string;
-  overallStatus?: string;
-  complianceCheck?: ComplianceCheck;
-  remarks?: string;
-  complianceNotes?: string;
-  verificationDate?: string;
-  verifiedBy?: string;
+  projectName: string;
+  fullName: string;
+  fathersName: string;
+  mothersName: string;
+  gender: string;
+  dob: string;
+  phoneNumber: string;
+  designation: string;
+  dateOfJoining: string;
+  nationality: string;
+  religion: string;
+  maritalStatus: string;
+  bloodGroup: string;
+  uanNumber: string;
+  esicNumber: string;
+  experience: string;
+  educationalQualification: string;
+  languages: string[];
+  employeeImage: string;
+  email: string;
+  workType: string;
+}
+
+export interface Address {
+  state: string;
+  city: string;
+  street: string;
+  postalCode: string;
+}
+
+export interface AddressDetails {
+  permanentAddress: Address;
+  currentAddress: Address;
+}
+
+export interface BankDetails {
+  bankName: string;
+  branchName: string;
+  accountNumber: string;
+  ifscCode: string;
+}
+
+export interface IdentificationDetails {
+  identificationType: string;
+  identificationNumber: string;
+}
+
+export interface EmergencyContact {
+  name: string;
+  phone: string;
+  relationship: string;
+  aadhar: string;
+}
+
+export interface KYCRecord {
+  documents: any;
+  _id: string;
+  status: string;
   createdAt: string;
   updatedAt: string;
+  personalDetails: PersonalDetails;
+  addressDetails: AddressDetails;
+  bankDetails: BankDetails;
+  identificationDetails: IdentificationDetails;
+  emergencyContact: EmergencyContact;
   __v: number;
 }
 
 export interface KYCResponse {
-  success: boolean;
-  count: number;
-  data: KYCRecord[];
+  message: string;
+  kycForms: KYCRecord[];
 }

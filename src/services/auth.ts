@@ -1,5 +1,3 @@
-
-
 interface User {
   id: string;
   username: string;
@@ -46,6 +44,9 @@ export const login = async (
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       localStorage.setItem(EXPIRES_AT_KEY, data.expiresAt || data.session.expiresAt);
+      // Store both the original and the kyc-specific email format
+      localStorage.setItem('userEmail', data.user.email);
+      localStorage.setItem('kycEmail', data.user.email.replace('@exozen.in', '.dn@exozen.in'));
       
       return {
         ...data,
@@ -70,6 +71,7 @@ export const logout = () => {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(EXPIRES_AT_KEY);
+  localStorage.removeItem('userEmail');
   // Use window.location.href for a full page refresh on logout
   window.location.href = '/login';
 };
@@ -132,4 +134,10 @@ export const getInitialRoute = (): string => {
     return '/kyc';
   }
   return '/dashboard';
+};
+
+export const getUserEmail = (): string | null => {
+  const user = getUser();
+  // Try to get the KYC-specific email format first
+  return localStorage.getItem('kycEmail') || user?.email || localStorage.getItem('userEmail');
 };

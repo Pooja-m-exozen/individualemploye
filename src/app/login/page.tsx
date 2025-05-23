@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { login, isAuthenticated, getInitialRoute } from '@/services/auth';
 import { FaUser, FaLock } from 'react-icons/fa';
-import Image from 'next/image';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
@@ -117,14 +116,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
-
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-gray-50 to-indigo-50">
       <Toaster 
         toastOptions={{
           className: '',
           style: {
             padding: '16px',
-            borderRadius: '8px',
+            borderRadius: '12px',
             fontSize: '14px',
           },
         }}
@@ -134,124 +132,111 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-[420px] bg-white/95 backdrop-blur-sm rounded-2xl shadow-[0_20px_50px_rgba(8,_112,_184,_0.7)] p-8 mx-4"
+        className="w-full max-w-md p-8 bg-white/80 backdrop-blur-lg rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100"
       >
-        {/* Logo section */}
-        <div className="flex justify-center mb-6">
-          <motion.div 
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="h-16 w-16 relative"
-          >
-            <Image 
-              src="/logo-exo .png" 
-              alt="Material Flow" 
-              width={80} 
-              height={80} 
-              className="rounded-full shadow-lg" 
-              priority
-            />
-          </motion.div>
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
+          <p className="mt-3 text-gray-600">Please enter your details to sign in</p>
         </div>
 
-        <h2 className="text-center text-3xl font-bold mb-2">
-          <span className="bg-gradient-to-r from-indigo-600 to-blue-500 bg-clip-text text-transparent">
-            Welcome Back
-          </span>
-        </h2>
-        <p className="text-center text-sm text-gray-500 mb-8">
-          Login to your account
-        </p>
-
-        <div className="bg-white/50 backdrop-blur-md rounded-xl p-6 shadow-inner">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Username
-                </label>
-                <div className="relative group">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-600 transition-colors">
-                    <FaUser />
-                  </span>
-                  <input
-                    id="username"
-                    type="text"
-                    value={username}
-                    onChange={(e) => {
-                      setUsername(e.target.value);
-                      setFieldErrors(prev => ({ ...prev, username: '' }));
-                    }}
-                    required
-                    className={`mt-1 w-full pl-10 pr-3 py-2.5 border ${
-                      fieldErrors.username ? 'border-red-500' : 'border-gray-300'
-                    } rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none text-gray-900 transition-all duration-200 bg-white/50 backdrop-blur-sm hover:border-indigo-400`}
-                    placeholder="Enter your username"
-                  />
-                </div>
-                {fieldErrors.username && (
-                  <p className="mt-1 text-sm text-red-600">{fieldErrors.username}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Password
-                </label>
-                <div className="relative group">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-600 transition-colors">
-                    <FaLock />
-                  </span>
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setFieldErrors(prev => ({ ...prev, password: '' }));
-                    }}
-                    required
-                    className={`mt-1 w-full pl-10 pr-3 py-2.5 border ${
-                      fieldErrors.password ? 'border-red-500' : 'border-gray-300'
-                    } rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none text-gray-900 transition-all duration-200 bg-white/50 backdrop-blur-sm hover:border-indigo-400`}
-                    placeholder="Enter your password"
-                  />
-                </div>
-                {fieldErrors.password && (
-                  <p className="mt-1 text-sm text-red-600">{fieldErrors.password}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors duration-200 hover:underline"
-              >
-                Forgot password?
-              </button>
-            </div>
-
-            <motion.button
-              type="submit"
-              disabled={isLoading}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              className="w-full bg-gradient-to-r from-indigo-600 to-blue-500 text-white py-3 rounded-xl hover:opacity-90 transition duration-200 font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Logging in...
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-5">
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                Username
+              </label>
+              <div className="relative group">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-hover:text-blue-600 transition-colors">
+                  <FaUser className="w-4 h-4" />
                 </span>
-              ) : 'Login'}
-            </motion.button>
-          </form>
-        </div>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    setFieldErrors(prev => ({ ...prev, username: '' }));
+                  }}
+                  required
+                  className={`block w-full pl-10 pr-3 py-3 border-2 ${
+                    fieldErrors.username ? 'border-red-500' : 'border-gray-200'
+                  } rounded-xl text-gray-900 placeholder:text-gray-400 
+                  focus:ring-4 focus:ring-blue-100 focus:border-blue-600 
+                  hover:border-blue-400 transition-all duration-200`}
+                  placeholder="Enter your username"
+                />
+                {fieldErrors.username && (
+                  <p className="mt-1.5 text-sm text-red-600">{fieldErrors.username}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
+              <div className="relative group">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-hover:text-blue-600 transition-colors">
+                  <FaLock className="w-4 h-4" />
+                </span>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setFieldErrors(prev => ({ ...prev, password: '' }));
+                  }}
+                  required
+                  className={`block w-full pl-10 pr-3 py-3 border-2 ${
+                    fieldErrors.password ? 'border-red-500' : 'border-gray-200'
+                  } rounded-xl text-gray-900 placeholder:text-gray-400 
+                  focus:ring-4 focus:ring-blue-100 focus:border-blue-600 
+                  hover:border-blue-400 transition-all duration-200`}
+                  placeholder="Enter your password"
+                />
+                {fieldErrors.password && (
+                  <p className="mt-1.5 text-sm text-red-600">{fieldErrors.password}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="flex items-center">
+              <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
+              <span className="ml-2 text-sm text-gray-600">Remember me</span>
+            </label>
+            <button
+              type="button"
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+            >
+              Forgot password?
+            </button>
+          </div>
+
+          <motion.button
+            type="submit"
+            disabled={isLoading}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className="w-full flex justify-center py-3 px-4 border border-transparent 
+            rounded-xl text-sm font-semibold text-white bg-blue-600 
+            hover:bg-blue-700 focus:outline-none focus:ring-4 
+            focus:ring-blue-100 disabled:opacity-50 disabled:cursor-not-allowed
+            transition-colors duration-200 shadow-sm"
+          >
+            {isLoading ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Signing in...
+              </span>
+            ) : 'Sign in'}
+          </motion.button>
+        </form>
       </motion.div>
     </div>
   );

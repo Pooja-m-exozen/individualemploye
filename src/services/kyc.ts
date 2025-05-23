@@ -1,6 +1,6 @@
 import { KYCResponse, KYCRecord, KYCDocument } from '@/types/kyc';
-import { BASE_URL, getAuthHeaders } from './api';
-import { getAuthToken, getUserRole } from './auth';
+import { api } from './api';
+import { getAuthToken, getUserRole, getUserEmail } from './auth';
 
 export interface ComplianceUpdateResponse {
   success: boolean;
@@ -19,34 +19,102 @@ const EMPLOYEE_ID = "67ecbe7d8c75f122c26617ab";
 export const getAllKYCRecords = async (): Promise<KYCResponse> => {
   try {
     const userRole = getUserRole();
-    const endpoint = userRole === 'Employee' 
-      ? `${BASE_URL}/api/kyc/employees/${EMPLOYEE_ID}`
-      : `${BASE_URL}/api/kyc`;
+    const userEmail = getUserEmail();
 
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    console.log('Fetching KYC records for:', { userRole, userEmail });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to fetch KYC records');
-    }
-
-    const data = await response.json();
+    const response = await api.get('https://cafm.zenapi.co.in/api/kyc');
     
-    // Transform employee response to match admin response format
-    if (userRole === 'Employee') {
-      return {
-        success: data.success,
-        data: [data.data], // Wrap single record in array
-        count: 1 // Single record count
-      };
+    // Ensure we have a valid response
+    if (!response.data || !response.data.kycForms) {
+      throw new Error('Invalid KYC response format');
     }
 
-    return data;
+    const kycData = response.data as KYCResponse;
+
+    if (userRole === 'Employee' && userEmail) {
+      // Transform email to match KYC system format if needed
+      const kycEmail = userEmail.includes('.dn@') ? userEmail : userEmail.replace('@exozen.in', '.dn@exozen.in');
+      console.log('Looking for KYC records with email:', kycEmail);
+
+      // Filter with null checks and proper email comparison
+      kycData.kycForms = kycData.kycForms.filter(record => {
+        if (!record || !record.personalDetails || !record.personalDetails.email) {
+          console.log('Skipping invalid record:', record);
+          return false;
+        }
+        const matches = record.personalDetails.email.toLowerCase() === kycEmail.toLowerCase();
+        if (matches) {
+          console.log('Found matching KYC record:', record._id);
+        }
+        return matches;
+      });
+    }
+
+    if (kycData.kycForms.length === 0) {
+      console.log('No KYC records found after filtering');
+    }
+
+    return {
+      message: kycData.message || 'KYC records retrieved',
+      kycForms: kycData.kycForms
+    };
   } catch (error) {
     console.error('Error fetching KYC records:', error);
+    return {
+      message: 'Error fetching KYC records',
+      kycForms: []
+    };
+  }
+};
+
+export const getKYCByEmail = async (email: string): Promise<KYCRecord | null> => {
+  try {
+    if (!email) {
+      console.error('Email parameter is required');
+      return null;
+    }
+
+    // Transform email to match KYC system format if needed
+    const kycEmail = email.includes('.dn@') ? email : email.replace('@exozen.in', '.dn@exozen.in');
+    console.log('Fetching KYC for email:', kycEmail);
+
+    const response = await api.get('https://cafm.zenapi.co.in/api/kyc');
+    
+    if (!response.data || !response.data.kycForms) {
+      console.error('Invalid API response format');
+      return null;
+    }
+
+    const kycData = response.data as KYCResponse;
+    const kycRecord = kycData.kycForms.find(record => 
+      record?.personalDetails?.email?.toLowerCase() === kycEmail.toLowerCase()
+    );
+
+    if (!kycRecord) {
+      console.log('No KYC record found for email:', kycEmail);
+      return null;
+    }
+
+    console.log('Found KYC record:', kycRecord._id);
+    return kycRecord;
+  } catch (error) {
+    console.error('Error fetching KYC by email:', error);
+    return null;
+  }
+};
+
+export const updateKYCStatus = async (kycId: string, status: string): Promise<KYCRecord> => {
+  try {
+    const userRole = getUserRole();
+    if (userRole === 'Employee') {
+      throw new Error('Unauthorized: Employees cannot update KYC status');
+    }
+
+    const response = await api.patch(`/kyc/${kycId}`, { status });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating KYC status:', error);
     throw error;
   }
 };
@@ -57,30 +125,9 @@ export const updateKYCCompliance = async (employeeId: string | null, status: str
     throw new Error('Unauthorized: Employees cannot update compliance status');
   }
 
-  const FIXED_EMPLOYEE_ID = "67ecbe7d8c75f122c26617ab";
-  
   try {
-    console.log('Updating compliance for employee:', FIXED_EMPLOYEE_ID);
-    
-    const response = await fetch(`${BASE_URL}/api/kyc/employees/${FIXED_EMPLOYEE_ID}/compliance`, {
-      method: 'PATCH',
-      headers: {
-        ...getAuthHeaders(),
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({ status }),
-      credentials: 'include'
-    });
-
-    console.log('Response status:', response.status);
-    const data = await response.json();
-    console.log('Response data:', data);
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to update compliance status');
-    }
-
-    return data;
+    const response = await api.patch(`/kyc/employees/${employeeId}/compliance`, { status });
+    return response.data;
   } catch (error) {
     console.error('Error updating compliance:', error);
     throw new Error('Failed to update compliance status');
@@ -94,26 +141,12 @@ export const verifyDocument = async (employeeId: string, documentId: string, dat
   }
 
   try {
-    const headers = getAuthHeaders();
-    const userRole = getUserRole();
-    const targetEmployeeId = userRole === 'Employee' ? EMPLOYEE_ID : employeeId;
-
-    const response = await fetch(
-      `${BASE_URL}/api/kyc/employees/${targetEmployeeId}/documents/${documentId}/verify`,
-      {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify(data),
-        credentials: 'include'
-      }
+    const response = await api.patch(
+      `/kyc/employees/${employeeId}/documents/${documentId}/verify`,
+      data
     );
 
-    const result = await response.json();
-    if (!response.ok) {
-      throw new Error(result.message || 'Failed to verify document');
-    }
-
-    return result;
+    return response.data;
   } catch (error: unknown) {
     console.error('Error verifying document:', error);
     if (error instanceof Error) {
@@ -125,34 +158,20 @@ export const verifyDocument = async (employeeId: string, documentId: string, dat
 
 export const uploadKYCDocuments = async (formData: FormData): Promise<{ success: boolean; message: string; data: KYCDocument[] }> => {
   const userRole = getUserRole();
-  if (userRole === 'Employee') {
-    throw new Error('Unauthorized: Employees cannot upload documents');
+  const userEmail = localStorage.getItem('userEmail');
+
+  if (!userEmail) {
+    throw new Error('User email not found');
   }
 
   try {
-    const token = getAuthToken();
-    const userRole = getUserRole();
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`
-    };
-    
-    const endpoint = userRole === 'Employee'
-      ? `${BASE_URL}/api/kyc/employees/${EMPLOYEE_ID}/documents`
-      : `${BASE_URL}/api/kyc/employees/6805f9b86c3823add8364782/documents`;
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: formData,
-      credentials: 'include'
+    const response = await api.post(`/kyc/employees/documents`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to upload documents');
-    }
-
-    return data;
+    return response.data;
   } catch (error: unknown) {
     console.error('Error uploading documents:', error);
     throw error;
@@ -162,6 +181,8 @@ export const uploadKYCDocuments = async (formData: FormData): Promise<{ success:
 // Create a named export object
 export const kycService = {
   getAllKYCRecords,
+  getKYCByEmail,
+  updateKYCStatus,
   updateKYCCompliance,
   verifyDocument,
   uploadKYCDocuments
