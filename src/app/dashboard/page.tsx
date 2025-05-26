@@ -110,6 +110,7 @@ export default function Dashboard() {
   const [birthdays, setBirthdays] = useState<BirthdayResponse | null>(null);
   const [anniversaries, setAnniversaries] = useState<WorkAnniversaryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isHovered, setIsHovered] = useState<string | null>(null);
   
   useEffect(() => {
     const fetchKycData = async () => {
@@ -156,22 +157,22 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Welcome Section Skeleton */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 animate-pulse">
+            <div className="h-8 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-1/3 mb-4"></div>
+            <div className="h-4 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-1/4"></div>
           </div>
 
           {/* Celebrations Section Skeleton */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {[1, 2].map((i) => (
-              <div key={i} className="bg-white rounded-2xl shadow-lg p-6 animate-pulse">
-                <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div key={i} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 animate-pulse">
+                <div className="h-6 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-1/2 mb-4"></div>
                 <div className="space-y-4">
                   {[1, 2].map((j) => (
-                    <div key={j} className="h-20 bg-gray-200 rounded"></div>
+                    <div key={j} className="h-20 bg-gradient-to-r from-gray-200 to-gray-300 rounded"></div>
                   ))}
                 </div>
               </div>
@@ -179,15 +180,15 @@ export default function Dashboard() {
           </div>
 
           {/* Navigation Skeleton */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 animate-pulse">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 animate-pulse">
             <div className="flex gap-4 mb-6">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-10 bg-gray-200 rounded w-24"></div>
+                <div key={i} className="h-10 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-24"></div>
               ))}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="h-32 bg-gray-200 rounded"></div>
+                <div key={i} className="h-32 bg-gradient-to-r from-gray-200 to-gray-300 rounded"></div>
               ))}
             </div>
           </div>
@@ -198,8 +199,8 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 text-center transform hover:scale-[1.02] transition-all duration-300">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -209,7 +210,7 @@ export default function Dashboard() {
           <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 transform hover:scale-105"
           >
             Try Again
             <svg className="ml-2 -mr-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -234,17 +235,23 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Welcome Section - Enhanced */}
-        <div className="bg-white rounded-2xl shadow-lg border border-indigo-100 overflow-hidden transform hover:scale-[1.01] transition-all duration-300">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-indigo-100 overflow-hidden transform hover:scale-[1.01] transition-all duration-300">
           <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="space-y-2">
-                <h1 className="text-4xl font-bold text-gray-900">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                   Welcome back, <span className="text-black">{kycData.personalDetails.fullName}</span>
                 </h1>
-                <p className="text-gray-600">{kycData.personalDetails.designation} • {kycData.personalDetails.employeeId}</p>
+                <p className="text-gray-600 flex items-center gap-2">
+                  <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+                    {kycData.personalDetails.designation}
+                  </span>
+                  <span className="text-gray-400">•</span>
+                  <span className="text-gray-700">{kycData.personalDetails.employeeId}</span>
+                </p>
               </div>
               <div className="flex gap-4">
                 <QuickStatCard
@@ -269,7 +276,7 @@ export default function Dashboard() {
           {/* Birthdays Section */}
           <div className="relative group h-full">
             <div className="absolute inset-0 bg-gradient-to-r from-fuchsia-100 to-purple-100 rounded-2xl transform rotate-1 scale-105 opacity-0 group-hover:opacity-100 transition-all duration-500" />
-            <div className="relative bg-white rounded-2xl shadow-lg border border-fuchsia-200 overflow-hidden 
+            <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-fuchsia-200 overflow-hidden 
               hover:shadow-xl transition-all duration-500 h-full flex flex-col group/card
               hover:border-fuchsia-300 hover:-translate-y-1 transform">
               <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-50 via-pink-50 to-purple-50 opacity-0 
@@ -354,7 +361,7 @@ export default function Dashboard() {
           {/* Work Anniversaries Section - Enhanced */}
           <div className="relative group h-full">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-2xl transform rotate-1 scale-105 opacity-0 group-hover:opacity-100 transition-all duration-500" />
-            <div className="relative bg-white rounded-2xl shadow-lg border border-blue-100 overflow-hidden hover:shadow-xl transition-all duration-500 h-full flex flex-col">
+            <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-blue-100 overflow-hidden hover:shadow-xl transition-all duration-500 h-full flex flex-col">
               <FloatingParticles />
               <div className="bg-gradient-to-r from-blue-100 to-indigo-100 p-6">
                 <h2 className="text-2xl font-bold text-blue-800 flex items-center gap-4">
@@ -407,20 +414,23 @@ export default function Dashboard() {
         </div>
 
         {/* Navigation Tabs - Enhanced */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
           <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100/50 backdrop-blur-sm sticky top-0 z-10">
             <div className="flex flex-wrap gap-2 p-4">
               {navigationItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setActiveSection(item.id)}
+                  onMouseEnter={() => setIsHovered(item.id)}
+                  onMouseLeave={() => setIsHovered(null)}
                   className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 text-sm font-medium
                     ${activeSection === item.id
                       ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg scale-105 hover:shadow-indigo-500/25'
                       : 'hover:bg-white hover:text-indigo-600 hover:shadow-md text-gray-600'
                     }`}
                 >
-                  <item.icon className={`text-lg ${activeSection === item.id ? 'animate-bounce' : ''}`} />
+                  <item.icon className={`text-lg ${activeSection === item.id ? 'animate-bounce' : ''} 
+                    ${isHovered === item.id ? 'transform scale-110' : ''}`} />
                   <span>{item.label}</span>
                 </button>
               ))}
@@ -438,7 +448,7 @@ export default function Dashboard() {
                       <div key={key} 
                         className="group bg-gradient-to-br from-white to-gray-50/50 rounded-xl p-6 border border-gray-100 
                           hover:border-indigo-200 hover:shadow-lg hover:bg-white
-                          transition-all duration-300"
+                          transition-all duration-300 transform hover:-translate-y-1"
                       >
                         <div className="flex items-start gap-4">
                           <div className="p-3 rounded-lg bg-indigo-50 group-hover:bg-indigo-100 transition-colors">
@@ -588,7 +598,7 @@ const QuickStatCard = ({ label, value, bgColor, textColor }: {
   bgColor: string;
   textColor: string;
 }) => (
-  <div className={`p-4 rounded-xl bg-gradient-to-br ${bgColor} border border-white/50 hover:shadow-lg transition-all duration-300`}>
+  <div className={`p-4 rounded-xl bg-gradient-to-br ${bgColor} border border-white/50 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1`}>
     <p className="text-xs font-medium text-gray-600 mb-1">{label}</p>
     <p className={`text-lg font-bold ${textColor}`}>{value}</p>
   </div>
