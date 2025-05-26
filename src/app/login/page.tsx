@@ -119,11 +119,8 @@ export default function LoginPage() {
           },
         });
         
-        // Use role-based routing
-        const initialRoute = getInitialRoute();
-        setTimeout(() => {
-          router.push(initialRoute);
-        }, 1000);
+        // Navigate to dashboard immediately
+        router.push('/dashboard');
       } else {
         toast.error(response.message || 'Login failed. Please check your credentials.', {
           duration: 3000,
@@ -436,11 +433,11 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.4 }}
-              className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent 
-              rounded-lg text-sm font-semibold text-white ${theme === 'dark' ? 'bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900' : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'} 
+              className={`w-full flex justify-center items-center py-3.5 px-4 border border-transparent 
+              rounded-lg text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} ${theme === 'dark' ? 'bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900' : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'} 
               focus:outline-none focus:ring-2 
               ${theme === 'dark' ? 'focus:ring-blue-900' : 'focus:ring-blue-100'} disabled:opacity-50 disabled:cursor-not-allowed
-              transition-all duration-200 shadow-md"
+              transition-all duration-200 shadow-md`}
             >
               {isLoading ? (
                 <span className="flex items-center">

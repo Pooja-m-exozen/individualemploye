@@ -178,6 +178,16 @@ export const uploadKYCDocuments = async (formData: FormData): Promise<{ success:
   }
 };
 
+export const updateKYCInformation = async (employeeId: string, kycData: Partial<KYCRecord>): Promise<{ message: string; updatedKYC: KYCRecord }> => {
+  try {
+    const response = await api.put(`https://cafm.zenapi.co.in/api/kyc/${employeeId}`, kycData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating KYC information:', error);
+    throw error;
+  }
+};
+
 // Create a named export object
 export const kycService = {
   getAllKYCRecords,
@@ -185,7 +195,8 @@ export const kycService = {
   updateKYCStatus,
   updateKYCCompliance,
   verifyDocument,
-  uploadKYCDocuments
+  uploadKYCDocuments,
+  updateKYCInformation
 };
 
 // Export the service as default

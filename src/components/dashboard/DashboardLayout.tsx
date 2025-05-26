@@ -1,7 +1,7 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import type { JSX } from 'react';
 import Image from 'next/image';
-import { FaUserFriends, FaBuilding, FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus, FaChevronLeft, FaMinus, FaUser, FaCalendarAlt, FaMoneyBillWave, FaTasks, FaReceipt, FaHeadset, FaFileContract, FaDoorOpen, FaBell, FaSearch, FaIdCard, FaEnvelope } from 'react-icons/fa';
+import { FaUserFriends, FaBuilding, FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus, FaChevronLeft, FaMinus, FaUser, FaCalendarAlt, FaMoneyBillWave, FaTasks, FaReceipt, FaHeadset, FaFileContract, FaDoorOpen, FaBell, FaSearch, FaIdCard, FaEnvelope, FaTimes, FaBars } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { logout, isAuthenticated, getUserRole } from '@/services/auth';
@@ -96,62 +96,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const getMenuItemsByRole = (): MenuItem[] => {
     const role = getUserRole();
     
-    if (role === 'Employee') {
-      return [
-        {
-          icon: <FaTachometerAlt />,
-          label: 'Dashboard',
-          href: '/dashboard'
-        },
-        {
-          icon: <FaUser />,
-          label: 'Know Me',
-          href: '/kyc'
-        },
-        {
-          icon: <FaCalendarAlt />,
-          label: 'Attendance',
-          href: '/attendance'
-        },
-        {
-          icon: <FaFileAlt />,
-          label: 'Leave Management',
-          href: '/leave-management'
-        },
-        {
-          icon: <FaMoneyBillWave />,
-          label: 'Payslip',
-          href: '/payslip'
-        },
-        {
-          icon: <FaTasks />,
-          label: 'Tasks and Project',
-          href: '/tasks'
-        },
-        {
-          icon: <FaReceipt />,
-          label: 'Expense Reimbursement',
-          href: '/expense'
-        },
-        {
-          icon: <FaHeadset />,
-          label: 'Helpdesk',
-          href: '/helpdesk'
-        },
-        {
-          icon: <FaFileContract />,
-          label: 'Policy and Document',
-          href: '/policy'
-        },
-        {
-          icon: <FaDoorOpen />,
-          label: 'Resignation',
-          href: '/resignation'
-        }
-      ];
-    }
-
-    // Admin menu items
+    // Return employee menu items for both Admin and Employee roles
     return [
       {
         icon: <FaTachometerAlt />,
@@ -159,20 +104,50 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         href: '/dashboard'
       },
       {
-        icon: <FaFileAlt />,
-        label: 'KYC Verification',
+        icon: <FaUser />,
+        label: 'Know Me',
         href: '/kyc'
       },
       {
-        icon: <FaUserFriends />,
-        label: 'Employee Directory',
-        href: '/employees'
+        icon: <FaCalendarAlt />,
+        label: 'Attendance',
+        href: '/attendance'
       },
       {
-        icon: <FaBuilding />,
-        label: 'Position Management',
-        href: '/positionmanagement'
+        icon: <FaFileAlt />,
+        label: 'Leave Management',
+        href: '/leave-management'
       },
+      {
+        icon: <FaMoneyBillWave />,
+        label: 'Payslip',
+        href: '/payslip'
+      },
+      {
+        icon: <FaTasks />,
+        label: 'Tasks and Project',
+        href: '/tasks'
+      },
+      {
+        icon: <FaReceipt />,
+        label: 'Expense Reimbursement',
+        href: '/expense'
+      },
+      {
+        icon: <FaHeadset />,
+        label: 'Helpdesk',
+        href: '/helpdesk'
+      },
+      {
+        icon: <FaFileContract />,
+        label: 'Policy and Document',
+        href: '/policy'
+      },
+      {
+        icon: <FaDoorOpen />,
+        label: 'Resignation',
+        href: '/resignation'
+      }
     ];
   };
 
@@ -242,11 +217,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="min-h-screen flex bg-gray-100">
       {/* Overlay for mobile */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm lg:hidden z-20"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm lg:hidden z-40"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
@@ -255,11 +230,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       <aside
         className={`fixed inset-y-0 left-0 flex flex-col
           ${isSidebarExpanded ? 'w-72' : 'w-20'}
-          bg-white border-r border-gray-100 shadow-lg
+          bg-white border-r border-gray-200 shadow-xl
           transition-all duration-300 z-30`}
       >
         {/* Logo and Toggle */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 h-[65px]">
           <div className={`flex items-center ${isSidebarExpanded ? 'justify-start' : 'justify-center'} w-full`}>
             <Image
               src="/logo-exo .png"
@@ -269,38 +244,38 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               className="rounded-xl shadow-sm"
             />
             {isSidebarExpanded && (
-              <span className="ml-4 font-semibold text-gray-800 text-xl tracking-wide">Exozen</span>
+              <span className="ml-3 font-bold text-gray-800 text-2xl tracking-wide">Exozen</span>
             )}
           </div>
           <button
             onClick={toggleSidebar}
-            className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200 ml-2"
+            className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200 ml-auto flex-shrink-0"
             title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
           >
-            {isSidebarExpanded ? <FaChevronLeft /> : <FaChevronRight />}
+            {isSidebarExpanded ? <FaChevronLeft className="w-5 h-5"/> : <FaChevronRight className="w-5 h-5"/>}
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
+        <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           <ul className="p-4 space-y-2">
             {menuItems.map(renderMenuItem)}
           </ul>
         </nav>
 
         {/* Logout Button */}
-        <div className="p-4 border-t border-gray-100 mt-auto">
+        <div className="p-4 border-t border-gray-100">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 rounded-xl
-              hover:bg-red-50 hover:text-red-600 transition-all duration-200 group
-              justify-center"
+              hover:bg-red-100 hover:text-red-700 transition-all duration-200 group
+              justify-center font-medium text-sm"
           >
             <span className="inline-flex items-center justify-center w-8 h-8">
-              <FaSignOutAlt className="text-xl group-hover:text-red-600 transition-colors" />
+              <FaSignOutAlt className="text-xl group-hover:text-red-700 transition-colors" />
             </span>
             {isSidebarExpanded && (
-              <span className="font-medium text-sm">Logout</span>
+              <span>Logout</span>
             )}
           </button>
         </div>
@@ -311,29 +286,29 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         isSidebarExpanded ? 'ml-72' : 'ml-20'
       }`}>
         {/* Header */}
-        <header className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 shadow-lg sticky top-0 z-20 border-b border-gray-100">
-          <div className="flex items-center justify-between px-8 py-4">
+        <header className="bg-white shadow-sm border-b border-gray-200 z-20 sticky top-0 h-[65px] flex items-center">
+          <div className="flex items-center justify-between px-8 w-full">
             {/* Left side - Employee ID */}
             <div className="flex items-center">
               {userDetails && (
-                <div className="flex items-center space-x-3 text-gray-700">
-                  <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-100">
-                    <FaIdCard className="text-xl text-blue-600" />
+                <div className="flex items-center space-x-4 text-gray-700">
+                  <div className="p-2 bg-gray-100 rounded-lg shadow-sm border border-gray-200 flex-shrink-0">
+                    <FaIdCard className="text-2xl text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold">Employee ID</p>
-                    <p className="text-base font-semibold text-blue-600">{userDetails.employeeId}</p>
+                    <p className="text-sm font-medium text-gray-500">Employee ID</p>
+                    <p className="text-lg font-bold text-blue-700">{userDetails.employeeId}</p>
                   </div>
                 </div>
               )}
             </div>
 
             {/* Right side - Notifications and Profile */}
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center gap-6">
               {/* Notifications */}
-              <button className="relative p-3 rounded-xl bg-white shadow-sm border border-gray-100 hover:bg-gray-50 transition-all duration-200 group">
-                <FaBell className="text-xl text-blue-600" />
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[11px] font-bold text-white flex items-center justify-center">
+              <button className="relative p-3 rounded-xl bg-white shadow-sm border border-gray-200 hover:bg-gray-50 transition-all duration-200 group flex-shrink-0">
+                <FaBell className="text-2xl text-blue-600" />
+                <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-600 rounded-full text-xs font-bold text-white flex items-center justify-center ring-2 ring-white">
                   3
                 </span>
               </button>
@@ -342,50 +317,41 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               <div className="flex items-center space-x-4 pl-6 border-l border-gray-200">
                 {loading ? (
                   <div className="animate-pulse flex items-center space-x-4">
-                    <div className="w-14 h-14 rounded-full bg-gray-200"></div>
+                    <div className="w-12 h-12 rounded-full bg-gray-200"></div>
                     <div className="space-y-2">
                       <div className="h-4 w-24 bg-gray-200 rounded"></div>
+                      <div className="h-3 w-20 bg-gray-200 rounded"></div>
                     </div>
                   </div>
-                ) : userDetails ? (
-                  <>
-                    <div className="relative group">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-md opacity-30"></div>
-                        <img
-                          src={userDetails.employeeImage}
-                          alt={userDetails.fullName}
-                          className="relative w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg hover:scale-105 transition-transform duration-200"
-                        />
-                        <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-                      </div>
-                      <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-3 hidden group-hover:block transform transition-all duration-200">
-                        <div className="px-4 py-3 border-b border-gray-100">
-                          <p className="text-lg font-bold text-gray-800">{userDetails.fullName}</p>
-                          <p className="text-sm font-medium text-blue-600 mt-1">{userDetails.designation}</p>
-                        </div>
-                        <div className="px-4 py-2">
-                          <div className="flex items-center text-sm text-gray-600">
-                            <FaIdCard className="mr-2 text-blue-500" />
-                            <span className="font-medium">{userDetails.employeeId}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="hidden md:block">
-                      <p className="text-lg font-bold text-gray-800">{userDetails.fullName}</p>
-                      <p className="text-sm font-medium text-blue-600">{userDetails.designation}</p>
-                    </div>
-                  </>
                 ) : (
-                  <div className="flex items-center space-x-3">
-                    <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
-                      <FaUser className="text-gray-400 text-xl" />
+                  <div className="relative group flex-shrink-0">
+                    <div className="relative cursor-pointer">
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-20 blur-md"></div>
+                      <img
+                        src={userDetails?.employeeImage || '/placeholder-user.jpg'}
+                        alt={userDetails?.fullName || 'User'}
+                        className="relative w-12 h-12 rounded-full object-cover border-2 border-white shadow-md transition-transform duration-200 group-hover:scale-105"
+                      />
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                     </div>
-                    <div className="hidden md:block">
-                      <p className="text-lg font-bold text-gray-800">User</p>
-                      <p className="text-sm font-medium text-gray-500">Not Available</p>
+                    <div className="hidden group-hover:block absolute right-0 top-full mt-3 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-3 z-50 transform transition-all duration-200 origin-top-right">
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="text-base font-bold text-gray-800 truncate">{userDetails?.fullName}</p>
+                        <p className="text-sm font-medium text-blue-600 mt-1 truncate">{userDetails?.designation}</p>
+                      </div>
+                      <div className="px-4 py-2">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <FaIdCard className="mr-3 text-blue-500 text-lg" />
+                          <span className="font-medium">{userDetails?.employeeId}</span>
+                        </div>
+                      </div>
                     </div>
+                  </div>
+                )}
+                {isSidebarExpanded && !loading && userDetails && (
+                  <div className="hidden md:block min-w-0">
+                    <p className="text-base font-bold text-gray-800 truncate">{userDetails.fullName}</p>
+                    <p className="text-sm font-medium text-gray-500 truncate">{userDetails.designation}</p>
                   </div>
                 )}
               </div>
@@ -394,8 +360,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         </header>
 
         {/* Main Content */}
-        <main className="p-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <main className="p-8 bg-gray-100 min-h-screen">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 md:p-8">
             {children}
           </div>
         </main>
@@ -404,10 +370,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       {/* Mobile Menu Toggle */}
       <button
         onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
-        className="fixed bottom-6 right-6 lg:hidden bg-white text-gray-600 p-4 rounded-full 
-          shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-200"
+        className="fixed bottom-6 right-6 lg:hidden bg-white text-blue-600 p-4 rounded-full 
+          shadow-lg border border-gray-200 hover:bg-blue-50 transition-all duration-200 z-50"
+        title="Toggle menu"
       >
-        {isMobileMenuOpen ? <FaChevronLeft /> : <FaChevronRight />}
+        {isMobileMenuOpen ? <FaTimes className="w-6 h-6"/> : <FaBars className="w-6 h-6"/>}
       </button>
     </div>
   );
