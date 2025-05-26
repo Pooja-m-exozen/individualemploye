@@ -29,7 +29,7 @@ export const login = async (
   password: string
 ): Promise<LoginResponse> => {
   try {
-    const response = await fetch('https://sso.zenapi.co.in/auth/login', {
+    const response = await fetch('http://192.168.0.5:5050/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,28 +41,29 @@ export const login = async (
 
     if (response.ok) {
       // Store auth data
-      localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(TOKEN_KEY, data.accessToken);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-      localStorage.setItem(EXPIRES_AT_KEY, data.expiresAt || data.session.expiresAt);
+      localStorage.setItem(EXPIRES_AT_KEY, new Date(Date.now() + 3600000).toISOString()); // 1 hour expiry
       // Store both the original and the kyc-specific email format
       localStorage.setItem('userEmail', data.user.email);
       localStorage.setItem('kycEmail', data.user.email.replace('@exozen.in', '.dn@exozen.in'));
       
       return {
         ...data,
-        success: true
+        success: true,
+        message: 'Login successful'
       };
     }
 
     return {
-      ...data,
       success: false,
       message: data.message || 'Login failed'
-    };
-  } catch {
+    } as LoginResponse;
+  } catch (error) {
+    console.error('Login error:', error);
     return {
       success: false,
-      // message: error.message || 'An error occurred during login'
+      message: 'An error occurred during login'
     } as LoginResponse;
   }
 };
@@ -129,10 +130,6 @@ export const isAdmin = (): boolean => {
 };
 
 export const getInitialRoute = (): string => {
-  const role = getUserRole();
-  if (role === 'Employee') {
-    return '/kyc';
-  }
   return '/dashboard';
 };
 
