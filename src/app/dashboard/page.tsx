@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FaIdCard, FaFileAlt, FaUser, FaHome, FaUniversity, FaPhone, FaFileContract, FaBirthdayCake, FaTrophy } from 'react-icons/fa';
+import AttendanceAnalytics from '@/components/dashboard/AttendanceAnalytics';
 
 interface Address {
   state: string;
@@ -269,6 +270,12 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Attendance Analytics Section */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Attendance Analytics</h2>
+          <AttendanceAnalytics />
         </div>
 
         {/* Celebrations Section - Enhanced */}
