@@ -264,15 +264,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         </nav>
 
         {/* Logout Button */}
-        <div className="p-4 border-t border-gray-100">
-          <button
+        <div className="p-4 border-t border-gray-100">          <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 rounded-xl
-              hover:bg-red-100 hover:text-red-700 transition-all duration-200 group
+            className="w-full flex items-center gap-3 px-4 py-3 text-white rounded-xl
+              bg-red-600 hover:bg-red-700 transition-all duration-200 group
               justify-center font-medium text-sm"
           >
             <span className="inline-flex items-center justify-center w-8 h-8">
-              <FaSignOutAlt className="text-xl group-hover:text-red-700 transition-colors" />
+              <FaSignOutAlt className="text-xl text-white transition-colors" />
             </span>
             {isSidebarExpanded && (
               <span>Logout</span>

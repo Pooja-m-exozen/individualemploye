@@ -83,14 +83,17 @@ export const isAuthenticated = (): boolean => {
 };
 
 export const getUser = (): User | null => {
-  const userStr = localStorage.getItem(USER_KEY);
-  if (!userStr) return null;
-  
-  try {
-    return JSON.parse(userStr);
-  } catch {
-    return null;
+  if (typeof window !== 'undefined') {
+    const userStr = localStorage.getItem(USER_KEY);
+    if (!userStr) return null;
+    
+    try {
+      return JSON.parse(userStr);
+    } catch {
+      return null;
+    }
   }
+  return null;
 };
 
 export const getToken = (): string | null => {

@@ -571,33 +571,6 @@ export default function AttendancePage() {
 
     if (!monthlyStats) return null;
 
-    const attendanceData = {
-      labels: ['Present', 'Absent', 'Half Days'],
-      datasets: [
-        {
-          data: [monthlyStats.presentDays, monthlyStats.absentDays, monthlyStats.halfDays],
-          backgroundColor: ['#10B981', '#EF4444', '#F59E0B'],
-          borderWidth: 0,
-        },
-      ],
-    };
-
-    const punctualityData = {
-      labels: ['Late Arrivals', 'Early Arrivals', 'Early Leaves'],
-      datasets: [
-        {
-          label: 'Count',
-          data: [
-            monthlyStats.lateArrivals,
-            monthlyStats.earlyArrivals,
-            monthlyStats.earlyLeaves,
-          ],
-          backgroundColor: ['#F59E0B', '#3B82F6', '#EF4444'],
-          borderRadius: 8,
-        },
-      ],
-    };
-
     return (
       <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -647,84 +620,6 @@ export default function AttendancePage() {
             <p className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-amber-500 bg-clip-text text-transparent">
               {monthlyStats.lateArrivals}
             </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-white/90 rounded-2xl shadow-sm border border-gray-100/80 p-6 backdrop-blur-sm">
-            <h3 className="text-lg font-semibold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-6">
-              Attendance Distribution
-            </h3>
-            <div className="h-80">
-              <Pie
-                data={attendanceData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'bottom',
-                      labels: {
-                        padding: 20,
-                        font: {
-                          size: 12,
-                          family: "'Inter', sans-serif"
-                        },
-                        usePointStyle: true
-                      }
-                    }
-                  },
-                  cutout: '60%',
-                  radius: '90%'
-                }}
-              />
-            </div>
-          </div>
-          
-          <div className="bg-white/90 rounded-2xl shadow-sm border border-gray-100/80 p-6 backdrop-blur-sm">
-            <h3 className="text-lg font-semibold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-6">
-              Punctuality Analysis
-            </h3>
-            <div className="h-80">
-              <Bar
-                data={punctualityData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      display: false
-                    }
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      ticks: {
-                        stepSize: 1,
-                        font: {
-                          size: 12,
-                          family: "'Inter', sans-serif"
-                        }
-                      },
-                      grid: {
-                        display: false
-                      }
-                    },
-                    x: {
-                      ticks: {
-                        font: {
-                          size: 12,
-                          family: "'Inter', sans-serif"
-                        }
-                      },
-                      grid: {
-                        display: false
-                      }
-                    }
-                  }
-                }}
-              />
-            </div>
           </div>
         </div>
       </div>
