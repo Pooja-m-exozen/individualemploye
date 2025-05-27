@@ -124,28 +124,30 @@ const ReportsPage = () => {
   const handleBack = () => {
     router.push('/reports');
   };
-
   const formatTime = (dateString: string) => {
+    // Ensure we're working with UTC time
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
-      timeZone: 'Asia/Kolkata'
+      timeZone: 'UTC'
     });
   };
 
   const formatDate = (dateString: string) => {
+    // Ensure we're working with UTC time
     const date = new Date(dateString);
     return date.toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-      timeZone: 'Asia/Kolkata'
+      timeZone: 'UTC'
     });
   };
 
   const formatDateTime = (dateString: string) => {
+    // Ensure we're working with UTC time
     const date = new Date(dateString);
     return date.toLocaleString('en-IN', {
       year: 'numeric',
@@ -154,7 +156,7 @@ const ReportsPage = () => {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
-      timeZone: 'Asia/Kolkata'
+      timeZone: 'UTC'
     });
   };
 
@@ -306,7 +308,7 @@ const ReportsPage = () => {
                   </div>
                   {selectedRecord.punchInTime ? (
                     <>
-                      <p className="text-sm text-gray-600">Time</p>
+                      <p className="text-sm text-gray-600">Time (UTC)</p>
                       <p className="text-lg font-semibold text-gray-900 mb-2">
                         {formatTime(selectedRecord.punchInTime)}
                       </p>
@@ -338,7 +340,7 @@ const ReportsPage = () => {
                   </div>
                   {selectedRecord.punchOutTime ? (
                     <>
-                      <p className="text-sm text-gray-600">Time</p>
+                      <p className="text-sm text-gray-600">Time (UTC)</p>
                       <p className="text-lg font-semibold text-gray-900 mb-2">
                         {formatTime(selectedRecord.punchOutTime)}
                       </p>
