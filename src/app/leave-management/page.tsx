@@ -329,6 +329,13 @@ const LeaveManagementPage = () => {
       return;
     }
 
+    // Add validation for half-day type if it's a single-day half-day leave
+    if (isHalfDay && startDate === endDate && !halfDayType) {
+      setRequestError('Please select a Half Day Type (First Half or Second Half) for a single-day half-day leave.');
+      setSubmittingRequest(false);
+      return;
+    }
+
     // Calculate number of days
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -352,7 +359,8 @@ const LeaveManagementPage = () => {
           endDate,
           numberOfDays,
           isHalfDay,
-          halfDayType: isHalfDay ? halfDayType : null,
+          // Only include halfDayType if it is a single-day half-day leave
+          halfDayType: (isHalfDay && startDate === endDate) ? halfDayType : null,
           reason,
           emergencyContact,
           attachments: [],
@@ -475,7 +483,7 @@ const LeaveManagementPage = () => {
   const renderCancelModal = () => {
     if (!showCancelModal || !selectedLeave) return null;
 
-    return (
+      return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -582,8 +590,8 @@ const LeaveManagementPage = () => {
             </button>
           </div>
         </motion.div>
-      </div>
-    );
+        </div>
+      );
   };
 
   const renderRequestModal = () => {
@@ -598,22 +606,22 @@ const LeaveManagementPage = () => {
           className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full transform transition-all duration-300 my-8"
         >
           <div className="p-6 border-b border-gray-100">
-            <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-100 rounded-xl">
                   <FiCalendar className="w-6 h-6 text-blue-600" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900">Apply for Leave</h3>
-              </div>
-              <button
+          </div>
+          <button
                 onClick={() => setShowRequestModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-xl"
-              >
+          >
                 <FiX className="w-6 h-6" />
-              </button>
+          </button>
             </div>
-          </div>
-          
+        </div>
+
           <form onSubmit={handleSubmitLeaveRequest} className="p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -745,7 +753,7 @@ const LeaveManagementPage = () => {
                   <option value="First Half">First Half</option>
                   <option value="Second Half">Second Half</option>
                 </select>
-              </div>
+                </div>
             )}
 
             {requestError && (
@@ -814,7 +822,7 @@ const LeaveManagementPage = () => {
             >
               <FiRefreshCw className="w-5 h-5 inline mr-2" /> Try Again
             </motion.button>
-          </div>
+        </div>
         </motion.div>
       );
     }
@@ -848,37 +856,6 @@ const LeaveManagementPage = () => {
                 Request Leave
               </motion.button>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatCard
-                title="Total Allocated"
-                value={leaveData.totalAllocated}
-                bgColor="bg-gradient-to-br from-blue-400 to-blue-500"
-                textColor="text-blue-400"
-                icon={FiCalendar}
-              />
-              <StatCard
-                title="Leave Used"
-                value={leaveData.totalUsed}
-                bgColor="bg-gradient-to-br from-purple-400 to-purple-500"
-                textColor="text-purple-400"
-                icon={FiClock}
-              />
-              <StatCard
-                title="Remaining"
-                value={leaveData.totalRemaining}
-                bgColor="bg-gradient-to-br from-emerald-400 to-emerald-500"
-                textColor="text-emerald-400"
-                icon={FiCheckCircle}
-              />
-              <StatCard
-                title="Pending"
-                value={leaveData.totalPending}
-                bgColor="bg-gradient-to-br from-amber-400 to-amber-500"
-                textColor="text-amber-400"
-                icon={FiPending}
-              />
-            </div>
           </div>
         </motion.div>
 
@@ -886,36 +863,33 @@ const LeaveManagementPage = () => {
           {/* Leave Balances Section */}
           <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Leave Balances</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-              {Object.entries(leaveData.balances).map(([type, balance], index) => (
-                <motion.div
-                  key={type}
-                  variants={fadeInUp}
-                  custom={index}
-                  className="bg-gray-50 rounded-xl p-6 hover:shadow-md transition-all duration-300"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <span className={`px-3 py-1 rounded-lg text-sm font-medium ${getLeaveTypeColor(type)}`}>
-                      {type}
-                    </span>
-                    <span className="text-gray-400">{balance.allocated} days</span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Used:</span>
-                      <span className="font-medium text-gray-900">{balance.used}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Pending:</span>
-                      <span className="font-medium text-gray-900">{balance.pending}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Remaining:</span>
-                      <span className="font-medium text-gray-900">{balance.remaining}</span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Allocated</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Used</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pending</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remaining</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {Object.entries(leaveData.balances).map(([type, balance]) => (
+                    <tr key={type} className={`${(type === 'EL' || type === 'SL') ? 'cursor-pointer hover:bg-blue-50' : 'hover:bg-gray-50'}`}>
+                      <td className="px-6 py-4 whitespace-nowrap align-middle">
+                        <div className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getLeaveTypeColor(type)}`}>
+                          {type}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 align-middle">{balance.allocated}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 align-middle">{balance.used}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 align-middle">{balance.pending}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 align-middle">{balance.remaining}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -935,25 +909,25 @@ const LeaveManagementPage = () => {
               </button>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left border-b border-gray-100">
-                    <th className="px-4 py-3 text-sm font-semibold text-gray-600">Type</th>
-                    <th className="px-4 py-3 text-sm font-semibold text-gray-600">Duration</th>
-                    <th className="px-4 py-3 text-sm font-semibold text-gray-600">Status</th>
-                    <th className="px-4 py-3 text-sm font-semibold text-gray-600">Applied On</th>
-                    <th className="px-4 py-3 text-sm font-semibold text-gray-600">Actions</th>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applied On</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="bg-white divide-y divide-gray-200">
                   {leaveHistory.leaveHistory.map((leave) => (
                     <tr key={leave.leaveId} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-4">
+                      <td className="px-6 py-4 align-middle">
                         <span className={`inline-flex px-3 py-1 rounded-lg text-sm font-medium ${getLeaveTypeColor(leave.leaveType)}`}>
                           {leave.leaveType}
                         </span>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-6 py-4 align-middle">
                         <div className="text-sm text-gray-900">
                           {formatDate(leave.startDate)}
                           {leave.startDate !== leave.endDate && ` - ${formatDate(leave.endDate)}`}
@@ -963,16 +937,16 @@ const LeaveManagementPage = () => {
                           {leave.isHalfDay && ' (Half Day)'}
                         </div>
                       </td>
-                      <td className="px-4 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(leave.status)}`}>
+                      <td className="px-6 py-4 align-middle">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-sm font-medium ${getStatusColor(leave.status)}`}>
                           {getStatusIcon(leave.status)}
                           {leave.status}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-500">
+                      <td className="px-6 py-4 text-sm text-gray-500 align-middle">
                         {formatDate(leave.appliedOn)}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-6 py-4 align-middle">
                         {leave.status === 'Pending' && (
                           <button
                             onClick={() => handleCancelLeave(leave)}
@@ -1002,4 +976,4 @@ const LeaveManagementPage = () => {
   );
 };
 
-export default LeaveManagementPage;
+export default LeaveManagementPage; 

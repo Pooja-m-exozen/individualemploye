@@ -1,83 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FaIdCard, FaFileAlt, FaUser, FaHome, FaUniversity, FaPhone, FaFileContract, FaBirthdayCake, FaTrophy } from 'react-icons/fa';
+import { FaBirthdayCake, FaTrophy, FaCalendarCheck, FaUserClock, FaProjectDiagram, FaClipboardList } from 'react-icons/fa';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
+import { Pie, Bar } from 'react-chartjs-2';
 import AttendanceAnalytics from '@/components/dashboard/AttendanceAnalytics';
 
-interface Address {
-  state: string;
-  city: string;
-  street: string;
-  postalCode: string;
-}
-
-interface PersonalDetails {
-  employeeId: string;
-  projectName: string;
-  fullName: string;
-  fathersName: string;
-  mothersName: string;
-  gender: string;
-  dob: string;
-  phoneNumber: string;
-  designation: string;
-  dateOfJoining: string;
-  nationality: string;
-  religion: string;
-  maritalStatus: string;
-  bloodGroup: string;
-  uanNumber: string;
-  esicNumber: string;
-  experience: string;
-  educationalQualification: string;
-  languages: string[];
-  employeeImage: string;
-  email: string;
-  workType: string;
-}
-
-interface BankDetails {
-  bankName: string;
-  branchName: string;
-  accountNumber: string;
-  ifscCode: string;
-}
-
-interface EmergencyContact {
-  name: string;
-  phone: string;
-  relationship: string;
-  aadhar: string;
-}
-
-interface Document {
-  type: string;
-  url: string;
-  uploadedAt: string;
-  _id: string;
-  originalName?: string;
-  mimeType?: string;
-  size?: number;
-}
-
-interface KYCData {
-  personalDetails: PersonalDetails;
-  addressDetails: {
-    permanentAddress: Address;
-    currentAddress: Address;
-  };
-  bankDetails: BankDetails;
-  identificationDetails: {
-    identificationType: string;
-    identificationNumber: string;
-  };
-  emergencyContact: EmergencyContact;
-  _id: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  documents: Document[];
-}
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
 interface BirthdayResponse {
   success: boolean;
@@ -104,525 +33,662 @@ interface WorkAnniversaryResponse {
   }[];
 }
 
+interface LeaveBalance {
+  allocated: number;
+  used: number;
+  remaining: number;
+  pending: number;
+}
+
+interface LeaveBalances {
+  EL: LeaveBalance;
+  SL: LeaveBalance;
+  CL: LeaveBalance;
+  CompOff: LeaveBalance;
+}
+
+interface LeaveBalanceResponse {
+  employeeId: string;
+  employeeName: string;
+  year: number;
+  balances: LeaveBalances;
+  totalAllocated: number;
+  totalUsed: number;
+  totalRemaining: number;
+  totalPending: number;
+}
+
+interface EmployeeInfo {
+  employeeId: string;
+  fullName: string;
+  designation: string;
+  department: string;
+}
+
 export default function Dashboard() {
-  const [kycData, setKycData] = useState<KYCData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState('personal');
   const [birthdays, setBirthdays] = useState<BirthdayResponse | null>(null);
   const [anniversaries, setAnniversaries] = useState<WorkAnniversaryResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isHovered, setIsHovered] = useState<string | null>(null);
-  
+  const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [employeeInfo, setEmployeeInfo] = useState<EmployeeInfo | null>(null);
+
+  // Update time every minute
   useEffect(() => {
-    const fetchKycData = async () => {
-      try {
-        setError(null);
-        const response = await fetch('https://cafm.zenapi.co.in/api/kyc/EFMS3295');
-        if (!response.ok) throw new Error('Failed to fetch KYC data');
-        const data = await response.json();
-        setKycData(data.kycData);
-      } catch (error) {
-        console.error('Error fetching KYC data:', error);
-        setError('Unable to load user information. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchBirthdays = async () => {
-      try {
-        const response = await fetch('https://cafm.zenapi.co.in/api/kyc/birthdays/today');
-        if (!response.ok) throw new Error('Failed to fetch birthdays');
-        const data = await response.json();
-        setBirthdays(data);
-      } catch (error) {
-        console.error('Error fetching birthdays:', error);
-      }
-    };
-
-    const fetchAnniversaries = async () => {
-      try {
-        const response = await fetch('https://cafm.zenapi.co.in/api/kyc/work-anniversaries/today');
-        if (!response.ok) throw new Error('Failed to fetch work anniversaries');
-        const data = await response.json();
-        setAnniversaries(data);
-      } catch (error) {
-        console.error('Error fetching work anniversaries:', error);
-      }
-    };
-
-    fetchKycData();
-    fetchBirthdays();
-    fetchAnniversaries();
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    return () => clearInterval(timer);
   }, []);
+
+  const fetchEmployeeInfo = async () => {
+    try {
+      const response = await fetch('https://cafm.zenapi.co.in/api/employee/profile');
+      const data = await response.json();
+      if (data.success) {
+        setEmployeeInfo(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching employee info:', error);
+    }
+  };
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const getWelcomeMessage = () => {
+    const day = currentTime.getDay();
+    const isWeekend = day === 0 || day === 6;
+    
+    if (isWeekend) {
+      return "Enjoy your weekend! Here's your dashboard overview.";
+    }
+    
+    const hour = currentTime.getHours();
+    if (hour < 12) {
+      return "Hope you have a productive day ahead!";
+    } else if (hour < 17) {
+      return "Keep up the great work!";
+    } else {
+      return "Great job today! Here's your dashboard summary.";
+    }
+  };
+
+  const fetchData = async (showLoading = true) => {
+    try {
+      if (showLoading) setLoading(true);
+      await fetchEmployeeInfo();
+      const [birthdaysRes, anniversariesRes, leaveBalanceRes] = await Promise.all([
+        fetch('https://cafm.zenapi.co.in/api/kyc/birthdays/today'),
+        fetch('https://cafm.zenapi.co.in/api/kyc/work-anniversaries/today'),
+        fetch('https://cafm.zenapi.co.in/api/leave/balance/EFMS3295')
+      ]);
+
+      const [birthdaysData, anniversariesData, leaveBalanceData] = await Promise.all([
+        birthdaysRes.json(),
+        anniversariesRes.json(),
+        leaveBalanceRes.json()
+      ]);
+
+      setBirthdays(birthdaysData);
+      setAnniversaries(anniversariesData);
+      setLeaveBalance(leaveBalanceData);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Polling setup
+  useEffect(() => {
+    fetchData();
+
+    // Poll every 5 minutes
+    const pollInterval = setInterval(() => {
+      setRefreshing(true);
+      fetchData(false);
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(pollInterval);
+  }, []);
+
+  const LoadingSpinner = () => (
+    <div className="flex items-center justify-center p-4">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+    </div>
+  );
+
+  const RefreshButton = () => (
+    <button
+      onClick={() => {
+        setRefreshing(true);
+        fetchData(false);
+      }}
+      className="flex items-center gap-2 px-3 py-1.5 bg-white/80 hover:bg-white text-gray-600 
+        rounded-full text-sm font-medium transition-all duration-300 hover:shadow-md
+        border border-gray-200 hover:border-gray-300"
+      disabled={refreshing}
+    >
+      <svg
+        className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+        />
+      </svg>
+      {refreshing ? 'Refreshing...' : 'Refresh'}
+    </button>
+  );
+
+  const renderLeaveBalanceGraphs = () => {
+    if (!leaveBalance) return null;
+
+    type LeaveType = 'EL' | 'SL' | 'CL' | 'CompOff';
+    const leaveTypes: LeaveType[] = ['EL', 'SL', 'CL', 'CompOff'];
+    const colors: Record<LeaveType, [string, string, string]> = {
+      EL: ['rgba(99, 102, 241, 0.8)', 'rgba(99, 102, 241, 1)', 'from-indigo-400 to-indigo-600'],
+      SL: ['rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 1)', 'from-emerald-400 to-emerald-600'],
+      CL: ['rgba(245, 158, 11, 0.8)', 'rgba(245, 158, 11, 1)', 'from-amber-400 to-amber-600'],
+      CompOff: ['rgba(139, 92, 246, 0.8)', 'rgba(139, 92, 246, 1)', 'from-purple-400 to-purple-600']
+    };
+
+    const data = {
+      labels: leaveTypes,
+      datasets: [
+        {
+          data: leaveTypes.map(type => leaveBalance.balances[type].allocated),
+          backgroundColor: leaveTypes.map(type => colors[type][0]),
+          borderColor: leaveTypes.map(type => colors[type][1]),
+          borderWidth: 2,
+          borderRadius: 8,
+          barThickness: 40,
+        }
+      ]
+    };
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Leave Balance Overview */}
+        <div className="bg-gradient-to-br from-white to-indigo-50 rounded-2xl p-6 shadow-lg border border-indigo-100
+          transform transition-all duration-300 hover:shadow-xl group">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
+            <span className="text-indigo-500">📊</span>
+            Leave Balance Overview
+          </h3>
+          <div className="transform transition-transform duration-300 group-hover:scale-[1.02]">
+            <Bar
+              data={data}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: false
+                  },
+                  tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#1f2937',
+                    bodyColor: '#4b5563',
+                    borderColor: '#e5e7eb',
+                    borderWidth: 1,
+                    padding: 12,
+                    boxPadding: 4,
+                    usePointStyle: true,
+                    bodyFont: {
+                      size: 13
+                    },
+                    titleFont: {
+                      size: 14,
+                      weight: 'bold'
+                    },
+                    callbacks: {
+                      label: function(context) {
+                        const label = context.dataset.label || '';
+                        const value = context.raw as number;
+                        return `${label} ${value} days`;
+                      }
+                    }
+                  }
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    grid: {
+                      color: 'rgba(99, 102, 241, 0.1)'
+                    },
+                    ticks: {
+                      font: {
+                        size: 12,
+                        weight: 'bold'
+                      },
+                      color: '#4b5563',
+                      padding: 10
+                    }
+                  },
+                  x: {
+                    grid: {
+                      display: false
+                    },
+                    ticks: {
+                      font: {
+                        size: 12,
+                        weight: 'bold'
+                      },
+                      color: '#4b5563',
+                      padding: 10
+                    }
+                  }
+                },
+                animation: {
+                  duration: 2000,
+                  easing: 'easeInOutQuart'
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Leave Status Cards */}
+        <div className="grid grid-cols-2 gap-4">
+          {leaveTypes.map((type, index) => {
+            const balance = leaveBalance.balances[type];
+            const percentage = (balance.used / balance.allocated) * 100;
+            const [bgColor, textColor] = balance.remaining > 0 
+              ? ['bg-emerald-100 text-emerald-700', 'text-emerald-600'] 
+              : ['bg-rose-100 text-rose-700', 'text-rose-600'];
+
+            return (
+              <div
+                key={type}
+                className={`bg-gradient-to-br ${colors[type][2]} rounded-xl p-4 text-white
+                  transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group`}
+                style={{
+                  animation: `fadeSlideIn 0.5s ease-out forwards ${index * 0.1}s`
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium opacity-90">{type}</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium bg-white/20 backdrop-blur-sm`}>
+                    {balance.remaining} left
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs opacity-75">Used</span>
+                    <span className="text-sm font-medium group-hover:font-bold transition-all">
+                      {balance.used}/{balance.allocated}
+                    </span>
+                  </div>
+                  <div className="relative pt-1">
+                    <div className="flex mb-1 items-center justify-between">
+                      <div>
+                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-white/20 backdrop-blur-sm">
+                          {Math.round(percentage)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="overflow-hidden h-2 text-xs flex rounded-full bg-white/20 backdrop-blur-sm">
+                      <div
+                        style={{ width: `${percentage}%` }}
+                        className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center
+                          bg-white/40 transition-all duration-500 ease-in-out group-hover:bg-white/50"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const MetricCard = ({ icon: Icon, title, value, subtext, gradient }: { 
+    icon: any, 
+    title: string, 
+    value: string, 
+    subtext: string, 
+    gradient: string 
+  }) => (
+    <div className={`bg-gradient-to-br ${gradient} rounded-xl shadow-md p-4 text-white
+      transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg cursor-pointer group`}>
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-white/10 rounded-lg group-hover:scale-110 transition-transform">
+          <Icon className="text-2xl opacity-80" />
+        </div>
+        <h3 className="text-sm font-medium opacity-90">{title}</h3>
+      </div>
+      <p className="text-2xl font-bold mt-2">{value}</p>
+      <p className="text-xs opacity-75 mt-1">{subtext}</p>
+    </div>
+  );
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* Welcome Section Skeleton */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 animate-pulse">
-            <div className="h-8 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-1/3 mb-4"></div>
-            <div className="h-4 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-1/4"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8 relative">
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0,0,0,0.05) 1px, transparent 0)',
+            backgroundSize: '40px 40px'
+          }}></div>
+        </div>
+        <div className="max-w-7xl mx-auto space-y-6 relative">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white/80 backdrop-blur rounded-xl shadow-sm p-4 animate-pulse">
+                <div className="h-6 bg-slate-200 rounded w-1/2 mb-4"></div>
+                <div className="h-8 bg-slate-200 rounded w-1/3"></div>
+              </div>
+            ))}
           </div>
-
-          {/* Celebrations Section Skeleton */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {[1, 2].map((i) => (
-              <div key={i} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 animate-pulse">
-                <div className="h-6 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-1/2 mb-4"></div>
+              <div key={i} className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 animate-pulse">
+                <div className="h-6 bg-slate-200 rounded w-1/2 mb-4"></div>
                 <div className="space-y-4">
                   {[1, 2].map((j) => (
-                    <div key={j} className="h-20 bg-gradient-to-r from-gray-200 to-gray-300 rounded"></div>
+                    <div key={j} className="h-20 bg-slate-100 rounded"></div>
                   ))}
                 </div>
               </div>
             ))}
           </div>
-
-          {/* Navigation Skeleton */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 animate-pulse">
-            <div className="flex gap-4 mb-6">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-10 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-24"></div>
-              ))}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="h-32 bg-gradient-to-r from-gray-200 to-gray-300 rounded"></div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 text-center transform hover:scale-[1.02] transition-all duration-300">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Oops! Something went wrong</h3>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 transform hover:scale-105"
-          >
-            Try Again
-            <svg className="ml-2 -mr-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!kycData) {
-    return null;
-  }
-
-  const navigationItems = [
-    { id: 'personal', label: 'Personal Info', icon: FaUser },
-    { id: 'address', label: 'Address', icon: FaHome },
-    { id: 'bank', label: 'Bank Details', icon: FaUniversity },
-    { id: 'emergency', label: 'Emergency Contact', icon: FaPhone },
-    { id: 'documents', label: 'Documents', icon: FaFileContract },
-  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Welcome Section - Enhanced */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-indigo-100 overflow-hidden transform hover:scale-[1.01] transition-all duration-300">
-          <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="space-y-2">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                  Welcome back, <span className="text-black">{kycData.personalDetails.fullName}</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 p-4 md:p-8 relative">
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0,0,0,0.05) 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
+      </div>
+
+      <div className="max-w-7xl mx-auto space-y-6 relative">
+        {/* Welcome Section */}
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold">
+                  {getGreeting()}, {employeeInfo?.fullName || 'Welcome'}!
                 </h1>
-                <p className="text-gray-600 flex items-center gap-2">
-                  <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
-                    {kycData.personalDetails.designation}
+                <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
+                  {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <div className="flex flex-col md:flex-row md:items-center gap-2">
+                <p className="text-indigo-100">{getWelcomeMessage()}</p>
+                {employeeInfo && (
+                  <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
+                    {employeeInfo.designation} • {employeeInfo.department}
                   </span>
-                  <span className="text-gray-400">•</span>
-                  <span className="text-gray-700">{kycData.personalDetails.employeeId}</span>
-                </p>
+                )}
               </div>
-              <div className="flex gap-4">
-                <QuickStatCard
-                  label="Work Type"
-                  value={kycData.personalDetails.workType}
-                  bgColor="from-blue-50 to-indigo-50"
-                  textColor="text-indigo-700"
-                />
-                <QuickStatCard
-                  label="Experience"
-                  value={kycData.personalDetails.experience}
-                  bgColor="from-purple-50 to-violet-50"
-                  textColor="text-violet-700"
-                />
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg">
+                <span className="text-2xl">📅</span>
+                <div>
+                  <p className="text-sm text-indigo-100">Today is</p>
+                  <p className="font-semibold">{currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                </div>
               </div>
+              <RefreshButton />
             </div>
           </div>
         </div>
 
-        {/* Attendance Analytics Section */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Attendance Analytics</h2>
-          <AttendanceAnalytics />
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <MetricCard
+            icon={FaUserClock}
+            title="Today's Attendance"
+            value="92%"
+            subtext="+5% from yesterday"
+            gradient="from-emerald-500 to-teal-600"
+          />
+          <MetricCard
+            icon={FaProjectDiagram}
+            title="Active Projects"
+            value="24"
+            subtext="3 due this week"
+            gradient="from-violet-500 to-purple-600"
+          />
+          <MetricCard
+            icon={FaCalendarCheck}
+            title="Leave Requests"
+            value="7"
+            subtext="Pending approval"
+            gradient="from-amber-500 to-orange-600"
+          />
+          <MetricCard
+            icon={FaClipboardList}
+            title="Tasks"
+            value="12"
+            subtext="4 high priority"
+            gradient="from-blue-500 to-indigo-600"
+          />
         </div>
 
-        {/* Celebrations Section - Enhanced */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Birthdays Section */}
-          <div className="relative group h-full">
-            <div className="absolute inset-0 bg-gradient-to-r from-fuchsia-100 to-purple-100 rounded-2xl transform rotate-1 scale-105 opacity-0 group-hover:opacity-100 transition-all duration-500" />
-            <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-fuchsia-200 overflow-hidden 
-              hover:shadow-xl transition-all duration-500 h-full flex flex-col group/card
-              hover:border-fuchsia-300 hover:-translate-y-1 transform">
-              <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-50 via-pink-50 to-purple-50 opacity-0 
-                group-hover/card:opacity-100 transition-opacity duration-500" />
-              <FloatingParticles />
-              <div className="bg-gradient-to-r from-fuchsia-200 via-pink-200 to-purple-200 p-6 relative
-                after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-gradient-to-r 
-                after:from-fuchsia-400 after:to-purple-400 after:transform after:scale-x-0 
-                after:origin-left after:transition-transform after:duration-500
-                group-hover/card:after:scale-x-100">
-                <h2 className="text-2xl font-bold text-fuchsia-800 flex items-center gap-4">
-                  <div className="p-3 bg-white rounded-xl shadow-md transition-all duration-300
-                    hover:shadow-fuchsia-200 hover:scale-110 hover:rotate-6">
-                    <FaBirthdayCake className="text-2xl text-fuchsia-600 animate-bounce" />
+        {/* Celebrations Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Birthday Cards */}
+          <div className="bg-white rounded-2xl shadow-lg border border-pink-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-pink-400 to-fuchsia-500 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FaBirthdayCake className="text-xl text-white" />
+                  <h2 className="text-base font-bold text-white">Today's Birthdays</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-full">
+                    <span className="text-white text-xs">{birthdays?.data?.length || 0} Today</span>
                   </div>
-                  <span className="bg-gradient-to-r from-fuchsia-700 to-purple-600 bg-clip-text text-transparent
-                    relative after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 
-                    after:bg-gradient-to-r after:from-fuchsia-400 after:to-purple-400
-                    after:transform after:scale-x-0 after:origin-left after:transition-transform
-                    after:duration-500 group-hover/card:after:scale-x-100">
-                    Today's Birthdays
-                  </span>
-                </h2>
+                  {refreshing && <LoadingSpinner />}
+                </div>
               </div>
-              <div className="p-6 flex-1 relative z-10">
-                {birthdays?.success && birthdays.data && birthdays.data.length > 0 ? (
-                  <div className="space-y-6">
-                    {birthdays.data.map((person, index) => (
-                      <div
-                        key={person.employeeId}
-                        className="group/item relative bg-gradient-to-br from-white to-fuchsia-50/30 rounded-xl p-6
-                          border border-fuchsia-100 transition-all duration-300
-                          hover:border-fuchsia-300 hover:shadow-lg hover:shadow-fuchsia-100/50
-                          hover:-translate-y-1 hover:scale-[1.02]"
-                        style={{
-                          animation: `fadeSlideIn 0.6s ease-out forwards ${index * 0.2}s`,
-                          opacity: 0,
-                          transform: 'translateY(20px)'
-                        }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-400/5 to-purple-400/5 
-                          rounded-xl opacity-0 group-hover/item:opacity-100 transition-opacity duration-500" />
-                        <div className="absolute -inset-px bg-gradient-to-r from-fuchsia-500 to-purple-500 rounded-xl 
-                          opacity-0 group-hover/item:opacity-10 blur-xl transition-all duration-500" />
-                        <div className="relative">
-                          <p className="text-fuchsia-800 italic text-lg font-medium leading-relaxed
-                            group-hover/item:text-fuchsia-900 transition-colors duration-300">
-                            {person.personalizedWish}
-                          </p>
-                          <div className="flex items-center gap-3 mt-4">
-                            <div className="flex gap-1">
-                              {[...Array(3)].map((_, i) => (
-                                <span
-                                  key={i}
-                                  className="inline-block transform hover:scale-125 transition-transform cursor-pointer"
-                                  style={{ animationDelay: `${i * 0.15}s` }}
-                                >
-                                  🎉
-                                </span>
-                              ))}
+            </div>
+            <div className="p-3">
+              {birthdays?.success && birthdays.data && birthdays.data.length > 0 ? (
+                <div className="grid gap-3">
+                  {birthdays.data.map((person, index) => (
+                    <div
+                      key={person.employeeId}
+                      className="group bg-gradient-to-br from-white to-pink-50 rounded-xl p-4
+                        border border-pink-100 hover:border-pink-200 transition-all duration-300
+                        hover:shadow-lg hover:shadow-pink-100/30 transform hover:-translate-y-1"
+                      style={{
+                        animation: `fadeSlideIn 0.5s ease-out forwards ${index * 0.1}s`,
+                        opacity: 0,
+                        transform: 'translateY(20px)'
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-400 to-fuchsia-500 
+                              flex items-center justify-center text-white font-bold text-xl transform 
+                              group-hover:scale-110 transition-all duration-300 shadow-lg">
+                              {person.fullName.charAt(0)}
                             </div>
-                            <span className="text-fuchsia-400 font-medium bg-fuchsia-50 px-3 py-1 rounded-full
-                              transform hover:scale-105 transition-all duration-300 cursor-pointer
-                              hover:bg-fuchsia-100 hover:text-fuchsia-600">
-                              Make their day special!
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-fuchsia-600 font-semibold text-lg mb-2">No birthdays today</p>
-                    <p className="text-fuchsia-400">Check back tomorrow for more celebrations!</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Work Anniversaries Section - Enhanced */}
-          <div className="relative group h-full">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-2xl transform rotate-1 scale-105 opacity-0 group-hover:opacity-100 transition-all duration-500" />
-            <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-blue-100 overflow-hidden hover:shadow-xl transition-all duration-500 h-full flex flex-col">
-              <FloatingParticles />
-              <div className="bg-gradient-to-r from-blue-100 to-indigo-100 p-6">
-                <h2 className="text-2xl font-bold text-blue-800 flex items-center gap-4">
-                  <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform duration-300">
-                    <FaTrophy className="text-2xl text-blue-600 animate-pulse" />
-                  </div>
-                  <span className="bg-gradient-to-r from-blue-700 to-indigo-600 bg-clip-text text-transparent">
-                    Work Anniversaries
-                  </span>
-                </h2>
-              </div>
-              <div className="p-6 flex-1">
-                {anniversaries?.success && anniversaries.data && anniversaries.data.length > 0 ? (
-                  <div className="space-y-4">
-                    {anniversaries.data.map((person, index) => (
-                      <div key={person.employeeId} 
-                        className="group p-6 bg-gradient-to-br from-white to-blue-50 rounded-xl
-                          border border-blue-100 hover:border-blue-300 transition-all duration-500 
-                          hover:shadow-lg transform hover:-translate-y-1 relative overflow-hidden"
-                        style={{ 
-                          animation: `fadeSlideIn 0.6s ease-out forwards ${index * 0.2}s`,
-                          opacity: 0,
-                          transform: 'translateY(20px)'
-                        }}
-                      >
-                        <div className="absolute -right-20 -top-20 w-40 h-40 bg-gradient-to-br from-blue-200 to-indigo-200 rounded-full blur-3xl opacity-30 group-hover:opacity-75 transition-opacity duration-500" />
-                        <div className="absolute -left-20 -bottom-20 w-40 h-40 bg-gradient-to-tr from-indigo-200 to-blue-200 rounded-full blur-3xl opacity-30 group-hover:opacity-75 transition-opacity duration-500" />
-                        <div className="relative">
-                          <p className="text-blue-800 italic text-lg font-medium leading-relaxed animate-fadeIn">
-                            {person.personalizedWish}
-                          </p>
-                          <div className="flex items-center gap-2 mt-4 animate-slideUp">
-                            <span className="text-blue-600 text-sm">🏆</span>
-                            <span className="text-blue-400 text-sm animate-pulse">Milestone achieved!</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                    <FaTrophy className="text-4xl text-blue-200 mb-4" />
-                    <p className="text-blue-600 font-semibold text-lg">No work anniversaries today</p>
-                    <p className="text-blue-400 mt-2">Check back tomorrow for more celebrations!</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation Tabs - Enhanced */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100/50 backdrop-blur-sm sticky top-0 z-10">
-            <div className="flex flex-wrap gap-2 p-4">
-              {navigationItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveSection(item.id)}
-                  onMouseEnter={() => setIsHovered(item.id)}
-                  onMouseLeave={() => setIsHovered(null)}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 text-sm font-medium
-                    ${activeSection === item.id
-                      ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg scale-105 hover:shadow-indigo-500/25'
-                      : 'hover:bg-white hover:text-indigo-600 hover:shadow-md text-gray-600'
-                    }`}
-                >
-                  <item.icon className={`text-lg ${activeSection === item.id ? 'animate-bounce' : ''} 
-                    ${isHovered === item.id ? 'transform scale-110' : ''}`} />
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-8">
-            {activeSection === 'personal' && (
-              <div className="space-y-8">
-                {/* Personal Info Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {Object.entries(kycData.personalDetails).map(([key, value]) => {
-                    if (['employeeImage', 'languages', 'fullName', 'designation', 'employeeId', 'workType'].includes(key)) return null;
-                    return (
-                      <div key={key} 
-                        className="group bg-gradient-to-br from-white to-gray-50/50 rounded-xl p-6 border border-gray-100 
-                          hover:border-indigo-200 hover:shadow-lg hover:bg-white
-                          transition-all duration-300 transform hover:-translate-y-1"
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="p-3 rounded-lg bg-indigo-50 group-hover:bg-indigo-100 transition-colors">
-                            <GetIconForField field={key} className="w-5 h-5 text-indigo-600" />
+                            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-md">
+                              <span className="text-lg">🎂</span>
+                            </div>
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-1">
-                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                            </label>
-                            <p className="text-gray-700 font-medium group-hover:text-indigo-600 transition-colors">
-                              {Array.isArray(value) ? value.join(', ') : value}
-                            </p>
+                            <h3 className="font-bold text-gray-900 text-base group-hover:text-pink-600 transition-colors">
+                              {person.fullName}
+                            </h3>
+                            <p className="text-sm text-gray-600">{person.designation}</p>
                           </div>
                         </div>
+                        <button 
+                          className="flex items-center gap-1 bg-pink-50 hover:bg-pink-100 text-pink-600 
+                            px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 hover:shadow-md
+                            active:scale-95"
+                          onClick={() => {
+                            // Add wish sending functionality
+                            console.log('Sending wishes to:', person.fullName);
+                          }}
+                        >
+                          <span>🎉</span>
+                          Send Wishes
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {activeSection === 'address' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {(['currentAddress', 'permanentAddress'] as const).map((addressType) => (
-                  <div key={addressType} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300">
-                    <div className={`p-4 ${
-                      addressType === 'currentAddress' 
-                        ? 'bg-gradient-to-r from-emerald-400/10 to-teal-400/10'
-                        : 'bg-gradient-to-r from-amber-400/10 to-orange-400/10'
-                    }`}>
-                      <h3 className="text-lg font-bold text-gray-900">
-                        {addressType === 'currentAddress' ? 'Current Address' : 'Permanent Address'}
-                      </h3>
-                    </div>
-                    <div className="p-6 space-y-4">
-                      {Object.entries(kycData.addressDetails[addressType] as Address).map(([key, value]) => (
-                        <div key={key} className="group bg-gray-50/50 p-4 rounded-xl hover:bg-white hover:shadow-md transition-all duration-300">
-                          <label className="block text-sm font-bold text-gray-900 mb-1">
-                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                          </label>
-                          <p className="text-gray-900 font-semibold text-lg group-hover:text-indigo-600 transition-colors">
-                            {value}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {activeSection === 'bank' && (
-              <div className="space-y-6">
-                <div className="bg-gradient-to-r from-blue-400/10 to-indigo-400/10 rounded-2xl p-6 border border-blue-100">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {Object.entries(kycData.bankDetails).map(([key, value]) => (
-                      <div key={key} className="group bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300">
-                        <label className="block text-sm font-bold text-gray-900 mb-1">
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                        </label>
-                        <p className="text-gray-900 font-semibold text-lg group-hover:text-blue-600 transition-colors">
-                          {value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeSection === 'emergency' && (
-              <div className="space-y-6">
-                <div className="bg-gradient-to-r from-rose-400/10 to-red-400/10 rounded-2xl p-6 border border-rose-100">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {Object.entries(kycData.emergencyContact).map(([key, value]) => (
-                      <div key={key} className="group bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300">
-                        <label className="block text-sm font-bold text-gray-900 mb-1">
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                        </label>
-                        <p className="text-gray-900 font-semibold text-lg group-hover:text-rose-600 transition-colors">
-                          {value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeSection === 'documents' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {kycData.documents.map((doc) => (
-                    <div key={doc._id} 
-                      className="group bg-white rounded-xl p-6 border border-gray-200 hover:bg-gray-50/50
-                        hover:border-violet-200 transition-all duration-300 hover:shadow-lg"
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="p-3 bg-violet-100 rounded-xl group-hover:bg-violet-200 transition-colors">
-                          <FaFileAlt className="text-xl text-violet-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 group-hover:text-violet-600 transition-colors capitalize mb-1">
-                            {doc.type}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(doc.uploadedAt).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric'
-                            })}
-                          </p>
-                          {doc.originalName && (
-                            <p className="text-xs text-gray-400 truncate mt-2">{doc.originalName}</p>
-                          )}
-                        </div>
-                      </div>
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-4 inline-flex items-center px-4 py-2 text-sm font-medium text-violet-600 
-                          bg-violet-50 rounded-lg hover:bg-violet-100 transition-all duration-300 w-full justify-center"
-                      >
-                        View Document
-                        <svg className="w-4 h-4 ml-2 transform transition-transform group-hover:translate-x-1" 
-                          fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
-                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </a>
+                      <p className="mt-2 text-sm text-gray-700 italic bg-white/50 p-2 rounded-lg border border-pink-50">
+                        {person.personalizedWish}
+                      </p>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="w-16 h-16 bg-pink-50 rounded-full flex items-center justify-center mb-3">
+                    <FaBirthdayCake className="text-3xl text-pink-300" />
+                  </div>
+                  <p className="text-lg font-semibold text-gray-900 mb-1">No Birthdays Today</p>
+                  <p className="text-sm text-gray-500">Check back tomorrow for more celebrations!</p>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Anniversary Cards */}
+          <div className="bg-white rounded-2xl shadow-lg border border-blue-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-400 to-indigo-500 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FaTrophy className="text-xl text-white" />
+                  <h2 className="text-base font-bold text-white">Work Anniversaries</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-full">
+                    <span className="text-white text-xs">{anniversaries?.data?.length || 0} Today</span>
+                  </div>
+                  {refreshing && <LoadingSpinner />}
+                </div>
+              </div>
+            </div>
+            <div className="p-3">
+              {anniversaries?.success && anniversaries.data && anniversaries.data.length > 0 ? (
+                <div className="grid gap-3">
+                  {anniversaries.data.map((person, index) => (
+                    <div
+                      key={person.employeeId}
+                      className="group bg-gradient-to-br from-white to-blue-50 rounded-xl p-4
+                        border border-blue-100 hover:border-blue-200 transition-all duration-300
+                        hover:shadow-lg hover:shadow-blue-100/30 transform hover:-translate-y-1"
+                      style={{
+                        animation: `fadeSlideIn 0.5s ease-out forwards ${index * 0.1}s`,
+                        opacity: 0,
+                        transform: 'translateY(20px)'
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 
+                              flex items-center justify-center text-white font-bold text-xl transform 
+                              group-hover:scale-110 transition-all duration-300 shadow-lg">
+                              {person.fullName.charAt(0)}
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-md">
+                              <span className="text-lg">🏆</span>
+                            </div>
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-gray-900 text-base group-hover:text-blue-600 transition-colors">
+                              {person.fullName}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm text-gray-600">{person.designation}</p>
+                              <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
+                                {person.yearsOfService} Years
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <button 
+                          className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-600 
+                            px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 hover:shadow-md
+                            active:scale-95"
+                          onClick={() => {
+                            // Add congratulation functionality
+                            console.log('Congratulating:', person.fullName);
+                          }}
+                        >
+                          <span>👏</span>
+                          Congratulate
+                        </button>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-700 italic bg-white/50 p-2 rounded-lg border border-blue-50">
+                        {person.personalizedWish}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-3">
+                    <FaTrophy className="text-3xl text-blue-300" />
+                  </div>
+                  <p className="text-lg font-semibold text-gray-900 mb-1">No Work Anniversaries Today</p>
+                  <p className="text-sm text-gray-500">Check back tomorrow for more milestones!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Leave Balance Section */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-indigo-100
+          transform transition-all duration-300 hover:shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+              <span className="text-2xl">📊</span>
+              Leave Balance
+            </h2>
+            {refreshing && <LoadingSpinner />}
+          </div>
+          {renderLeaveBalanceGraphs()}
+        </div>
+
+        {/* Attendance Analytics */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-emerald-100
+          transform transition-all duration-300 hover:shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+              <span className="text-2xl">📈</span>
+              Attendance Analytics
+            </h2>
+            {refreshing && <LoadingSpinner />}
+          </div>
+          <AttendanceAnalytics />
         </div>
       </div>
     </div>
   );
 }
 
-const QuickStatCard = ({ label, value, bgColor, textColor }: { 
-  label: string; 
-  value: string; 
-  bgColor: string;
-  textColor: string;
-}) => (
-  <div className={`p-4 rounded-xl bg-gradient-to-br ${bgColor} border border-white/50 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1`}>
-    <p className="text-xs font-medium text-gray-600 mb-1">{label}</p>
-    <p className={`text-lg font-bold ${textColor}`}>{value}</p>
-  </div>
-);
-
-const GetIconForField = ({ field, className }: { field: string; className?: string }) => {
-  const icons: { [key: string]: React.ElementType } = {
-    email: FaIdCard,
-    phoneNumber: FaPhone,
-    dob: FaBirthdayCake,
-    // Add more icon mappings as needed
-  };
-  const IconComponent = icons[field] || FaUser;
-  return <IconComponent className={className} />;
-};
-
-const FloatingParticles = () => (
+const FloatingParticles = ({ color }: { color: string }) => (
   <div className="absolute inset-0 overflow-hidden pointer-events-none">
     {[...Array(6)].map((_, i) => (
       <div
@@ -642,7 +708,7 @@ const FloatingParticles = () => (
   </div>
 );
 
-// Add these new animations to the styles
+// Add these animations to the styles
 const styles = `
   @keyframes fadeSlideIn {
     from {
@@ -674,56 +740,17 @@ const styles = `
     animation: float linear infinite;
   }
 
-  @keyframes shimmer {
-    from {
-      background-position: 0 0;
-    }
-    to {
-      background-position: 200% 0;
-    }
-  }
-
-  .animate-shimmer {
-    background: linear-gradient(
-      90deg,
-      rgba(255,255,255,0) 0%,
-      rgba(255,255,255,0.8) 50%,
-      rgba(255,255,255,0) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 3s infinite;
-  }
-
-  .animate-fadeIn {
-    animation: fadeIn 0.5s ease-out forwards;
-  }
-
-  .animate-slideUp {
-    animation: slideUp 0.5s ease-out forwards;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
+  @keyframes pulse {
+    0%, 100% {
       opacity: 1;
     }
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
+    50% {
+      opacity: 0.5;
     }
   }
 
-  .delay-100 {
-    animation-delay: 100ms;
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 `;
 
