@@ -676,21 +676,19 @@ const ReportsPage = () => {
             <h1 className="text-3xl font-bold text-gray-800">Reports</h1>
             <p className="text-gray-600 mt-1">Access and manage all your reports in one place</p>
           </div>
-        </div>
-
-        {/* Search and Filter Section */}
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
+        </div>        {/* Search and Filter Section */}
+        <div className="flex flex-col md:flex-row gap-4 max-w-2xl">
+          <div className="relative w-full md:w-96">
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Search reports..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+          <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-gray-900">
             <FaFilter /> Filters
           </button>
         </div>
