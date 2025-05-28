@@ -188,141 +188,127 @@ const PayslipPage = () => {
               <span>Download</span>
             </button>
           </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden print-payslip-area">
-          {/* Payslip Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center">
-                <FaUser className="w-8 h-8" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">Monthly Payslip</h2>
-                <p className="text-blue-100">Employee ID: {payslip.employeeId}</p>
+        </div>        {/* Main Content */}        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden print-payslip-area p-6">
+          {/* Company Header */}
+          <div className="border-b border-gray-200 pb-4 mb-4">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-4">
+                <img src="/exozen_logo.png" alt="Company Logo" className="h-12" />
+                <div>                  <h2 className="text-xl font-bold text-black">Exozen Pvt Ltd</h2>
+                  <p className="text-black text-sm">25/1, 4th Floor, SKIP House, Museum Rd, near Brigade Tower</p>
+                  <p className="text-black text-sm">Shanthala Nagar, Ashok Nagar, Bengaluru, Karnataka 560025</p>
+                </div>
+              </div>              <div className="text-right">
+                <h3 className="text-lg font-semibold text-black">Salary Slip</h3>
+                <p className="text-black text-sm">For {new Date(payslip.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
               </div>
             </div>
           </div>
 
-          {/* Payslip Details */}
-          <div className="p-6 space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Basic Information */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <FaUser className="w-5 h-5" />
-                  <h3 className="text-lg font-semibold">Basic Information</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Month</p>
-                    <p className="font-medium text-gray-900">{payslip.month}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Working Days</p>
-                    <p className="font-medium text-gray-900">{payslip.totalWorkingDays}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Present Days</p>
-                    <p className="font-medium text-gray-900">{payslip.presentDays}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Absent Days</p>
-                    <p className="font-medium text-gray-900">{payslip.absentDays}</p>
-                  </div>
-                </div>
-              </div>
+          {/* Employee Information */}
+          <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
+            <div>
+              <p className="text-black">Employee ID</p>
+              <p className="font-semibold text-black">{payslip.employeeId}</p>
+            </div>            <div>
+              <p className="text-black">Pay Period</p>
+              <p className="font-semibold text-black">{payslip.month}</p>
+            </div>
+            <div>
+              <p className="text-black">Payment Date</p>
+              <p className="font-semibold text-black">{new Date(payslip.createdAt).toLocaleDateString()}</p>
+            </div>
+          </div>
 
-              {/* Earnings */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <FaMoneyBillWave className="w-5 h-5" />
-                  <h3 className="text-lg font-semibold">Earnings</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Basic Salary</p>
-                    <p className="font-medium text-gray-900">₹{payslip.basicSalary.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">HRA</p>
-                    <p className="font-medium text-gray-900">₹{payslip.hra.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">VDA</p>
-                    <p className="font-medium text-gray-900">₹{payslip.vda.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Total Earnings</p>
-                    <p className="font-medium text-gray-900">₹{payslip.totalEarnings.toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
+          {/* Attendance Summary */}
+          <div className="grid grid-cols-4 gap-4 mb-6 text-sm">
+            <div className="border rounded p-2">
+              <p className="text-black">Working Days</p>
+              <p className="font-semibold text-black">{payslip.totalWorkingDays}</p>
+            </div>            <div className="border rounded p-2">
+              <p className="text-black">Present Days</p>
+              <p className="font-semibold text-black">{payslip.presentDays}</p>
+            </div>
+            <div className="border rounded p-2">
+              <p className="text-black">Absent Days</p>
+              <p className="font-semibold text-black">{payslip.absentDays}</p>
+            </div>
+            <div className="border rounded p-2">
+              <p className="text-black">Half Days</p>
+              <p className="font-semibold text-black">{payslip.halfDays}</p>
+            </div>
+          </div>
 
-              {/* Deductions */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <FaFileInvoiceDollar className="w-5 h-5" />
-                  <h3 className="text-lg font-semibold">Deductions</h3>
+          {/* Salary Details */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* Earnings */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-black font-semibold mb-3">Earnings</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-black">Basic Salary</span>
+                  <span className="font-semibold text-black">₹{payslip.basicSalary.toLocaleString()}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">PF</p>
-                    <p className="font-medium text-gray-900">₹{payslip.deductions.pf.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">ESI</p>
-                    <p className="font-medium text-gray-900">₹{payslip.deductions.esi.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">PT</p>
-                    <p className="font-medium text-gray-900">₹{payslip.deductions.pt.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Total Deductions</p>
-                    <p className="font-medium text-gray-900">₹{payslip.totalDeductions.toLocaleString()}</p>
-                  </div>
+                <div className="flex justify-between">
+                  <span className="text-black">HRA</span>
+                  <span className="font-semibold text-black">₹{payslip.hra.toLocaleString()}</span>
                 </div>
-              </div>
-
-              {/* Additional Information */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <FaFileInvoiceDollar className="w-5 h-5" />
-                  <h3 className="text-lg font-semibold">Additional Information</h3>
+                <div className="flex justify-between">
+                  <span className="text-black">VDA</span>
+                  <span className="font-semibold text-black">₹{payslip.vda.toLocaleString()}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Half Days</p>
-                    <p className="font-medium text-gray-900">{payslip.halfDays}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">OT Days</p>
-                    <p className="font-medium text-gray-900">{payslip.otDays}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">OT Amount</p>
-                    <p className="font-medium text-gray-900">₹{payslip.otAmount.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Generated On</p>
-                    <p className="font-medium text-gray-900">{new Date(payslip.createdAt).toLocaleDateString()}</p>
+                <div className="border-t pt-2 mt-2">
+                  <div className="flex justify-between font-semibold">
+                    <span className="text-black">Total Earnings</span>
+                    <span className="text-black">₹{payslip.totalEarnings.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Net Pay */}
-            <div className="mt-8">
-              <div className="space-y-4">
-                <h2 className="text-lg font-semibold text-gray-900">Net Pay</h2>
-                <div className="bg-blue-50 rounded-lg p-4 flex justify-between items-center">
-                  <p className="text-lg text-gray-700 font-medium">Total Net Salary</p>
-                  <p className="text-2xl font-bold text-blue-700">₹{payslip.netPay.toLocaleString()}</p>
+            {/* Deductions */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-black font-semibold mb-3">Deductions</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-black">PF</span>
+                  <span className="font-semibold text-black">₹{payslip.deductions.pf.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-black">ESI</span>
+                  <span className="font-semibold text-black">₹{payslip.deductions.esi.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-black">PT</span>
+                  <span className="font-semibold text-black">₹{payslip.deductions.pt.toLocaleString()}</span>
+                </div>
+                <div className="border-t pt-2 mt-2">
+                  <div className="flex justify-between font-semibold">
+                    <span className="text-black">Total Deductions</span>
+                    <span className="text-black">₹{payslip.totalDeductions.toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Net Pay */}
+          <div className="mt-6 border-t pt-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-semibold text-black">Net Salary</h2>
+                <p className="text-black text-sm">Total amount for {new Date(payslip.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-black">₹{payslip.netPay.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Note */}
+          <div className="text-center text-xs text-black mt-6 pt-4 border-t">
+            <p>This is a computer-generated document. No signature required.</p>
+            <p>For any queries, please contact HR department</p>
           </div>
         </div>
       </div>
@@ -330,4 +316,4 @@ const PayslipPage = () => {
   );
 };
 
-export default PayslipPage; 
+export default PayslipPage;
