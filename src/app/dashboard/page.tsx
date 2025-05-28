@@ -1,100 +1,41 @@
 'use client';
-
-import React, { useState, useEffect } from 'react';
-import { FaBirthdayCake, FaTrophy, FaCalendarCheck, FaUserClock, FaProjectDiagram, FaClipboardList, FaFileAlt, FaPlusCircle, FaFileUpload, FaRegCalendarPlus, FaTicketAlt } from 'react-icons/fa';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, ChartOptions, ChartData } from 'chart.js';
+import { useState, useEffect } from 'react';
+import { 
+  Chart as ChartJS, 
+  ArcElement, 
+  Tooltip, 
+  Legend, 
+  CategoryScale, 
+  LinearScale, 
+  BarElement, 
+  Title, 
+  ChartOptions, 
+  ChartData 
+} from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
-import AttendanceAnalytics from '@/components/dashboard/AttendanceAnalytics';
+
 import Confetti from 'react-confetti';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
+import { getDashboardData, getMonthlyStats } from '@/services/dashboard';
+import type { 
+  MonthlyStats, 
+  BirthdayResponse, 
+  WorkAnniversaryResponse, 
+  LeaveBalanceResponse 
+} from '@/services/dashboard';
+import { 
+  FaUserClock, 
+  FaCalendarCheck, 
+  FaClipboardList, 
+  FaFileAlt, 
+  FaPlusCircle, 
+  FaRegCalendarPlus, 
+  FaFileUpload, 
+  FaTicketAlt 
+} from 'react-icons/fa';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
-
-interface MonthlyStats {
-  success: boolean;
-  message: string;
-  data: {
-    month: number;
-    year: number;
-    workingDays: number;
-    presentDays: number;
-    absentDays: number;
-    halfDays: number;
-    overtimeDays: number;
-    lateArrivals: number;
-    earlyArrivals: number;
-    earlyLeaves: number;
-    attendanceRate: string;
-    summary: {
-      totalDays: number;
-      daysPresent: number;
-      daysAbsent: number;
-      punctualityIssues: {
-        lateArrivals: number;
-        earlyArrivals: number;
-        earlyLeaves: number;
-      }
-    }
-  }
-}
-
-interface BirthdayResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    fullName: string;
-    employeeId: string;
-    designation: string;
-    employeeImage: string;
-    personalizedWish: string;
-  }[];
-}
-
-interface WorkAnniversaryResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    fullName: string;
-    employeeId: string;
-    designation: string;
-    employeeImage: string;
-    yearsOfService: number;
-    personalizedWish: string;
-  }[];
-}
-
-interface LeaveBalance {
-  allocated: number;
-  used: number;
-  remaining: number;
-  pending: number;
-}
-
-interface LeaveBalances {
-  EL: LeaveBalance;
-  SL: LeaveBalance;
-  CL: LeaveBalance;
-  CompOff: LeaveBalance;
-}
-
-interface LeaveBalanceResponse {
-  employeeId: string;
-  employeeName: string;
-  year: number;
-  balances: LeaveBalances;
-  totalAllocated: number;
-  totalUsed: number;
-  totalRemaining: number;
-  totalPending: number;
-}
-
-interface EmployeeInfo {
-  employeeId: string;
-  fullName: string;
-  designation: string;
-  department: string;
-}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -103,7 +44,7 @@ export default function Dashboard() {
   const [anniversaries, setAnniversaries] = useState<WorkAnniversaryResponse | null>(null);
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
   const [attendanceActivities, setAttendanceActivities] = useState<any[]>([]);
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1); // 1-12
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
   const [monthlyStatsCache, setMonthlyStatsCache] = useState<Record<string, MonthlyStats>>({});
@@ -205,68 +146,32 @@ export default function Dashboard() {
 
       // Check cache first for monthly stats
       if (monthlyStatsCache[monthYearKey]) {
-        // If cached, directly use it for the currently selected month view
         if (monthToFetch === currentMonth && yearToFetch === currentYear) {
-           setMonthlyStats(monthlyStatsCache[monthYearKey]);
-        }
-        // Only fetch other data if it's the initial full load and data is cached
-        if (showLoading) {
-           const [birthdaysRes, anniversariesRes, leaveBalanceRes, attendanceRes] = await Promise.all([
-            fetch('https://cafm.zenapi.co.in/api/kyc/birthdays/today'),
-            fetch('https://cafm.zenapi.co.in/api/kyc/work-anniversaries/today'),
-            fetch('https://cafm.zenapi.co.in/api/leave/balance/EFMS3295'),
-            fetch('https://cafm.zenapi.co.in/api/attendance/EFMS3295/recent-activities'),
-          ]);
-
-           const [birthdaysData, anniversariesData, leaveBalanceData, attendanceData] = await Promise.all([
-             birthdaysRes.json(),
-             anniversariesRes.json(),
-             leaveBalanceRes.json(),
-             attendanceRes.json(),
-           ]);
-
-           setBirthdays(birthdaysData);
-           setAnniversaries(anniversariesData);
-           setLeaveBalance(leaveBalanceData);
-           if (attendanceData.status === 'success') {
-             setAttendanceActivities(attendanceData.data.activities);
-           }
+          setMonthlyStats(monthlyStatsCache[monthYearKey]);
         }
       } else {
-        // Fetch all data if monthly stats not in cache or it's initial load
-        const [birthdaysRes, anniversariesRes, leaveBalanceRes, attendanceRes, monthlyStatsRes] = await Promise.all([
-          fetch('https://cafm.zenapi.co.in/api/kyc/birthdays/today'),
-          fetch('https://cafm.zenapi.co.in/api/kyc/work-anniversaries/today'),
-          fetch('https://cafm.zenapi.co.in/api/leave/balance/EFMS3295'),
-          fetch('https://cafm.zenapi.co.in/api/attendance/EFMS3295/recent-activities'),
-          fetch(`https://cafm.zenapi.co.in/api/attendance/EFMS3295/monthly-stats?month=${monthToFetch}&year=${yearToFetch}`)
-        ]);
-
-        const [birthdaysData, anniversariesData, leaveBalanceData, attendanceData, monthlyStatsData] = await Promise.all([
-          birthdaysRes.json(),
-          anniversariesRes.json(),
-          leaveBalanceRes.json(),
-          attendanceRes.json(),
-          monthlyStatsRes.json()
-        ]);
-
-        setBirthdays(birthdaysData);
-        setAnniversaries(anniversariesData);
-        setLeaveBalance(leaveBalanceData);
-        setMonthlyStats(monthlyStatsData);
-        // Store in cache if successful
-        if (monthlyStatsData?.success) {
-            setMonthlyStatsCache(prev => ({ ...prev, [monthYearKey]: monthlyStatsData }));
-        }
-        if (attendanceData.status === 'success') {
-          setAttendanceActivities(attendanceData.data.activities);
+        // Fetch data using the service
+        const data = await getDashboardData('EFMS3295', monthToFetch, yearToFetch);
+        
+        // Update states with fetched data
+        setBirthdays(data.birthdays);
+        setAnniversaries(data.anniversaries);
+        setLeaveBalance(data.leaveBalance);
+        setAttendanceActivities(data.attendanceActivities);
+        
+        // Update monthly stats and cache
+        const newMonthlyStats = data.monthlyStats;
+        setMonthlyStatsCache(prev => ({
+          ...prev,
+          [monthYearKey]: newMonthlyStats
+        }));
+        
+        if (monthToFetch === currentMonth && yearToFetch === currentYear) {
+          setMonthlyStats(newMonthlyStats);
         }
       }
-
-
     } catch (error) {
       console.error('Error fetching data:', error);
-      // Potentially set error states here
     } finally {
       if (showLoading) setLoading(false);
       setRefreshing(false);
@@ -276,57 +181,36 @@ export default function Dashboard() {
 
   // Initial data fetch on component mount
   useEffect(() => {
-    fetchData(); // Fetch for current month on mount
+    fetchData();
 
     // Poll every 5 minutes
     const pollInterval = setInterval(() => {
       setRefreshing(true);
-      // When polling, don't show the full page loader or re-fetch monthly stats if cached
-      // Only refresh birthday/anniversary/recent activity data
-      // Also fetch the current month's stats again to keep it updated if needed
       fetchData(false, currentMonth, currentYear);
     }, 5 * 60 * 1000);
 
     return () => clearInterval(pollInterval);
-  }, []); // Empty dependency array means this runs once on mount
-
+  }, []);
 
   // Effect to update displayed monthly stats when currentMonth or currentYear changes
-  // This useEffect also triggers fetching if data is not in cache for the selected month
-   useEffect(() => {
-       // When "All" is selected (currentMonth === 0 or some indicator),
-       // we don't update monthlyStats, we rely on monthlyStatsCache for the grouped chart.
-       if (currentMonth > 0) { // Check if a specific month is selected
-           const monthYearKey = `${currentMonth}-${currentYear}`;
-           if (monthlyStatsCache[monthYearKey]) {
-               setMonthlyStats(monthlyStatsCache[monthYearKey]);
-           } else {
-               // Only fetch if the cache doesn't have it.
-               // Ensure initial data is loaded before triggering fetches based on month change.
-               if (monthlyStats !== null || Object.keys(monthlyStatsCache).length > 0) {
-                  fetchData(false, currentMonth, currentYear); // Fetch new data without showing full page loader
-               } else {
-                   // This case handles the very first load if cache is empty and monthlyStats is null
-                   fetchData(true, currentMonth, currentYear);
-               }
-           }
-       }
-       // If currentMonth is 0 (for 'All'), monthlyStats will remain null, and renderAttendanceChart
-       // will use monthlyStatsCache.
-
-   }, [currentMonth, currentYear, monthlyStatsCache]); // Dependency array includes currentMonth, currentYear, and cache
+  useEffect(() => {
+    if (currentMonth > 0) {
+      const monthYearKey = `${currentMonth}-${currentYear}`;
+      if (monthlyStatsCache[monthYearKey]) {
+        setMonthlyStats(monthlyStatsCache[monthYearKey]);
+      } else {
+        fetchData(false, currentMonth, currentYear);
+      }
+    }
+  }, [currentMonth, currentYear, monthlyStatsCache]);
 
   useEffect(() => {
     if (birthdays?.success && birthdays.data && birthdays.data.length > 0) {
       setShowCelebration(true);
-      setCelebrationMessage(
-        `Happy Birthday, ${birthdays.data.map(b => b.fullName).join(', ')}! 🎉\n${birthdays.data[0].personalizedWish}`
-      );
+      setCelebrationMessage(`Happy Birthday ${birthdays.data[0].fullName}! 🎉`);
     } else if (anniversaries?.success && anniversaries.data && anniversaries.data.length > 0) {
       setShowCelebration(true);
-      setCelebrationMessage(
-        `Happy Work Anniversary, ${anniversaries.data.map(a => a.fullName).join(', ')}! 🎊\n${anniversaries.data[0].personalizedWish}`
-      );
+      setCelebrationMessage(`Happy Work Anniversary ${anniversaries.data[0].fullName}! 🎉`);
     } else {
       setShowCelebration(false);
       setCelebrationMessage(null);
@@ -343,17 +227,11 @@ export default function Dashboard() {
     <button
       onClick={() => {
         setRefreshing(true);
-        // When refreshing, fetch data for the currently selected month if a specific month is selected,
-        // otherwise re-fetch data for all months in cache if "All" is selected.
         if (currentMonth > 0) {
           fetchData(false, currentMonth, currentYear);
         } else {
-           // To refresh "All" months, we'd ideally re-fetch data for each month in the cache.
-           // For simplicity here, we'll just clear the cache and trigger a re-fetch of the current month,
-           // assuming the user might then re-select "All". A more robust solution would iterate
-           // through the keys in monthlyStatsCache and call fetchData for each, or have a dedicated "refresh all" endpoint.
            setMonthlyStatsCache({});
-           fetchData(false, new Date().getMonth() + 1, new Date().getFullYear()); // Fetch current month after clearing
+           fetchData(false, new Date().getMonth() + 1, new Date().getFullYear());
         }
       }}
       className="flex items-center gap-2 px-3 py-1.5 bg-white/80 hover:bg-white text-gray-600
