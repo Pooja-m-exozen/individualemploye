@@ -111,7 +111,7 @@ const StatusBadge = ({ status, isLate }: { status: string; isLate: boolean }) =>
   );
 };
 
-// Add new action button component
+// Improved ActionButton component for consistent styling
 const ActionButton = ({ icon: Icon, label, onClick, variant = 'primary' }: { icon: any; label: string; onClick: () => void; variant?: 'primary' | 'secondary' }) => (
   <button
     onClick={onClick}
@@ -120,10 +120,27 @@ const ActionButton = ({ icon: Icon, label, onClick, variant = 'primary' }: { ico
         ? 'bg-blue-600 text-white hover:bg-blue-700'
         : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'
     }`}
+    aria-label={label}
   >
     <Icon className="w-5 h-5" />
     <span className="font-medium">{label}</span>
   </button>
+);
+
+// Improved loading indicator
+const LoadingIndicator = () => (
+  <div className="flex items-center justify-center p-12">
+    <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+    <p className="text-gray-600 ml-4">Loading...</p>
+  </div>
+);
+
+// Enhanced feedback messages
+const FeedbackMessage = ({ message, type }: { message: string; type: 'success' | 'error' }) => (
+  <div className={`flex items-center gap-2 p-4 rounded-xl ${type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+    {type === 'success' ? <FaCheckCircle className="w-5 h-5" /> : <FaExclamationCircle className="w-5 h-5" />}
+    <p className="text-sm">{message}</p>
+  </div>
 );
 
 export default function AttendancePage() {
@@ -1053,24 +1070,11 @@ export default function AttendancePage() {
 
   const renderContent = () => {
     if (loading) {
-      return <SkeletonLoader />;
+      return <LoadingIndicator />;
     }
 
     if (error) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-          <div className="text-red-500 text-center p-6 bg-red-50 rounded-xl shadow-lg max-w-md backdrop-blur-sm">
-            <FaExclamationCircle className="w-12 h-12 mx-auto mb-4" />
-            <p className="font-semibold text-lg mb-2">{error}</p>
-            <button 
-              onClick={fetchAttendanceData}
-              className="mt-4 px-6 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      );
+      return <FeedbackMessage message={error} type="error" />;
     }
 
     return (
@@ -1143,22 +1147,16 @@ export default function AttendancePage() {
               <button
                 onClick={handleMarkAttendance}
                 disabled={!photoPreview || markingAttendance}
-                className={`w-full px-6 py-4 rounded-xl font-medium transition-all transform hover:scale-[1.02] shadow-lg text-lg flex items-center justify-center gap-2 ${
+                className={`w-full px-6 py-4 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg ${
                   !photoPreview || markingAttendance
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700'
                 }`}
               >
                 {markingAttendance ? (
-                  <>
-                    <FaSpinner className="w-5 h-5 animate-spin" />
-                    <span>Processing...</span>
-                  </>
+                  <FaSpinner className="animate-spin" />
                 ) : (
-                  <>
-                    <FaCheck className="w-5 h-5" />
-                    <span>Mark Attendance</span>
-                  </>
+                  'Mark Attendance'
                 )}
               </button>
               <div className="relative">
