@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FaBirthdayCake, FaTrophy, FaCalendarCheck, FaUserClock, FaProjectDiagram, FaClipboardList, FaFileAlt, FaPlusCircle, FaFileUpload, FaRegCalendarPlus, FaTicketAlt } from 'react-icons/fa';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, ChartOptions } from 'chart.js';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, ChartOptions, ChartData } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
 import AttendanceAnalytics from '@/components/dashboard/AttendanceAnalytics';
 import Confetti from 'react-confetti';
@@ -10,6 +10,34 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+
+interface MonthlyStats {
+  success: boolean;
+  message: string;
+  data: {
+    month: number;
+    year: number;
+    workingDays: number;
+    presentDays: number;
+    absentDays: number;
+    halfDays: number;
+    overtimeDays: number;
+    lateArrivals: number;
+    earlyArrivals: number;
+    earlyLeaves: number;
+    attendanceRate: string;
+    summary: {
+      totalDays: number;
+      daysPresent: number;
+      daysAbsent: number;
+      punctualityIssues: {
+        lateArrivals: number;
+        earlyArrivals: number;
+        earlyLeaves: number;
+      }
+    }
+  }
+}
 
 interface BirthdayResponse {
   success: boolean;
@@ -75,8 +103,13 @@ export default function Dashboard() {
   const [anniversaries, setAnniversaries] = useState<WorkAnniversaryResponse | null>(null);
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
   const [attendanceActivities, setAttendanceActivities] = useState<any[]>([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1); // 1-12
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
+  const [monthlyStatsCache, setMonthlyStatsCache] = useState<Record<string, MonthlyStats>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null);
@@ -164,49 +197,124 @@ export default function Dashboard() {
     }
   };
 
-  const fetchData = async (showLoading = true) => {
+  const fetchData = async (showLoading = true, monthToFetch: number = currentMonth, yearToFetch: number = currentYear) => {
     try {
       if (showLoading) setLoading(true);
-      const [birthdaysRes, anniversariesRes, leaveBalanceRes, attendanceRes] = await Promise.all([
-        fetch('https://cafm.zenapi.co.in/api/kyc/birthdays/today'),
-        fetch('https://cafm.zenapi.co.in/api/kyc/work-anniversaries/today'),
-        fetch('https://cafm.zenapi.co.in/api/leave/balance/EFMS3295'),
-        fetch('https://cafm.zenapi.co.in/api/attendance/EFMS3295/recent-activities')
-      ]);
+      setAnalyticsLoading(true);
+      const monthYearKey = `${monthToFetch}-${yearToFetch}`;
 
-      const [birthdaysData, anniversariesData, leaveBalanceData, attendanceData] = await Promise.all([
-        birthdaysRes.json(),
-        anniversariesRes.json(),
-        leaveBalanceRes.json(),
-        attendanceRes.json()
-      ]);
+      // Check cache first for monthly stats
+      if (monthlyStatsCache[monthYearKey]) {
+        // If cached, directly use it for the currently selected month view
+        if (monthToFetch === currentMonth && yearToFetch === currentYear) {
+           setMonthlyStats(monthlyStatsCache[monthYearKey]);
+        }
+        // Only fetch other data if it's the initial full load and data is cached
+        if (showLoading) {
+           const [birthdaysRes, anniversariesRes, leaveBalanceRes, attendanceRes] = await Promise.all([
+            fetch('https://cafm.zenapi.co.in/api/kyc/birthdays/today'),
+            fetch('https://cafm.zenapi.co.in/api/kyc/work-anniversaries/today'),
+            fetch('https://cafm.zenapi.co.in/api/leave/balance/EFMS3295'),
+            fetch('https://cafm.zenapi.co.in/api/attendance/EFMS3295/recent-activities'),
+          ]);
 
-      setBirthdays(birthdaysData);
-      setAnniversaries(anniversariesData);
-      setLeaveBalance(leaveBalanceData);
-      if (attendanceData.status === 'success') {
-        setAttendanceActivities(attendanceData.data.activities);
+           const [birthdaysData, anniversariesData, leaveBalanceData, attendanceData] = await Promise.all([
+             birthdaysRes.json(),
+             anniversariesRes.json(),
+             leaveBalanceRes.json(),
+             attendanceRes.json(),
+           ]);
+
+           setBirthdays(birthdaysData);
+           setAnniversaries(anniversariesData);
+           setLeaveBalance(leaveBalanceData);
+           if (attendanceData.status === 'success') {
+             setAttendanceActivities(attendanceData.data.activities);
+           }
+        }
+      } else {
+        // Fetch all data if monthly stats not in cache or it's initial load
+        const [birthdaysRes, anniversariesRes, leaveBalanceRes, attendanceRes, monthlyStatsRes] = await Promise.all([
+          fetch('https://cafm.zenapi.co.in/api/kyc/birthdays/today'),
+          fetch('https://cafm.zenapi.co.in/api/kyc/work-anniversaries/today'),
+          fetch('https://cafm.zenapi.co.in/api/leave/balance/EFMS3295'),
+          fetch('https://cafm.zenapi.co.in/api/attendance/EFMS3295/recent-activities'),
+          fetch(`https://cafm.zenapi.co.in/api/attendance/EFMS3295/monthly-stats?month=${monthToFetch}&year=${yearToFetch}`)
+        ]);
+
+        const [birthdaysData, anniversariesData, leaveBalanceData, attendanceData, monthlyStatsData] = await Promise.all([
+          birthdaysRes.json(),
+          anniversariesRes.json(),
+          leaveBalanceRes.json(),
+          attendanceRes.json(),
+          monthlyStatsRes.json()
+        ]);
+
+        setBirthdays(birthdaysData);
+        setAnniversaries(anniversariesData);
+        setLeaveBalance(leaveBalanceData);
+        setMonthlyStats(monthlyStatsData);
+        // Store in cache if successful
+        if (monthlyStatsData?.success) {
+            setMonthlyStatsCache(prev => ({ ...prev, [monthYearKey]: monthlyStatsData }));
+        }
+        if (attendanceData.status === 'success') {
+          setAttendanceActivities(attendanceData.data.activities);
+        }
       }
+
+
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Potentially set error states here
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
       setRefreshing(false);
+      setAnalyticsLoading(false);
     }
   };
 
-  // Polling setup
+  // Initial data fetch on component mount
   useEffect(() => {
-    fetchData();
+    fetchData(); // Fetch for current month on mount
 
     // Poll every 5 minutes
     const pollInterval = setInterval(() => {
       setRefreshing(true);
-      fetchData(false);
+      // When polling, don't show the full page loader or re-fetch monthly stats if cached
+      // Only refresh birthday/anniversary/recent activity data
+      // Also fetch the current month's stats again to keep it updated if needed
+      fetchData(false, currentMonth, currentYear);
     }, 5 * 60 * 1000);
 
     return () => clearInterval(pollInterval);
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
+
+
+  // Effect to update displayed monthly stats when currentMonth or currentYear changes
+  // This useEffect also triggers fetching if data is not in cache for the selected month
+   useEffect(() => {
+       // When "All" is selected (currentMonth === 0 or some indicator),
+       // we don't update monthlyStats, we rely on monthlyStatsCache for the grouped chart.
+       if (currentMonth > 0) { // Check if a specific month is selected
+           const monthYearKey = `${currentMonth}-${currentYear}`;
+           if (monthlyStatsCache[monthYearKey]) {
+               setMonthlyStats(monthlyStatsCache[monthYearKey]);
+           } else {
+               // Only fetch if the cache doesn't have it.
+               // Ensure initial data is loaded before triggering fetches based on month change.
+               if (monthlyStats !== null || Object.keys(monthlyStatsCache).length > 0) {
+                  fetchData(false, currentMonth, currentYear); // Fetch new data without showing full page loader
+               } else {
+                   // This case handles the very first load if cache is empty and monthlyStats is null
+                   fetchData(true, currentMonth, currentYear);
+               }
+           }
+       }
+       // If currentMonth is 0 (for 'All'), monthlyStats will remain null, and renderAttendanceChart
+       // will use monthlyStatsCache.
+
+   }, [currentMonth, currentYear, monthlyStatsCache]); // Dependency array includes currentMonth, currentYear, and cache
 
   useEffect(() => {
     if (birthdays?.success && birthdays.data && birthdays.data.length > 0) {
@@ -235,7 +343,18 @@ export default function Dashboard() {
     <button
       onClick={() => {
         setRefreshing(true);
-        fetchData(false);
+        // When refreshing, fetch data for the currently selected month if a specific month is selected,
+        // otherwise re-fetch data for all months in cache if "All" is selected.
+        if (currentMonth > 0) {
+          fetchData(false, currentMonth, currentYear);
+        } else {
+           // To refresh "All" months, we'd ideally re-fetch data for each month in the cache.
+           // For simplicity here, we'll just clear the cache and trigger a re-fetch of the current month,
+           // assuming the user might then re-select "All". A more robust solution would iterate
+           // through the keys in monthlyStatsCache and call fetchData for each, or have a dedicated "refresh all" endpoint.
+           setMonthlyStatsCache({});
+           fetchData(false, new Date().getMonth() + 1, new Date().getFullYear()); // Fetch current month after clearing
+        }
       }}
       className="flex items-center gap-2 px-3 py-1.5 bg-white/80 hover:bg-white text-gray-600
         rounded-full text-sm font-medium transition-all duration-300 hover:shadow-md
@@ -307,6 +426,11 @@ export default function Dashboard() {
       bg: 'rgba(245, 158, 11, 0.8)',
       border: 'rgba(245, 158, 11, 1)',
       text: 'text-amber-600'
+    },
+    Early: { // Adding early arrivals color for consistency
+      bg: 'rgba(75, 192, 192, 0.8)',
+      border: 'rgba(75, 192, 192, 1)',
+      text: 'text-teal-600' // Assuming a teal text color
     }
   };
 
@@ -387,22 +511,22 @@ export default function Dashboard() {
           },
           color: '#64748b',
           padding: 8
-        }
+        },
       }
     },
     elements: {
       bar: {
         borderWidth: 1,
-        borderRadius: 6,
+        borderRadius: 0,
         borderSkipped: false
       }
     },
     datasets: {
       bar: {
-        barThickness: 40,
+        barThickness: 'flex' as const,
         maxBarThickness: 60,
-        barPercentage: 0.95,
-        categoryPercentage: 0.95
+        barPercentage: 0.9, // Adjusted slightly to ensure minimal gap for grouping visibility
+        categoryPercentage: 0.9 // Adjusted slightly for grouping visibility
       }
     }
   };
@@ -452,128 +576,190 @@ export default function Dashboard() {
         },
         callbacks: {
           label: function(context) {
-             return `${context.label}: ${context.formattedValue}`; // Standard pie chart tooltip format
+             return `${context.label}: ${context.formattedValue}`;
           }
         }
       }
     }
   };
 
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setCurrentMonth(parseInt(e.target.value));
+    // useEffect will handle updating monthlyStats and fetching if needed
+    // When "All" is selected, currentMonth will be 0.
+  };
+
+  const renderMonthSelector = () => (
+    <div className="flex items-center gap-2">
+      <label htmlFor="month-select" className="text-gray-700 font-medium text-sm whitespace-nowrap">Select Month:</label>
+      <select
+        id="month-select"
+        value={currentMonth}
+        onChange={handleMonthChange}
+        className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+      >
+        <option value={0}>All Months</option> {/* Added "All Months" option */}
+        {monthNames.map((month, index) => (
+          <option key={month} value={index + 1}>
+            {month} {currentYear}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   const renderAttendanceChart = () => {
-    if (!attendanceActivities || attendanceActivities.length === 0) return <p className="text-center text-gray-500">No attendance data available.</p>;
+    // Determine data and title based on selected month (or "All")
+    let chartData;
+    let chartTitle = `Attendance Analytics for ${currentMonth > 0 ? `${monthNames[currentMonth - 1]} ${currentYear}` : 'All Months'}`;
+    let dataAvailable = true; // Assume data is available initially
 
-    // Filter activities for the current month and process data
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    if (analyticsLoading && Object.keys(monthlyStatsCache).length === 0 && currentMonth !== 0) {
+        // Show loader only if loading, cache is empty, and a specific month is selected (initial load)
+         return (
+            <div className="flex items-center justify-center h-[400px] bg-gray-50 rounded-lg">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+              <span className="ml-4 text-indigo-600 text-lg">Loading Attendance Data...</span>
+            </div>
+          );
+    } else if (currentMonth === 0) { // "All Months" selected
+        const monthsInCache = Object.keys(monthlyStatsCache);
+        if (monthsInCache.length === 0) {
+            dataAvailable = false;
+        } else {
+             // Create datasets for each month in cache
+             const datasets = monthsInCache.map(monthYearKey => {
+                 const stats = monthlyStatsCache[monthYearKey].data;
+                 const [month, year] = monthYearKey.split('-').map(Number);
+                 return {
+                     label: `${monthNames[month - 1]} ${year}`,
+                     data: [
+                         stats.presentDays,
+                         stats.absentDays,
+                         stats.summary.punctualityIssues.lateArrivals,
+                         stats.summary.punctualityIssues.earlyArrivals
+                     ],
+                     backgroundColor: Object.values(attendanceColors).map(color => color.bg), // Use all colors for each month's bars
+                     borderColor: Object.values(attendanceColors).map(color => color.border),
+                     borderWidth: 1,
+                 };
+             });
 
-    const monthlyActivities = attendanceActivities.filter(activity => {
-      const activityDate = new Date(activity.date);
-      return activityDate.getMonth() === currentMonth && activityDate.getFullYear() === currentYear && !['Sunday', '4th Saturday', '2nd Saturday'].includes(activity.status);
-    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+             chartData = {
+                 labels: ['Present', 'Absent', 'Late Arrivals', 'Early Arrivals'],
+                 datasets: datasets
+             };
+        }
 
-    if (monthlyActivities.length === 0) return <p className="text-center text-gray-500">No attendance data for the current month.</p>;
-
-    // Calculate total counts for Present, Absent, and Late
-    let presentCount = 0;
-    let absentCount = 0;
-    let lateCount = 0;
-    monthlyActivities.forEach(activity => {
-      if (activity.status === 'Present') presentCount++;
-      if (activity.status === 'Absent') absentCount++;
-      if (activity.isLate) lateCount++; // Count late occurrences
-    });
-
-    const barChartData = {
-      labels: ['Present', 'Absent', 'Late'],
-      datasets: [
-        {
-          label: 'Count',
-          data: [presentCount, absentCount, lateCount],
-          backgroundColor: [
-            attendanceColors.Present.bg,
-            attendanceColors.Absent.bg,
-            attendanceColors.Late.bg,
-          ],
-          borderColor: [
-            attendanceColors.Present.border,
-            attendanceColors.Absent.border,
-            attendanceColors.Late.border,
-          ],
-          borderWidth: 1,
-        },
-      ],
-    };
-
-    // Process data for pie chart
-    const statusCounts: { [key: string]: number } = {};
-     monthlyActivities.forEach(activity => {
-      statusCounts[activity.status] = (statusCounts[activity.status] || 0) + 1;
-    });
-    // Include Late status in pie chart counts if applicable
-     monthlyActivities.forEach(activity => {
-       if(activity.isLate) statusCounts['Late'] = (statusCounts['Late'] || 0) + 1;
-    });
-
-    const pieChartLabels = Object.keys(statusCounts).filter(status => statusCounts[status] > 0);
-    const pieChartDataValues = Object.values(statusCounts).filter(count => count > 0);
-
-    const pieChartData = {
-      labels: pieChartLabels,
-      datasets: [
-        {
-          label: '# of Days',
-          data: pieChartDataValues,
-          backgroundColor: [
-            attendanceColors.Present.bg,
-            attendanceColors.Absent.bg,
-            attendanceColors.Late.bg,
-            'rgba(54, 162, 235, 0.6)', // Example additional color if needed
-            'rgba(153, 102, 255, 0.6)', // Example additional color if needed
-            'rgba(201, 203, 207, 0.6)', // Example additional color if needed
-          ],
-          borderColor: [
-            attendanceColors.Present.border,
-            attendanceColors.Absent.border,
-            attendanceColors.Late.border,
-            'rgba(54, 162, 235, 1)', // Example additional color if needed
-            'rgba(153, 102, 255, 1)', // Example additional color if needed
-            'rgba(201, 203, 207, 1)', // Example additional color if needed
-          ],
-          borderWidth: 1,
-        },
-      ],
-    };
-
-    if (attendanceChartType === 'bar') {
-      return (
-        <div className="w-full h-full max-w-3xl mx-auto">
-          <div className="h-[400px]">
-            <Bar
-              data={barChartData}
-              options={barChartOptions}
-            />
-          </div>
-        </div>
-      );
-    } else {
-      return (
-        <div className="w-full h-full max-w-2xl mx-auto p-4">
-          <Pie data={pieChartData} options={pieChartOptions} />
-        </div>
-      );
+    } else { // Specific month selected
+        const data = monthlyStats?.data; // Use the state for the currently selected specific month
+         if (!data) {
+             dataAvailable = false;
+         } else {
+             // Initialize with default empty chart data to avoid undefined
+             chartData = {
+                 labels: ['Present', 'Absent', 'Late Arrivals', 'Early Arrivals'],
+                 datasets: [
+                     {
+                         label: chartTitle,
+                         data: [
+                             data.presentDays || 0,
+                             data.absentDays || 0,
+                             data.summary.punctualityIssues.lateArrivals || 0,
+                             data.summary.punctualityIssues.earlyArrivals || 0
+                         ],
+                         backgroundColor: [
+                             attendanceColors.Present.bg,
+                             attendanceColors.Absent.bg,
+                             attendanceColors.Late.bg,
+                             attendanceColors.Early.bg, // Use the new early arrivals color
+                         ],
+                         borderColor: [
+                             attendanceColors.Present.border,
+                             attendanceColors.Absent.border,
+                             attendanceColors.Late.border,
+                             attendanceColors.Early.border,
+                         ],
+                         borderWidth: 1,
+                     },
+                 ],
+             };
+         }
     }
+
+
+    if (!dataAvailable) return <p className="text-center text-gray-500 h-[400px] flex items-center justify-center">No attendance data available for {currentMonth > 0 ? `${monthNames[currentMonth - 1]} ${currentYear}` : 'the selected period'}.</p>;
+
+    const chartDataWithTypes: ChartData<'bar', number[], string> = chartData ? chartData : {
+      labels: [],
+      datasets: []
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Removed Attendance Summary Cards */}
+
+        {/* Dynamic Chart Title */}
+        <h3 className="text-lg font-semibold text-gray-800 text-center">{chartTitle}</h3>
+
+        <div className="w-full h-[400px]">
+          {attendanceChartType === 'bar' ? (
+            <Bar data={chartDataWithTypes} options={barChartOptions} />
+          ) : (
+            // Pie chart for "All Months" is not standard
+            currentMonth === 0 ? (
+              <p className="text-center text-gray-500 h-[400px] flex items-center justify-center">Pie chart view is not available for "All Months". Please select a specific month.</p>
+            ) : (
+              monthlyStats?.data && (
+                <Pie 
+                  data={{
+                    labels: ['Present', 'Absent', 'Late Arrivals', 'Early Arrivals'],
+                    datasets: [{
+                      data: [
+                        monthlyStats.data.presentDays,
+                        monthlyStats.data.absentDays,
+                        monthlyStats.data.summary.punctualityIssues.lateArrivals,
+                        monthlyStats.data.summary.punctualityIssues.earlyArrivals
+                      ],
+                      backgroundColor: [
+                        attendanceColors.Present.bg,
+                        attendanceColors.Absent.bg,
+                        attendanceColors.Late.bg,
+                        attendanceColors.Early.bg
+                      ],
+                      borderColor: [
+                        attendanceColors.Present.border,
+                        attendanceColors.Absent.border,
+                        attendanceColors.Late.border,
+                        attendanceColors.Early.border
+                      ],
+                      borderWidth: 1
+                    }]
+                  }} 
+                  options={pieChartOptions} 
+                />
+              )
+            )
+          )}
+        </div>
+      </div>
+    );
   };
 
   const renderLeaveChart = () => {
-    if (!leaveBalance) return <p>No leave balance data available.</p>;
+    if (!leaveBalance) return <p className="text-center text-gray-500 h-[400px] flex items-center justify-center">No leave balance data available.</p>;
 
     type LeaveType = 'EL' | 'SL' | 'CL' | 'CompOff';
     const leaveTypes: LeaveType[] = ['EL', 'SL', 'CL', 'CompOff'];
     const allocatedData = leaveTypes.map((type: LeaveType) => leaveBalance.balances[type].allocated);
 
     const chartData = {
-      labels: leaveTypes,
+      labels: ['Earned Leave', 'Sick Leave', 'Casual Leave', 'Comp Off'],
       datasets: [
         {
           label: 'Allocated Days',
@@ -595,22 +781,18 @@ export default function Dashboard() {
       ],
     };
 
-    if (leaveChartType === 'bar') {
-      return (
-        <div className="w-full h-full max-w-4xl mx-auto p-4">
+    return (
+      <div className="w-full h-[400px] max-w-4xl mx-auto p-4">
+        {leaveChartType === 'bar' ? (
           <Bar
             data={chartData}
             options={barChartOptions}
           />
-        </div>
-      );
-    } else {
-      return (
-        <div className="w-full h-full max-w-2xl mx-auto p-4">
+        ) : (
           <Pie data={chartData} options={pieChartOptions} />
-        </div>
-      );
-    }
+        )}
+      </div>
+    );
   };
 
   const renderChart = () => {
@@ -624,214 +806,25 @@ export default function Dashboard() {
   const renderChartTypeToggle = () => {
     const currentChartType = analyticsView === 'attendance' ? attendanceChartType : leaveChartType;
     const setChartType = analyticsView === 'attendance' ? setAttendanceChartType : setLeaveChartType;
+
+    // Disable pie chart option when "All Months" is selected for attendance
+    const isPieDisabled = analyticsView === 'attendance' && currentMonth === 0;
+
     return (
       <div className="flex gap-2">
         <button
           onClick={() => setChartType('bar')}
-          className={`px-3 py-1 rounded-full text-sm font-medium ${currentChartType === 'bar' ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${currentChartType === 'bar' ? 'bg-indigo-500 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
         >
           Bar Chart
         </button>
         <button
           onClick={() => setChartType('pie')}
-          className={`px-3 py-1 rounded-full text-sm font-medium ${currentChartType === 'pie' ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${currentChartType === 'pie' ? 'bg-indigo-500 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} ${isPieDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={isPieDisabled} // Disable button
         >
           Pie Chart
         </button>
-      </div>
-    );
-  };
-
-  const renderLeaveBalanceGraphs = () => {
-    if (!leaveBalance) return null;
-
-    type LeaveType = 'EL' | 'SL' | 'CL' | 'CompOff';
-    const leaveTypes: LeaveType[] = ['EL', 'SL', 'CL', 'CompOff'];
-
-    const data = {
-      labels: ['Earned Leave', 'Sick Leave', 'Casual Leave', 'Comp Off'],
-      datasets: [
-        {
-          data: leaveTypes.map(type => leaveBalance.balances[type].allocated),
-          backgroundColor: leaveTypes.map(type => leaveColors[type].bg),
-          borderColor: leaveTypes.map(type => leaveColors[type].border),
-          borderWidth: 2,
-          borderRadius: 8,
-          barThickness: 40,
-        }
-      ]
-    };
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Leave Balance Overview */}
-        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100
-          transform transition-all duration-300 hover:shadow-xl group">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
-            <span className="text-emerald-500">📊</span>
-            Leave Balance Overview
-          </h3>
-          <div className="transform transition-transform duration-300 group-hover:scale-[1.02]">
-            <Bar
-              data={data}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'x',
-                layout: {
-                  padding: {
-                    top: 20,
-                    bottom: 20,
-                    left: 20,
-                    right: 20
-                  }
-                },
-                plugins: {
-                  legend: {
-                    position: 'top' as const,
-                    align: 'center' as const,
-                    labels: {
-                      font: {
-                        family: "'Geist', sans-serif",
-                        size: 12,
-                        weight: 'normal' as 'normal'
-                      },
-                      usePointStyle: true,
-                      padding: 20,
-                      boxWidth: 10
-                    }
-                  },
-                  tooltip: {
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    titleColor: '#1f2937',
-                    bodyColor: '#4b5563',
-                    borderColor: '#e5e7eb',
-                    borderWidth: 1,
-                    padding: 12,
-                    bodyFont: {
-                      size: 13,
-                      family: "'Geist', sans-serif",
-                      weight: 'normal' as 'normal'
-                    },
-                    titleFont: {
-                      size: 14,
-                      weight: 'bold' as 'bold',
-                      family: "'Geist', sans-serif"
-                    },
-                    callbacks: {
-                      label: function(context) {
-                        if ('y' in context.parsed) {
-                          return `${context.dataset.label}: ${context.parsed.y} days`;
-                        } else {
-                          return `${context.dataset.label}: ${context.parsed}`;
-                        }
-                      }
-                    }
-                  }
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    grid: {
-                      color: 'rgba(226, 232, 240, 0.5)',
-                      lineWidth: 1,
-                      display: true
-                    },
-                    ticks: {
-                      font: {
-                        size: 12,
-                        family: "'Geist', sans-serif",
-                        weight: 'normal' as 'normal'
-                      },
-                      color: '#64748b',
-                      padding: 8,
-                      stepSize: 1
-                    }
-                  },
-                  x: {
-                    grid: {
-                      display: false
-                    },
-                    ticks: {
-                      font: {
-                        size: 12,
-                        family: "'Geist', sans-serif",
-                        weight: 'normal' as 'normal'
-                      },
-                      color: '#64748b',
-                      padding: 8
-                    }
-                  }
-                },
-                elements: {
-                  bar: {
-                    borderWidth: 1,
-                    borderRadius: 6,
-                    borderSkipped: false
-                  }
-                },
-                datasets: {
-                  bar: {
-                    barThickness: 40,
-                    maxBarThickness: 60,
-                    barPercentage: 0.95,
-                    categoryPercentage: 0.95
-                  }
-                }
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Leave Status Cards */}
-        <div className="grid grid-cols-2 gap-4">
-          {leaveTypes.map((type, index) => {
-            const balance = leaveBalance.balances[type];
-            const percentage = (balance.used / balance.allocated) * 100;
-
-            return (
-              <div
-                key={type}
-                className={`bg-gradient-to-br ${leaveColors[type].gradient} rounded-xl p-4 text-white
-                  transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group`}
-                style={{
-                  animation: `fadeSlideIn 0.5s ease-out forwards ${index * 0.1}s`
-                }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium opacity-90">{type}</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium bg-white/20 backdrop-blur-sm`}>
-                    {balance.remaining} left
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs opacity-75">Used</span>
-                    <span className="text-sm font-medium group-hover:font-bold transition-all">
-                      {balance.used}/{balance.allocated}
-                    </span>
-                  </div>
-                  <div className="relative pt-1">
-                    <div className="flex mb-1 items-center justify-between">
-                      <div>
-                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-white/20 backdrop-blur-sm">
-                          {Math.round(percentage)}%
-                        </span>
-                      </div>
-                    </div>
-                    <div className="overflow-hidden h-2 text-xs flex rounded-full bg-white/20 backdrop-blur-sm">
-                      <div
-                        style={{ width: `${percentage}%` }}
-                        className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center
-                          bg-white/40 transition-all duration-500 ease-in-out group-hover:bg-white/50"
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </div>
     );
   };
@@ -1171,13 +1164,19 @@ export default function Dashboard() {
       {/* Dashboard Analytics Section */}
       <div className="mb-6 bg-white rounded-2xl shadow-lg p-6">
         <div className="flex items-center justify-between mb-4">
+          {/* Section Title */}
+          {/* Moved dynamic title into renderAttendanceChart */}
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
-            <span className="text-2xl">📈</span>
-            Dashboard Analytics
-          </h2>
+             <span className="text-2xl">📈</span>
+             Dashboard Analytics {/* Keep a general title for the section */}
+           </h2>
+          {/* Refresh Button/Spinner */}
           {refreshing && <LoadingSpinner />}
         </div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+
+        {/* Controls Area */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-200">
+           {/* View Toggles */}
            <div className="flex gap-3">
             <button
               onClick={() => setAnalyticsView('attendance')}
@@ -1192,14 +1191,17 @@ export default function Dashboard() {
               Leave Analytics
             </button>
            </div>
-           <div className="flex gap-2">
+
+           {/* Month Selector and Chart Type Toggles - Grouped */}
+           <div className="flex flex-col sm:flex-row items-center gap-4">
+             {analyticsView === 'attendance' && renderMonthSelector()}
              {renderChartTypeToggle()}
            </div>
         </div>
-        <div className="relative w-full h-[400px] max-w-3xl mx-auto">
-          <div className="w-full h-full">
-            {renderChart()}
-          </div>
+
+        {/* Chart Area */}
+        <div className="relative w-full">
+          {renderChart()}
         </div>
       </div>
 
