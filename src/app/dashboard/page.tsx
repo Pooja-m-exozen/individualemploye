@@ -6,6 +6,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearSca
 import { Pie, Bar } from 'react-chartjs-2';
 import AttendanceAnalytics from '@/components/dashboard/AttendanceAnalytics';
 import Confetti from 'react-confetti';
+import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
@@ -68,6 +69,7 @@ interface EmployeeInfo {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const userDetails = useUser();
   const [birthdays, setBirthdays] = useState<BirthdayResponse | null>(null);
   const [anniversaries, setAnniversaries] = useState<WorkAnniversaryResponse | null>(null);
@@ -974,6 +976,10 @@ export default function Dashboard() {
     }
   };
 
+  const handleViewReports = () => {
+    router.push('/reports');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8 relative">
@@ -1054,7 +1060,7 @@ export default function Dashboard() {
           </div>
           <div className="flex gap-2 z-10">
             <button className="bg-white text-blue-600 px-3 py-1.5 rounded-lg shadow-md hover:bg-blue-50 transition font-medium text-xs">View My Tickets</button>
-            <button className="bg-blue-500 text-white px-3 py-1.5 rounded-lg shadow-md hover:bg-blue-600 transition font-medium text-xs">View Reports</button>
+            <button onClick={handleViewReports} className="bg-blue-500 text-white px-3 py-1.5 rounded-lg shadow-md hover:bg-blue-600 transition font-medium text-xs">View Reports</button>
           </div>
         </div>
       </div>
