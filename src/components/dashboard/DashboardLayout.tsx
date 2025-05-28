@@ -125,8 +125,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       },
       {
         icon: <FaTasks />,
-        label: 'Tasks and Project',
-        href: '/tasks'
+        label: 'Reports',
+        href: '/reports'
       },
       {
         icon: <FaReceipt />,
