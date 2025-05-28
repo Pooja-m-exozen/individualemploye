@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FaBirthdayCake, FaTrophy, FaCalendarCheck, FaUserClock, FaProjectDiagram, FaClipboardList } from 'react-icons/fa';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
+import { FaBirthdayCake, FaTrophy, FaCalendarCheck, FaUserClock, FaProjectDiagram, FaClipboardList, FaFileAlt, FaPlusCircle, FaFileUpload, FaRegCalendarPlus, FaTicketAlt } from 'react-icons/fa';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, ChartOptions } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
 import AttendanceAnalytics from '@/components/dashboard/AttendanceAnalytics';
+import Confetti from 'react-confetti';
+import { useUser } from '@/context/UserContext';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
@@ -66,13 +68,66 @@ interface EmployeeInfo {
 }
 
 export default function Dashboard() {
+  const userDetails = useUser();
   const [birthdays, setBirthdays] = useState<BirthdayResponse | null>(null);
   const [anniversaries, setAnniversaries] = useState<WorkAnniversaryResponse | null>(null);
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
+  const [attendanceActivities, setAttendanceActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [employeeInfo, setEmployeeInfo] = useState<EmployeeInfo | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showRegularizationModal, setShowRegularizationModal] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [leaveType, setLeaveType] = useState('EL');
+  const [leaveFrom, setLeaveFrom] = useState('');
+  const [leaveTo, setLeaveTo] = useState('');
+  const [leaveReason, setLeaveReason] = useState('');
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [leaveSuccess, setLeaveSuccess] = useState('');
+  const [leaveError, setLeaveError] = useState('');
+  const [leaveRequestForm, setLeaveRequestForm] = useState({
+    leaveType: '',
+    startDate: '',
+    endDate: '',
+    numberOfDays: 1,
+    isHalfDay: false,
+    halfDayType: null as string | null,
+    reason: '',
+    emergencyContact: '',
+    attachments: [] as File[],
+  });
+  const [submittingRequest, setSubmittingRequest] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
+
+  // Regularization Form State
+  const [regularizationForm, setRegularizationForm] = useState({
+    date: '',
+    punchInTime: '',
+    punchOutTime: '',
+    reason: '',
+    status: 'Present',
+  });
+  const [regularizationLoading, setRegularizationLoading] = useState(false);
+  const [regularizationError, setRegularizationError] = useState<string | null>(null);
+  const [regularizationSuccess, setRegularizationSuccess] = useState<string | null>(null);
+
+  // Upload Document Form State
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadType, setUploadType] = useState('');
+  const [uploadDesc, setUploadDesc] = useState('');
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+
+  // State for analytics view and chart type
+  const [analyticsView, setAnalyticsView] = useState<'attendance' | 'leave'>('attendance');
+  const [attendanceChartType, setAttendanceChartType] = useState<'bar' | 'pie'>('bar');
+  const [leaveChartType, setLeaveChartType] = useState<'bar' | 'pie'>('bar');
 
   // Update time every minute
   useEffect(() => {
@@ -81,18 +136,6 @@ export default function Dashboard() {
     }, 60000);
     return () => clearInterval(timer);
   }, []);
-
-  const fetchEmployeeInfo = async () => {
-    try {
-      const response = await fetch('https://cafm.zenapi.co.in/api/employee/profile');
-      const data = await response.json();
-      if (data.success) {
-        setEmployeeInfo(data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching employee info:', error);
-    }
-  };
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -122,22 +165,26 @@ export default function Dashboard() {
   const fetchData = async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      await fetchEmployeeInfo();
-      const [birthdaysRes, anniversariesRes, leaveBalanceRes] = await Promise.all([
+      const [birthdaysRes, anniversariesRes, leaveBalanceRes, attendanceRes] = await Promise.all([
         fetch('https://cafm.zenapi.co.in/api/kyc/birthdays/today'),
         fetch('https://cafm.zenapi.co.in/api/kyc/work-anniversaries/today'),
-        fetch('https://cafm.zenapi.co.in/api/leave/balance/EFMS3295')
+        fetch('https://cafm.zenapi.co.in/api/leave/balance/EFMS3295'),
+        fetch('https://cafm.zenapi.co.in/api/attendance/EFMS3295/recent-activities')
       ]);
 
-      const [birthdaysData, anniversariesData, leaveBalanceData] = await Promise.all([
+      const [birthdaysData, anniversariesData, leaveBalanceData, attendanceData] = await Promise.all([
         birthdaysRes.json(),
         anniversariesRes.json(),
-        leaveBalanceRes.json()
+        leaveBalanceRes.json(),
+        attendanceRes.json()
       ]);
 
       setBirthdays(birthdaysData);
       setAnniversaries(anniversariesData);
       setLeaveBalance(leaveBalanceData);
+      if (attendanceData.status === 'success') {
+        setAttendanceActivities(attendanceData.data.activities);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -159,6 +206,23 @@ export default function Dashboard() {
     return () => clearInterval(pollInterval);
   }, []);
 
+  useEffect(() => {
+    if (birthdays?.success && birthdays.data && birthdays.data.length > 0) {
+      setShowCelebration(true);
+      setCelebrationMessage(
+        `Happy Birthday, ${birthdays.data.map(b => b.fullName).join(', ')}! 🎉\n${birthdays.data[0].personalizedWish}`
+      );
+    } else if (anniversaries?.success && anniversaries.data && anniversaries.data.length > 0) {
+      setShowCelebration(true);
+      setCelebrationMessage(
+        `Happy Work Anniversary, ${anniversaries.data.map(a => a.fullName).join(', ')}! 🎊\n${anniversaries.data[0].personalizedWish}`
+      );
+    } else {
+      setShowCelebration(false);
+      setCelebrationMessage(null);
+    }
+  }, [birthdays, anniversaries]);
+
   const LoadingSpinner = () => (
     <div className="flex items-center justify-center p-4">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
@@ -171,7 +235,7 @@ export default function Dashboard() {
         setRefreshing(true);
         fetchData(false);
       }}
-      className="flex items-center gap-2 px-3 py-1.5 bg-white/80 hover:bg-white text-gray-600 
+      className="flex items-center gap-2 px-3 py-1.5 bg-white/80 hover:bg-white text-gray-600
         rounded-full text-sm font-medium transition-all duration-300 hover:shadow-md
         border border-gray-200 hover:border-gray-300"
       disabled={refreshing}
@@ -193,25 +257,402 @@ export default function Dashboard() {
     </button>
   );
 
+  // Colors for leave types
+  const leaveColors = {
+    EL: {
+      gradient: 'from-emerald-400 to-emerald-600',
+      bg: 'rgba(16, 185, 129, 0.8)',
+      border: 'rgba(16, 185, 129, 1)',
+      light: 'bg-emerald-50',
+      text: 'text-emerald-600'
+    },
+    SL: {
+      gradient: 'from-red-400 to-red-600',
+      bg: 'rgba(239, 68, 68, 0.8)',
+      border: 'rgba(239, 68, 68, 1)',
+      light: 'bg-red-50',
+      text: 'text-red-600'
+    },
+    CL: {
+      gradient: 'from-blue-400 to-blue-600',
+      bg: 'rgba(59, 130, 246, 0.8)',
+      border: 'rgba(59, 130, 246, 1)',
+      light: 'bg-blue-50',
+      text: 'text-blue-600'
+    },
+    CompOff: {
+      gradient: 'from-purple-400 to-purple-600',
+      bg: 'rgba(139, 92, 246, 0.8)',
+      border: 'rgba(139, 92, 246, 1)',
+      light: 'bg-purple-50',
+      text: 'text-purple-600'
+    }
+  };
+
+  // Colors for attendance status
+  const attendanceColors = {
+    Present: {
+      bg: 'rgba(16, 185, 129, 0.8)',
+      border: 'rgba(16, 185, 129, 1)',
+      text: 'text-emerald-600'
+    },
+    Absent: {
+      bg: 'rgba(239, 68, 68, 0.8)',
+      border: 'rgba(239, 68, 68, 1)',
+      text: 'text-red-600'
+    },
+    Late: {
+      bg: 'rgba(245, 158, 11, 0.8)',
+      border: 'rgba(245, 158, 11, 1)',
+      text: 'text-amber-600'
+    }
+  };
+
+  const barChartOptions: ChartOptions<'bar'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'x',
+    layout: {
+      padding: 0
+    },
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        align: 'center' as const,
+        labels: {
+          font: {
+            family: "'Geist', sans-serif",
+            size: 12,
+            weight: 'normal' as 'normal'
+          },
+          usePointStyle: true,
+          padding: 20,
+          boxWidth: 10
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        titleColor: '#1f2937',
+        bodyColor: '#4b5563',
+        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        padding: 12,
+        bodyFont: {
+          size: 13,
+          family: "'Geist', sans-serif",
+          weight: 'normal' as 'normal'
+        },
+        titleFont: {
+          size: 14,
+          weight: 'bold' as 'bold',
+          family: "'Geist', sans-serif"
+        },
+        callbacks: {
+          label: function(context) {
+            return `${context.dataset.label}: ${context.parsed.y} days`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(226, 232, 240, 0.5)',
+          lineWidth: 1,
+          display: true
+        },
+        ticks: {
+          font: {
+            size: 12,
+            family: "'Geist', sans-serif",
+            weight: 'normal' as 'normal'
+          },
+          color: '#64748b',
+          padding: 8,
+          stepSize: 1
+        }
+      },
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          font: {
+            size: 12,
+            family: "'Geist', sans-serif",
+            weight: 'normal' as 'normal'
+          },
+          color: '#64748b',
+          padding: 8
+        }
+      }
+    },
+    elements: {
+      bar: {
+        borderWidth: 1,
+        borderRadius: 6,
+        borderSkipped: false
+      }
+    },
+    datasets: {
+      bar: {
+        barThickness: 40,
+        maxBarThickness: 60,
+        barPercentage: 0.95,
+        categoryPercentage: 0.95
+      }
+    }
+  };
+
+  const pieChartOptions: ChartOptions<'pie'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 16,
+        bottom: 16,
+        left: 16,
+        right: 16
+      }
+    },
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        align: 'center' as const,
+        labels: {
+          font: {
+            family: "'Geist', sans-serif",
+            size: 12,
+            weight: 'normal' as 'normal'
+          },
+          usePointStyle: true,
+          padding: 16,
+          boxWidth: 10
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        titleColor: '#1f2937',
+        bodyColor: '#4b5563',
+        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        padding: 12,
+        bodyFont: {
+          size: 13,
+          family: "'Geist', sans-serif",
+          weight: 'normal' as 'normal'
+        },
+        titleFont: {
+          size: 14,
+          weight: 'bold' as 'bold',
+          family: "'Geist', sans-serif"
+        },
+        callbacks: {
+          label: function(context) {
+             return `${context.label}: ${context.formattedValue}`; // Standard pie chart tooltip format
+          }
+        }
+      }
+    }
+  };
+
+  const renderAttendanceChart = () => {
+    if (!attendanceActivities || attendanceActivities.length === 0) return <p className="text-center text-gray-500">No attendance data available.</p>;
+
+    // Filter activities for the current month and process data
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const monthlyActivities = attendanceActivities.filter(activity => {
+      const activityDate = new Date(activity.date);
+      return activityDate.getMonth() === currentMonth && activityDate.getFullYear() === currentYear && !['Sunday', '4th Saturday', '2nd Saturday'].includes(activity.status);
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    if (monthlyActivities.length === 0) return <p className="text-center text-gray-500">No attendance data for the current month.</p>;
+
+    // Calculate total counts for Present, Absent, and Late
+    let presentCount = 0;
+    let absentCount = 0;
+    let lateCount = 0;
+    monthlyActivities.forEach(activity => {
+      if (activity.status === 'Present') presentCount++;
+      if (activity.status === 'Absent') absentCount++;
+      if (activity.isLate) lateCount++; // Count late occurrences
+    });
+
+    const barChartData = {
+      labels: ['Present', 'Absent', 'Late'],
+      datasets: [
+        {
+          label: 'Count',
+          data: [presentCount, absentCount, lateCount],
+          backgroundColor: [
+            attendanceColors.Present.bg,
+            attendanceColors.Absent.bg,
+            attendanceColors.Late.bg,
+          ],
+          borderColor: [
+            attendanceColors.Present.border,
+            attendanceColors.Absent.border,
+            attendanceColors.Late.border,
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    // Process data for pie chart
+    const statusCounts: { [key: string]: number } = {};
+     monthlyActivities.forEach(activity => {
+      statusCounts[activity.status] = (statusCounts[activity.status] || 0) + 1;
+    });
+    // Include Late status in pie chart counts if applicable
+     monthlyActivities.forEach(activity => {
+       if(activity.isLate) statusCounts['Late'] = (statusCounts['Late'] || 0) + 1;
+    });
+
+    const pieChartLabels = Object.keys(statusCounts).filter(status => statusCounts[status] > 0);
+    const pieChartDataValues = Object.values(statusCounts).filter(count => count > 0);
+
+    const pieChartData = {
+      labels: pieChartLabels,
+      datasets: [
+        {
+          label: '# of Days',
+          data: pieChartDataValues,
+          backgroundColor: [
+            attendanceColors.Present.bg,
+            attendanceColors.Absent.bg,
+            attendanceColors.Late.bg,
+            'rgba(54, 162, 235, 0.6)', // Example additional color if needed
+            'rgba(153, 102, 255, 0.6)', // Example additional color if needed
+            'rgba(201, 203, 207, 0.6)', // Example additional color if needed
+          ],
+          borderColor: [
+            attendanceColors.Present.border,
+            attendanceColors.Absent.border,
+            attendanceColors.Late.border,
+            'rgba(54, 162, 235, 1)', // Example additional color if needed
+            'rgba(153, 102, 255, 1)', // Example additional color if needed
+            'rgba(201, 203, 207, 1)', // Example additional color if needed
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    if (attendanceChartType === 'bar') {
+      return (
+        <div className="w-full h-full max-w-3xl mx-auto">
+          <div className="h-[400px]">
+            <Bar
+              data={barChartData}
+              options={barChartOptions}
+            />
+          </div>
+        </div>
+      );
+    } else {
+      return (
+        <div className="w-full h-full max-w-2xl mx-auto p-4">
+          <Pie data={pieChartData} options={pieChartOptions} />
+        </div>
+      );
+    }
+  };
+
+  const renderLeaveChart = () => {
+    if (!leaveBalance) return <p>No leave balance data available.</p>;
+
+    type LeaveType = 'EL' | 'SL' | 'CL' | 'CompOff';
+    const leaveTypes: LeaveType[] = ['EL', 'SL', 'CL', 'CompOff'];
+    const allocatedData = leaveTypes.map((type: LeaveType) => leaveBalance.balances[type].allocated);
+
+    const chartData = {
+      labels: leaveTypes,
+      datasets: [
+        {
+          label: 'Allocated Days',
+          data: allocatedData,
+          backgroundColor: [
+            leaveColors.EL.bg,
+            leaveColors.SL.bg,
+            leaveColors.CL.bg,
+            leaveColors.CompOff.bg,
+          ],
+          borderColor: [
+            leaveColors.EL.border,
+            leaveColors.SL.border,
+            leaveColors.CL.border,
+            leaveColors.CompOff.border,
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    if (leaveChartType === 'bar') {
+      return (
+        <div className="w-full h-full max-w-4xl mx-auto p-4">
+          <Bar
+            data={chartData}
+            options={barChartOptions}
+          />
+        </div>
+      );
+    } else {
+      return (
+        <div className="w-full h-full max-w-2xl mx-auto p-4">
+          <Pie data={chartData} options={pieChartOptions} />
+        </div>
+      );
+    }
+  };
+
+  const renderChart = () => {
+    if (analyticsView === 'attendance') {
+      return renderAttendanceChart();
+    } else {
+      return renderLeaveChart();
+    }
+  };
+
+  const renderChartTypeToggle = () => {
+    const currentChartType = analyticsView === 'attendance' ? attendanceChartType : leaveChartType;
+    const setChartType = analyticsView === 'attendance' ? setAttendanceChartType : setLeaveChartType;
+    return (
+      <div className="flex gap-2">
+        <button
+          onClick={() => setChartType('bar')}
+          className={`px-3 py-1 rounded-full text-sm font-medium ${currentChartType === 'bar' ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+        >
+          Bar Chart
+        </button>
+        <button
+          onClick={() => setChartType('pie')}
+          className={`px-3 py-1 rounded-full text-sm font-medium ${currentChartType === 'pie' ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+        >
+          Pie Chart
+        </button>
+      </div>
+    );
+  };
+
   const renderLeaveBalanceGraphs = () => {
     if (!leaveBalance) return null;
 
     type LeaveType = 'EL' | 'SL' | 'CL' | 'CompOff';
     const leaveTypes: LeaveType[] = ['EL', 'SL', 'CL', 'CompOff'];
-    const colors: Record<LeaveType, [string, string, string]> = {
-      EL: ['rgba(99, 102, 241, 0.8)', 'rgba(99, 102, 241, 1)', 'from-indigo-400 to-indigo-600'],
-      SL: ['rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 1)', 'from-emerald-400 to-emerald-600'],
-      CL: ['rgba(245, 158, 11, 0.8)', 'rgba(245, 158, 11, 1)', 'from-amber-400 to-amber-600'],
-      CompOff: ['rgba(139, 92, 246, 0.8)', 'rgba(139, 92, 246, 1)', 'from-purple-400 to-purple-600']
-    };
 
     const data = {
-      labels: leaveTypes,
+      labels: ['Earned Leave', 'Sick Leave', 'Casual Leave', 'Comp Off'],
       datasets: [
         {
           data: leaveTypes.map(type => leaveBalance.balances[type].allocated),
-          backgroundColor: leaveTypes.map(type => colors[type][0]),
-          borderColor: leaveTypes.map(type => colors[type][1]),
+          backgroundColor: leaveTypes.map(type => leaveColors[type].bg),
+          borderColor: leaveTypes.map(type => leaveColors[type].border),
           borderWidth: 2,
           borderRadius: 8,
           barThickness: 40,
@@ -222,10 +663,10 @@ export default function Dashboard() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Leave Balance Overview */}
-        <div className="bg-gradient-to-br from-white to-indigo-50 rounded-2xl p-6 shadow-lg border border-indigo-100
+        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100
           transform transition-all duration-300 hover:shadow-xl group">
           <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
-            <span className="text-indigo-500">📊</span>
+            <span className="text-emerald-500">📊</span>
             Leave Balance Overview
           </h3>
           <div className="transform transition-transform duration-300 group-hover:scale-[1.02]">
@@ -234,9 +675,29 @@ export default function Dashboard() {
               options={{
                 responsive: true,
                 maintainAspectRatio: false,
+                indexAxis: 'x',
+                layout: {
+                  padding: {
+                    top: 20,
+                    bottom: 20,
+                    left: 20,
+                    right: 20
+                  }
+                },
                 plugins: {
                   legend: {
-                    display: false
+                    position: 'top' as const,
+                    align: 'center' as const,
+                    labels: {
+                      font: {
+                        family: "'Geist', sans-serif",
+                        size: 12,
+                        weight: 'normal' as 'normal'
+                      },
+                      usePointStyle: true,
+                      padding: 20,
+                      boxWidth: 10
+                    }
                   },
                   tooltip: {
                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -245,20 +706,23 @@ export default function Dashboard() {
                     borderColor: '#e5e7eb',
                     borderWidth: 1,
                     padding: 12,
-                    boxPadding: 4,
-                    usePointStyle: true,
                     bodyFont: {
-                      size: 13
+                      size: 13,
+                      family: "'Geist', sans-serif",
+                      weight: 'normal' as 'normal'
                     },
                     titleFont: {
                       size: 14,
-                      weight: 'bold'
+                      weight: 'bold' as 'bold',
+                      family: "'Geist', sans-serif"
                     },
                     callbacks: {
                       label: function(context) {
-                        const label = context.dataset.label || '';
-                        const value = context.raw as number;
-                        return `${label} ${value} days`;
+                        if ('y' in context.parsed) {
+                          return `${context.dataset.label}: ${context.parsed.y} days`;
+                        } else {
+                          return `${context.dataset.label}: ${context.parsed}`;
+                        }
                       }
                     }
                   }
@@ -267,15 +731,19 @@ export default function Dashboard() {
                   y: {
                     beginAtZero: true,
                     grid: {
-                      color: 'rgba(99, 102, 241, 0.1)'
+                      color: 'rgba(226, 232, 240, 0.5)',
+                      lineWidth: 1,
+                      display: true
                     },
                     ticks: {
                       font: {
                         size: 12,
-                        weight: 'bold'
+                        family: "'Geist', sans-serif",
+                        weight: 'normal' as 'normal'
                       },
-                      color: '#4b5563',
-                      padding: 10
+                      color: '#64748b',
+                      padding: 8,
+                      stepSize: 1
                     }
                   },
                   x: {
@@ -285,16 +753,28 @@ export default function Dashboard() {
                     ticks: {
                       font: {
                         size: 12,
-                        weight: 'bold'
+                        family: "'Geist', sans-serif",
+                        weight: 'normal' as 'normal'
                       },
-                      color: '#4b5563',
-                      padding: 10
+                      color: '#64748b',
+                      padding: 8
                     }
                   }
                 },
-                animation: {
-                  duration: 2000,
-                  easing: 'easeInOutQuart'
+                elements: {
+                  bar: {
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    borderSkipped: false
+                  }
+                },
+                datasets: {
+                  bar: {
+                    barThickness: 40,
+                    maxBarThickness: 60,
+                    barPercentage: 0.95,
+                    categoryPercentage: 0.95
+                  }
                 }
               }}
             />
@@ -306,14 +786,11 @@ export default function Dashboard() {
           {leaveTypes.map((type, index) => {
             const balance = leaveBalance.balances[type];
             const percentage = (balance.used / balance.allocated) * 100;
-            const [bgColor, textColor] = balance.remaining > 0 
-              ? ['bg-emerald-100 text-emerald-700', 'text-emerald-600'] 
-              : ['bg-rose-100 text-rose-700', 'text-rose-600'];
 
             return (
               <div
                 key={type}
-                className={`bg-gradient-to-br ${colors[type][2]} rounded-xl p-4 text-white
+                className={`bg-gradient-to-br ${leaveColors[type].gradient} rounded-xl p-4 text-white
                   transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group`}
                 style={{
                   animation: `fadeSlideIn 0.5s ease-out forwards ${index * 0.1}s`
@@ -357,12 +834,12 @@ export default function Dashboard() {
     );
   };
 
-  const MetricCard = ({ icon: Icon, title, value, subtext, gradient }: { 
-    icon: any, 
-    title: string, 
-    value: string, 
-    subtext: string, 
-    gradient: string 
+  const MetricCard = ({ icon: Icon, title, value, subtext, gradient }: {
+    icon: any,
+    title: string,
+    value: string,
+    subtext: string,
+    gradient: string
   }) => (
     <div className={`bg-gradient-to-br ${gradient} rounded-xl shadow-md p-4 text-white
       transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg cursor-pointer group`}>
@@ -376,6 +853,126 @@ export default function Dashboard() {
       <p className="text-xs opacity-75 mt-1">{subtext}</p>
     </div>
   );
+
+  const handleRequestLeaveChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setLeaveRequestForm(prev => ({
+        ...prev,
+        [name]: checked,
+        halfDayType: name === 'isHalfDay' && !checked ? null : prev.halfDayType,
+      }));
+    } else {
+      setLeaveRequestForm(prev => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+  };
+
+  const handleSubmitLeaveRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingRequest(true);
+    setRequestError(null);
+    setRequestSuccess(null);
+    try {
+      const response = await fetch('https://cafm.zenapi.co.in/api/leave/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          employeeId: userDetails?.employeeId,
+          ...leaveRequestForm,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to submit leave request');
+      }
+      setRequestSuccess('Leave request submitted successfully!');
+      setLeaveRequestForm({
+        leaveType: '',
+        startDate: '',
+        endDate: '',
+        numberOfDays: 1,
+        isHalfDay: false,
+        halfDayType: null,
+        reason: '',
+        emergencyContact: '',
+        attachments: [],
+      });
+      setTimeout(() => setShowLeaveModal(false), 1500);
+    } catch (err: any) {
+      setRequestError(err.message || 'Failed to submit leave request');
+    } finally {
+      setSubmittingRequest(false);
+    }
+  };
+
+  const handleRegularizationChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setRegularizationForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRegularizationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegularizationLoading(true);
+    setRegularizationError(null);
+    setRegularizationSuccess(null);
+    try {
+      const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/${userDetails?.employeeId}/regularize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(regularizationForm),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setRegularizationSuccess('Attendance regularization request submitted successfully!');
+        setRegularizationForm({ date: '', punchInTime: '', punchOutTime: '', reason: '', status: 'Present' });
+        setTimeout(() => setShowRegularizationModal(false), 1500);
+      } else {
+        throw new Error(data.message || 'Failed to submit regularization request');
+      }
+    } catch (error: any) {
+      setRegularizationError(error.message || 'Failed to submit regularization request');
+    } finally {
+      setRegularizationLoading(false);
+    }
+  };
+
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUploadLoading(true);
+    setUploadError(null);
+    setUploadSuccess(null);
+    try {
+      if (!uploadFile) throw new Error('Please select a file');
+      const formData = new FormData();
+      formData.append('document', uploadFile);
+      formData.append('type', uploadType);
+      formData.append('description', uploadDesc);
+      const response = await fetch(`https://cafm.zenapi.co.in/api/kyc/${userDetails?.employeeId}`, {
+        method: 'PUT',
+        body: formData,
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setUploadSuccess('Document uploaded successfully!');
+        setUploadFile(null);
+        setUploadType('');
+        setUploadDesc('');
+        setTimeout(() => setShowUploadModal(false), 1500);
+      } else {
+        throw new Error(data.message || 'Failed to upload document');
+      }
+    } catch (error: any) {
+      setUploadError(error.message || 'Failed to upload document');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -413,349 +1010,320 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 p-4 md:p-8 relative">
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0,0,0,0.05) 1px, transparent 0)',
-          backgroundSize: '40px 40px'
-        }}></div>
-      </div>
-
-      <div className="max-w-7xl mx-auto space-y-6 relative">
-        {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">
-                  {getGreeting()}, {employeeInfo?.fullName || 'Welcome'}!
+    <div className="min-h-screen bg-white pt-0 px-2 md:pt-0 md:px-4 relative overflow-x-hidden">
+      {showCelebration && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 animate-fade-in">
+          <Confetti width={window.innerWidth} height={window.innerHeight} numberOfPieces={400} recycle={false} />
+          <div className="text-center p-8 rounded-2xl shadow-xl bg-white/90 border-4 border-yellow-300 animate-bounce-in">
+            <h2 className="text-4xl font-extrabold text-yellow-500 mb-4 drop-shadow-lg">
+              {celebrationMessage?.split('\n')[0]}
+            </h2>
+            <p className="text-lg text-gray-700 font-medium italic">
+              {celebrationMessage?.split('\n')[1]}
+            </p>
+          </div>
+        </div>
+      )}
+      {/* Welcome Section */}
+      <div className="mt-0 mb-5">
+        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-3 shadow flex flex-col md:flex-row md:items-center md:justify-between gap-3 relative overflow-hidden text-white">
+          <div className="space-y-0.5 z-10">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-white/20 rounded-full flex items-center justify-center shadow">
+                <span className="text-lg">👋</span>
+              </div>
+              <div>
+                <h1 className="text-base font-semibold">
+                  Welcome back,{' '}
+                  <span className="text-lg font-bold text-blue-200">
+                    {userDetails?.fullName || (
+                      <span className="inline-block h-5 w-28 bg-blue-300 rounded animate-pulse align-middle">&nbsp;</span>
+                    )}
+                  </span>
                 </h1>
-                <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
-                  {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <p className="text-xs opacity-90 mt-0.5">{getWelcomeMessage()}</p>
+              </div>
+            </div>
+            {userDetails && (
+              <div className="flex flex-wrap gap-1.5">
+                <span className="bg-white/30 text-white px-2 py-0.5 rounded-full text-xs font-medium shadow border border-white/40 backdrop-blur-sm">
+                  {userDetails.designation} • {userDetails.department}
                 </span>
               </div>
-              <div className="flex flex-col md:flex-row md:items-center gap-2">
-                <p className="text-indigo-100">{getWelcomeMessage()}</p>
-                {employeeInfo && (
-                  <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
-                    {employeeInfo.designation} • {employeeInfo.department}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="hidden md:flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg">
-                <span className="text-2xl">📅</span>
-                <div>
-                  <p className="text-sm text-indigo-100">Today is</p>
-                  <p className="font-semibold">{currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-                </div>
-              </div>
-              <RefreshButton />
-            </div>
+            )}
           </div>
-        </div>
-
-        {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <MetricCard
-            icon={FaUserClock}
-            title="Today's Attendance"
-            value="92%"
-            subtext="+5% from yesterday"
-            gradient="from-emerald-500 to-teal-600"
-          />
-          <MetricCard
-            icon={FaProjectDiagram}
-            title="Active Projects"
-            value="24"
-            subtext="3 due this week"
-            gradient="from-violet-500 to-purple-600"
-          />
-          <MetricCard
-            icon={FaCalendarCheck}
-            title="Leave Requests"
-            value="7"
-            subtext="Pending approval"
-            gradient="from-amber-500 to-orange-600"
-          />
-          <MetricCard
-            icon={FaClipboardList}
-            title="Tasks"
-            value="12"
-            subtext="4 high priority"
-            gradient="from-blue-500 to-indigo-600"
-          />
-        </div>
-
-        {/* Celebrations Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Birthday Cards */}
-          <div className="bg-white rounded-2xl shadow-lg border border-pink-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-pink-400 to-fuchsia-500 p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FaBirthdayCake className="text-xl text-white" />
-                  <h2 className="text-base font-bold text-white">Today's Birthdays</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-full">
-                    <span className="text-white text-xs">{birthdays?.data?.length || 0} Today</span>
-                  </div>
-                  {refreshing && <LoadingSpinner />}
-                </div>
-              </div>
-            </div>
-            <div className="p-3">
-              {birthdays?.success && birthdays.data && birthdays.data.length > 0 ? (
-                <div className="grid gap-3">
-                  {birthdays.data.map((person, index) => (
-                    <div
-                      key={person.employeeId}
-                      className="group bg-gradient-to-br from-white to-pink-50 rounded-xl p-4
-                        border border-pink-100 hover:border-pink-200 transition-all duration-300
-                        hover:shadow-lg hover:shadow-pink-100/30 transform hover:-translate-y-1"
-                      style={{
-                        animation: `fadeSlideIn 0.5s ease-out forwards ${index * 0.1}s`,
-                        opacity: 0,
-                        transform: 'translateY(20px)'
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-400 to-fuchsia-500 
-                              flex items-center justify-center text-white font-bold text-xl transform 
-                              group-hover:scale-110 transition-all duration-300 shadow-lg">
-                              {person.fullName.charAt(0)}
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-md">
-                              <span className="text-lg">🎂</span>
-                            </div>
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-gray-900 text-base group-hover:text-pink-600 transition-colors">
-                              {person.fullName}
-                            </h3>
-                            <p className="text-sm text-gray-600">{person.designation}</p>
-                          </div>
-                        </div>
-                        <button 
-                          className="flex items-center gap-1 bg-pink-50 hover:bg-pink-100 text-pink-600 
-                            px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 hover:shadow-md
-                            active:scale-95"
-                          onClick={() => {
-                            // Add wish sending functionality
-                            console.log('Sending wishes to:', person.fullName);
-                          }}
-                        >
-                          <span>🎉</span>
-                          Send Wishes
-                        </button>
-                      </div>
-                      <p className="mt-2 text-sm text-gray-700 italic bg-white/50 p-2 rounded-lg border border-pink-50">
-                        {person.personalizedWish}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="w-16 h-16 bg-pink-50 rounded-full flex items-center justify-center mb-3">
-                    <FaBirthdayCake className="text-3xl text-pink-300" />
-                  </div>
-                  <p className="text-lg font-semibold text-gray-900 mb-1">No Birthdays Today</p>
-                  <p className="text-sm text-gray-500">Check back tomorrow for more celebrations!</p>
-                </div>
-              )}
-            </div>
+          <div className="flex gap-2 z-10">
+            <button className="bg-white text-blue-600 px-3 py-1.5 rounded-lg shadow-md hover:bg-blue-50 transition font-medium text-xs">View My Tickets</button>
+            <button className="bg-blue-500 text-white px-3 py-1.5 rounded-lg shadow-md hover:bg-blue-600 transition font-medium text-xs">View Reports</button>
           </div>
-
-          {/* Anniversary Cards */}
-          <div className="bg-white rounded-2xl shadow-lg border border-blue-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-400 to-indigo-500 p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FaTrophy className="text-xl text-white" />
-                  <h2 className="text-base font-bold text-white">Work Anniversaries</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-full">
-                    <span className="text-white text-xs">{anniversaries?.data?.length || 0} Today</span>
-                  </div>
-                  {refreshing && <LoadingSpinner />}
-                </div>
-              </div>
-            </div>
-            <div className="p-3">
-              {anniversaries?.success && anniversaries.data && anniversaries.data.length > 0 ? (
-                <div className="grid gap-3">
-                  {anniversaries.data.map((person, index) => (
-                    <div
-                      key={person.employeeId}
-                      className="group bg-gradient-to-br from-white to-blue-50 rounded-xl p-4
-                        border border-blue-100 hover:border-blue-200 transition-all duration-300
-                        hover:shadow-lg hover:shadow-blue-100/30 transform hover:-translate-y-1"
-                      style={{
-                        animation: `fadeSlideIn 0.5s ease-out forwards ${index * 0.1}s`,
-                        opacity: 0,
-                        transform: 'translateY(20px)'
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 
-                              flex items-center justify-center text-white font-bold text-xl transform 
-                              group-hover:scale-110 transition-all duration-300 shadow-lg">
-                              {person.fullName.charAt(0)}
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-md">
-                              <span className="text-lg">🏆</span>
-                            </div>
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-gray-900 text-base group-hover:text-blue-600 transition-colors">
-                              {person.fullName}
-                            </h3>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm text-gray-600">{person.designation}</p>
-                              <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
-                                {person.yearsOfService} Years
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <button 
-                          className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-600 
-                            px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 hover:shadow-md
-                            active:scale-95"
-                          onClick={() => {
-                            // Add congratulation functionality
-                            console.log('Congratulating:', person.fullName);
-                          }}
-                        >
-                          <span>👏</span>
-                          Congratulate
-                        </button>
-                      </div>
-                      <p className="mt-2 text-sm text-gray-700 italic bg-white/50 p-2 rounded-lg border border-blue-50">
-                        {person.personalizedWish}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-3">
-                    <FaTrophy className="text-3xl text-blue-300" />
-                  </div>
-                  <p className="text-lg font-semibold text-gray-900 mb-1">No Work Anniversaries Today</p>
-                  <p className="text-sm text-gray-500">Check back tomorrow for more milestones!</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Leave Balance Section */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-indigo-100
-          transform transition-all duration-300 hover:shadow-xl">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
-              <span className="text-2xl">📊</span>
-              Leave Balance
-            </h2>
-            {refreshing && <LoadingSpinner />}
-          </div>
-          {renderLeaveBalanceGraphs()}
-        </div>
-
-        {/* Attendance Analytics */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-emerald-100
-          transform transition-all duration-300 hover:shadow-xl">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
-              <span className="text-2xl">📈</span>
-              Attendance Analytics
-            </h2>
-            {refreshing && <LoadingSpinner />}
-          </div>
-          <AttendanceAnalytics />
         </div>
       </div>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="bg-white rounded-2xl shadow-lg px-5 py-3 transition-transform duration-200 hover:scale-105 hover:shadow-2xl border border-gray-100 group">
+          <div className="flex items-center justify-between mb-1">
+            <div className="p-2 rounded-full bg-gradient-to-br from-blue-100 to-blue-300 group-hover:from-blue-200 group-hover:to-blue-400 transition">
+              <FaUserClock className="text-xl text-blue-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-400">This Month</span>
+          </div>
+          <div className="mt-1">
+            <h3 className="text-2xl font-extrabold text-gray-900 tracking-tight">18/22</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Present Days / Working Days</p>
+            <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
+              <div className="bg-blue-600 h-1.5 rounded-full transition-all duration-500" style={{ width: '82%' }}></div>
+            </div>
+            <p className="text-xs text-green-600 font-semibold mt-1">+2 days from last month</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl px-5 py-3 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-emerald-50 rounded-xl">
+              <FaCalendarCheck className="text-xl text-emerald-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500">Leave Balance</span>
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-2xl font-bold text-gray-800">12/20</h3>
+            <p className="text-xs text-gray-600">Used / Total Allocated</p>
+            <div className="w-full bg-gray-100 rounded-full h-1.5">
+              <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: '60%' }}></div>
+            </div>
+            <p className="text-xs text-emerald-600 font-medium">8 days remaining</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl px-5 py-3 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-amber-50 rounded-xl">
+              <FaClipboardList className="text-xl text-amber-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500">Attendance Regulation</span>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">15</h3>
+                <p className="text-xs text-gray-600">Approved</p>
+              </div>
+              <div className="h-8 w-px bg-gray-200"></div>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">3</h3>
+                <p className="text-xs text-gray-600">Rejected</p>
+              </div>
+            </div>
+            <p className="text-xs text-amber-600 font-medium">2 pending approval</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl px-5 py-3 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-purple-50 rounded-xl">
+              <FaFileAlt className="text-xl text-purple-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500">Leave Requests</span>
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-2xl font-bold text-gray-800">5</h3>
+            <p className="text-xs text-gray-600">Pending Requests</p>
+            <div className="flex items-center gap-1.5">
+              <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">2 Urgent</span>
+              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">3 Regular</span>
+            </div>
+            <p className="text-xs text-purple-600 font-medium">3 requests this week</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mb-6">
+        <h2 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <FaPlusCircle className="text-indigo-500" /> Quick Actions
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <button onClick={() => setShowLeaveModal(true)} className="bg-transparent hover:bg-gradient-to-r from-blue-500 to-indigo-600 text-gray-800 hover:text-white rounded-xl px-4 py-2 flex flex-col items-center shadow transition border border-gray-200 group">
+            <FaRegCalendarPlus className="text-lg mb-1 text-indigo-500 group-hover:text-white transition" />
+            <span className="font-medium text-xs">Request Leave</span>
+          </button>
+          <button onClick={() => setShowUploadModal(true)} className="bg-transparent hover:bg-gradient-to-r from-blue-500 to-indigo-600 text-gray-800 hover:text-white rounded-xl px-4 py-2 flex flex-col items-center shadow transition border border-gray-200 group">
+            <FaFileUpload className="text-lg mb-1 text-emerald-600 group-hover:text-white transition" />
+            <span className="font-medium text-xs">Upload Document</span>
+          </button>
+          <button onClick={() => setShowRegularizationModal(true)} className="bg-transparent hover:bg-gradient-to-r from-blue-500 to-indigo-600 text-gray-800 hover:text-white rounded-xl px-4 py-2 flex flex-col items-center shadow transition border border-gray-200 group">
+            <FaRegCalendarPlus className="text-lg mb-1 text-amber-600 group-hover:text-white transition" />
+            <span className="font-medium text-xs">Request Regularization</span>
+          </button>
+          <button onClick={() => setShowTicketModal(true)} className="bg-transparent hover:bg-gradient-to-r from-blue-500 to-indigo-600 text-gray-800 hover:text-white rounded-xl px-4 py-2 flex flex-col items-center shadow transition border border-gray-200 group">
+            <FaTicketAlt className="text-lg mb-1 text-purple-600 group-hover:text-white transition" />
+            <span className="font-medium text-xs">Raise Ticket</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Dashboard Analytics Section */}
+      <div className="mb-6 bg-white rounded-2xl shadow-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+            <span className="text-2xl">📈</span>
+            Dashboard Analytics
+          </h2>
+          {refreshing && <LoadingSpinner />}
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+           <div className="flex gap-3">
+            <button
+              onClick={() => setAnalyticsView('attendance')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${analyticsView === 'attendance' ? 'bg-blue-500 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            >
+              Attendance Analytics
+            </button>
+            <button
+              onClick={() => setAnalyticsView('leave')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${analyticsView === 'leave' ? 'bg-blue-500 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            >
+              Leave Analytics
+            </button>
+           </div>
+           <div className="flex gap-2">
+             {renderChartTypeToggle()}
+           </div>
+        </div>
+        <div className="relative w-full h-[400px] max-w-3xl mx-auto">
+          <div className="w-full h-full">
+            {renderChart()}
+          </div>
+        </div>
+      </div>
+
+      {/* Leave Balance Section (consolidated into Analytics) */}
+      {/* Attendance Analytics (consolidated into Analytics) */}
+
+      {/* Modals (scaffolded) */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-xl p-6 shadow-lg w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4 text-black">Request Leave</h3>
+            <form onSubmit={handleSubmitLeaveRequest} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-black">Leave Type</label>
+                <select name="leaveType" value={leaveRequestForm.leaveType} onChange={handleRequestLeaveChange} className="w-full border rounded px-3 py-2 text-black" required>
+                  <option value="">Select Leave Type</option>
+                  <option value="EL">Earned Leave</option>
+                  <option value="SL">Sick Leave</option>
+                  <option value="CL">Casual Leave</option>
+                  <option value="CompOff">Comp Off</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-1 text-black">From</label>
+                  <input type="date" name="startDate" value={leaveRequestForm.startDate} onChange={handleRequestLeaveChange} className="w-full border rounded px-3 py-2 text-black" required />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-1 text-black">To</label>
+                  <input type="date" name="endDate" value={leaveRequestForm.endDate} onChange={handleRequestLeaveChange} className="w-full border rounded px-3 py-2 text-black" required />
+                </div>
+              </div>
+              <div className="flex gap-2 items-center">
+                <input type="checkbox" name="isHalfDay" checked={leaveRequestForm.isHalfDay} onChange={handleRequestLeaveChange} />
+                <label className="text-sm text-black">Half Day</label>
+                {leaveRequestForm.isHalfDay && (
+                  <select name="halfDayType" value={leaveRequestForm.halfDayType || ''} onChange={handleRequestLeaveChange} className="ml-2 border rounded px-2 py-1 text-black">
+                    <option value="">Select</option>
+                    <option value="First Half">First Half</option>
+                    <option value="Second Half">Second Half</option>
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-black">Reason</label>
+                <textarea name="reason" value={leaveRequestForm.reason} onChange={handleRequestLeaveChange} className="w-full border rounded px-3 py-2 text-black" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-black">Emergency Contact</label>
+                <input name="emergencyContact" value={leaveRequestForm.emergencyContact} onChange={handleRequestLeaveChange} className="w-full border rounded px-3 py-2 text-black" />
+              </div>
+              {requestError && <div className="text-red-600 text-sm">{requestError}</div>}
+              {requestSuccess && <div className="text-green-600 text-sm">{requestSuccess}</div>}
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowLeaveModal(false)} className="px-4 py-2 bg-red-500 text-white rounded">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-indigo-500 text-white rounded" disabled={submittingRequest}>{submittingRequest ? 'Submitting...' : 'Submit'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showRegularizationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-xl p-6 shadow-lg w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4 text-black">Request Regularization</h3>
+            <form onSubmit={handleRegularizationSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-black">Date</label>
+                <input type="date" name="date" value={regularizationForm.date} onChange={handleRegularizationChange} className="w-full border rounded px-3 py-2 text-black" required />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-1 text-black">Punch In Time</label>
+                  <input type="time" name="punchInTime" value={regularizationForm.punchInTime} onChange={handleRegularizationChange} className="w-full border rounded px-3 py-2 text-black" required />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-1 text-black">Punch Out Time</label>
+                  <input type="time" name="punchOutTime" value={regularizationForm.punchOutTime} onChange={handleRegularizationChange} className="w-full border rounded px-3 py-2 text-black" required />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-black">Reason</label>
+                <textarea name="reason" value={regularizationForm.reason} onChange={handleRegularizationChange} className="w-full border rounded px-3 py-2 text-black" required />
+              </div>
+              {regularizationError && <div className="text-red-600 text-sm">{regularizationError}</div>}
+              {regularizationSuccess && <div className="text-green-600 text-sm">{regularizationSuccess}</div>}
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowRegularizationModal(false)} className="px-4 py-2 bg-red-500 text-white rounded">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-amber-500 text-white rounded" disabled={regularizationLoading}>{regularizationLoading ? 'Submitting...' : 'Submit'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-xl p-6 shadow-lg w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4 text-black">Upload Document</h3>
+            <form onSubmit={handleUploadDocument} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-black">Document Type</label>
+                <input value={uploadType} onChange={e => setUploadType(e.target.value)} className="w-full border rounded px-3 py-2 text-black" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-black">Description</label>
+                <input value={uploadDesc} onChange={e => setUploadDesc(e.target.value)} className="w-full border rounded px-3 py-2 text-black" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-black">File</label>
+                <input type="file" onChange={e => setUploadFile(e.target.files?.[0] || null)} className="w-full border rounded px-3 py-2 text-black" required />
+              </div>
+              {uploadError && <div className="text-red-600 text-sm">{uploadError}</div>}
+              {uploadSuccess && <div className="text-green-600 text-sm">{uploadSuccess}</div>}
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowUploadModal(false)} className="px-4 py-2 bg-red-500 text-white rounded">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-emerald-500 text-white rounded" disabled={uploadLoading}>{uploadLoading ? 'Uploading...' : 'Upload'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showTicketModal && (
+        <div className="fixed inset-0 z-50 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-xl p-6 shadow-lg w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4 text-black">Raise Ticket</h3>
+            {/* Ticket form goes here */}
+            <button onClick={() => setShowTicketModal(false)} className="mt-4 px-4 py-2 bg-red-500 text-white rounded">Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
-
-const FloatingParticles = ({ color }: { color: string }) => (
-  <div className="absolute inset-0 overflow-hidden pointer-events-none">
-    {[...Array(6)].map((_, i) => (
-      <div
-        key={i}
-        className="absolute rounded-full mix-blend-multiply filter blur-xl animate-float"
-        style={{
-          left: `${Math.random() * 100}%`,
-          top: `${Math.random() * 100}%`,
-          width: `${Math.random() * 40 + 20}px`,
-          height: `${Math.random() * 40 + 20}px`,
-          background: `hsl(${Math.random() * 60 + 280}, 70%, 70%)`,
-          animationDelay: `${Math.random() * 5}s`,
-          animationDuration: `${Math.random() * 10 + 10}s`
-        }}
-      />
-    ))}
-  </div>
-);
-
-// Add these animations to the styles
-const styles = `
-  @keyframes fadeSlideIn {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0) translateX(0);
-    }
-    25% {
-      transform: translateY(-15px) translateX(15px);
-    }
-    50% {
-      transform: translateY(-25px) translateX(-15px);
-    }
-    75% {
-      transform: translateY(-15px) translateX(15px);
-    }
-  }
-
-  .animate-float {
-    animation: float linear infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.5;
-    }
-  }
-
-  .animate-pulse {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-`;
-
-if (typeof document !== 'undefined') {
-  const styleSheet = document.createElement('style');
-  styleSheet.textContent = styles;
-  document.head.appendChild(styleSheet);
 }
