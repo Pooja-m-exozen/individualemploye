@@ -1,41 +1,18 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { 
-  Chart as ChartJS, 
-  ArcElement, 
-  Tooltip, 
-  Legend, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  ChartOptions, 
-  ChartData 
-} from 'chart.js';
-import { Pie, Bar } from 'react-chartjs-2';
 
-import Confetti from 'react-confetti';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
+import { Bar, Pie } from 'react-chartjs-2';
+import type { ChartData, ChartOptions } from 'chart.js';
 import { useUser } from '@/context/UserContext';
-import { getDashboardData, getMonthlyStats } from '@/services/dashboard';
-import type { 
-  MonthlyStats, 
-  BirthdayResponse, 
-  WorkAnniversaryResponse, 
-  LeaveBalanceResponse 
-} from '@/services/dashboard';
-import { 
-  FaUserClock, 
-  FaCalendarCheck, 
-  FaClipboardList, 
-  FaFileAlt, 
-  FaPlusCircle, 
-  FaRegCalendarPlus, 
-  FaFileUpload, 
-  FaTicketAlt 
-} from 'react-icons/fa';
+import Confetti from 'react-confetti';
+import { getDashboardData, getMonthlyStats, submitLeaveRequest, submitRegularization, uploadDocument, getLeaveBalance } from '@/services/dashboard';
+import type { BirthdayResponse, WorkAnniversaryResponse, LeaveBalanceResponse, MonthlyStats, DepartmentStats, AnalyticsViewType, ChartType, LeaveType } from '../../types/dashboard';
+import { FaCalendarCheck, FaClipboardList, FaFileAlt, FaFileUpload, FaPlusCircle, FaRegCalendarPlus, FaTicketAlt, FaUserClock } from 'react-icons/fa';
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+// Register ChartJS components
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 export default function Dashboard() {
   const router = useRouter();
@@ -44,7 +21,7 @@ export default function Dashboard() {
   const [anniversaries, setAnniversaries] = useState<WorkAnniversaryResponse | null>(null);
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
   const [attendanceActivities, setAttendanceActivities] = useState<any[]>([]);
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
   const [monthlyStatsCache, setMonthlyStatsCache] = useState<Record<string, MonthlyStats>>({});
@@ -101,9 +78,14 @@ export default function Dashboard() {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
   // State for analytics view and chart type
-  const [analyticsView, setAnalyticsView] = useState<'attendance' | 'leave'>('attendance');
-  const [attendanceChartType, setAttendanceChartType] = useState<'bar' | 'pie'>('bar');
-  const [leaveChartType, setLeaveChartType] = useState<'bar' | 'pie'>('bar');
+  const [analyticsView, setAnalyticsView] = useState<AnalyticsViewType>('attendance');
+  const [attendanceChartType, setAttendanceChartType] = useState<ChartType>('bar');
+  const [leaveChartType, setLeaveChartType] = useState<ChartType>('bar');
+
+  // Department stats state
+  const [departmentStats, setDepartmentStats] = useState<DepartmentStats | null>(null);
+  const [departmentStatsLoading, setDepartmentStatsLoading] = useState(true);
+  const [departmentStatsError, setDepartmentStatsError] = useState<string | null>(null);
 
   // Update time every minute
   useEffect(() => {
@@ -132,7 +114,7 @@ export default function Dashboard() {
     if (hour < 12) {
       return "Hope you have a productive day ahead!";
     } else if (hour < 17) {
-      return "Keep up the great work!";
+      return "Keep up with the great work!";
     } else {
       return "Great job today! Here's your dashboard summary.";
     }
@@ -150,26 +132,29 @@ export default function Dashboard() {
           setMonthlyStats(monthlyStatsCache[monthYearKey]);
         }
       } else {
-        // Fetch data using the service
-        const data = await getDashboardData('EFMS3295', monthToFetch, yearToFetch);
-        
-        // Update states with fetched data
-        setBirthdays(data.birthdays);
-        setAnniversaries(data.anniversaries);
-        setLeaveBalance(data.leaveBalance);
-        setAttendanceActivities(data.attendanceActivities);
+        // Fetch monthly stats
+        const monthlyStatsData = await getMonthlyStats('EFMS3295', monthToFetch, yearToFetch);
         
         // Update monthly stats and cache
-        const newMonthlyStats = data.monthlyStats;
         setMonthlyStatsCache(prev => ({
           ...prev,
-          [monthYearKey]: newMonthlyStats
+          [monthYearKey]: monthlyStatsData
         }));
         
         if (monthToFetch === currentMonth && yearToFetch === currentYear) {
-          setMonthlyStats(newMonthlyStats);
+          setMonthlyStats(monthlyStatsData);
         }
       }
+
+      // Fetch leave balance
+      const leaveBalanceData = await getLeaveBalance('EFMS3295');
+      setLeaveBalance(leaveBalanceData);
+
+      // Fetch other dashboard data
+      const data = await getDashboardData('EFMS3295', monthToFetch, yearToFetch);
+      setBirthdays(data.birthdays);
+      setAnniversaries(data.anniversaries);
+      setAttendanceActivities(data.attendanceActivities);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -179,9 +164,26 @@ export default function Dashboard() {
     }
   };
 
+  // Fetch department stats
+  const fetchDepartmentStats = async () => {
+    try {
+      setDepartmentStatsLoading(true);
+      const stats = await getDashboardData('DEPARTMENT_STATS_ENDPOINT', currentMonth, currentYear);
+      setDepartmentStats(stats as unknown as DepartmentStats);
+      setDepartmentStatsError(null);
+    } catch (error) {
+      console.error('Error fetching department stats:', error);
+      setDepartmentStatsError('Failed to fetch department statistics');
+      setDepartmentStats(null);
+    } finally {
+      setDepartmentStatsLoading(false);
+    }
+  };
+
   // Initial data fetch on component mount
   useEffect(() => {
     fetchData();
+    fetchDepartmentStats();
 
     // Poll every 5 minutes
     const pollInterval = setInterval(() => {
@@ -312,69 +314,27 @@ export default function Dashboard() {
     }
   };
 
+  // Update barChartOptions with new configuration
   const barChartOptions: ChartOptions<'bar'> = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'x',
-    layout: {
-      padding: 0
-    },
-    plugins: {
-      legend: {
-        position: 'top' as const,
-        align: 'center' as const,
-        labels: {
-          font: {
-            family: "'Geist', sans-serif",
-            size: 12,
-            weight: 'normal' as 'normal'
-          },
-          usePointStyle: true,
-          padding: 20,
-          boxWidth: 10
-        }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        titleColor: '#1f2937',
-        bodyColor: '#4b5563',
-        borderColor: '#e5e7eb',
-        borderWidth: 1,
-        padding: 12,
-        bodyFont: {
-          size: 13,
-          family: "'Geist', sans-serif",
-          weight: 'normal' as 'normal'
-        },
-        titleFont: {
-          size: 14,
-          weight: 'bold' as 'bold',
-          family: "'Geist', sans-serif"
-        },
-        callbacks: {
-          label: function(context) {
-            return `${context.dataset.label}: ${context.parsed.y} days`;
-          }
-        }
-      }
-    },
     scales: {
       y: {
         beginAtZero: true,
         grid: {
-          color: 'rgba(226, 232, 240, 0.5)',
-          lineWidth: 1,
-          display: true
+          color: 'rgba(226, 232, 240, 0.4)',
+          lineWidth: 1
         },
         ticks: {
           font: {
             size: 12,
-            family: "'Geist', sans-serif",
-            weight: 'normal' as 'normal'
+            family: "'Geist', sans-serif"
           },
           color: '#64748b',
-          padding: 8,
-          stepSize: 1
+          padding: 8
+        },
+        border: {
+          display: false
         }
       },
       x: {
@@ -384,27 +344,55 @@ export default function Dashboard() {
         ticks: {
           font: {
             size: 12,
-            family: "'Geist', sans-serif",
-            weight: 'normal' as 'normal'
+            family: "'Geist', sans-serif"
           },
           color: '#64748b',
-          padding: 8
+          padding: 8,
+          autoSkip: false,
+          maxRotation: currentMonth === 0 ? 45 : 0
         },
+        border: {
+          display: false
+        }
       }
     },
-    elements: {
-      bar: {
+    plugins: {
+      legend: {
+        position: 'top',
+        align: 'start',
+        labels: {
+          boxWidth: 8,
+          boxHeight: 8,
+          padding: 20,
+          font: {
+            size: 12,
+            family: "'Geist', sans-serif"
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+        titleColor: '#1e293b',
+        bodyColor: '#475569',
+        borderColor: '#e2e8f0',
         borderWidth: 1,
-        borderRadius: 0,
-        borderSkipped: false
+        padding: 12,
+        cornerRadius: 8,
+        boxPadding: 4,
+        usePointStyle: true,
+        callbacks: {
+          label: function(context) {
+            return `${context.dataset.label}: ${context.parsed.y} days`;
+          }
+        }
       }
     },
     datasets: {
       bar: {
-        barThickness: 'flex' as const,
-        maxBarThickness: 60,
-        barPercentage: 0.9, // Adjusted slightly to ensure minimal gap for grouping visibility
-        categoryPercentage: 0.9 // Adjusted slightly for grouping visibility
+        barThickness: currentMonth === 0 ? 'flex' : 20,
+        maxBarThickness: currentMonth === 0 ? 16 : 26,
+        barPercentage: currentMonth === 0 ? 0.8 : 0.6,
+        categoryPercentage: currentMonth === 0 ? 0.8 : 0.6
       }
     }
   };
@@ -412,49 +400,36 @@ export default function Dashboard() {
   const pieChartOptions: ChartOptions<'pie'> = {
     responsive: true,
     maintainAspectRatio: false,
-    layout: {
-      padding: {
-        top: 16,
-        bottom: 16,
-        left: 16,
-        right: 16
-      }
-    },
     plugins: {
       legend: {
-        position: 'bottom' as const,
-        align: 'center' as const,
+        position: 'right',
+        align: 'center',
         labels: {
+          boxWidth: 8,
+          boxHeight: 8,
+          padding: 20,
           font: {
-            family: "'Geist', sans-serif",
             size: 12,
-            weight: 'normal' as 'normal'
-          },
-          usePointStyle: true,
-          padding: 16,
-          boxWidth: 10
+            family: "'Geist', sans-serif"
+          }
         }
       },
       tooltip: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        titleColor: '#1f2937',
-        bodyColor: '#4b5563',
-        borderColor: '#e5e7eb',
+        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+        titleColor: '#1e293b',
+        bodyColor: '#475569',
+        borderColor: '#e2e8f0',
         borderWidth: 1,
         padding: 12,
-        bodyFont: {
-          size: 13,
-          family: "'Geist', sans-serif",
-          weight: 'normal' as 'normal'
-        },
-        titleFont: {
-          size: 14,
-          weight: 'bold' as 'bold',
-          family: "'Geist', sans-serif"
-        },
+        cornerRadius: 8,
+        boxPadding: 4,
+        usePointStyle: true,
         callbacks: {
           label: function(context) {
-             return `${context.label}: ${context.formattedValue}`;
+            const value = context.parsed;
+            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+            const percentage = Math.round((value * 100) / total);
+            return `${context.label}: ${percentage}%`;
           }
         }
       }
@@ -492,138 +467,114 @@ export default function Dashboard() {
   );
 
   const renderAttendanceChart = () => {
-    // Determine data and title based on selected month (or "All")
-    let chartData;
-    let chartTitle = `Attendance Analytics for ${currentMonth > 0 ? `${monthNames[currentMonth - 1]} ${currentYear}` : 'All Months'}`;
-    let dataAvailable = true; // Assume data is available initially
+    if (!monthlyStats?.data) return null;
 
-    if (analyticsLoading && Object.keys(monthlyStatsCache).length === 0 && currentMonth !== 0) {
-        // Show loader only if loading, cache is empty, and a specific month is selected (initial load)
-         return (
-            <div className="flex items-center justify-center h-[400px] bg-gray-50 rounded-lg">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
-              <span className="ml-4 text-indigo-600 text-lg">Loading Attendance Data...</span>
-            </div>
-          );
-    } else if (currentMonth === 0) { // "All Months" selected
-        const monthsInCache = Object.keys(monthlyStatsCache);
-        if (monthsInCache.length === 0) {
-            dataAvailable = false;
-        } else {
-             // Create datasets for each month in cache
-             const datasets = monthsInCache.map(monthYearKey => {
-                 const stats = monthlyStatsCache[monthYearKey].data;
-                 const [month, year] = monthYearKey.split('-').map(Number);
-                 return {
-                     label: `${monthNames[month - 1]} ${year}`,
-                     data: [
-                         stats.presentDays,
-                         stats.absentDays,
-                         stats.summary.punctualityIssues.lateArrivals,
-                         stats.summary.punctualityIssues.earlyArrivals
-                     ],
-                     backgroundColor: Object.values(attendanceColors).map(color => color.bg), // Use all colors for each month's bars
-                     borderColor: Object.values(attendanceColors).map(color => color.border),
-                     borderWidth: 1,
-                 };
-             });
-
-             chartData = {
-                 labels: ['Present', 'Absent', 'Late Arrivals', 'Early Arrivals'],
-                 datasets: datasets
-             };
+    const chartData: ChartData<'bar'> = {
+      labels: currentMonth === 0 ? monthNames : ['Monthly Attendance'],
+      datasets: [
+        {
+          label: 'Present Days',
+          data: currentMonth === 0 
+            ? monthlyStats.data.monthlyPresent || Array(12).fill(0)
+            : [monthlyStats.data.presentDays],
+          backgroundColor: attendanceColors.Present.bg,
+          borderRadius: 6,
+          maxBarThickness: 32,
+        },
+        {
+          label: 'Late Arrivals',
+          data: currentMonth === 0 
+            ? monthlyStats.data.monthlyLateArrivals || Array(12).fill(0)
+            : [monthlyStats.data.lateArrivals],
+          backgroundColor: attendanceColors.Late.bg,
+          borderRadius: 6,
+          maxBarThickness: 32,
+        },
+        {
+          label: 'Early Arrivals',
+          data: currentMonth === 0 
+            ? monthlyStats.data.monthlyEarlyArrivals || Array(12).fill(0)
+            : [monthlyStats.data.earlyArrivals],
+          backgroundColor: attendanceColors.Early.bg,
+          borderRadius: 6,
+          maxBarThickness: 32,
+        },
+        {
+          label: 'Absent Days',
+          data: currentMonth === 0 
+            ? monthlyStats.data.monthlyAbsent || Array(12).fill(0)
+            : [monthlyStats.data.absentDays],
+          backgroundColor: attendanceColors.Absent.bg,
+          borderRadius: 6,
+          maxBarThickness: 32,
         }
+      ]
+    };
 
-    } else { // Specific month selected
-        const data = monthlyStats?.data; // Use the state for the currently selected specific month
-         if (!data) {
-             dataAvailable = false;
-         } else {
-             // Initialize with default empty chart data to avoid undefined
-             chartData = {
-                 labels: ['Present', 'Absent', 'Late Arrivals', 'Early Arrivals'],
-                 datasets: [
-                     {
-                         label: chartTitle,
-                         data: [
-                             data.presentDays || 0,
-                             data.absentDays || 0,
-                             data.summary.punctualityIssues.lateArrivals || 0,
-                             data.summary.punctualityIssues.earlyArrivals || 0
-                         ],
-                         backgroundColor: [
-                             attendanceColors.Present.bg,
-                             attendanceColors.Absent.bg,
-                             attendanceColors.Late.bg,
-                             attendanceColors.Early.bg, // Use the new early arrivals color
-                         ],
-                         borderColor: [
-                             attendanceColors.Present.border,
-                             attendanceColors.Absent.border,
-                             attendanceColors.Late.border,
-                             attendanceColors.Early.border,
-                         ],
-                         borderWidth: 1,
-                     },
-                 ],
-             };
-         }
-    }
-
-
-    if (!dataAvailable) return <p className="text-center text-gray-500 h-[400px] flex items-center justify-center">No attendance data available for {currentMonth > 0 ? `${monthNames[currentMonth - 1]} ${currentYear}` : 'the selected period'}.</p>;
-
-    const chartDataWithTypes: ChartData<'bar', number[], string> = chartData ? chartData : {
-      labels: [],
-      datasets: []
+    const pieData: ChartData<'pie'> = {
+      labels: ['Present Days', 'Late Arrivals', 'Early Arrivals', 'Absent Days'],
+      datasets: [{
+        data: [
+          monthlyStats.data.presentDays,
+          monthlyStats.data.lateArrivals,
+          monthlyStats.data.earlyArrivals,
+          monthlyStats.data.absentDays
+        ],
+        backgroundColor: [
+          attendanceColors.Present.bg,
+          attendanceColors.Late.bg,
+          attendanceColors.Early.bg,
+          attendanceColors.Absent.bg
+        ],
+        borderColor: [
+          attendanceColors.Present.border,
+          attendanceColors.Late.border,
+          attendanceColors.Early.border,
+          attendanceColors.Absent.border
+        ],
+        borderWidth: 1
+      }]
     };
 
     return (
       <div className="space-y-6">
-        {/* Removed Attendance Summary Cards */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-800">
+              Attendance Analytics for {currentMonth === 0 ? 'All Months' : `${monthNames[currentMonth - 1]} ${currentYear}`}
+            </h3>
+            {/* <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setAttendanceChartType('bar')}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors
+                    ${attendanceChartType === 'bar' 
+                      ? 'bg-indigo-500 text-white shadow-sm' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Bar Chart
+                </button>
+                <button
+                  onClick={() => setAttendanceChartType('pie')}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors
+                    ${attendanceChartType === 'pie'
+                      ? 'bg-indigo-500 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  disabled={currentMonth === 0}
+                >
+                  Pie Chart
+                </button>
+              </div>
+            </div> */}
+          </div>
 
-        {/* Dynamic Chart Title */}
-        <h3 className="text-lg font-semibold text-gray-800 text-center">{chartTitle}</h3>
-
-        <div className="w-full h-[400px]">
-          {attendanceChartType === 'bar' ? (
-            <Bar data={chartDataWithTypes} options={barChartOptions} />
-          ) : (
-            // Pie chart for "All Months" is not standard
-            currentMonth === 0 ? (
-              <p className="text-center text-gray-500 h-[400px] flex items-center justify-center">Pie chart view is not available for "All Months". Please select a specific month.</p>
+          <div className="w-full h-[400px] relative">
+            {attendanceChartType === 'bar' ? (
+              <Bar data={chartData} options={barChartOptions} />
             ) : (
-              monthlyStats?.data && (
-                <Pie 
-                  data={{
-                    labels: ['Present', 'Absent', 'Late Arrivals', 'Early Arrivals'],
-                    datasets: [{
-                      data: [
-                        monthlyStats.data.presentDays,
-                        monthlyStats.data.absentDays,
-                        monthlyStats.data.summary.punctualityIssues.lateArrivals,
-                        monthlyStats.data.summary.punctualityIssues.earlyArrivals
-                      ],
-                      backgroundColor: [
-                        attendanceColors.Present.bg,
-                        attendanceColors.Absent.bg,
-                        attendanceColors.Late.bg,
-                        attendanceColors.Early.bg
-                      ],
-                      borderColor: [
-                        attendanceColors.Present.border,
-                        attendanceColors.Absent.border,
-                        attendanceColors.Late.border,
-                        attendanceColors.Early.border
-                      ],
-                      borderWidth: 1
-                    }]
-                  }} 
-                  options={pieChartOptions} 
-                />
-              )
-            )
-          )}
+              <Pie data={pieData} options={pieChartOptions} />
+            )}
+          </div>
         </div>
       </div>
     );
@@ -632,42 +583,171 @@ export default function Dashboard() {
   const renderLeaveChart = () => {
     if (!leaveBalance) return <p className="text-center text-gray-500 h-[400px] flex items-center justify-center">No leave balance data available.</p>;
 
-    type LeaveType = 'EL' | 'SL' | 'CL' | 'CompOff';
     const leaveTypes: LeaveType[] = ['EL', 'SL', 'CL', 'CompOff'];
-    const allocatedData = leaveTypes.map((type: LeaveType) => leaveBalance.balances[type].allocated);
+    const leaveLabels = ['Earned Leave', 'Sick Leave', 'Casual Leave', 'Comp Off'];
 
     const chartData = {
-      labels: ['Earned Leave', 'Sick Leave', 'Casual Leave', 'Comp Off'],
+      labels: leaveLabels,
       datasets: [
         {
-          label: 'Allocated Days',
-          data: allocatedData,
-          backgroundColor: [
-            leaveColors.EL.bg,
-            leaveColors.SL.bg,
-            leaveColors.CL.bg,
-            leaveColors.CompOff.bg,
-          ],
-          borderColor: [
-            leaveColors.EL.border,
-            leaveColors.SL.border,
-            leaveColors.CL.border,
-            leaveColors.CompOff.border,
-          ],
+          label: 'Allocated',
+          data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].allocated),
+          backgroundColor: leaveColors.EL.bg,
+          borderColor: leaveColors.EL.border,
           borderWidth: 1,
         },
-      ],
+        {
+          label: 'Used',
+          data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].used),
+          backgroundColor: leaveColors.SL.bg,
+          borderColor: leaveColors.SL.border,
+          borderWidth: 1,
+        },
+        {
+          label: 'Remaining',
+          data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].remaining),
+          backgroundColor: leaveColors.CL.bg,
+          borderColor: leaveColors.CL.border,
+          borderWidth: 1,
+        }
+      ]
+    };
+
+    const pieData = {
+      labels: leaveLabels,
+      datasets: [{
+        data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].allocated),
+        backgroundColor: [
+          leaveColors.EL.bg,
+          leaveColors.SL.bg,
+          leaveColors.CL.bg,
+          leaveColors.CompOff.bg,
+        ],
+        borderColor: [
+          leaveColors.EL.border,
+          leaveColors.SL.border,
+          leaveColors.CL.border,
+          leaveColors.CompOff.border,
+        ],
+        borderWidth: 1,
+      }]
     };
 
     return (
-      <div className="w-full h-[400px] max-w-4xl mx-auto p-4">
-        {leaveChartType === 'bar' ? (
-          <Bar
-            data={chartData}
-            options={barChartOptions}
-          />
+      <div className="space-y-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-800">
+              Leave Balance for {leaveBalance.employeeName}
+            </h3>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setLeaveChartType('bar')}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors
+                    ${leaveChartType === 'bar' 
+                      ? 'bg-indigo-500 text-white shadow-sm' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Bar Chart
+                </button>
+                <button
+                  onClick={() => setLeaveChartType('pie')}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors
+                    ${leaveChartType === 'pie'
+                      ? 'bg-indigo-500 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Pie Chart
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full h-[400px] relative">
+            {leaveChartType === 'bar' ? (
+              <Bar data={chartData} options={barChartOptions} />
+            ) : (
+              <Pie data={pieData} options={pieChartOptions} />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDepartmentChart = () => {
+    if (!departmentStats?.data) return null;
+
+    const chartData: ChartData<'bar'> = {
+      labels: departmentStats.data.map(stat => stat.departmentName),
+      datasets: [
+        {
+          label: 'Total Employees',
+          data: departmentStats.data.map(stat => stat.totalEmployees),
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1,
+        },
+        {
+          label: 'Present Today',
+          data: departmentStats.data.map(stat => stat.presentToday),
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1,
+        },
+        {
+          label: 'On Leave Today',
+          data: departmentStats.data.map(stat => stat.onLeaveToday),
+          backgroundColor: 'rgba(255, 159, 64, 0.6)',
+          borderColor: 'rgba(255, 159, 64, 1)',
+          borderWidth: 1,
+        }
+      ]
+    };
+
+    const options: ChartOptions<'bar'> = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top' as const,
+        },
+        title: {
+          display: true,
+          text: 'Department-wise Employee Distribution',
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Number of Employees'
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Departments'
+          }
+        }
+      },
+    };
+
+    return (
+      <div className="bg-white rounded-lg shadow p-4">
+        <h3 className="text-lg font-semibold mb-4">Department Statistics</h3>
+        {departmentStatsLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        ) : departmentStatsError ? (
+          <div className="text-red-500 text-center py-4">{departmentStatsError}</div>
         ) : (
-          <Pie data={chartData} options={pieChartOptions} />
+          <div className="h-[400px]">
+            <Bar data={chartData} options={options} />
+          </div>
         )}
       </div>
     );
@@ -707,13 +787,15 @@ export default function Dashboard() {
     );
   };
 
-  const MetricCard = ({ icon: Icon, title, value, subtext, gradient }: {
-    icon: any,
-    title: string,
-    value: string,
-    subtext: string,
-    gradient: string
-  }) => (
+  interface MetricCardProps {
+    icon: React.ElementType;
+    title: string;
+    value: string;
+    subtext: string;
+    gradient: string;
+  }
+
+  const MetricCard: React.FC<MetricCardProps> = ({ icon: Icon, title, value, subtext, gradient }) => (
     <div className={`bg-gradient-to-br ${gradient} rounded-xl shadow-md p-4 text-white
       transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg cursor-pointer group`}>
       <div className="flex items-center gap-3">
@@ -750,20 +832,7 @@ export default function Dashboard() {
     setRequestError(null);
     setRequestSuccess(null);
     try {
-      const response = await fetch('https://cafm.zenapi.co.in/api/leave/request', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          employeeId: userDetails?.employeeId,
-          ...leaveRequestForm,
-        }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to submit leave request');
-      }
+      await submitLeaveRequest(userDetails?.employeeId, leaveRequestForm);
       setRequestSuccess('Leave request submitted successfully!');
       setLeaveRequestForm({
         leaveType: '',
@@ -795,19 +864,10 @@ export default function Dashboard() {
     setRegularizationError(null);
     setRegularizationSuccess(null);
     try {
-      const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/${userDetails?.employeeId}/regularize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(regularizationForm),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setRegularizationSuccess('Attendance regularization request submitted successfully!');
-        setRegularizationForm({ date: '', punchInTime: '', punchOutTime: '', reason: '', status: 'Present' });
-        setTimeout(() => setShowRegularizationModal(false), 1500);
-      } else {
-        throw new Error(data.message || 'Failed to submit regularization request');
-      }
+      await submitRegularization(userDetails?.employeeId, regularizationForm);
+      setRegularizationSuccess('Attendance regularization request submitted successfully!');
+      setRegularizationForm({ date: '', punchInTime: '', punchOutTime: '', reason: '', status: 'Present' });
+      setTimeout(() => setShowRegularizationModal(false), 1500);
     } catch (error: any) {
       setRegularizationError(error.message || 'Failed to submit regularization request');
     } finally {
@@ -822,24 +882,12 @@ export default function Dashboard() {
     setUploadSuccess(null);
     try {
       if (!uploadFile) throw new Error('Please select a file');
-      const formData = new FormData();
-      formData.append('document', uploadFile);
-      formData.append('type', uploadType);
-      formData.append('description', uploadDesc);
-      const response = await fetch(`https://cafm.zenapi.co.in/api/kyc/${userDetails?.employeeId}`, {
-        method: 'PUT',
-        body: formData,
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setUploadSuccess('Document uploaded successfully!');
-        setUploadFile(null);
-        setUploadType('');
-        setUploadDesc('');
-        setTimeout(() => setShowUploadModal(false), 1500);
-      } else {
-        throw new Error(data.message || 'Failed to upload document');
-      }
+      await uploadDocument(userDetails?.employeeId, uploadFile, uploadType, uploadDesc);
+      setUploadSuccess('Document uploaded successfully!');
+      setUploadFile(null);
+      setUploadType('');
+      setUploadDesc('');
+      setTimeout(() => setShowUploadModal(false), 1500);
     } catch (error: any) {
       setUploadError(error.message || 'Failed to upload document');
     } finally {
@@ -1202,7 +1250,7 @@ export default function Dashboard() {
         </div>
       )}
       {showTicketModal && (
-        <div className="fixed inset-0 z-50 z-50 flex items-center justify-center bg-black/30">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-xl p-6 shadow-lg w-full max-w-md">
             <h3 className="text-lg font-bold mb-4 text-black">Raise Ticket</h3>
             {/* Ticket form goes here */}
