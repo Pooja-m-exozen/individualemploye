@@ -87,6 +87,16 @@ export default function Dashboard() {
   const [departmentStatsLoading, setDepartmentStatsLoading] = useState(true);
   const [departmentStatsError, setDepartmentStatsError] = useState<string | null>(null);
 
+  // Ticket Form State
+  const [ticketForm, setTicketForm] = useState({
+    subject: '',
+    description: '',
+    priority: 'Medium',
+  });
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [ticketSuccess, setTicketSuccess] = useState('');
+  const [ticketError, setTicketError] = useState('');
+
   // Update time every minute
   useEffect(() => {
     const timer = setInterval(() => {
@@ -477,7 +487,9 @@ export default function Dashboard() {
           data: currentMonth === 0 
             ? monthlyStats.data.monthlyPresent || Array(12).fill(0)
             : [monthlyStats.data.presentDays],
-          backgroundColor: attendanceColors.Present.bg,
+          backgroundColor: 'rgba(16, 185, 129, 0.2)',
+          borderColor: 'rgba(16, 185, 129, 1)',
+          borderWidth: 3,
           borderRadius: 6,
           maxBarThickness: 32,
         },
@@ -486,7 +498,9 @@ export default function Dashboard() {
           data: currentMonth === 0 
             ? monthlyStats.data.monthlyLateArrivals || Array(12).fill(0)
             : [monthlyStats.data.lateArrivals],
-          backgroundColor: attendanceColors.Late.bg,
+          backgroundColor: 'rgba(245, 158, 11, 0.2)',
+          borderColor: 'rgba(245, 158, 11, 1)',
+          borderWidth: 3,
           borderRadius: 6,
           maxBarThickness: 32,
         },
@@ -495,7 +509,9 @@ export default function Dashboard() {
           data: currentMonth === 0 
             ? monthlyStats.data.monthlyEarlyArrivals || Array(12).fill(0)
             : [monthlyStats.data.earlyArrivals],
-          backgroundColor: attendanceColors.Early.bg,
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 3,
           borderRadius: 6,
           maxBarThickness: 32,
         },
@@ -504,7 +520,9 @@ export default function Dashboard() {
           data: currentMonth === 0 
             ? monthlyStats.data.monthlyAbsent || Array(12).fill(0)
             : [monthlyStats.data.absentDays],
-          backgroundColor: attendanceColors.Absent.bg,
+          backgroundColor: 'rgba(239, 68, 68, 0.2)',
+          borderColor: 'rgba(239, 68, 68, 1)',
+          borderWidth: 3,
           borderRadius: 6,
           maxBarThickness: 32,
         }
@@ -521,18 +539,18 @@ export default function Dashboard() {
           monthlyStats.data.absentDays
         ],
         backgroundColor: [
-          attendanceColors.Present.bg,
-          attendanceColors.Late.bg,
-          attendanceColors.Early.bg,
-          attendanceColors.Absent.bg
+          'rgba(16, 185, 129, 0.2)',
+          'rgba(245, 158, 11, 0.2)',
+          'rgba(75, 192, 192, 0.2)',
+          'rgba(239, 68, 68, 0.2)'
         ],
         borderColor: [
-          attendanceColors.Present.border,
-          attendanceColors.Late.border,
-          attendanceColors.Early.border,
-          attendanceColors.Absent.border
+          'rgba(16, 185, 129, 1)',
+          'rgba(245, 158, 11, 1)',
+          'rgba(75, 192, 192, 1)',
+          'rgba(239, 68, 68, 1)'
         ],
-        borderWidth: 1
+        borderWidth: 3
       }]
     };
 
@@ -543,36 +561,15 @@ export default function Dashboard() {
             <h3 className="text-lg font-semibold text-gray-800">
               Attendance Analytics for {currentMonth === 0 ? 'All Months' : `${monthNames[currentMonth - 1]} ${currentYear}`}
             </h3>
-            {/* <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setAttendanceChartType('bar')}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors
-                    ${attendanceChartType === 'bar' 
-                      ? 'bg-indigo-500 text-white shadow-sm' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                >
-                  Bar Chart
-                </button>
-                <button
-                  onClick={() => setAttendanceChartType('pie')}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors
-                    ${attendanceChartType === 'pie'
-                      ? 'bg-indigo-500 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                  disabled={currentMonth === 0}
-                >
-                  Pie Chart
-                </button>
-              </div>
-            </div> */}
           </div>
 
-          <div className="w-full h-[400px] relative">
+          <div className="w-full relative" style={{ height: attendanceChartType === 'bar' ? '400px' : undefined }}>
             {attendanceChartType === 'bar' ? (
               <Bar data={chartData} options={barChartOptions} />
             ) : (
-              <Pie data={pieData} options={pieChartOptions} />
+              <div className="w-[320px] h-[320px] mx-auto">
+                <Pie data={pieData} options={pieChartOptions} />
+              </div>
             )}
           </div>
         </div>
@@ -592,23 +589,26 @@ export default function Dashboard() {
         {
           label: 'Allocated',
           data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].allocated),
-          backgroundColor: leaveColors.EL.bg,
-          borderColor: leaveColors.EL.border,
-          borderWidth: 1,
+          backgroundColor: 'rgba(16, 185, 129, 0.2)',
+          borderColor: 'rgba(16, 185, 129, 1)',
+          borderWidth: 3,
+          borderRadius: 6,
         },
         {
           label: 'Used',
           data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].used),
-          backgroundColor: leaveColors.SL.bg,
-          borderColor: leaveColors.SL.border,
-          borderWidth: 1,
+          backgroundColor: 'rgba(239, 68, 68, 0.2)',
+          borderColor: 'rgba(239, 68, 68, 1)',
+          borderWidth: 3,
+          borderRadius: 6,
         },
         {
           label: 'Remaining',
           data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].remaining),
-          backgroundColor: leaveColors.CL.bg,
-          borderColor: leaveColors.CL.border,
-          borderWidth: 1,
+          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+          borderColor: 'rgba(59, 130, 246, 1)',
+          borderWidth: 3,
+          borderRadius: 6,
         }
       ]
     };
@@ -618,18 +618,18 @@ export default function Dashboard() {
       datasets: [{
         data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].allocated),
         backgroundColor: [
-          leaveColors.EL.bg,
-          leaveColors.SL.bg,
-          leaveColors.CL.bg,
-          leaveColors.CompOff.bg,
+          'rgba(16, 185, 129, 0.2)',
+          'rgba(239, 68, 68, 0.2)',
+          'rgba(59, 130, 246, 0.2)',
+          'rgba(139, 92, 246, 0.2)',
         ],
         borderColor: [
-          leaveColors.EL.border,
-          leaveColors.SL.border,
-          leaveColors.CL.border,
-          leaveColors.CompOff.border,
+          'rgba(16, 185, 129, 1)',
+          'rgba(239, 68, 68, 1)',
+          'rgba(59, 130, 246, 1)',
+          'rgba(139, 92, 246, 1)',
         ],
-        borderWidth: 1,
+        borderWidth: 3
       }]
     };
 
@@ -640,35 +640,16 @@ export default function Dashboard() {
             <h3 className="text-lg font-semibold text-gray-800">
               Leave Balance for {leaveBalance.employeeName}
             </h3>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setLeaveChartType('bar')}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors
-                    ${leaveChartType === 'bar' 
-                      ? 'bg-indigo-500 text-white shadow-sm' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                >
-                  Bar Chart
-                </button>
-                <button
-                  onClick={() => setLeaveChartType('pie')}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors
-                    ${leaveChartType === 'pie'
-                      ? 'bg-indigo-500 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                >
-                  Pie Chart
-                </button>
-              </div>
-            </div>
+            
           </div>
 
-          <div className="w-full h-[400px] relative">
+          <div className="w-full h-[300px] relative">
             {leaveChartType === 'bar' ? (
               <Bar data={chartData} options={barChartOptions} />
             ) : (
-              <Pie data={pieData} options={pieChartOptions} />
+              <div className="w-[320px] h-[320px] mx-auto">
+                <Pie data={pieData} options={pieChartOptions} />
+              </div>
             )}
           </div>
         </div>
@@ -1234,15 +1215,7 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-      {showTicketModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-xl p-6 shadow-lg w-full max-w-md">
-            <h3 className="text-lg font-bold mb-4 text-black">Raise Ticket</h3>
-            {/* Ticket form goes here */}
-            <button onClick={() => setShowTicketModal(false)} className="mt-4 px-4 py-2 bg-red-500 text-white rounded">Close</button>
-          </div>
-        </div>
-      )}
+    
     </div>
   );
 }
