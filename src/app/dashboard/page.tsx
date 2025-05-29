@@ -8,7 +8,7 @@ import type { ChartData, ChartOptions } from 'chart.js';
 import { useUser } from '@/context/UserContext';
 import Confetti from 'react-confetti';
 import { getDashboardData, getMonthlyStats, submitLeaveRequest, submitRegularization, uploadDocument, getLeaveBalance } from '@/services/dashboard';
-import type { BirthdayResponse, WorkAnniversaryResponse, LeaveBalanceResponse, MonthlyStats, AnalyticsViewType, ChartType, LeaveType } from '../../types/dashboard';
+import type { BirthdayResponse, WorkAnniversaryResponse, LeaveBalanceResponse, MonthlyStats, DepartmentStats, AnalyticsViewType, ChartType, LeaveType } from '../../types/dashboard';
 import { FaCalendarCheck, FaClipboardList, FaFileAlt, FaFileUpload, FaPlusCircle, FaRegCalendarPlus, FaTicketAlt, FaUserClock } from 'react-icons/fa';
 
 // Register ChartJS components
@@ -81,6 +81,11 @@ export default function Dashboard() {
   const [analyticsView, setAnalyticsView] = useState<AnalyticsViewType>('attendance');
   const [attendanceChartType, setAttendanceChartType] = useState<ChartType>('bar');
   const [leaveChartType, setLeaveChartType] = useState<ChartType>('bar');
+
+  // Department stats state
+  const [departmentStats, setDepartmentStats] = useState<DepartmentStats | null>(null);
+  const [departmentStatsLoading, setDepartmentStatsLoading] = useState(true);
+  const [departmentStatsError, setDepartmentStatsError] = useState<string | null>(null);
 
   // Ticket Form State
   const [ticketForm, setTicketForm] = useState({
@@ -169,9 +174,26 @@ export default function Dashboard() {
     }
   };
 
+  // Fetch department stats
+  const fetchDepartmentStats = async () => {
+    try {
+      setDepartmentStatsLoading(true);
+      const stats = await getDashboardData('DEPARTMENT_STATS_ENDPOINT', currentMonth, currentYear);
+      setDepartmentStats(stats as unknown as DepartmentStats);
+      setDepartmentStatsError(null);
+    } catch (error) {
+      console.error('Error fetching department stats:', error);
+      setDepartmentStatsError('Failed to fetch department statistics');
+      setDepartmentStats(null);
+    } finally {
+      setDepartmentStatsLoading(false);
+    }
+  };
+
   // Initial data fetch on component mount
   useEffect(() => {
     fetchData();
+    fetchDepartmentStats();
 
     // Poll every 5 minutes
     const pollInterval = setInterval(() => {
@@ -181,6 +203,18 @@ export default function Dashboard() {
 
     return () => clearInterval(pollInterval);
   }, []);
+
+  // Effect to update displayed monthly stats when currentMonth or currentYear changes
+  useEffect(() => {
+    if (currentMonth > 0) {
+      const monthYearKey = `${currentMonth}-${currentYear}`;
+      if (monthlyStatsCache[monthYearKey]) {
+        setMonthlyStats(monthlyStatsCache[monthYearKey]);
+      } else {
+        fetchData(false, currentMonth, currentYear);
+      }
+    }
+  }, [currentMonth, currentYear, monthlyStatsCache]);
 
   useEffect(() => {
     if (birthdays?.success && birthdays.data && birthdays.data.length > 0) {
@@ -619,6 +653,83 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+      </div>
+    );
+  };
+
+  const renderDepartmentChart = () => {
+    if (!departmentStats?.data) return null;
+
+    const chartData: ChartData<'bar'> = {
+      labels: departmentStats.data.map(stat => stat.departmentName),
+      datasets: [
+        {
+          label: 'Total Employees',
+          data: departmentStats.data.map(stat => stat.totalEmployees),
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1,
+        },
+        {
+          label: 'Present Today',
+          data: departmentStats.data.map(stat => stat.presentToday),
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1,
+        },
+        {
+          label: 'On Leave Today',
+          data: departmentStats.data.map(stat => stat.onLeaveToday),
+          backgroundColor: 'rgba(255, 159, 64, 0.6)',
+          borderColor: 'rgba(255, 159, 64, 1)',
+          borderWidth: 1,
+        }
+      ]
+    };
+
+    const options: ChartOptions<'bar'> = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top' as const,
+        },
+        title: {
+          display: true,
+          text: 'Department-wise Employee Distribution',
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Number of Employees'
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Departments'
+          }
+        }
+      },
+    };
+
+    return (
+      <div className="bg-white rounded-lg shadow p-4">
+        <h3 className="text-lg font-semibold mb-4">Department Statistics</h3>
+        {departmentStatsLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        ) : departmentStatsError ? (
+          <div className="text-red-500 text-center py-4">{departmentStatsError}</div>
+        ) : (
+          <div className="h-[400px]">
+            <Bar data={chartData} options={options} />
+          </div>
+        )}
       </div>
     );
   };
