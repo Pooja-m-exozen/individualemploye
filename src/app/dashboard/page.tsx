@@ -951,35 +951,20 @@ export default function Dashboard() {
       )}
       {/* Welcome Section */}
       <div className="mt-0 mb-5">
-        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-3 shadow flex flex-col md:flex-row md:items-center md:justify-between gap-3 relative overflow-hidden text-white">
-          <div className="space-y-0.5 z-10">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-white/20 rounded-full flex items-center justify-center shadow">
-                <span className="text-lg">👋</span>
-              </div>
-              <div>
-                <h1 className="text-base font-semibold">
-                  Welcome back,{' '}
-                  <span className="text-lg font-bold text-blue-200">
-                    {userDetails?.fullName || (
-                      <span className="inline-block h-5 w-28 bg-blue-300 rounded animate-pulse align-middle">&nbsp;</span>
-                    )}
-                  </span>
-                </h1>
-                <p className="text-xs opacity-90 mt-0.5">{getWelcomeMessage()}</p>
-              </div>
-            </div>
-            {userDetails && (
-              <div className="flex flex-wrap gap-1.5">
-                <span className="bg-white/30 text-white px-2 py-0.5 rounded-full text-xs font-medium shadow border border-white/40 backdrop-blur-sm">
-                  {userDetails.designation} • {userDetails.department}
-                </span>
-              </div>
-            )}
+        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 shadow-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative overflow-hidden text-white">
+          <div className="space-y-1 z-10">
+            <h1 className="text-2xl md:text-3xl font-extrabold drop-shadow-lg">
+              Welcome back, <span className="text-white font-extrabold">{userDetails?.fullName || <span className="inline-block h-6 w-32 bg-blue-300 rounded animate-pulse align-middle">&nbsp;</span>}</span>!
+            </h1>
+            <p className="text-base md:text-lg font-medium opacity-90 mt-1">
+              {getWelcomeMessage()}
+            </p>
+            {/* Optionally, you can add a subtitle or ticket info here */}
+            {/* <p className="text-sm opacity-80">You have 3 tickets that need your attention today</p> */}
           </div>
           <div className="flex gap-2 z-10">
-            <button className="bg-white text-blue-600 px-3 py-1.5 rounded-lg shadow-md hover:bg-blue-50 transition font-medium text-xs">View My Tickets</button>
-            <button onClick={handleViewReports} className="bg-blue-500 text-white px-3 py-1.5 rounded-lg shadow-md hover:bg-blue-600 transition font-medium text-xs">View Reports</button>
+            <button className="bg-white text-blue-600 px-4 py-2 rounded-lg shadow-md hover:bg-blue-50 transition font-semibold text-base">View My Tickets</button>
+            <button onClick={handleViewReports} className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition font-semibold text-base">View Reports</button>
           </div>
         </div>
       </div>
@@ -1065,7 +1050,7 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <div className="mb-6">
         <h2 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
-          <FaPlusCircle className="text-indigo-500" /> Quick Actions
+           Quick Actions
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <button onClick={() => setShowLeaveModal(true)} className="bg-transparent hover:bg-gradient-to-r from-blue-500 to-indigo-600 text-gray-800 hover:text-white rounded-xl px-4 py-2 flex flex-col items-center shadow transition border border-gray-200 group">
@@ -1093,7 +1078,7 @@ export default function Dashboard() {
           {/* Section Title */}
           {/* Moved dynamic title into renderAttendanceChart */}
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
-             <span className="text-2xl">📈</span>
+             <span className="text-2xl"></span>
              Dashboard Analytics {/* Keep a general title for the section */}
            </h2>
           {/* Refresh Button/Spinner */}
