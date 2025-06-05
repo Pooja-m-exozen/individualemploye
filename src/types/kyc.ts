@@ -76,7 +76,7 @@ export interface EmergencyContact {
 }
 
 export interface KYCRecord {
-  documents: any;
+  documents: KYCDocument[];
   _id: string;
   status: string;
   createdAt: string;

@@ -1,6 +1,6 @@
 import { KYCResponse, KYCRecord, KYCDocument } from '@/types/kyc';
 import { api } from './api';
-import { getAuthToken, getUserRole, getUserEmail } from './auth';
+import {  getUserRole, getUserEmail } from './auth';
 
 export interface ComplianceUpdateResponse {
   success: boolean;
@@ -14,7 +14,7 @@ export interface DocumentVerifyResponse {
   data?: KYCDocument;
 }
 
-const EMPLOYEE_ID = "67ecbe7d8c75f122c26617ab";
+
 
 export const getAllKYCRecords = async (): Promise<KYCResponse> => {
   try {
@@ -157,7 +157,6 @@ export const verifyDocument = async (employeeId: string, documentId: string, dat
 };
 
 export const uploadKYCDocuments = async (formData: FormData): Promise<{ success: boolean; message: string; data: KYCDocument[] }> => {
-  const userRole = getUserRole();
   const userEmail = localStorage.getItem('userEmail');
 
   if (!userEmail) {

@@ -1,10 +1,13 @@
 'use client'
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { FaSpinner, FaExclamationCircle, FaSync, FaDownload, FaPrint, FaCalendarAlt, FaUser, FaMoneyBillWave, FaFileInvoiceDollar } from 'react-icons/fa';
+import {  FaExclamationCircle, FaSync, FaDownload, FaPrint, FaCalendarAlt, FaFileInvoiceDollar } from 'react-icons/fa';
 import domtoimage from 'dom-to-image';
 import jsPDF from 'jspdf';
+import { isAuthenticated, getEmployeeId } from '@/services/auth';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface Deductions {
   pf: number;
@@ -46,20 +49,21 @@ interface PayslipResponse {
 }
 
 const PayslipPage = () => {
+  const router = useRouter();
   const [payslip, setPayslip] = useState<Payslip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState('2023-05');
 
-  useEffect(() => {
-    fetchPayslip();
-  }, [selectedMonth]);
-
-  const fetchPayslip = async () => {
+  const fetchPayslip = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`https://cafm.zenapi.co.in/api/payslip/EFMS3295/${selectedMonth}`);
+      const employeeId = getEmployeeId();
+      if (!employeeId) {
+        throw new Error('Employee ID not found. Please login again.');
+      }
+      const response = await fetch(`https://cafm.zenapi.co.in/api/payslip/${employeeId}/${selectedMonth}`);
       const data: PayslipResponse = await response.json();
 
       if (data.message === "Payslip retrieved successfully." && data.payslip) {
@@ -76,14 +80,36 @@ const PayslipPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedMonth]);
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
+    fetchPayslip();
+  }, [router, fetchPayslip]);
 
   const handleDownload = async () => {
     if (typeof window !== 'undefined') {
       const input = document.querySelector('.print-payslip-area') as HTMLElement;
       if (input) {
         try {
-          const imgData = await (domtoimage as any).toPng(input, { quality: 0.95 });
+          // Add PDF generation class before generating
+          input.classList.add('generating-pdf');
+          
+          const imgData = await domtoimage.toPng(input, { 
+            quality: 0.95,
+            style: {
+              'border-collapse': 'collapse',
+              'table': {
+                'border': '2px solid #1f2937'
+              },
+              'td, th': {
+                'border': '2px solid #1f2937'
+              }
+            }
+          });
           
           const pdf = new jsPDF('p', 'mm', 'a4');
           const imgWidth = 210; // A4 width in mm
@@ -101,7 +127,11 @@ const PayslipPage = () => {
             pdf.addImage(imgData, 'PNG', 0, position + pageHeight, imgWidth, imgHeight);
             heightLeft -= pageHeight;
           }
+          
           pdf.save(`payslip-${payslip?.month}.pdf`);
+          
+          // Remove PDF generation class after generating
+          input.classList.remove('generating-pdf');
         } catch (error) {
           console.error('Error generating PDF:', error);
           alert('Failed to generate PDF. Please check the console for details.');
@@ -112,13 +142,20 @@ const PayslipPage = () => {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center p-12">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-600">Loading payslip data...</p>
+        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+          <div className="text-center space-y-4">
+            <div className="w-20 h-20 mx-auto">
+              <div className="w-full h-full border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+            </div>
+            <p className="text-lg text-gray-600 font-medium">Loading your payslip...</p>
+            <p className="text-sm text-gray-500">This may take a moment</p>
           </div>
         </div>
       </DashboardLayout>
@@ -128,19 +165,22 @@ const PayslipPage = () => {
   if (error) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center p-12">
-          <div className="text-center max-w-md">
-            <div className="w-16 h-16 mx-auto mb-4 text-red-500">
-              <FaExclamationCircle className="w-full h-full" />
+        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 mx-auto text-red-500">
+                <FaExclamationCircle className="w-full h-full" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900">Error Loading Payslip</h3>
+              <p className="text-gray-600">{error}</p>
+              <button 
+                onClick={fetchPayslip}
+                className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors inline-flex items-center justify-center gap-2 font-medium"
+              >
+                <FaSync className="w-5 h-5" />
+                Retry
+              </button>
             </div>
-            <p className="text-red-600 mb-4">{error}</p>
-            <button 
-              onClick={fetchPayslip}
-              className="px-6 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors inline-flex items-center gap-2"
-            >
-              <FaSync className="w-5 h-5" />
-              Try Again
-            </button>
           </div>
         </div>
       </DashboardLayout>
@@ -150,9 +190,20 @@ const PayslipPage = () => {
   if (!payslip && !loading && !error) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center p-12">
-          <div className="text-center">
-            <p className="text-gray-600 text-lg">No payslip found for the selected month.</p>
+        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center space-y-4">
+            <FaFileInvoiceDollar className="w-16 h-16 mx-auto text-gray-400" />
+            <h3 className="text-xl font-semibold text-gray-900">No Payslip Found</h3>
+            <p className="text-gray-600">There is no payslip available for the selected month.</p>
+            <div className="relative max-w-xs mx-auto">
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              />
+              <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            </div>
           </div>
         </div>
       </DashboardLayout>
@@ -163,154 +214,231 @@ const PayslipPage = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="max-w-4xl mx-auto">
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Payslip Management</h1>
-            <p className="text-gray-600 mt-1">View and manage your monthly salary details</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900"
-              />
-              <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            </div>
-            <button
-              onClick={handleDownload}
-              className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
-            >
-              <FaDownload className="text-gray-600" />
-              <span>Download</span>
-            </button>
-          </div>
-        </div>        {/* Main Content */}        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden print-payslip-area p-6">
-          {/* Company Header */}
-          <div className="border-b border-gray-200 pb-4 mb-4">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-4">
-                <img src="/exozen_logo.png" alt="Company Logo" className="h-12" />
-                <div>                  <h2 className="text-xl font-bold text-black">Exozen Pvt Ltd</h2>
-                  <p className="text-black text-sm">25/1, 4th Floor, SKIP House, Museum Rd, near Brigade Tower</p>
-                  <p className="text-black text-sm">Shanthala Nagar, Ashok Nagar, Bengaluru, Karnataka 560025</p>
-                </div>
-              </div>              <div className="text-right">
-                <h3 className="text-lg font-semibold text-black">Salary Slip</h3>
-                <p className="text-black text-sm">For {new Date(payslip.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-8 rounded-xl shadow-lg mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                <FaFileInvoiceDollar className="w-8 h-8 text-white" />
               </div>
-            </div>
-          </div>
-
-          {/* Employee Information */}
-          <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
-            <div>
-              <p className="text-black">Employee ID</p>
-              <p className="font-semibold text-black">{payslip.employeeId}</p>
-            </div>            <div>
-              <p className="text-black">Pay Period</p>
-              <p className="font-semibold text-black">{payslip.month}</p>
-            </div>
-            <div>
-              <p className="text-black">Payment Date</p>
-              <p className="font-semibold text-black">{new Date(payslip.createdAt).toLocaleDateString()}</p>
-            </div>
-          </div>
-
-          {/* Attendance Summary */}
-          <div className="grid grid-cols-4 gap-4 mb-6 text-sm">
-            <div className="border rounded p-2">
-              <p className="text-black">Working Days</p>
-              <p className="font-semibold text-black">{payslip.totalWorkingDays}</p>
-            </div>            <div className="border rounded p-2">
-              <p className="text-black">Present Days</p>
-              <p className="font-semibold text-black">{payslip.presentDays}</p>
-            </div>
-            <div className="border rounded p-2">
-              <p className="text-black">Absent Days</p>
-              <p className="font-semibold text-black">{payslip.absentDays}</p>
-            </div>
-            <div className="border rounded p-2">
-              <p className="text-black">Half Days</p>
-              <p className="font-semibold text-black">{payslip.halfDays}</p>
-            </div>
-          </div>
-
-          {/* Salary Details */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* Earnings */}
-            <div className="border rounded-lg p-4">
-              <h3 className="text-black font-semibold mb-3">Earnings</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-black">Basic Salary</span>
-                  <span className="font-semibold text-black">₹{payslip.basicSalary.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-black">HRA</span>
-                  <span className="font-semibold text-black">₹{payslip.hra.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-black">VDA</span>
-                  <span className="font-semibold text-black">₹{payslip.vda.toLocaleString()}</span>
-                </div>
-                <div className="border-t pt-2 mt-2">
-                  <div className="flex justify-between font-semibold">
-                    <span className="text-black">Total Earnings</span>
-                    <span className="text-black">₹{payslip.totalEarnings.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Deductions */}
-            <div className="border rounded-lg p-4">
-              <h3 className="text-black font-semibold mb-3">Deductions</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-black">PF</span>
-                  <span className="font-semibold text-black">₹{payslip.deductions.pf.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-black">ESI</span>
-                  <span className="font-semibold text-black">₹{payslip.deductions.esi.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-black">PT</span>
-                  <span className="font-semibold text-black">₹{payslip.deductions.pt.toLocaleString()}</span>
-                </div>
-                <div className="border-t pt-2 mt-2">
-                  <div className="flex justify-between font-semibold">
-                    <span className="text-black">Total Deductions</span>
-                    <span className="text-black">₹{payslip.totalDeductions.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Net Pay */}
-          <div className="mt-6 border-t pt-4">
-            <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-lg font-semibold text-black">Net Salary</h2>
-                <p className="text-black text-sm">Total amount for {new Date(payslip.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-black">₹{payslip.netPay.toLocaleString()}</p>
+                <h1 className="text-3xl font-bold text-black">Payslip Dashboard</h1>
+                <p className="text-blue-100 mt-1">View and download your monthly salary details</p>
               </div>
             </div>
-          </div>
-
-          {/* Footer Note */}
-          <div className="text-center text-xs text-black mt-6 pt-4 border-t">
-            <p>This is a computer-generated document. No signature required.</p>
-            <p>For any queries, please contact HR department</p>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="pl-10 pr-4 py-2 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl focus:ring-2 focus:ring-white/50 focus:border-transparent outline-none transition-all placeholder-white/70"
+                />
+                <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-white/70" />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDownload}
+                  className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl text-white hover:bg-white/30 transition-all duration-300 flex items-center gap-2"
+                >
+                  <FaDownload className="w-5 h-5" />
+                  <span>Download</span>
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl text-white hover:bg-white/30 transition-all duration-300 flex items-center gap-2"
+                >
+                  <FaPrint className="w-5 h-5" />
+                  <span>Print</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Payslip Content */}
+        <div className="print-payslip-area bg-white border border-gray-200 rounded-lg p-8">
+          {/* Header */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-start gap-6">
+              <div className="relative h-16 w-auto">
+                <Image 
+                  src="/exozen_logo.png" 
+                  alt="Company Logo" 
+                  width={64}
+                  height={64}
+                  className="h-16 w-auto"
+                  priority
+                />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-black">M/s Exozen Private Limited.,</h2>
+                <p className="text-sm text-gray-900 mt-1">
+                  No.25/1, 4th Floor, Shantala Nagar, Brigade Road, Museum Road,<br />
+                  Ashok Nagar, Bengaluru, Karnataka - 560025
+                </p>
+              </div>
+            </div>
+            <div className="text-center mt-4">
+              <h3 className="text-lg font-semibold text-black">Pay Slip for the month of {new Date(payslip.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
+            </div>
+          </div>
+
+          {/* Employee Details */}
+          <div className="p-6">
+            <table className="w-full border-collapse">
+              <tbody>
+                <tr>
+                  <td className="border border-gray-300 p-2 w-1/4 text-black font-medium">Employee ID:</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.employeeId}</td>
+                  <td className="border border-gray-300 p-2 w-1/4 text-black font-medium">Paid Days:</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.presentDays}</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2 text-black font-medium">Employee Name:</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">SHIVANYA D N</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">LOP Days:</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.absentDays}</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2 text-black font-medium">Designation:</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">IOT Developer</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">ESIC No:</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">EXEMTED</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2 text-black font-medium">UAN No:</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">EXEMTED</td>
+                  <td className="border border-gray-300 p-2"></td>
+                  <td className="border border-gray-300 p-2"></td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Earnings and Deductions */}
+            <table className="w-full border-collapse mt-6">
+              <thead>
+                <tr>
+                  <th className="border border-gray-300 p-2 text-left w-1/4 text-black">Earnings</th>
+                  <th className="border border-gray-300 p-2 text-left w-1/4 text-black">Amount</th>
+                  <th className="border border-gray-300 p-2 text-left w-1/4 text-black">Deductions</th>
+                  <th className="border border-gray-300 p-2 text-left w-1/4 text-black">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border border-gray-300 p-2 text-black font-medium">Basic+VDA</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.basicPlusVDA.toFixed(2)}</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">PF</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.deductions.pf.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2 text-black font-medium">HRA</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.hra.toFixed(2)}</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">ESI</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.deductions.esi.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2 text-black font-medium">Conveyance Allowance</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.conveyanceAllowance.toFixed(2)}</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">PT</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.deductions.pt.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2 text-black font-medium">Other Allowances</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.otherAllowance.toFixed(2)}</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">Salary Adv.</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">0.00</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2 text-black font-medium">Spl. Allowance</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.specialAllowance.toFixed(2)}</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">Uniform Ded.</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.deductions.uniformDeduction.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2 text-black font-medium">Wash. Allowances</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">0.00</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">Room rent</td>
+                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.deductions.roomRent.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2 text-black font-semibold">Total Amount</td>
+                  <td className="border border-gray-300 p-2 text-black font-semibold">{payslip.totalEarnings.toFixed(2)}</td>
+                  <td className="border border-gray-300 p-2 text-black font-semibold">Total Deductions</td>
+                  <td className="border border-gray-300 p-2 text-black font-semibold">{payslip.totalDeductions.toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Net Pay */}
+            <div className="mt-6 border border-gray-300 p-4">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-black">Net Pay:</span>
+                <span className="font-semibold text-black">{payslip.netPay.toFixed(2)} (Twenty Three Thousand Five Hundred only)</span>
+              </div>
+            </div>
+
+            {/* Footer Note */}
+            <div className="mt-6 text-sm text-gray-600">
+              <p>Please Note: This is system generated Pay Slip, this does not require any signature for authentication.</p>
+            </div>
+          </div>
+        </div>
+
+        <style jsx global>{`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            .print-payslip-area, .print-payslip-area * {
+              visibility: visible;
+            }
+            .print-payslip-area {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+            }
+            .print-payslip-area table {
+              border-collapse: collapse;
+              width: 100%;
+            }
+            .print-payslip-area td,
+            .print-payslip-area th {
+              border: 2px solid #1f2937 !important;
+              padding: 8px !important;
+            }
+            .print-payslip-area tr {
+              border: 2px solid #1f2937 !important;
+            }
+            @page {
+              margin: 20mm;
+              size: auto;
+            }
+          }
+        `}</style>
+
+        {/* Add specific styles for PDF download */}
+        <style jsx global>{`
+          .print-payslip-area table {
+            border-collapse: collapse;
+            width: 100%;
+          }
+          .print-payslip-area td,
+          .print-payslip-area th {
+            border: 1px solid #e5e7eb;
+          }
+          /* These styles will only apply during PDF generation */
+          .print-payslip-area.generating-pdf table {
+            border: 2px solid #1f2937;
+          }
+          .print-payslip-area.generating-pdf td,
+          .print-payslip-area.generating-pdf th {
+            border: 2px solid #1f2937;
+          }
+        `}</style>
       </div>
     </DashboardLayout>
   );

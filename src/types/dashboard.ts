@@ -1,4 +1,4 @@
-import { ChartData, ChartOptions } from 'chart.js';
+import { ChartData} from 'chart.js';
 
 export interface LeaveBalance {
   allocated: number;
@@ -147,4 +147,12 @@ export interface DocumentUploadResponse {
     fileName: string;
     fileType: string;
   };
+}
+
+export interface AttendanceActivity {
+  date: string;
+  checkIn: string;
+  checkOut: string;
+  status: 'present' | 'absent' | 'late' | 'early';
+  regularized: boolean;
 }

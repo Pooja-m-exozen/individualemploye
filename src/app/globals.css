@@ -5,6 +5,11 @@
   --foreground: #171717;
 }
 
+.dark {
+  --background: #171717;
+  --foreground: #ffffff;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -23,6 +28,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Add these new styles */
@@ -57,4 +63,59 @@ body {
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background-color: #c7d2fe;
+}
+
+/* Update dark mode transitions */
+.dark-transition {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Dark mode background classes */
+.dark .dark-bg-primary {
+  background-color: var(--background);
+}
+
+.dark .dark-bg-secondary {
+  background-color: #1a1a1a;
+}
+
+.dark .dark-bg-card {
+  background-color: #1f1f1f;
+}
+
+/* Update Dark mode card styles */
+.dark .dark-card {
+  background-color: #1f1f1f;
+  border-color: #2d2d2d;
+}
+
+.dark .dark-text-primary {
+  color: #ffffff;
+}
+
+.dark .dark-text-secondary {
+  color: #a1a1aa;
+}
+
+.dark .dark-border {
+  border-color: #404040;
+}
+
+/* Dark mode gradients */
+.dark .dark-gradient {
+  background-image: linear-gradient(to right, rgb(30, 41, 59), rgb(51, 65, 85));
+}
+
+/* Add smooth transitions for theme changes */
+.theme-transition {
+  transition: background-color 0.3s ease-in-out,
+              border-color 0.3s ease-in-out,
+              color 0.3s ease-in-out;
+}
+
+/* Ensure all elements transition smoothly */
+* {
+  transition: background-color 0.3s ease-in-out,
+              border-color 0.3s ease-in-out,
+              color 0.3s ease-in-out;
 }

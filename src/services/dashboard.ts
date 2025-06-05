@@ -9,6 +9,23 @@ import type {
   DocumentUploadResponse
 } from '../types/dashboard';
 
+interface AttendanceRecord {
+  _id: string;
+  employeeId: string;
+  projectName?: string;
+  designation?: string;
+  date: string;
+  punchInTime?: string;
+  punchInPhoto?: string;
+  punchInLatitude?: number;
+  punchInLongitude?: number;
+  punchOutTime?: string;
+  punchOutPhoto?: string;
+  punchOutLatitude?: number;
+  punchOutLongitude?: number;
+  status: string;
+}
+
 const BASE_URL = 'https://cafm.zenapi.co.in/api';
 
 export const getDashboardData = async (
@@ -19,7 +36,7 @@ export const getDashboardData = async (
   birthdays: BirthdayResponse;
   anniversaries: WorkAnniversaryResponse;
   leaveBalance: LeaveBalanceResponse;
-  attendanceActivities: any[];
+  attendanceActivities: AttendanceRecord[];
   monthlyStats: MonthlyStats;
 }> => {
   try {
@@ -128,4 +145,23 @@ export const getLeaveBalance = async (employeeId: string): Promise<LeaveBalanceR
     console.error('Error fetching leave balance:', error);
     throw error;
   }
+};
+
+export const fetchDashboardSummary = async (
+  employeeId: string,
+  month: number,
+  year: number
+) => {
+  const [monthlyStats, leaveBalance, dashboardData] = await Promise.all([
+    getMonthlyStats(employeeId, month, year),
+    getLeaveBalance(employeeId),
+    getDashboardData(employeeId, month, year),
+  ]);
+  return {
+    monthlyStats,
+    leaveBalance,
+    birthdays: dashboardData.birthdays,
+    anniversaries: dashboardData.anniversaries,
+    attendanceActivities: dashboardData.attendanceActivities,
+  };
 };
