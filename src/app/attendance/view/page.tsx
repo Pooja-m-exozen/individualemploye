@@ -163,18 +163,32 @@ function ViewAttendanceContent() {
         const data = await response.json();
         
         if (response.ok && data.attendance) {
-          const transformedActivities = data.attendance.map(transformAttendanceRecord);
+          const transformedActivities = data.attendance.map((record: any) => ({
+            date: format(new Date(record.date), 'yyyy-MM-dd'),
+            displayDate: format(new Date(record.date), 'EEE, MMM d, yyyy'),
+            status: record.status,
+            punchInTime: record.punchInTime,
+            punchOutTime: record.punchOutTime,
+            punchInUtc: record.punchInUtc,
+            punchOutUtc: record.punchOutUtc,
+            isLate: record.isLate || false,
+            remarks: record.remarks,
+            totalHoursWorked: record.totalHoursWorked || '0',
+            punchInLocation: record.punchInLocation,
+            punchOutLocation: record.punchOutLocation,
+          }));
           setActivities(transformedActivities);
         } else {
+          setError('No attendance data found');
           setActivities([]);
-          setError('No attendance data found.');
         }
       } catch (error) {
-        setActivities([]);
-        setError('Failed to fetch attendance data.');
         console.error('Error fetching attendance:', error);
+        setError('Failed to fetch attendance data');
+        setActivities([]);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchActivities();
@@ -197,17 +211,49 @@ function ViewAttendanceContent() {
     ];
   };
 
-  const getStatusForDate = (date: Date): StatusInfo => {
-    const activity = activities.find(a => a.date === format(date, 'yyyy-MM-dd'));
-    if (!activity) return { code: '', color: '' };
-    if (activity.status === 'Present') return { code: 'P', color: 'text-green-600' };
-    if (activity.status === 'Absent') return { code: 'A', color: 'text-red-600' };
-    if (activity.status.toLowerCase().includes('holiday')) return { code: 'H', color: 'text-blue-600' };
-    if (activity.status.toLowerCase().includes('saturday') || activity.status.toLowerCase().includes('sunday')) return { code: 'O', color: 'text-gray-400' };
-    return { code: activity.status[0], color: 'text-gray-600' };
-  };
+  // Update the getStatusForDate function
+const getStatusForDate = (date: Date): StatusInfo => {
+  const activity = activities.find(a => a.date === format(date, 'yyyy-MM-dd'));
+  if (!activity) return { code: '', color: 'text-gray-400' };
 
-  // Filtered and paginated activities for modal
+  // Handle different status types
+  switch (activity.status.toLowerCase()) {
+    case 'present':
+      return { 
+        code: 'P', 
+        color: activity.isLate ? 'text-amber-600' : 'text-green-600'
+      };
+    case 'absent':
+      return { code: 'A', color: 'text-red-600' };
+    case 'holiday':
+      return { code: 'H', color: 'text-blue-600' };
+    case 'weekend':
+      return { code: 'W', color: 'text-gray-400' };
+    default:
+      return { code: activity.status[0], color: 'text-gray-600' };
+  }
+};
+
+// Update the getDayBackgroundColor function
+const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrentMonth: boolean) => {
+  if (!isCurrentMonth) return 'bg-gray-50';
+  if (!activity) return 'bg-white';
+
+  switch (activity.status.toLowerCase()) {
+    case 'present':
+      return activity.isLate ? 'bg-amber-100' : 'bg-green-100';
+    case 'absent':
+      return 'bg-red-100';
+    case 'holiday':
+      return 'bg-blue-100';
+    case 'weekend':
+      return 'bg-gray-50';
+    default:
+      return 'bg-white';
+  }
+};
+
+// Filtered and paginated activities for modal
   const filteredActivities = useMemo(() => {
     return activities.filter((activity: AttendanceRecord) => {
       const matchesSearch = search === '' ||
@@ -256,22 +302,45 @@ function ViewAttendanceContent() {
     </div>
   );
 
-  const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrentMonth: boolean) => {
-    if (!isCurrentMonth) return 'bg-gray-50';
-    if (!activity) return 'bg-white';
-    switch (activity.status.toLowerCase()) {
-      case 'present':
-        return activity.isLate ? 'bg-amber-100' : 'bg-green-100';
-      case 'absent':
-        return 'bg-red-100';
-      case 'holiday':
-        return 'bg-blue-100';
-      case 'half day':
-        return 'bg-purple-100';
-      default:
-        return 'bg-white';
-    }
-  };
+  // Update calendar grid rendering
+  {getCalendarDays().map((date, idx) => {
+  if (!date) {
+    return <div key={idx} className="w-14 h-14" />;
+  }
+  
+  const activity = activities.find(a => a.date === format(date, 'yyyy-MM-dd'));
+  const isCurrentMonth = isSameMonth(date, selectedDate);
+  const { code, color } = getStatusForDate(date);
+  
+  return (
+    <div
+      key={idx}
+      className={`
+        relative w-14 h-14 border rounded-lg flex flex-col items-center justify-center
+        ${getDayBackgroundColor(activity, isCurrentMonth)}
+        ${isToday(date) ? 'ring-2 ring-blue-400' : ''}
+        ${!isCurrentMonth ? 'opacity-40' : ''}
+        cursor-pointer hover:shadow-md transition duration-200
+        group
+      `}
+      onClick={() => activity && setSelectedActivity(activity)}
+    >
+      <span className={`absolute top-1 left-1 text-xs ${isCurrentMonth ? 'text-gray-700' : 'text-gray-400'}`}>
+        {format(date, 'd')}
+      </span>
+      <span className={`mt-2 text-sm font-semibold ${color}`}>
+        {code}
+      </span>
+      {activity?.isLate && (
+        <div className="absolute bottom-1 right-1 w-2 h-2 bg-amber-400 rounded-full" 
+             title="Late Arrival" />
+      )}
+      {activity && (
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-lg transition-colors" />
+      )}
+    </div>
+  );
+})}
 
     return (
     <div className="max-w-7xl mx-auto space-y-8 py-8">
@@ -353,25 +422,36 @@ function ViewAttendanceContent() {
                 if (!date) {
                   return <div key={idx} className="w-14 h-14" />;
                 }
-                const { code, color } = getStatusForDate(date);
+                
                 const activity = activities.find(a => a.date === format(date, 'yyyy-MM-dd'));
+                const isCurrentMonth = isSameMonth(date, selectedDate);
+                const { code, color } = getStatusForDate(date);
+                
                 return (
                   <div
                     key={idx}
                     className={`
-                      relative w-14 h-14 border rounded-lg flex flex-col items-center justify-center shadow-sm transition
+                      relative w-14 h-14 border rounded-lg flex flex-col items-center justify-center
+                      ${getDayBackgroundColor(activity, isCurrentMonth)}
                       ${isToday(date) ? 'ring-2 ring-blue-400' : ''}
-                      ${isSameMonth(date, selectedDate) ? getDayBackgroundColor(activity, true) : 'bg-gray-50 opacity-60'}
+                      ${!isCurrentMonth ? 'opacity-40' : ''}
+                      cursor-pointer hover:shadow-md transition duration-200
                       group
                     `}
-                    title={activity ? `${activity.status}${activity.punchInTime ? ' at ' + activity.punchInTime : ''}` : ''}
+                    onClick={() => activity && setSelectedActivity(activity)}
                   >
-                    <span className="absolute top-1 left-1 text-xs text-gray-400">{date ? format(date, 'd') : ''}</span>
-                    <span className={`mt-2 text-base font-bold ${color}`}>
+                    <span className={`absolute top-1 left-1 text-xs ${isCurrentMonth ? 'text-gray-700' : 'text-gray-400'}`}>
+                      {format(date, 'd')}
+                    </span>
+                    <span className={`mt-2 text-sm font-semibold ${color}`}>
                       {code}
                     </span>
-                    {activity && activity.remarks && (
-                      <span className="absolute bottom-1 left-1 text-[10px] text-amber-600" title={activity.remarks}>*</span>
+                    {activity?.isLate && (
+                      <div className="absolute bottom-1 right-1 w-2 h-2 bg-amber-400 rounded-full" 
+                           title="Late Arrival" />
+                    )}
+                    {activity && (
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-lg transition-colors" />
                     )}
                   </div>
                 );
