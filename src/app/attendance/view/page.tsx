@@ -111,26 +111,26 @@ interface StatusInfo {
 
 
 // Helper: check if date is Sunday, 2nd/4th Saturday, or a government holiday
-const GOVT_HOLIDAYS = [
-  // Add government holiday dates as 'YYYY-MM-DD' strings
-  '2025-05-01', // Example: May Day
-  // ... add more as needed
-];
-function isHoliday(dateStr: string): boolean {
-  const date = new Date(dateStr);
-  const day = date.getDay(); // 0=Sunday, 6=Saturday
-  // Sundays
-  if (day === 0) return true;
-  // 2nd and 4th Saturdays
-  if (day === 6) {
-    const dayOfMonth = date.getDate();
-    const weekOfMonth = Math.ceil(dayOfMonth / 7);
-    if (weekOfMonth === 2 || weekOfMonth === 4) return true;
-  }
-  // Government holidays
-  if (GOVT_HOLIDAYS.includes(dateStr)) return true;
-  return false;
-}
+// const GOVT_HOLIDAYS = [
+//   // Add government holiday dates as 'YYYY-MM-DD' strings
+//   '2025-05-01', // Example: May Day
+//   // ... add more as needed
+// ];
+// function isHoliday(dateStr: string): boolean {
+//   const date = new Date(dateStr);
+//   const day = date.getDay(); // 0=Sunday, 6=Saturday
+//   // Sundays
+//   if (day === 0) return true;
+//   // 2nd and 4th Saturdays
+//   if (day === 6) {
+//     const dayOfMonth = date.getDate();
+//     const weekOfMonth = Math.ceil(dayOfMonth / 7);
+//     if (weekOfMonth === 2 || weekOfMonth === 4) return true;
+//   }
+//   // Government holidays
+//   if (GOVT_HOLIDAYS.includes(dateStr)) return true;
+//   return false;
+// }
 
 function ViewAttendanceContent() {
   const router = useRouter();

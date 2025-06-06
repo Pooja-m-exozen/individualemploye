@@ -456,13 +456,13 @@ export default function Dashboard() {
     );
   };
 
-  const renderChart = () => {
-    if (analyticsView === 'attendance') {
-      return renderAttendanceChart();
-    } else {
-      return renderLeaveChart();
-    }
-  };
+  // const renderChart = () => {
+  //   if (analyticsView === 'attendance') {
+  //     return renderAttendanceChart();
+  //   } else {
+  //     return renderLeaveChart();
+  //   }
+  // };
 
   const renderChartTypeToggle = () => {
     const currentChartType = analyticsView === 'attendance' ? attendanceChartType : leaveChartType;

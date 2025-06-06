@@ -27,18 +27,18 @@ interface LeaveRecord {
   lastUpdated: string;
 }
 
-interface LeaveHistoryResponse {
-  success: boolean;
-  leaveHistory: Array<{
-    startDate: string;
-    leaveType: string;
-    numberOfDays: number;
-    isHalfDay: boolean;
-    halfDayType?: string;
-    status: string;
-    reason: string;
-  }>;
-}
+// interface LeaveHistoryResponse {
+//   success: boolean;
+//   leaveHistory: Array<{
+//     startDate: string;
+//     leaveType: string;
+//     numberOfDays: number;
+//     isHalfDay: boolean;
+//     halfDayType?: string;
+//     status: string;
+//     reason: string;
+//   }>;
+// }
 
 interface LeaveReportProps {
   loading: boolean;

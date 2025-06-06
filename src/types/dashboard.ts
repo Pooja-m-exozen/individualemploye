@@ -156,3 +156,26 @@ export interface AttendanceActivity {
   status: 'present' | 'absent' | 'late' | 'early';
   regularized: boolean;
 }
+
+export interface MonthlySummaryResponse {
+  success: boolean;
+  message: string;
+  data: {
+    employeeId: string;
+    month: string;
+    year: string;
+    summary: {
+      totalDays: number;
+      presentDays: number;
+      halfDays: number;
+      partiallyAbsentDays: number;
+      weekOffs: number;
+      holidays: number;
+      el: number;
+      sl: number;
+      cl: number;
+      compOff: number;
+      lop: number;
+    }
+  }
+}

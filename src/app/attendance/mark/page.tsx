@@ -11,7 +11,6 @@ import Image from 'next/image';
 const CameraModal = ({ isOpen, onClose, onCapture }: { isOpen: boolean; onClose: () => void; onCapture: (photo: string) => void }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [isCapturing, setIsCapturing] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -54,35 +53,30 @@ const CameraModal = ({ isOpen, onClose, onCapture }: { isOpen: boolean; onClose:
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
 
+  // Replace the startCountdown function with direct capture
   const startCountdown = () => {
     setIsCapturing(true);
-    // setCountdown(3);
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev === 1) {
-          clearInterval(timer);
-          capturePhoto();
-          return null;
-        }
-        return prev ? prev - 1 : null;
-      });
-    }, 1000);
+    capturePhoto(); // Immediately capture without countdown
   };
 
   const capturePhoto = () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
+      const width = 400; // Reduced size for faster upload
+      const aspectRatio = videoRef.current.videoHeight / videoRef.current.videoWidth;
+      canvas.width = width;
+      canvas.height = width * aspectRatio;
+      
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Flip horizontally if using front camera
         if (facingMode === 'user') {
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
         }
-        ctx.drawImage(videoRef.current, 0, 0);
-        const photoData = canvas.toDataURL('image/jpeg', 0.8);
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        
+        // Lower quality for faster upload
+        const photoData = canvas.toDataURL('image/jpeg', 0.5);
         onCapture(photoData);
         setIsCapturing(false);
         onClose();
@@ -138,15 +132,6 @@ const CameraModal = ({ isOpen, onClose, onCapture }: { isOpen: boolean; onClose:
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-64 h-64 border-2 border-white/30 rounded-full"></div>
                 </div>
-                
-                {/* Countdown display */}
-                {countdown && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-8xl font-bold text-white animate-pulse">
-                      {countdown}
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Camera controls */}
@@ -225,7 +210,7 @@ function MarkAttendanceContent() {
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  // const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -277,47 +262,41 @@ function MarkAttendanceContent() {
     });
   };
 
+  // Modify handleMarkAttendance for immediate submission
   const handleMarkAttendance = async () => {
     try {
       setMarkingAttendance(true);
       setMarkAttendanceError(null);
-      setLocationError(null);
 
-      if (!photoPreview) {
-        setMarkAttendanceError('Please capture your photo first');
-        return;
-      }
+      const location = await getCurrentLocation().catch(() => {
+        throw new Error('Please enable location services');
+      });
 
-      let location;
-      try {
-        location = await getCurrentLocation();
-      } catch  {
-        setLocationError('Failed to get location. Please enable location services.');
-        return;
-      }
-
-      const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/${getEmployeeId()}/mark-with-photo`, {
+      const base64Image = photoPreview?.split(',')[1];
+      
+      const response = await fetch('https://cafm.zenapi.co.in/api/attendance/EFMS3295/mark-with-photo', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({
-          photo: photoPreview,
+          photo: base64Image,
           latitude: location.latitude,
           longitude: location.longitude,
-        }),
+          timestamp: new Date().toISOString(),
+        })
       });
 
       const data = await response.json();
-
-      if (response.ok && data.attendance) {
-        setMarkAttendanceSuccess(data.message || 'Attendance marked successfully!');
-        setPhotoPreview(null);
-      } else {
-        throw new Error(data.message || 'Failed to mark attendance');
-      }
-    } catch (error: unknown) {
-      setMarkAttendanceError(error instanceof Error ? error.message : 'Failed to mark attendance');
+      
+      if (!response.ok) throw new Error(data.message || 'Failed to mark attendance');
+      
+      setMarkAttendanceSuccess('Attendance marked successfully!');
+      setPhotoPreview(null);
+      
+    } catch (error: any) {
+      setMarkAttendanceError(error.message);
     } finally {
       setMarkingAttendance(false);
     }
