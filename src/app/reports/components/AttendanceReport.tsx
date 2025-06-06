@@ -211,7 +211,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             // Calculate hours worked
             if (record.punchInUtc && record.punchOutUtc) {
                 const hours = calculateHoursUtc(record.punchInUtc, record.punchOutUtc);
-                hoursWorked = hours !== '0' ? hours + ' hrs' : 'N/A';
+                hoursWorked = hours !== '0' ? formatHoursToHoursAndMinutes(hours) : 'N/A';
             }
 
             return [
@@ -270,6 +270,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 'EL',
                 'SL',
                 'CL',
+                'Comp Off',
                 'LOP'
             ]],
             body: [[
@@ -282,6 +283,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 summary?.summary.el ?? 0,
                 summary?.summary.sl ?? 0,
                 summary?.summary.cl ?? 0,
+                summary?.summary.compOff ?? 0,
                 summary?.summary.lop ?? 0
             ]],
             startY: yPosition,
@@ -298,16 +300,17 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 fontStyle: 'bold'
             },
             columnStyles: {
-                0: { cellWidth: 19 },
-                1: { cellWidth: 19 },
-                2: { cellWidth: 19 },
-                3: { cellWidth: 19 },
-                4: { cellWidth: 19 },
-                5: { cellWidth: 19 },
-                6: { cellWidth: 19 },
-                7: { cellWidth: 19 },
-                8: { cellWidth: 19 },
-                9: { cellWidth: 19 }
+                0: { cellWidth: 17.5 },
+                1: { cellWidth: 17.5 },
+                2: { cellWidth: 17.5 },
+                3: { cellWidth: 17.5 },
+                4: { cellWidth: 17.5 },
+                5: { cellWidth: 17.5 },
+                6: { cellWidth: 17.5 },
+                7: { cellWidth: 17.5 },
+                8: { cellWidth: 17.5 },
+                9: { cellWidth: 17.5 },
+                10: { cellWidth: 17.5 }
             },
             margin: { left: 15 }
         });
@@ -389,6 +392,14 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         doc.text('Employee Signature', 125, signatureY + 6);
 
         doc.save(`attendance_report_${selectedMonth}_${selectedYear}.pdf`);
+    };
+
+    // Add this helper function before downloadPDF
+    const formatHoursToHoursAndMinutes = (hoursDecimal: string): string => {
+        if (hoursDecimal === '0' || hoursDecimal === 'N/A') return 'N/A';
+        const hours = Math.floor(parseFloat(hoursDecimal));
+        const minutes = Math.round((parseFloat(hoursDecimal) - hours) * 60);
+        return `${hours}h ${minutes}m`;
     };
 
     // Add this helper function after getLeaveTypeForDate
@@ -647,9 +658,9 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {record.punchInTime && record.punchOutTime ? (
-                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              {record.punchInTime && record.punchOutTime ? 'Present' : 'Absent'}
-                            </span>
+                            record.punchInUtc && record.punchOutUtc ? (
+                              formatHoursToHoursAndMinutes(calculateHoursUtc(record.punchInUtc, record.punchOutUtc))
+                            ) : 'N/A'
                           ) : 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
