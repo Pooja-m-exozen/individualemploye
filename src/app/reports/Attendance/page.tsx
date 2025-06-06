@@ -8,12 +8,18 @@ import { getEmployeeId, isAuthenticated } from '@/services/auth';
 interface AttendanceRecord {
   _id: string;
   employeeId: string;
-  projectName: string;
-  designation: string;
+  projectName: string | null;
+  designation: string | null;
   date: string;
-  punchInTime: string;
-  punchOutTime: string;
-  punchInPhoto: string;
+  punchInTime: string | null;
+  punchOutTime: string | null;
+  punchInPhoto: string | null;
+  punchOutPhoto: string | null;
+  punchInUtc?: string;
+  punchOutUtc?: string;
+  status?: string;
+  isLate?: boolean;
+  remarks?: string;
 }
 
 const AttendancePage = () => {

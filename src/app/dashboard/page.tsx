@@ -19,6 +19,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 export default function Dashboard() {
   const router = useRouter();
   const userDetails = useUser();
+  const { theme } = useTheme();
   const employeeId = getEmployeeId();
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
   const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth() + 1);
@@ -551,8 +552,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  const { theme } = useTheme();
 
   return (
     <div className={`h-screen flex flex-col ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>

@@ -206,7 +206,6 @@ function MarkAttendanceContent() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [markAttendanceError, setMarkAttendanceError] = useState<string | null>(null);
   const [markAttendanceSuccess, setMarkAttendanceSuccess] = useState<string | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
@@ -268,13 +267,18 @@ function MarkAttendanceContent() {
       setMarkingAttendance(true);
       setMarkAttendanceError(null);
 
+      const employeeId = getEmployeeId();
+      if (!employeeId) {
+        throw new Error('Employee ID not found. Please login again.');
+      }
+
       const location = await getCurrentLocation().catch(() => {
         throw new Error('Please enable location services');
       });
 
       const base64Image = photoPreview?.split(',')[1];
       
-      const response = await fetch('https://cafm.zenapi.co.in/api/attendance/EFMS3295/mark-with-photo', {
+      const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/mark-with-photo`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -295,8 +299,9 @@ function MarkAttendanceContent() {
       setMarkAttendanceSuccess('Attendance marked successfully!');
       setPhotoPreview(null);
       
-    } catch (error: any) {
-      setMarkAttendanceError(error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      setMarkAttendanceError(errorMessage);
     } finally {
       setMarkingAttendance(false);
     }
@@ -409,9 +414,6 @@ function MarkAttendanceContent() {
             </div>
 
             <div className="space-y-4">
-              {locationError && (
-                <FeedbackMessage message={locationError} type="error" />
-              )}
               {markAttendanceError && (
                 <FeedbackMessage message={markAttendanceError} type="error" />
               )}

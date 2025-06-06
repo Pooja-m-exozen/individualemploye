@@ -1,5 +1,6 @@
 // Shared attendance utilities for status, holiday, and record transformation
-import { format } from 'date-fns';
+// import { format } from 'date-fns';
+import { RawAttendanceRecord, TransformedAttendanceRecord } from '../types/attendance';
 
 export const GOVT_HOLIDAYS = [
   '2024-01-26', // Republic Day
@@ -69,21 +70,19 @@ export const getAttendanceStatus = (hoursWorked: number): string => {
 };
 
 // Transform API attendance record to unified AttendanceRecord format
-export function transformAttendanceRecord(record: any) {
-  const hoursWorked = record.punchInTime && record.punchOutTime ?
-    parseFloat(calculateHoursUtc(record.punchInTime, record.punchOutTime)) : 0;
-
+export function transformAttendanceRecord(record: RawAttendanceRecord): TransformedAttendanceRecord {
   return {
-    ...record,
-    date: (record.date as string).split('T')[0],
-    displayDate: format(new Date(record.date as string), 'EEE, MMM d, yyyy'),
-    status: getAttendanceStatus(hoursWorked),
-    punchInTime: record.punchInTime ? formatUtcTime(record.punchInTime as string) : null,
-    punchOutTime: record.punchOutTime ? formatUtcTime(record.punchOutTime as string) : null,
-    punchInUtc: record.punchInTime as string || null,
-    punchOutUtc: record.punchOutTime as string || null,
-    isLate: record.isLate as boolean || false,
-    remarks: record.remarks as string,
-    totalHoursWorked: hoursWorked.toFixed(2)
+    _id: record._id,
+    employeeId: record.employeeId,
+    date: record.date,
+    punchInUtc: record.punchInTime || undefined,
+    punchOutUtc: record.punchOutTime || undefined,
+    punchInTime: record.punchInTime ? formatUtcTime(record.punchInTime) : null,
+    punchOutTime: record.punchOutTime ? formatUtcTime(record.punchOutTime) : null,
+    projectName: record.projectName,
+    designation: record.designation,
+    punchInPhoto: record.punchInPhoto,
+    punchOutPhoto: record.punchOutPhoto,
+    status: record.status || 'Absent'
   };
 }
