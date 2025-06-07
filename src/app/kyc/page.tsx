@@ -159,7 +159,7 @@ export default function ViewKYC() {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 mb-8 relative`}
+      className="bg-white rounded-2xl p-6 mb-8 relative border border-gray-200"
     >
       <button
         onClick={() => setShowInstructions(false)}
@@ -194,10 +194,10 @@ export default function ViewKYC() {
 
   // Progress Bar component
   const ProgressBar = () => (
-    <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 mb-8 shadow-sm`}>
+    <div className="bg-white rounded-2xl p-6 mb-8 shadow-sm border border-gray-200">
       <div className="flex items-center justify-between mb-4">
-        <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>KYC Completion Status</h3>
-        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{calculateCompletion()}% Complete</span>
+        <h3 className="text-lg font-semibold text-gray-900">KYC Completion Status</h3>
+        <span className="text-sm font-medium text-gray-500">{calculateCompletion()}% Complete</span>
       </div>
       <div className="w-full bg-gray-200 rounded-full h-2.5">
         <div
@@ -287,12 +287,12 @@ export default function ViewKYC() {
   // };
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'} font-sans`}>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 font-sans">
       <div className="flex">
         {/* Desktop Navigation Sidebar */}
-        <div className={`hidden lg:block w-64 h-screen sticky top-0 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} border-r ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+        <div className="hidden lg:block w-64 h-screen sticky top-0 bg-white border-r border-gray-200">
           <div className="p-6">
-            <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">
               KYC Sections
             </h2>
             <nav className="space-y-2">
@@ -303,8 +303,8 @@ export default function ViewKYC() {
                   className={classNames(
                     'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all',
                     selectedTab === item.id
-                      ? `${theme === 'dark' ? 'bg-gray-700' : 'bg-indigo-50'} text-indigo-600`
-                      : `${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-50'}`
+                      ? 'bg-indigo-50 text-indigo-600'
+                      : 'text-gray-600 hover:bg-gray-50'
                   )}
                 >
                   <item.icon className="w-5 h-5" />
@@ -321,7 +321,7 @@ export default function ViewKYC() {
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto" style={{height: 'calc(100vh - 64px)'}}>
           {/* Mobile Header */}
-          <div className={`lg:hidden ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b`}>
+          <div className="lg:hidden bg-white border-b border-gray-200">
             <div className="px-4 py-2 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {kycData.personalDetails.employeeImage ? (
@@ -348,10 +348,10 @@ export default function ViewKYC() {
                   </div>
                 )}
                 <div className="flex flex-col">
-                  <h2 className={`text-base font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  <h2 className="text-base font-semibold text-gray-900">
                     {kycData.personalDetails.fullName}
                   </h2>
-                  <p className={`text-xs font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  <p className="text-xs font-medium text-gray-600">
                     {kycData.personalDetails.employeeId}
                   </p>
                 </div>
@@ -384,23 +384,20 @@ export default function ViewKYC() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-sm p-6`}
+                    className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200"
                   >
-                    <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Personal Information</h2>
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">Personal Information</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {Object.entries(kycData.personalDetails).map(([key, value]) => 
                         key !== 'employeeImage' && (
                           <div key={key} className="space-y-2">
-                            <label className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} capitalize`}>
+                            <label className="text-sm font-medium text-gray-500 capitalize">
                               {key.replace(/([A-Z])/g, ' $1').trim()}
                             </label>
-                            <p
-                              className={classNames(
-                                `text-base font-medium ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`,
-                                key === 'email' || key === 'workType' ? "break-all" : ""
-                              )}
-                              title={Array.isArray(value) ? value.join(', ') : value?.toString() || '-'}
-                            >
+                            <p className={classNames(
+                              'text-base font-medium text-gray-900',
+                              key === 'email' || key === 'workType' ? "break-all" : ""
+                            )}>
                               {Array.isArray(value) ? value.join(', ') : value?.toString() || '-'}
                             </p>
                           </div>
@@ -419,34 +416,34 @@ export default function ViewKYC() {
                     className="grid grid-cols-1 md:grid-cols-2 gap-6"
                   >
                     {/* Permanent Address */}
-                    <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-sm p-6`}>
-                      <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-4`}>
+                    <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         Permanent Address
                       </h3>
                       <div className="space-y-4">
                         {Object.entries(kycData.addressDetails.permanentAddress).map(([key, value]) => (
                           <div key={key}>
-                            <label className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} capitalize`}>
+                            <label className="text-sm font-medium text-gray-500 capitalize">
                               {key.replace(/([A-Z])/g, ' $1').trim()}
                             </label>
-                            <p className={`text-base font-medium ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'} mt-1`}>{value}</p>
+                            <p className="text-base font-medium text-gray-900 mt-1">{value}</p>
                           </div>
                         ))}
                       </div>
                     </div>
                     
                     {/* Current Address */}
-                    <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-sm p-6`}>
-                      <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-4`}>
+                    <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         Current Address
                       </h3>
                       <div className="space-y-4">
                         {Object.entries(kycData.addressDetails.currentAddress).map(([key, value]) => (
                           <div key={key}>
-                            <label className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} capitalize`}>
+                            <label className="text-sm font-medium text-gray-500 capitalize">
                               {key.replace(/([A-Z])/g, ' $1').trim()}
                             </label>
-                            <p className={`text-base font-medium ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'} mt-1`}>{value}</p>
+                            <p className="text-base font-medium text-gray-900 mt-1">{value}</p>
                           </div>
                         ))}
                       </div>
@@ -460,16 +457,16 @@ export default function ViewKYC() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-sm p-6`}
+                    className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200"
                   >
-                    <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Bank Details</h2>
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">Bank Details</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {Object.entries(kycData.bankDetails).map(([key, value]) => (
                         <div key={key}>
-                          <label className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} capitalize`}>
+                          <label className="text-sm font-medium text-gray-500 capitalize">
                             {key.replace(/([A-Z])/g, ' $1').trim()}
                           </label>
-                          <p className={`text-base font-medium ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'} mt-1 font-mono`}>{value}</p>
+                          <p className="text-base font-medium text-gray-900 mt-1 font-mono">{value}</p>
                         </div>
                       ))}
                     </div>
@@ -482,19 +479,19 @@ export default function ViewKYC() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-sm p-6`}
+                    className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200"
                   >
-                    <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Emergency Contact</h2>
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">Emergency Contact</h2>
                     <div className="flex flex-col space-y-4">
-                      <div className={`p-4 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'} rounded-xl`}>
+                      <div className="p-4 bg-gray-50 rounded-xl">
                         <div className="flex flex-wrap items-center gap-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                               <FaUser className="w-5 h-5 text-blue-600" />
                             </div>
                             <div>
-                              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Name</p>
-                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                              <p className="text-sm text-gray-500">Name</p>
+                              <p className="font-medium text-gray-900">
                                 {kycData.emergencyContact.name}
                               </p>
                             </div>
@@ -505,8 +502,8 @@ export default function ViewKYC() {
                               <FaPhone className="w-5 h-5 text-green-600" />
                             </div>
                             <div>
-                              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Phone</p>
-                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                              <p className="text-sm text-gray-500">Phone</p>
+                              <p className="font-medium text-gray-900">
                                 {kycData.emergencyContact.phone}
                               </p>
                             </div>
@@ -517,8 +514,8 @@ export default function ViewKYC() {
                               <FaUserCircle className="w-5 h-5 text-purple-600" />
                             </div>
                             <div>
-                              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Relationship</p>
-                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                              <p className="text-sm text-gray-500">Relationship</p>
+                              <p className="font-medium text-gray-900">
                                 {kycData.emergencyContact.relationship}
                               </p>
                             </div>
@@ -529,8 +526,8 @@ export default function ViewKYC() {
                               <FaIdCard className="w-5 h-5 text-orange-600" />
                             </div>
                             <div>
-                              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Aadhar</p>
-                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                              <p className="text-sm text-gray-500">Aadhar</p>
+                              <p className="font-medium text-gray-900">
                                 {kycData.emergencyContact.aadhar}
                               </p>
                             </div>
@@ -547,9 +544,9 @@ export default function ViewKYC() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-sm p-6`}
+                    className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200"
                   >
-                    <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Documents</h2>
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">Documents</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       {kycData.documents.map((doc) => (
                         <div key={doc._id} className={`flex items-start p-4 ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} rounded-xl transition-colors`}>
@@ -583,7 +580,7 @@ export default function ViewKYC() {
       </div>
 
       {/* Mobile Navigation */}
-      <div className={`lg:hidden fixed bottom-0 left-0 right-0 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-t py-2`}>
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-2">
         <div className="flex justify-around max-w-md mx-auto">
           {navigationItems.map((item) => (
             <button
@@ -595,13 +592,13 @@ export default function ViewKYC() {
                 'w-5 h-5',
                 selectedTab === item.id 
                   ? 'text-indigo-600' 
-                  : theme === 'dark' ? 'text-gray-300' : 'text-gray-400'
+                  : 'text-gray-400'
               )} />
               <span className={classNames(
                 'text-xs mt-1',
                 selectedTab === item.id 
                   ? 'text-indigo-600 font-medium'
-                  : theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  : 'text-gray-500'
               )}>
                 {item.label}
               </span>

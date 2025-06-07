@@ -238,19 +238,33 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
           <div className="space-y-1">
             <button
               onClick={() => toggleMenu(item.label)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-all duration-200 ${
-                isExpanded ? 'bg-blue-50 text-blue-700' : ''
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 ${
+                theme === 'dark'
+                  ? `${isExpanded 
+                      ? 'bg-gray-700 text-white' 
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`
+                  : `${isExpanded
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`
               }`}
             >
               <div className="flex items-center min-w-0">
-                <span className={`text-xl w-8 transition-colors ${isExpanded ? 'text-blue-700' : 'text-gray-500'}`}>{item.icon}</span>
+                <span className={`text-xl w-8 transition-colors ${
+                  theme === 'dark'
+                    ? `${isExpanded ? 'text-blue-400' : 'text-gray-400'}`
+                    : `${isExpanded ? 'text-blue-700' : 'text-gray-500'}`
+                }`}>{item.icon}</span>
                 {isSidebarExpanded && (
                   <span className="font-medium truncate">{item.label}</span>
                 )}
               </div>
               {isSidebarExpanded && (
                 <span className="ml-2 flex-shrink-0">
-                  <FaChevronRight className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'transform rotate-90 text-blue-700' : 'text-gray-500'}`} />
+                  <FaChevronRight className={`w-4 h-4 transition-transform duration-200 ${
+                    isExpanded 
+                      ? `transform rotate-90 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'}` 
+                      : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
                 </span>
               )}
             </button>
@@ -260,9 +274,15 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
                   <li key={subItem.label}>
                     <Link
                       href={subItem.href || '#'}
-                      className="w-full flex items-center px-4 py-2.5 text-sm text-gray-500 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all duration-200"
+                      className={`w-full flex items-center px-4 py-2.5 text-sm rounded-xl transition-all duration-200 ${
+                        theme === 'dark'
+                          ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          : 'text-gray-500 hover:bg-blue-50 hover:text-blue-700'
+                      }`}
                     >
-                      <span className="text-sm w-8">{subItem.icon}</span>
+                      <span className={`text-sm w-8 ${
+                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                      }`}>{subItem.icon}</span>
                       <span className="font-medium truncate">{subItem.label}</span>
                     </Link>
                   </li>
@@ -273,11 +293,21 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
         ) : (
           <Link
             href={item.href || '#'}
-            className={`w-full flex items-center px-4 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-all duration-200 ${
-              isActive ? 'bg-blue-50 text-blue-700' : ''
+            className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
+              theme === 'dark'
+                ? `${isActive 
+                    ? 'bg-gray-700 text-white' 
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`
+                : `${isActive
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`
             }`}
           >
-            <span className={`text-xl w-8 transition-colors ${isActive ? 'text-blue-700' : 'text-gray-500'}`}>{item.icon}</span>
+            <span className={`text-xl w-8 transition-colors ${
+              theme === 'dark'
+                ? `${isActive ? 'text-blue-400' : 'text-gray-400'}`
+                : `${isActive ? 'text-blue-700' : 'text-gray-500'}`
+            }`}>{item.icon}</span>
             {isSidebarExpanded && (
               <span className="font-medium truncate">{item.label}</span>
             )}

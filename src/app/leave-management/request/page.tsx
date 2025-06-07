@@ -7,7 +7,7 @@ import {
   FaExclamationCircle, 
   FaCalendarAlt, 
   FaFileAlt,
-  FaCheck,
+  // FaCheck,
   FaPlus,
   FaInfoCircle,
   FaUpload,

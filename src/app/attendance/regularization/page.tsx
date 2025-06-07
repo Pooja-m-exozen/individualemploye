@@ -279,7 +279,7 @@ function RegularizationContent() {
       {/* Instructions and Form Section in Two Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Instructions Section */}
-        <div className="rounded-xl shadow-sm border border-gray-200/30 p-6 h-fit bg-card">
+        <div className="rounded-xl shadow-sm border border-gray-200 p-6 h-fit bg-white">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-blue-100 rounded-lg">
               <FaInfo className="w-5 h-5 text-blue-600" />
@@ -328,7 +328,7 @@ function RegularizationContent() {
         </div>
 
         {/* Form Section */}
-        <div className="rounded-xl shadow-sm border border-gray-200/30 p-6 bg-card">
+        <div className="rounded-xl shadow-sm border border-gray-200 p-6 bg-white">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -489,7 +489,7 @@ function RegularizationContent() {
       </div>
 
       {/* History Section */}
-      <div className="rounded-xl shadow-sm border border-gray-200/30 overflow-hidden bg-card">
+      <div className="rounded-xl shadow-sm border border-gray-200 overflow-hidden bg-white">
         <div className="p-6 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -593,9 +593,9 @@ function RegularizationContent() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-gray-200">
                   {paginatedHistory.map((item, index) => (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                    <tr key={index} className="hover:bg-gray-50/80 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           {new Date(item.date).toLocaleDateString()}

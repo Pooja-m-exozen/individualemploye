@@ -399,7 +399,7 @@ export default function EditKYC() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50">
       <div className="mb-8">
         <div
           className="flex items-center gap-6 rounded-2xl px-8 py-8"
@@ -419,8 +419,8 @@ export default function EditKYC() {
       </div>
 
       {/* Instructions Panel */}
-      <div className="border-b border-[rgba(255,255,255,0.1)]">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 py-4 bg-white rounded-lg border border-gray-200">
           <div className="flex items-start gap-4">
             <div className="p-2 rounded-lg bg-opacity-10 backdrop-blur-sm bg-blue-600">
               <FaInfoCircle className="w-6 h-6 text-blue-600" />
@@ -450,7 +450,7 @@ export default function EditKYC() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Side Navigation */}
           <div className="lg:w-64 flex-shrink-0">
-            <div className="rounded-2xl p-4 sticky top-8 border border-[rgba(255,255,255,0.1)] backdrop-blur-sm bg-opacity-10">
+            <div className="rounded-2xl p-4 sticky top-8 bg-white border border-gray-200">
               <nav className="space-y-1">
                 {sections.map((section) => {
                   const isActive = activeSection === section.id;
@@ -478,7 +478,7 @@ export default function EditKYC() {
                 })}
               </nav>
               
-              <div className="mt-6 pt-6 border-t border-[rgba(255,255,255,0.1)]">
+              <div className="mt-6 pt-6 border-t border-gray-200">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Completion Status</span>
                   <span className="font-medium text-blue-600">
@@ -514,7 +514,6 @@ export default function EditKYC() {
 
               {/* Form Sections */}
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Keep the existing form sections but show/hide based on activeSection */}
                 <AnimatePresence mode="wait">
                   {activeSection === 'personal' && (
                     <motion.div
@@ -522,7 +521,7 @@ export default function EditKYC() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="rounded-2xl p-6 md:p-8 border border-[rgba(255,255,255,0.1)] backdrop-blur-sm bg-opacity-10"
+                      className="rounded-2xl p-6 md:p-8 bg-white border border-gray-200"
                     >
                       <div className="space-y-6">
                         {/* Profile Image */}
@@ -958,7 +957,7 @@ export default function EditKYC() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="rounded-2xl p-6 md:p-8 border border-[rgba(255,255,255,0.1)] backdrop-blur-sm bg-opacity-10"
+                      className="rounded-2xl p-6 md:p-8 bg-white border border-gray-200"
                     >
                       {/* Permanent Address */}
                       <div className="mb-8">
@@ -1178,7 +1177,7 @@ export default function EditKYC() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="rounded-2xl p-6 md:p-8 border border-[rgba(255,255,255,0.1)] backdrop-blur-sm bg-opacity-10"
+                      className="rounded-2xl p-6 md:p-8 bg-white border border-gray-200"
                     >
                       <div className="space-y-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -1280,7 +1279,7 @@ export default function EditKYC() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="rounded-2xl p-6 md:p-8 border border-[rgba(255,255,255,0.1)] backdrop-blur-sm bg-opacity-10"
+                      className="rounded-2xl p-6 md:p-8 bg-white border border-gray-200"
                     >
                       <div className="space-y-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -1381,7 +1380,7 @@ export default function EditKYC() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="rounded-2xl p-6 md:p-8 border border-[rgba(255,255,255,0.1)] backdrop-blur-sm bg-opacity-10"
+                      className="rounded-2xl p-6 md:p-8 bg-white border border-gray-200"
                     >
                       <div className="space-y-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">

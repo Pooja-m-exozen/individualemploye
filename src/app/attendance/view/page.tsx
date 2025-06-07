@@ -274,7 +274,7 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
   const presentDays = activities.filter(a => a.status === 'Present').length;
   const attendanceRate = workingDays > 0 ? ((presentDays / workingDays) * 100).toFixed(2) : '0.00';
 
-  // Add Legend component
+  // Update AttendanceLegend component
   const AttendanceLegend = () => (
     <div className="mt-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
       <h4 className="text-sm font-semibold text-gray-700 mb-2">Status Legend</h4>
@@ -355,7 +355,7 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
       {/* Main Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left: Graph + Instructions */}
-        <div className="rounded-xl shadow-sm border border-gray-200/30 p-6 flex flex-col items-center bg-card">
+        <div className="rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center bg-white">
           {/* Attendance Distribution Graph */}
           <div className="w-48 h-48 flex items-center justify-center mb-6">
             <CircularProgressbar
@@ -386,7 +386,7 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
               </div>
             </div>
         {/* Right: Calendar */}
-        <div className="rounded-xl shadow-sm border border-gray-200/30 p-6 flex flex-col items-center bg-card">
+        <div className="rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center bg-white">
           <div className="flex items-center justify-between w-full mb-4">
             <h3 className="text-xl font-semibold text-gray-900">{format(selectedDate, 'MMMM yyyy')}</h3>
             {/* Calendar controls (prev, today, next) */}
@@ -525,7 +525,7 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
               </div>
             </div>
             <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full bg-white">
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"><FaCalendarAlt className="inline mr-1 text-blue-500" /> Date</th>
@@ -536,7 +536,7 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-gray-200 bg-white">
                   {paginatedActivities.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-12 text-center text-gray-500">No records found</td>
