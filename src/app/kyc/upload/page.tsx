@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getEmployeeId } from "@/services/auth";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTheme } from "@/context/ThemeContext";
+// import { useTheme } from "@/context/ThemeContext";
 
 interface DocumentUpload {
   type: "aadhar" | "pan" | "passport" | "photo";
@@ -65,7 +65,6 @@ const documentInfo = {
 } as const;
 
 export default function UploadDocuments() {
-  const { theme } = useTheme();
   const router = useRouter();
   const [documents, setDocuments] = useState<Record<string, DocumentUpload>>({
     aadhar: {
@@ -273,11 +272,7 @@ export default function UploadDocuments() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className={`relative ${
-          theme === "dark"
-            ? "bg-gray-800 ring-1 ring-gray-700"
-            : "bg-white"
-        } rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-all duration-300`}
+        className="relative bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 border border-gray-200"
       >
         {required && (
           <div className="absolute top-3 right-3 z-10">
@@ -405,11 +400,7 @@ export default function UploadDocuments() {
   };
 
   return (
-    <div
-      className={`h-screen flex flex-col ${
-        theme === "dark" ? "bg-gray-900" : "bg-gray-50"
-      }`}
-    >
+    <div className="h-screen flex flex-col bg-gray-50">
       {/* KYC Upload Title Section */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-400 rounded-b-2xl shadow p-6">
         <div className="flex items-center gap-4">
@@ -425,221 +416,212 @@ export default function UploadDocuments() {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 p-6 overflow-y-auto">
-          {/* Header Section */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`${
-              theme === "dark"
-                ? "bg-gray-800 ring-1 ring-gray-700"
-                : "bg-white"
-            } rounded-xl shadow-sm overflow-hidden mb-6`}
-          >
-            <div className="p-6">
-              <div className="flex items-start gap-4 mb-6">
-                <button
-                  onClick={() => router.push("/kyc")}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+      <div className="flex-1 p-6 overflow-y-auto">
+        {/* Header Section */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-xl shadow-sm overflow-hidden mb-6 border border-gray-200"
+        >
+          <div className="p-6">
+            <div className="flex items-start gap-4 mb-6">
+              <button
+                onClick={() => router.push("/kyc")}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+              >
+                <FaArrowLeft className="w-4 h-4" />
+              </button>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900 mb-1">
+                  Document Verification
+                </h1>
+                <p className="text-sm text-gray-600">
+                  Complete your KYC by uploading the required documents
+                </p>
+              </div>
+            </div>
+
+            {/* Progress Stepper */}
+            <div className="flex justify-between items-center w-full mt-8">
+              {steps.map((step, index) => (
+                <div
+                  key={step.id}
+                  className="flex items-center flex-1 last:flex-none"
                 >
-                  <FaArrowLeft className="w-4 h-4" />
-                </button>
-                <div>
-                  <h1 className="text-xl font-semibold text-gray-900 mb-1">
-                    Document Verification
-                  </h1>
-                  <p className="text-sm text-gray-600">
-                    Complete your KYC by uploading the required documents
-                  </p>
+                  <div className="flex flex-col items-center relative">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        step.status === "completed"
+                          ? "bg-green-500"
+                          : step.status === "current"
+                          ? "bg-blue-600"
+                          : "bg-gray-200"
+                      } text-white font-semibold transition-colors duration-300`}
+                    >
+                      {step.status === "completed" ? (
+                        <FaCheckCircle className="w-5 h-5" />
+                      ) : (
+                        step.id
+                      )}
+                    </div>
+                    <p
+                      className={`text-sm font-medium mt-3 ${
+                        step.status === "completed"
+                          ? "text-green-600"
+                          : step.status === "current"
+                          ? "text-blue-600"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {step.title}
+                    </p>
+                  </div>
+                  {index !== steps.length - 1 && (
+                    <div
+                      className={`h-0.5 flex-1 mx-4 ${
+                        step.status === "completed" ? "bg-green-500" : "bg-gray-200"
+                      }`}
+                    />
+                  )}
                 </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Panel - Instructions */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="lg:col-span-4"
+          >
+            <div className="bg-white rounded-xl p-6 sticky top-8 border border-gray-200">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <FaInfoCircle className="w-5 h-5 text-blue-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Guidelines
+                </h2>
               </div>
 
-              {/* Progress Stepper */}
-              <div className="flex justify-between items-center w-full mt-8">
-                {steps.map((step, index) => (
-                  <div
-                    key={step.id}
-                    className="flex items-center flex-1 last:flex-none"
-                  >
-                    <div className="flex flex-col items-center relative">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          step.status === "completed"
-                            ? "bg-green-500"
-                            : step.status === "current"
-                            ? "bg-blue-600"
-                            : "bg-gray-200"
-                        } text-white font-semibold transition-colors duration-300`}
-                      >
-                        {step.status === "completed" ? (
-                          <FaCheckCircle className="w-5 h-5" />
-                        ) : (
-                          step.id
-                        )}
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  {guidelines.map((guideline, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="flex items-start gap-3 group"
+                    >
+                      <div className="p-2 rounded-lg bg-green-50 text-green-600 group-hover:bg-green-100 transition-colors">
+                        <FaCheckCircle className="w-4 h-4" />
                       </div>
-                      <p
-                        className={`text-sm font-medium mt-3 ${
-                          step.status === "completed"
-                            ? "text-green-600"
-                            : step.status === "current"
-                            ? "text-blue-600"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {step.title}
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        {guideline}
                       </p>
-                    </div>
-                    {index !== steps.length - 1 && (
-                      <div
-                        className={`h-0.5 flex-1 mx-4 ${
-                          step.status === "completed" ? "bg-green-500" : "bg-gray-200"
-                        }`}
-                      />
-                    )}
+                    </motion.div>
+                  ))}
+                </div>
+
+                <div className="mt-8 p-6 bg-amber-50 rounded-xl border border-amber-100">
+                  <div className="flex items-center gap-3 text-amber-700 mb-3">
+                    <FaQuestionCircle className="w-5 h-5" />
+                    <h3 className="font-semibold">Need Assistance?</h3>
                   </div>
-                ))}
+                  <p className="text-sm text-amber-700 leading-relaxed">
+                    Having trouble with document upload? Our support team is here
+                    to help at{" "}
+                    <span className="font-medium">support@zenployee.com</span>
+                  </p>
+                </div>
               </div>
             </div>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Panel - Instructions */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="lg:col-span-4"
-            >
-              <div
-                className={`${
-                  theme === "dark"
-                    ? "bg-gray-800 ring-1 ring-gray-700"
-                    : "bg-white"
-                } rounded-xl p-6 sticky top-8`}
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <FaInfoCircle className="w-5 h-5 text-blue-600" />
+          {/* Right Panel - Upload Cards */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Error and Success Messages */}
+            <AnimatePresence>
+              {globalError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex items-center gap-4 text-red-600 bg-red-50 p-6 rounded-xl border border-red-100"
+                >
+                  <div className="p-3 bg-red-100 rounded-xl">
+                    <FaExclamationCircle className="w-6 h-6" />
                   </div>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Guidelines
-                  </h2>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    {guidelines.map((guideline, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex items-start gap-3 group"
-                      >
-                        <div className="p-2 rounded-lg bg-green-50 text-green-600 group-hover:bg-green-100 transition-colors">
-                          <FaCheckCircle className="w-4 h-4" />
-                        </div>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          {guideline}
-                        </p>
-                      </motion.div>
-                    ))}
+                  <div>
+                    <h3 className="font-semibold mb-1">Upload Error</h3>
+                    <p className="text-sm">{globalError}</p>
                   </div>
-
-                  <div className="mt-8 p-6 bg-amber-50 rounded-xl border border-amber-100">
-                    <div className="flex items-center gap-3 text-amber-700 mb-3">
-                      <FaQuestionCircle className="w-5 h-5" />
-                      <h3 className="font-semibold">Need Assistance?</h3>
-                    </div>
-                    <p className="text-sm text-amber-700 leading-relaxed">
-                      Having trouble with document upload? Our support team is here
-                      to help at{" "}
-                      <span className="font-medium">support@zenployee.com</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Right Panel - Upload Cards */}
-            <div className="lg:col-span-8 space-y-6">
-              <AnimatePresence>
-                {globalError && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="flex items-center gap-4 text-red-600 bg-red-50 p-6 rounded-xl border border-red-100"
-                  >
-                    <div className="p-3 bg-red-100 rounded-xl">
-                      <FaExclamationCircle className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-1">Upload Error</h3>
-                      <p className="text-sm">{globalError}</p>
-                    </div>
-                  </motion.div>
-                )}
-
-                {globalSuccess && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="flex items-center gap-4 text-green-600 bg-green-50 p-6 rounded-xl border border-green-100"
-                  >
-                    <div className="p-3 bg-green-100 rounded-xl">
-                      <FaCheckCircle className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-1">Success!</h3>
-                      <p className="text-sm">{globalSuccess}</p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {uploadProgress > 0 && uploadProgress < 100 && (
-                <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-medium text-gray-700">
-                      Uploading Documents...
-                    </p>
-                    <p className="text-sm font-medium text-blue-600">
-                      {Math.round(uploadProgress)}%
-                    </p>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${uploadProgress}%` }}
-                      className="h-full bg-blue-600 rounded-full"
-                    />
-                  </div>
-                </div>
+                </motion.div>
               )}
 
-              <div className="grid grid-cols-1 gap-6">
-                <DocumentUploadCard type="aadhar" label="Aadhar Card" required />
-                <DocumentUploadCard type="pan" label="PAN Card" required />
-                <DocumentUploadCard type="passport" label="Passport" />
-                <DocumentUploadCard type="photo" label="Profile Photo" required />
-              </div>
-
-              <motion.div
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                className="bg-white rounded-xl p-6 mt-6 border border-gray-100"
-              >
-                <button
-                  onClick={handleUploadAll}
-                  className="w-full px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all hover:shadow-md font-medium flex items-center justify-center gap-2 text-base"
+              {globalSuccess && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex items-center gap-4 text-green-600 bg-green-50 p-6 rounded-xl border border-green-100"
                 >
-                  <FaUpload className="w-5 h-5" />
-                  Submit Documents for Verification
-                </button>
-              </motion.div>
+                  <div className="p-3 bg-green-100 rounded-xl">
+                    <FaCheckCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-1">Success!</h3>
+                    <p className="text-sm">{globalSuccess}</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-medium text-gray-700">
+                    Uploading Documents...
+                  </p>
+                  <p className="text-sm font-medium text-blue-600">
+                    {Math.round(uploadProgress)}%
+                  </p>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${uploadProgress}%` }}
+                    className="h-full bg-blue-600 rounded-full"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Document Upload Cards */}
+            <div className="grid grid-cols-1 gap-6">
+              <DocumentUploadCard type="aadhar" label="Aadhar Card" required />
+              <DocumentUploadCard type="pan" label="PAN Card" required />
+              <DocumentUploadCard type="passport" label="Passport" />
+              <DocumentUploadCard type="photo" label="Profile Photo" required />
             </div>
+
+            {/* Submit Button */}
+            <motion.div
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              className="bg-white rounded-xl p-6 mt-6 border border-gray-200"
+            >
+              <button
+                onClick={handleUploadAll}
+                className="w-full px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all hover:shadow-md font-medium flex items-center justify-center gap-2 text-base"
+              >
+                <FaUpload className="w-5 h-5" />
+                Submit Documents for Verification
+              </button>
+            </motion.div>
           </div>
         </div>
       </div>

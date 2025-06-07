@@ -7,7 +7,7 @@ import {
   FaExclamationCircle, 
   FaCalendarAlt, 
   FaFileAlt,
-  FaCheck,
+  // FaCheck,
   FaPlus,
   FaInfoCircle,
   FaUpload,
@@ -404,18 +404,18 @@ function RequestLeaveContent() {
                 {error && <FeedbackMessage message={error} type="error" />}
                 {success && <FeedbackMessage message={success} type="success" />}
 
-                <div className="flex justify-end">
-                <button
-  type="submit"
-  disabled={loading}
-  className="bg-blue-500 text-white font-bold px-4 py-2 rounded flex items-center gap-2 hover:bg-blue-600 disabled:opacity-50"
->
-  <FaCheck className="w-3 h-3" />
-  Submit Request
-</button>
-
-
-
+                <div className="flex justify-end mt-4">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all duration-200 flex items-center gap-1.5 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? (
+                        <span>Submitting...</span>
+                      ) : (
+                        <span>Submit Request</span>
+                      )}
+                    </button>
                 </div>
               </div>
             </form>
@@ -480,4 +480,4 @@ export default function RequestLeavePage() {
       <RequestLeaveContent />
     </DashboardLayout>
   );
-} 
+}

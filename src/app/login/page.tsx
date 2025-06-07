@@ -155,7 +155,7 @@ export default function LoginPage() {
             className="mb-12"
           >
             <Image 
-              src="/exozen_logo.png" 
+              src="/v1/employee/exozen_logo.png" 
               alt="Exozen Logo" 
               width={180} 
               height={60} 
@@ -176,9 +176,9 @@ export default function LoginPage() {
             
             <div className="space-y-6">
               {[
-                { icon: "/file.svg", text: "Streamlined employee onboarding" },
-                { icon: "/window.svg", text: "Comprehensive HR management" },
-                { icon: "/globe.svg", text: "Secure access from anywhere" }
+                { icon: "/v1/employee//file.svg", text: "Streamlined employee onboarding" },
+                { icon: "/v1/employee//window.svg", text: "Comprehensive HR management" },
+                { icon: "/v1/employee//globe.svg", text: "Secure access from anywhere" }
               ].map((feature, index) => (
                 <motion.div 
                   key={index}

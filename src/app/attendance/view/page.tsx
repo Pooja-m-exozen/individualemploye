@@ -212,7 +212,7 @@ function ViewAttendanceContent() {
     ];
   };
 
-  // Update the getStatusForDate function
+  // Update the getStatusForDate function for better contrast
 const getStatusForDate = (date: Date): StatusInfo => {
   const activity = activities.find(a => a.date === format(date, 'yyyy-MM-dd'));
   if (!activity) return { code: '', color: 'text-gray-400' };
@@ -222,16 +222,16 @@ const getStatusForDate = (date: Date): StatusInfo => {
     case 'present':
       return { 
         code: 'P', 
-        color: activity.isLate ? 'text-amber-600' : 'text-green-600'
+        color: activity.isLate ? 'text-amber-700' : 'text-green-700'  // Darker shades for better contrast
       };
     case 'absent':
-      return { code: 'A', color: 'text-red-600' };
+      return { code: 'A', color: 'text-red-700' };  // Darker red
     case 'holiday':
-      return { code: 'H', color: 'text-blue-600' };
+      return { code: 'H', color: 'text-blue-700' };  // Darker blue
     case 'weekend':
-      return { code: 'W', color: 'text-gray-400' };
+      return { code: 'W', color: 'text-gray-600' };  // Darker gray
     default:
-      return { code: activity.status[0], color: 'text-gray-600' };
+      return { code: activity.status[0], color: 'text-gray-700' };  // Darker gray
   }
 };
 
@@ -274,7 +274,7 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
   const presentDays = activities.filter(a => a.status === 'Present').length;
   const attendanceRate = workingDays > 0 ? ((presentDays / workingDays) * 100).toFixed(2) : '0.00';
 
-  // Add Legend component
+  // Update AttendanceLegend component
   const AttendanceLegend = () => (
     <div className="mt-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
       <h4 className="text-sm font-semibold text-gray-700 mb-2">Status Legend</h4>
@@ -349,13 +349,13 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 mb-8 shadow-lg flex items-center justify-between">
             <div>
           <h2 className="text-3xl font-bold text-white">Monthly Overview</h2>
-          <p className="text-blue-100 mt-1 text-lg">{format(selectedDate, 'MMMM yyyy')} • {workingDays} Working Days</p>
+          <p className="text-white/90 mt-1 text-lg">{format(selectedDate, 'MMMM yyyy')} • {workingDays} Working Days</p>
             </div>
             </div>
       {/* Main Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left: Graph + Instructions */}
-        <div className="rounded-xl shadow-sm border border-gray-200/30 p-6 flex flex-col items-center bg-card">
+        <div className="rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center bg-white">
           {/* Attendance Distribution Graph */}
           <div className="w-48 h-48 flex items-center justify-center mb-6">
             <CircularProgressbar
@@ -379,14 +379,14 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
               <li>Each punch requires a photo and your location for verification purposes.</li>
               <li>Contact HR if you notice any discrepancies in your attendance records.</li>
             </ul>
-            <div className="mt-3 flex items-center gap-2 text-amber-600 bg-amber-50 p-2 rounded-lg text-xs">
+            <div className="mt-3 flex items-center gap-2 text-amber-700 bg-amber-50 p-2 rounded-lg text-xs">
                   <FaExclamationCircle className="w-4 h-4 flex-shrink-0" />
               Important: Ensure your device&apos;s location services and camera permissions are enabled for accurate attendance tracking.
                 </div>
               </div>
             </div>
         {/* Right: Calendar */}
-        <div className="rounded-xl shadow-sm border border-gray-200/30 p-6 flex flex-col items-center bg-card">
+        <div className="rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center bg-white">
           <div className="flex items-center justify-between w-full mb-4">
             <h3 className="text-xl font-semibold text-gray-900">{format(selectedDate, 'MMMM yyyy')}</h3>
             {/* Calendar controls (prev, today, next) */}
@@ -488,21 +488,14 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
       {showDetailedRecordsModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-5xl w-full mx-4 relative">
-            <button
-              onClick={() => setShowDetailedRecordsModal(false)}
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            {/* Modal header */}
             <div className="flex items-center gap-3 mb-2">
               <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-md">
                 <FaClipboardCheck className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-2xl font-bold text-gray-800">Attendance Records</h3>
-                <p className="text-gray-500">Detailed view of your attendance history</p>
+                <h3 className="text-2xl font-bold text-gray-900">Attendance Records</h3>
+                <p className="text-gray-600">Detailed view of your attendance history</p>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 mt-4">
@@ -532,9 +525,9 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
               </div>
             </div>
             <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full bg-white">
                 <thead>
-                  <tr className="bg-muted">
+                  <tr className="bg-gray-50">
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"><FaCalendarAlt className="inline mr-1 text-blue-500" /> Date</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"><FaCheckCircle className="inline mr-1 text-green-500" /> Status</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"><FaSignInAlt className="inline mr-1 text-emerald-500" /> Punch In</th>
@@ -543,7 +536,7 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-gray-200 bg-white">
                   {paginatedActivities.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-12 text-center text-gray-500">No records found</td>
@@ -667,11 +660,11 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                   <div>
                       <span className="block text-xs text-gray-500 mb-1">Status</span>
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                        selectedActivity.status.toLowerCase() === 'present' ? 'bg-green-100 text-green-700' :
-                        selectedActivity.status.toLowerCase() === 'absent' ? 'bg-red-100 text-red-700' :
-                        selectedActivity.status.toLowerCase().includes('holiday') ? 'bg-blue-100 text-blue-700' :
-                        selectedActivity.status.toLowerCase().includes('late') ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-700'
+                        selectedActivity.status.toLowerCase() === 'present' ? 'bg-green-100 text-green-800' :
+                        selectedActivity.status.toLowerCase() === 'absent' ? 'bg-red-100 text-red-800' :
+                        selectedActivity.status.toLowerCase().includes('holiday') ? 'bg-blue-100 text-blue-800' :
+                        selectedActivity.status.toLowerCase().includes('late') ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
                       }`}>
                         {selectedActivity.status}
                       </span>

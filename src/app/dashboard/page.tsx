@@ -123,7 +123,7 @@ export default function Dashboard() {
     }
   }, [currentMonth, currentYear, monthlyStatsCache, fetchData]);
 
-  // Update barChartOptions with new configuration
+  // Update the chart options types to ensure properties are defined
   const barChartOptions: ChartOptions<'bar'> = {
     responsive: true,
     maintainAspectRatio: false,
@@ -164,11 +164,11 @@ export default function Dashboard() {
           display: false
         }
       }
-    },
+    } as const,
     plugins: {
       legend: {
-        position: 'top',
-        align: 'center',
+        position: 'top' as const,
+        align: 'center' as const,
         labels: {
           boxWidth: 10,
           boxHeight: 10,
@@ -199,55 +199,50 @@ export default function Dashboard() {
           }
         }
       }
-    },
-    datasets: {
-      bar: {
-        barThickness: currentMonth === 0 ? 'flex' : 20,
-        maxBarThickness: currentMonth === 0 ? 16 : 26,
-        barPercentage: currentMonth === 0 ? 0.8 : 0.6,
-        categoryPercentage: currentMonth === 0 ? 0.8 : 0.6
-      }
-    }
-  };
+    } as const
+  } as const;
 
   const pieChartOptions: ChartOptions<'pie'> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'right',
-        align: 'center',
+        position: 'right' as const,
+        align: 'center' as const,
         labels: {
-          boxWidth: 8,
-          boxHeight: 8,
-          padding: 20,
+          boxWidth: 12,
+          boxHeight: 12,
+          padding: 15,
+          color: theme === 'dark' ? '#fff' : '#334155',
           font: {
             size: 12,
-            family: "'Geist', sans-serif"
+            family: "'Geist', sans-serif",
+         weight: 500
+
+          },
+          generateLabels: (chart) => {
+            const datasets = chart.data.datasets;
+            if (!datasets) return [];
+            
+            return datasets[0].data.map((value, i) => ({
+              text: `${chart.data.labels?.[i]} (${value})`,
+              fillStyle: Array.isArray(datasets[0].backgroundColor) 
+                ? datasets[0].backgroundColor[i]
+                : datasets[0].backgroundColor,
+              strokeStyle: Array.isArray(datasets[0].borderColor)
+                ? datasets[0].borderColor[i]
+                : datasets[0].borderColor,
+              lineWidth: 2,
+              hidden: false,
+              index: i
+            }));
           }
-        }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(255, 255, 255, 0.98)',
-        titleColor: '#1e293b',
-        bodyColor: '#475569',
-        borderColor: '#e2e8f0',
-        borderWidth: 1,
-        padding: 12,
-        cornerRadius: 8,
-        boxPadding: 4,
-        usePointStyle: true,
-        callbacks: {
-          label: function(context) {
-            const value = context.parsed;
-            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
-            const percentage = Math.round((value * 100) / total);
-            return `${context.label}: ${percentage}%`;
-          }
-        }
+        },
+        maxWidth: 200,
+        maxHeight: 400
       }
     }
-  };
+  } as const;
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -261,28 +256,67 @@ export default function Dashboard() {
   };
 
   const renderMonthSelector = () => (
-    <div className="flex items-center gap-2">
-      <label htmlFor="month-select" className="text-gray-700 font-medium text-sm whitespace-nowrap">Select Month:</label>
-      <select
-        id="month-select"
-        value={currentMonth}
-        onChange={handleMonthChange}
-        className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-      >
-        <option value={0}>All Months</option> {/* Added "All Months" option */}
-        {monthNames.map((month, index) => (
-          <option key={month} value={index + 1}>
-            {month} {currentYear}
-          </option>
-        ))}
-      </select>
-    </div>
+    <select
+      id="month-select"
+      value={currentMonth}
+      onChange={handleMonthChange}
+      className={`px-3 py-1.5 rounded-lg border ${
+        theme === 'dark' 
+          ? 'bg-gray-700 border-gray-600 text-white' 
+          : 'bg-white border-gray-300 text-gray-700'
+      } focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm`}
+    >
+      <option value={0}>All Months</option>
+      {monthNames.map((month, index) => (
+        <option key={month} value={index + 1}>
+          {month} {currentYear}
+        </option>
+      ))}
+    </select>
   );
-
-
 
   const renderAttendanceChart = () => {
     if (!monthlyStats?.data) return null;
+
+    const darkModeColors = {
+      present: {
+        bg: 'rgba(16, 185, 129, 1)', // Solid green
+        border: 'rgba(16, 185, 129, 1)'
+      },
+      late: {
+        bg: 'rgba(245, 158, 11, 1)', // Solid orange
+        border: 'rgba(245, 158, 11, 1)'
+      },
+      early: {
+        bg: 'rgba(75, 192, 192, 1)', // Solid cyan
+        border: 'rgba(75, 192, 192, 1)'
+      },
+      absent: {
+        bg: 'rgba(239, 68, 68, 1)', // Solid red
+        border: 'rgba(239, 68, 68, 1)'
+      }
+    };
+
+    const lightModeColors = {
+      present: {
+        bg: 'rgba(16, 185, 129, 0.8)',
+        border: 'rgba(16, 185, 129, 1)'
+      },
+      late: {
+        bg: 'rgba(245, 158, 11, 0.8)',
+        border: 'rgba(245, 158, 11, 1)'
+      },
+      early: {
+        bg: 'rgba(75, 192, 192, 0.8)',
+        border: 'rgba(75, 192, 192, 1)'
+      },
+      absent: {
+        bg: 'rgba(239, 68, 68, 0.8)',
+        border: 'rgba(239, 68, 68, 1)'
+      }
+    };
+
+    const colors = theme === 'dark' ? darkModeColors : lightModeColors;
 
     const chartData: ChartData<'bar'> = {
       labels: currentMonth === 0 ? monthNames : ['Monthly Attendance'],
@@ -292,8 +326,8 @@ export default function Dashboard() {
           data: currentMonth === 0 
             ? monthlyStats.data.monthlyPresent || Array(12).fill(0)
             : [monthlyStats.data.presentDays],
-          backgroundColor: 'rgba(16, 185, 129, 0.2)',
-          borderColor: 'rgba(16, 185, 129, 1)',
+          backgroundColor: colors.present.bg,
+          borderColor: colors.present.border,
           borderWidth: 3,
           borderRadius: 6,
           maxBarThickness: 32,
@@ -303,8 +337,8 @@ export default function Dashboard() {
           data: currentMonth === 0 
             ? monthlyStats.data.monthlyLateArrivals || Array(12).fill(0)
             : [monthlyStats.data.lateArrivals],
-          backgroundColor: 'rgba(245, 158, 11, 0.2)',
-          borderColor: 'rgba(245, 158, 11, 1)',
+          backgroundColor: colors.late.bg,
+          borderColor: colors.late.border,
           borderWidth: 3,
           borderRadius: 6,
           maxBarThickness: 32,
@@ -314,8 +348,8 @@ export default function Dashboard() {
           data: currentMonth === 0 
             ? monthlyStats.data.monthlyEarlyArrivals || Array(12).fill(0)
             : [monthlyStats.data.earlyArrivals],
-          backgroundColor: 'rgba(75, 192, 192, 0.2)',
-          borderColor: 'rgba(75, 192, 192, 1)',
+          backgroundColor: colors.early.bg,
+          borderColor: colors.early.border,
           borderWidth: 3,
           borderRadius: 6,
           maxBarThickness: 32,
@@ -325,8 +359,8 @@ export default function Dashboard() {
           data: currentMonth === 0 
             ? monthlyStats.data.monthlyAbsent || Array(12).fill(0)
             : [monthlyStats.data.absentDays],
-          backgroundColor: 'rgba(239, 68, 68, 0.2)',
-          borderColor: 'rgba(239, 68, 68, 1)',
+          backgroundColor: colors.absent.bg,
+          borderColor: colors.absent.border,
           borderWidth: 3,
           borderRadius: 6,
           maxBarThickness: 32,
@@ -344,34 +378,77 @@ export default function Dashboard() {
           monthlyStats.data.absentDays
         ],
         backgroundColor: [
-          'rgba(16, 185, 129, 0.2)',
-          'rgba(245, 158, 11, 0.2)',
-          'rgba(75, 192, 192, 0.2)',
-          'rgba(239, 68, 68, 0.2)'
+          colors.present.bg,
+          colors.late.bg,
+          colors.early.bg,
+          colors.absent.bg
         ],
         borderColor: [
-          'rgba(16, 185, 129, 1)',
-          'rgba(245, 158, 11, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(239, 68, 68, 1)'
+          colors.present.border,
+          colors.late.border,
+          colors.early.border,
+          colors.absent.border
         ],
         borderWidth: 3
       }]
+    };
+
+    // Create chart options with type assertions
+    const chartOptions = {
+      ...barChartOptions,
+      scales: {
+        y: {
+          ...(barChartOptions.scales?.y ?? {}),
+          grid: {
+            ...(barChartOptions.scales?.y?.grid ?? {}),
+            color: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(226, 232, 240, 0.4)',
+          },
+          ticks: {
+            ...(barChartOptions.scales?.y?.ticks ?? {}),
+            color: theme === 'dark' ? '#fff' : '#64748b',
+          }
+        },
+        x: {
+          ...(barChartOptions.scales?.x ?? {}),
+          ticks: {
+            ...(barChartOptions.scales?.x?.ticks ?? {}),
+            color: theme === 'dark' ? '#fff' : '#64748b',
+          }
+        }
+      },
+      plugins: {
+        ...barChartOptions.plugins,
+        legend: {
+          ...(barChartOptions.plugins?.legend ?? {}),
+          labels: {
+            ...(barChartOptions.plugins?.legend?.labels ?? {}),
+            color: theme === 'dark' ? '#fff' : '#334155',
+          }
+        }
+      } as const
     };
 
     return (
       <div className="h-full">
         <div className="h-full min-h-[400px] relative">
           {attendanceChartType === 'bar' ? (
-            <Bar data={chartData} options={{
-              ...barChartOptions,
-              maintainAspectRatio: false,
-              responsive: true
-            }} />
+            <Bar data={chartData} options={chartOptions} />
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="w-[320px] h-[320px]">
-                <Pie data={pieData} options={pieChartOptions} />
+                <Pie data={pieData} options={{
+                  ...pieChartOptions,
+                  plugins: {
+                    ...(pieChartOptions.plugins ?? {}),
+                    legend: {
+                      ...(pieChartOptions.plugins?.legend ?? {}),
+                      labels: {
+                        ...(pieChartOptions.plugins?.legend?.labels ?? {}),
+                        color: theme === 'dark' ? '#fff' : '#334155',
+                      }
+                    }
+                  }
+                }} />
               </div>
             </div>
           )}
@@ -392,7 +469,7 @@ export default function Dashboard() {
         {
           label: 'Allocated',
           data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].allocated),
-          backgroundColor: 'rgba(16, 185, 129, 0.2)',
+          backgroundColor: 'rgba(16, 185, 129, 0.8)', // Changed from 0.2 to 0.8
           borderColor: 'rgba(16, 185, 129, 1)',
           borderWidth: 3,
           borderRadius: 6,
@@ -400,7 +477,7 @@ export default function Dashboard() {
         {
           label: 'Used',
           data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].used),
-          backgroundColor: 'rgba(239, 68, 68, 0.2)',
+          backgroundColor: 'rgba(239, 68, 68, 0.8)', // Changed from 0.2 to 0.8
           borderColor: 'rgba(239, 68, 68, 1)',
           borderWidth: 3,
           borderRadius: 6,
@@ -408,7 +485,7 @@ export default function Dashboard() {
         {
           label: 'Remaining',
           data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].remaining),
-          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+          backgroundColor: 'rgba(59, 130, 246, 0.8)', // Changed from 0.2 to 0.8
           borderColor: 'rgba(59, 130, 246, 1)',
           borderWidth: 3,
           borderRadius: 6,
@@ -421,10 +498,10 @@ export default function Dashboard() {
       datasets: [{
         data: leaveTypes.map(type => leaveBalance.balances[type as LeaveType].allocated),
         backgroundColor: [
-          'rgba(16, 185, 129, 0.2)',
-          'rgba(239, 68, 68, 0.2)',
-          'rgba(59, 130, 246, 0.2)',
-          'rgba(139, 92, 246, 0.2)',
+          'rgba(16, 185, 129, 0.8)',  // Changed from 0.2 to 0.8
+          'rgba(239, 68, 68, 0.8)',   // Changed from 0.2 to 0.8
+          'rgba(59, 130, 246, 0.8)',  // Changed from 0.2 to 0.8
+          'rgba(139, 92, 246, 0.8)',  // Changed from 0.2 to 0.8
         ],
         borderColor: [
           'rgba(16, 185, 129, 1)',
@@ -569,15 +646,16 @@ export default function Dashboard() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className={`w-72 p-6 flex flex-col gap-4 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-          <div className="mb-4">
-            <h2 className="text-lg font-bold text-gray-700">Quick Actions</h2>
-            <p className="text-gray-500 text-sm font-semibold">
+        <aside className="w-72 p-6 flex flex-col gap-4 bg-white border-r border-gray-200">
+          <div className="mb-4 bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-xl border border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900">Quick Actions</h2>
+            <p className="text-gray-700 text-sm mt-1 font-medium">
               Welcome! Use the quick actions below to manage your tasks efficiently.
             </p>
           </div>
+
           {/* Request Leave */}
-          <div className="bg-blue-500 text-white rounded-xl shadow flex items-start gap-3 p-4 hover:scale-[1.02] transition-transform cursor-pointer" onClick={handleRequestLeave}>
+          <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-xl shadow-md flex items-start gap-3 p-4 hover:scale-[1.02] transition-transform cursor-pointer" onClick={handleRequestLeave}>
             <div className="p-2 bg-white/20 rounded-lg">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -589,7 +667,7 @@ export default function Dashboard() {
             </div>
           </div>
           {/* Attendance Regularization */}
-          <div className="bg-orange-500 text-white rounded-xl shadow flex items-start gap-3 p-4 hover:scale-[1.02] transition-transform cursor-pointer" onClick={handleRegularization}>
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-md flex items-start gap-3 p-4 hover:scale-[1.02] transition-transform cursor-pointer" onClick={handleRegularization}>
             <div className="p-2 bg-white/20 rounded-lg">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M9 17v-2a4 4 0 118 0v2m-4 4h.01M12 3v4m0 0a4 4 0 00-4 4v4a4 4 0 004 4h0a4 4 0 004-4v-4a4 4 0 00-4-4z" />
@@ -601,7 +679,7 @@ export default function Dashboard() {
             </div>
           </div>
           {/* Upload Document */}
-          <div className="bg-green-500 text-white rounded-xl shadow flex items-start gap-3 p-4 hover:scale-[1.02] transition-transform cursor-pointer" onClick={handleUploadDocument}>
+          <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-md flex items-start gap-3 p-4 hover:scale-[1.02] transition-transform cursor-pointer" onClick={handleUploadDocument}>
             <div className="p-2 bg-white/20 rounded-lg">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M12 4v16m8-8H4" />
@@ -613,7 +691,7 @@ export default function Dashboard() {
             </div>
           </div>
           {/* Raise Ticket */}
-          <div className="bg-purple-500 text-white rounded-xl shadow flex items-start gap-3 p-4 hover:scale-[1.02] transition-transform cursor-pointer" onClick={handleRaiseTicket}>
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-md flex items-start gap-3 p-4 hover:scale-[1.02] transition-transform cursor-pointer" onClick={handleRaiseTicket}>
             <div className="p-2 bg-white/20 rounded-lg">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M9 17v-2a4 4 0 118 0v2m-4 4h.01M12 3v4m0 0a4 4 0 00-4 4v4a4 4 0 004 4h0a4 4 0 004-4v-4a4 4 0 00-4-4z" />
@@ -630,8 +708,9 @@ export default function Dashboard() {
         <main className="flex-1 p-6 overflow-y-auto">
           <div className={`rounded-xl p-6 ${theme === 'dark' ? 'bg-gray-800 ring-1 ring-gray-700' : 'bg-white'} shadow-sm min-h-[calc(100vh-140px)]`}>
             {/* Tabs and Controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <div className="flex gap-2">
+            <div className="flex flex-col gap-4 mb-6">
+              {/* Analytics Type Selector */}
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => setAnalyticsView('attendance')}
                   className={`px-4 py-1.5 rounded-full font-semibold transition-colors ${
@@ -653,9 +732,15 @@ export default function Dashboard() {
                   Leave Analytics
                 </button>
               </div>
-              <div className="flex flex-wrap gap-4 items-center justify-between sm:justify-end">
-                {renderChartTypeToggle()}
-                {renderMonthSelector()}
+
+              {/* Chart Controls */}
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  {renderChartTypeToggle()}
+                </div>
+                <div className="flex items-center gap-2">
+                  {renderMonthSelector()}
+                </div>
               </div>
             </div>
 
@@ -666,12 +751,10 @@ export default function Dashboard() {
                 : 'bg-white'
               } rounded-xl p-4 md:p-6`}>
               <div className="min-h-[400px] md:min-h-[500px]">
-                <div className="absolute inset-0 p-4">
-                  {analyticsView === 'attendance' 
-                    ? renderAttendanceChart()
-                    : renderLeaveChart()
-                  }
-                </div>
+                {analyticsView === 'attendance' 
+                  ? renderAttendanceChart()
+                  : renderLeaveChart()
+                }
               </div>
             </div>
           </div>
