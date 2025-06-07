@@ -20,7 +20,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 export default function Dashboard() {
   const router = useRouter();
   const userDetails = useUser();
-  const { theme, toggleTheme } = useTheme();
+  const { theme} = useTheme();
   const employeeId = getEmployeeId();
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
   const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth() + 1);
