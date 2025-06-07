@@ -289,6 +289,35 @@ export default function ViewKYC() {
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'} font-sans`}>
       <div className="flex">
+        {/* Desktop Navigation Sidebar */}
+        <div className={`hidden lg:block w-64 h-screen sticky top-0 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} border-r ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className="p-6">
+            <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>
+              KYC Sections
+            </h2>
+            <nav className="space-y-2">
+              {navigationItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setSelectedTab(item.id)}
+                  className={classNames(
+                    'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all',
+                    selectedTab === item.id
+                      ? `${theme === 'dark' ? 'bg-gray-700' : 'bg-indigo-50'} text-indigo-600`
+                      : `${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-50'}`
+                  )}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className="font-medium">{item.label}</span>
+                  {completionStatus[item.key] && (
+                    <FaCheckCircle className="w-4 h-4 text-green-500 ml-auto" />
+                  )}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto" style={{height: 'calc(100vh - 64px)'}}>
           {/* Mobile Header */}
@@ -456,15 +485,58 @@ export default function ViewKYC() {
                     className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-sm p-6`}
                   >
                     <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Emergency Contact</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {Object.entries(kycData.emergencyContact).map(([key, value]) => (
-                        <div key={key}>
-                          <label className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} capitalize`}>
-                            {key.replace(/([A-Z])/g, ' $1').trim()}
-                          </label>
-                          <p className={`text-base font-medium ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'} mt-1`}>{value}</p>
+                    <div className="flex flex-col space-y-4">
+                      <div className={`p-4 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'} rounded-xl`}>
+                        <div className="flex flex-wrap items-center gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                              <FaUser className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Name</p>
+                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                {kycData.emergencyContact.name}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                              <FaPhone className="w-5 h-5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Phone</p>
+                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                {kycData.emergencyContact.phone}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                              <FaUserCircle className="w-5 h-5 text-purple-600" />
+                            </div>
+                            <div>
+                              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Relationship</p>
+                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                {kycData.emergencyContact.relationship}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                              <FaIdCard className="w-5 h-5 text-orange-600" />
+                            </div>
+                            <div>
+                              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Aadhar</p>
+                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                {kycData.emergencyContact.aadhar}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                      ))}
+                      </div>
                     </div>
                   </motion.div>
                 )}

@@ -344,12 +344,12 @@ function MarkAttendanceContent() {
       {/* Main Content Grid */}
       <div className="grid md:grid-cols-2 gap-8">
         {/* Photo Section */}
-        <div className="rounded-xl shadow-sm border border-gray-200/30 p-8 bg-card">
+        <div className="rounded-xl shadow-lg border border-gray-200 p-8 bg-white">
           <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
             <FaCamera className="text-blue-600" />
             Photo Verification
           </h3>
-          <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl p-8 border-2 border-dashed border-blue-200">
+          <div className="bg-white rounded-xl p-8 border-2 border-dashed border-blue-200 shadow-md">
             <div className="flex flex-col items-center justify-center">
               {photoPreview ? (
                 <div className="relative group">
@@ -396,19 +396,19 @@ function MarkAttendanceContent() {
         </div>
 
         {/* Status and Action Section */}
-        <div className="rounded-xl shadow-sm border border-gray-200/30 p-8 bg-card">
+        <div className="rounded-xl shadow-lg border border-gray-200 p-8 bg-white">
           <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
             <FaMapMarkerAlt className="text-blue-600" />
             Location Verification
           </h3>
           
           <div className="space-y-6">
-            <div className="p-4 bg-muted rounded-xl">
-              <p className="text-gray-600 mb-2">
+            <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+              <p className="text-gray-700 mb-2">
                 <FaInfoCircle className="inline mr-2 text-blue-600" />
                 Your device&apos;s location will be verified against your registered office location
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-600">
                 Please ensure your device&apos;s location services are enabled
               </p>
             </div>

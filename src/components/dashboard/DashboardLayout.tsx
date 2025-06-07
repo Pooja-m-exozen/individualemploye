@@ -356,7 +356,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
           <div className={`flex items-center justify-between p-5 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} h-[65px]`}>
             <div className={`flex items-center ${isSidebarExpanded ? 'justify-start' : 'justify-center'} w-full`}>
               <Image
-                src="/logo-exo .png"
+                src="/v1/employee/logo-exo .png"
                 alt="Exozen Logo"
                 width={40}
                 height={40}
