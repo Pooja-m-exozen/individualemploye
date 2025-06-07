@@ -28,7 +28,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday} from 'date-fns';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import { calculateHoursUtc, transformAttendanceRecord } from '../../utils/attendanceUtils';
+import { calculateHoursUtc } from '../../utils/attendanceUtils';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
@@ -163,25 +163,26 @@ function ViewAttendanceContent() {
         const data = await response.json();
         
         if (response.ok && data.attendance) {
-          const transformedActivities = data.attendance.map((record: any) => ({
-            date: format(new Date(record.date), 'yyyy-MM-dd'),
-            displayDate: format(new Date(record.date), 'EEE, MMM d, yyyy'),
-            status: record.status,
-            punchInTime: record.punchInTime,
-            punchOutTime: record.punchOutTime,
-            punchInUtc: record.punchInUtc,
-            punchOutUtc: record.punchOutUtc,
-            isLate: record.isLate || false,
-            remarks: record.remarks,
-            totalHoursWorked: record.totalHoursWorked || '0',
-            punchInLocation: record.punchInLocation,
-            punchOutLocation: record.punchOutLocation,
-          }));
-          setActivities(transformedActivities);
-        } else {
-          setError('No attendance data found');
-          setActivities([]);
-        }
+  const transformedActivities = data.attendance.map((record: AttendanceRecord) => ({
+    date: format(new Date(record.date), 'yyyy-MM-dd'),
+    displayDate: format(new Date(record.date), 'EEE, MMM d, yyyy'),
+    status: record.status,
+    punchInTime: record.punchInTime,
+    punchOutTime: record.punchOutTime,
+    punchInUtc: record.punchInUtc,
+    punchOutUtc: record.punchOutUtc,
+    isLate: record.isLate || false,
+    remarks: record.remarks,
+    totalHoursWorked: record.totalHoursWorked || '0',
+    punchInLocation: record.punchInLocation,
+    punchOutLocation: record.punchOutLocation,
+  }));
+  setActivities(transformedActivities);
+} else {
+  setError('No attendance data found');
+  setActivities([]);
+}
+
       } catch (error) {
         console.error('Error fetching attendance:', error);
         setError('Failed to fetch attendance data');
