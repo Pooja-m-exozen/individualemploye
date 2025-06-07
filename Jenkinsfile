@@ -24,8 +24,8 @@ pipeline {
             steps {
                 script {
                     // Stop and remove the existing container if it exists
-                    sh 'docker stop newrbacfrontendcontainer || true'
-                    sh 'docker rm newrbacfrontendcontainer || true'
+                    sh 'docker stop individual_employe_container || true'
+                    sh 'docker rm individual_employe_container || true'
                 }
             }
         }
@@ -35,7 +35,7 @@ pipeline {
                 script {
                     // Run the Docker container with volumes for photos and QR codes
                     sh '''
-                    docker run -d --name newrbacfrontendcontainer -p 3010:3000 \
+                    docker run -d --name individual_employe_container -p 3010:3000 \
                       --network bridge \
                       individual_employe_image
                     '''
