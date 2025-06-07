@@ -7,7 +7,7 @@ import { Bar, Pie } from 'react-chartjs-2';
 import type { ChartData, ChartOptions } from 'chart.js';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from "@/context/ThemeContext";
-import { FaSun, FaMoon } from 'react-icons/fa';
+// import { FaSun, FaMoon } from 'react-icons/fa';
 
 import { getDashboardData, getMonthlyStats, getLeaveBalance } from '@/services/dashboard';
 import { getEmployeeId } from '@/services/auth';
