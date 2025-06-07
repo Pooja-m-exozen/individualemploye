@@ -159,21 +159,35 @@ export default function ViewKYC() {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="bg-white rounded-2xl p-6 mb-8 relative border border-gray-200"
+      className={`rounded-2xl p-6 mb-8 relative border ${
+        theme === 'dark'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-white border-gray-200'
+      }`}
     >
       <button
         onClick={() => setShowInstructions(false)}
-        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+        className={`absolute top-4 right-4 ${
+          theme === 'dark' ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'
+        }`}
       >
         <FaTimes className="w-5 h-5" />
       </button>
       <div className="flex items-start gap-4">
-        <div className="p-3 bg-blue-100 rounded-xl">
-          <FaLightbulb className="w-6 h-6 text-blue-600" />
+        <div className={`p-3 rounded-xl ${
+          theme === 'dark' ? 'bg-blue-900/50' : 'bg-blue-100'
+        }`}>
+          <FaLightbulb className={`w-6 h-6 ${
+            theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+          }`} />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">KYC Instructions</h3>
-          <ul className="space-y-2 text-gray-600">
+          <h3 className={`text-lg font-semibold mb-2 ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>KYC Instructions</h3>
+          <ul className={`space-y-2 ${
+            theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+          }`}>
             <li className="flex items-center gap-2">
               <FaCheckCircle className="w-4 h-4 text-green-500" />
               Complete all sections for full verification
@@ -194,14 +208,26 @@ export default function ViewKYC() {
 
   // Progress Bar component
   const ProgressBar = () => (
-    <div className="bg-white rounded-2xl p-6 mb-8 shadow-sm border border-gray-200">
+    <div className={`rounded-2xl p-6 mb-8 shadow-sm border ${
+      theme === 'dark'
+        ? 'bg-gray-800 border-gray-700'
+        : 'bg-white border-gray-200'
+    }`}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">KYC Completion Status</h3>
-        <span className="text-sm font-medium text-gray-500">{calculateCompletion()}% Complete</span>
+        <h3 className={`text-lg font-semibold ${
+          theme === 'dark' ? 'text-white' : 'text-gray-900'
+        }`}>KYC Completion Status</h3>
+        <span className={`text-sm font-medium ${
+          theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+        }`}>{calculateCompletion()}% Complete</span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2.5">
+      <div className={`w-full rounded-full h-2.5 ${
+        theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+      }`}>
         <div
-          className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
+          className={`h-2.5 rounded-full transition-all duration-500 ${
+            theme === 'dark' ? 'bg-blue-500' : 'bg-blue-600'
+          }`}
           style={{ width: `${calculateCompletion()}%` }}
         />
       </div>
@@ -217,7 +243,9 @@ export default function ViewKYC() {
             ) : (
               <FaExclamationCircle className="w-4 h-4 text-yellow-500" />
             )}
-            <span className="text-sm font-medium capitalize text-gray-700">
+            <span className={`text-sm font-medium capitalize ${
+              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               {section}
             </span>
             <Tooltip id={`section-${section}`}>
@@ -287,12 +315,22 @@ export default function ViewKYC() {
   // };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 font-sans">
+    <div className={`min-h-screen font-sans ${
+      theme === 'dark' 
+        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+        : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'
+    }`}>
       <div className="flex">
         {/* Desktop Navigation Sidebar */}
-        <div className="hidden lg:block w-64 h-screen sticky top-0 bg-white border-r border-gray-200">
+        <div className={`hidden lg:block w-64 h-screen sticky top-0 border-r ${
+          theme === 'dark' 
+            ? 'bg-gray-800 border-gray-700' 
+            : 'bg-white border-gray-200'
+        }`}>
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">
+            <h2 className={`text-lg font-semibold mb-6 ${
+              theme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`}>
               KYC Sections
             </h2>
             <nav className="space-y-2">
@@ -303,8 +341,12 @@ export default function ViewKYC() {
                   className={classNames(
                     'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all',
                     selectedTab === item.id
-                      ? 'bg-indigo-50 text-indigo-600'
-                      : 'text-gray-600 hover:bg-gray-50'
+                      ? theme === 'dark'
+                        ? 'bg-gray-700 text-blue-400'
+                        : 'bg-indigo-50 text-indigo-600'
+                      : theme === 'dark'
+                        ? 'text-gray-300 hover:bg-gray-700'
+                        : 'text-gray-600 hover:bg-gray-50'
                   )}
                 >
                   <item.icon className="w-5 h-5" />
@@ -321,7 +363,11 @@ export default function ViewKYC() {
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto" style={{height: 'calc(100vh - 64px)'}}>
           {/* Mobile Header */}
-          <div className="lg:hidden bg-white border-b border-gray-200">
+          <div className={`lg:hidden border-b ${
+            theme === 'dark' 
+              ? 'bg-gray-800 border-gray-700' 
+              : 'bg-white border-gray-200'
+          }`}>
             <div className="px-4 py-2 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {kycData.personalDetails.employeeImage ? (
@@ -362,8 +408,16 @@ export default function ViewKYC() {
           {/* Main Content */}
           <div className="p-4 lg:p-6">
             {/* Modern KYC Header */}
-            <div className="rounded-2xl mb-8 p-6 flex items-center gap-5 bg-gradient-to-r from-blue-500 to-blue-800 shadow-lg">
-              <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
+            <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${
+              theme === 'dark'
+                ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+                : 'bg-gradient-to-r from-blue-500 to-blue-800'
+            }`}>
+              <div className={`${
+                theme === 'dark' 
+                  ? 'bg-gray-700 bg-opacity-50' 
+                  : 'bg-blue-600 bg-opacity-30'
+              } rounded-xl p-4 flex items-center justify-center`}>
                 <FaIdCard className="w-10 h-10 text-white" />
               </div>
               <div>
@@ -371,33 +425,42 @@ export default function ViewKYC() {
                 <p className="text-white text-base opacity-90">View and manage your KYC verification details</p>
               </div>
             </div>
-            {/* Dynamic Content */}
+
+            {/* Instructions and Progress Bar */}
             {showInstructions && <Instructions />}
             <ProgressBar />
             
-            {/* Content sections based on selected tab */}
+            {/* Content sections */}
             <div className="space-y-6 mt-6">
               <AnimatePresence mode="wait">
+                {/* Wrap each section's content with dark theme classes */}
                 {selectedTab === 0 && (
                   <motion.div
                     key="personal"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200"
+                    className={`rounded-2xl shadow-sm p-6 border ${
+                      theme === 'dark'
+                        ? 'bg-gray-800 border-gray-700'
+                        : 'bg-white border-gray-200'
+                    }`}
                   >
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">Personal Information</h2>
+                    <h2 className={`text-xl font-bold mb-6 ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>Personal Information</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {Object.entries(kycData.personalDetails).map(([key, value]) => 
                         key !== 'employeeImage' && (
                           <div key={key} className="space-y-2">
-                            <label className="text-sm font-medium text-gray-500 capitalize">
+                            <label className={`text-sm font-medium capitalize ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
                               {key.replace(/([A-Z])/g, ' $1').trim()}
                             </label>
-                            <p className={classNames(
-                              'text-base font-medium text-gray-900',
-                              key === 'email' || key === 'workType' ? "break-all" : ""
-                            )}>
+                            <p className={`text-base font-medium ${
+                              theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                            } ${key === 'email' || key === 'workType' ? "break-all" : ""}`}>
                               {Array.isArray(value) ? value.join(', ') : value?.toString() || '-'}
                             </p>
                           </div>
@@ -580,7 +643,11 @@ export default function ViewKYC() {
       </div>
 
       {/* Mobile Navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-2">
+      <div className={`lg:hidden fixed bottom-0 left-0 right-0 border-t py-2 ${
+        theme === 'dark' 
+          ? 'bg-gray-800 border-gray-700' 
+          : 'bg-white border-gray-200'
+      }`}>
         <div className="flex justify-around max-w-md mx-auto">
           {navigationItems.map((item) => (
             <button
@@ -610,7 +677,11 @@ export default function ViewKYC() {
       {/* Help Button */}
       <button
         onClick={() => setShowInstructions(true)}
-        className="fixed bottom-20 right-4 lg:bottom-8 lg:right-8 bg-indigo-600 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 transition-all z-50"
+        className={`fixed bottom-20 right-4 lg:bottom-8 lg:right-8 p-3 rounded-full shadow-lg transition-all z-50 ${
+          theme === 'dark'
+            ? 'bg-blue-600 hover:bg-blue-700'
+            : 'bg-indigo-600 hover:bg-indigo-700'
+        } text-white`}
       >
         <FaQuestionCircle className="w-6 h-6" />
       </button>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { isAuthenticated, getEmployeeId } from '@/services/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import { useTheme } from '@/context/ThemeContext';
 
 interface KYCData {
   personalDetails: {
@@ -193,6 +194,7 @@ const validateAndTransformKYCData = (data: Partial<KYCData>): KYCData => {
 
 export default function EditKYC() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [kycData, setKYCData] = useState<KYCData>(initialKYCData);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -399,45 +401,71 @@ export default function EditKYC() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50">
+    <div className={`min-h-screen ${
+      theme === 'dark'
+        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
+        : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'
+    }`}>
       <div className="mb-8">
-        <div
-          className="flex items-center gap-6 rounded-2xl px-8 py-8"
-          style={{
-            background: "linear-gradient(90deg, #1e5af6 0%, #173bbd 100%)",
-            color: "white",
-          }}
-        >
-          <div className="flex items-center justify-center w-16 h-16 bg-blue-500 bg-opacity-30 rounded-xl">
+        <div className={`flex items-center gap-6 rounded-2xl px-8 py-8 ${
+          theme === 'dark'
+            ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+            : 'bg-gradient-to-r from-blue-600 to-blue-500'
+        }`}>
+          <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${
+            theme === 'dark' ? 'bg-gray-700/50' : 'bg-blue-500 bg-opacity-30'
+          }`}>
             <FaIdCard className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Edit KYC</h1>
-            <p className="text-lg opacity-90">Update and manage your KYC information</p>
+            <h1 className="text-3xl font-bold text-white">Edit KYC</h1>
+            <p className={`text-lg ${theme === 'dark' ? 'text-gray-300' : 'text-blue-100'}`}>
+              Update and manage your KYC information
+            </p>
           </div>
         </div>
       </div>
 
       {/* Instructions Panel */}
-      <div className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4 bg-white rounded-lg border border-gray-200">
+      <div className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+        <div className={`max-w-7xl mx-auto px-4 py-4 rounded-lg border ${
+          theme === 'dark' 
+            ? 'bg-gray-800 border-gray-700' 
+            : 'bg-white border-gray-200'
+        }`}>
           <div className="flex items-start gap-4">
-            <div className="p-2 rounded-lg bg-opacity-10 backdrop-blur-sm bg-blue-600">
-              <FaInfoCircle className="w-6 h-6 text-blue-600" />
+            <div className={`p-2 rounded-lg ${
+              theme === 'dark' 
+                ? 'bg-blue-900/20' 
+                : 'bg-blue-600 bg-opacity-10'
+            }`}>
+              <FaInfoCircle className={`w-6 h-6 ${
+                theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+              }`} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-black">KYC Information Guidelines</h2>
-              <ul className="mt-2 space-y-2 text-sm text-black">
+              <h2 className={`text-lg font-bold ${
+                theme === 'dark' ? 'text-white' : 'text-black'
+              }`}>KYC Information Guidelines</h2>
+              <ul className={`mt-2 space-y-2 text-sm ${
+                theme === 'dark' ? 'text-gray-300' : 'text-black'
+              }`}>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
+                  }`}></span>
                   <span className="font-medium">Fill in all required fields marked with an asterisk (*).</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
+                  }`}></span>
                   <span className="font-medium">Ensure all documents are clear and legible before uploading.</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
+                  }`}></span>
                   <span className="font-medium">Double-check your bank details to avoid payment issues.</span>
                 </li>
               </ul>
@@ -446,11 +474,16 @@ export default function EditKYC() {
         </div>
       </div>
 
+      {/* Form Container */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Side Navigation */}
           <div className="lg:w-64 flex-shrink-0">
-            <div className="rounded-2xl p-4 sticky top-8 bg-white border border-gray-200">
+            <div className={`rounded-2xl p-4 sticky top-8 ${
+              theme === 'dark'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-200'
+            } border`}>
               <nav className="space-y-1">
                 {sections.map((section) => {
                   const isActive = activeSection === section.id;
@@ -462,32 +495,52 @@ export default function EditKYC() {
                       onClick={() => setActiveSection(section.id)}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors ${
                         isActive
-                          ? 'bg-blue-50 text-blue-600'
+                          ? theme === 'dark'
+                            ? 'bg-gray-700 text-blue-400'
+                            : 'bg-blue-50 text-blue-600'
                           : isCompleted
-                          ? 'text-green-600 hover:bg-gray-50'
-                          : 'text-gray-600 hover:bg-gray-50'
+                          ? theme === 'dark'
+                            ? 'text-green-400 hover:bg-gray-700'
+                            : 'text-green-600 hover:bg-gray-50'
+                          : theme === 'dark'
+                            ? 'text-gray-300 hover:bg-gray-700'
+                            : 'text-gray-600 hover:bg-gray-50'
                       }`}
                     >
-                      <section.icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-400'}`} />
+                      <section.icon className={`w-5 h-5 ${
+                        isActive 
+                          ? theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                          : isCompleted
+                          ? 'text-green-500'
+                          : theme === 'dark' ? 'text-gray-400' : 'text-gray-400'
+                      }`} />
                       <span className="font-medium">{section.title}</span>
                       {isCompleted && (
-                        <FaCheckCircle className="w-4 h-4 text-green-600 ml-auto" />
+                        <FaCheckCircle className="w-4 h-4 text-green-500 ml-auto" />
                       )}
                     </button>
                   );
                 })}
               </nav>
               
-              <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className={`mt-6 pt-6 border-t ${
+                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+              }`}>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Completion Status</span>
-                  <span className="font-medium text-blue-600">
+                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>
+                    Completion Status
+                  </span>
+                  <span className={theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}>
                     {Math.round((completedSections.length / sections.length) * 100)}%
                   </span>
                 </div>
-                <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className={`mt-2 h-2 ${
+                  theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                } rounded-full overflow-hidden`}>
                   <div
-                    className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                    className={`h-full ${
+                      theme === 'dark' ? 'bg-blue-500' : 'bg-blue-600'
+                    } rounded-full transition-all duration-500`}
                     style={{ width: `${(completedSections.length / sections.length) * 100}%` }}
                   ></div>
                 </div>
@@ -495,20 +548,28 @@ export default function EditKYC() {
             </div>
           </div>
 
-          {/* Main Content */}
+          {/* Main Content Area */}
           <div className="flex-1">
             <div className="space-y-6">
               {/* Back Button and Title */}
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => router.push('/kyc')}
-                  className="p-2 hover:bg-white rounded-xl transition-colors"
+                  className={`p-2 rounded-xl transition-colors ${
+                    theme === 'dark'
+                      ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200'
+                      : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  <FaArrowLeft className="w-5 h-5 text-gray-500" />
+                  <FaArrowLeft className="w-5 h-5" />
                 </button>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Edit KYC Information</h1>
-                  <p className="text-gray-500 mt-1">Update your personal and identity information</p>
+                  <h1 className={`text-2xl font-bold ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>Edit KYC Information</h1>
+                  <p className={
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                  }>Update your personal and identity information</p>
                 </div>
               </div>
 
@@ -521,12 +582,19 @@ export default function EditKYC() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="rounded-2xl p-6 md:p-8 bg-white border border-gray-200"
+                      className={`rounded-2xl p-6 md:p-8 border ${
+                        theme === 'dark'
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-white border-gray-200'
+                      }`}
                     >
+                      {/* Personal Details Form */}
                       <div className="space-y-6">
                         {/* Profile Image */}
                         <div className="flex items-center gap-6">
-                          <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gray-100">
+                          <div className={`relative w-24 h-24 rounded-full overflow-hidden ${
+                            theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                          }`}>
                             {kycData.personalDetails.employeeImage ? (
                               <Image
                                 src={kycData.personalDetails.employeeImage}
@@ -535,7 +603,9 @@ export default function EditKYC() {
                                 className="object-cover"
                               />
                             ) : (
-                              <FaUser className="w-full h-full p-4 text-gray-400" />
+                              <FaUser className={`w-full h-full p-4 ${
+                                theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                              }`} />
                             )}
                           </div>
                         </div>
@@ -543,20 +613,28 @@ export default function EditKYC() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Employee ID */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Employee ID
                             </label>
                             <input
                               type="text"
                               value={kycData.personalDetails.employeeId}
                               disabled
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Project Name */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Project Name
                             </label>
                             <input
@@ -571,13 +649,19 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Full Name */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Full Name *
                             </label>
                             <input
@@ -593,13 +677,19 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Father&apos;s Name */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Father&apos;s Name
                             </label>
                             <input
@@ -614,13 +704,19 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Mother&apos;s Name */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Mother&apos;s Name
                             </label>
                             <input
@@ -635,13 +731,19 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Gender */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Gender *
                             </label>
                             <select
@@ -656,7 +758,11 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             >
                               <option value="">Select Gender</option>
                               <option value="Male">Male</option>
@@ -667,7 +773,9 @@ export default function EditKYC() {
 
                           {/* Date of Birth */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Date of Birth *
                             </label>
                             <input
@@ -683,13 +791,19 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Phone Number */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Phone Number *
                             </label>
                             <input
@@ -705,13 +819,19 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Email */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Email *
                             </label>
                             <input
@@ -727,13 +847,19 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Designation */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Designation *
                             </label>
                             <input
@@ -749,13 +875,19 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Date of Joining */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Date of Joining
                             </label>
                             <input
@@ -770,13 +902,19 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Additional Fields */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Nationality
                             </label>
                             <input
@@ -791,13 +929,19 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Religion */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Religion
                             </label>
                             <input
@@ -812,13 +956,19 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Marital Status */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Marital Status
                             </label>
                             <select
@@ -832,7 +982,11 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             >
                               <option value="">Select Status</option>
                               <option value="Single">Single</option>
@@ -844,7 +998,9 @@ export default function EditKYC() {
 
                           {/* Blood Group */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Blood Group
                             </label>
                             <input
@@ -859,13 +1015,19 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Work Type */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Work Type
                             </label>
                             <select
@@ -879,7 +1041,11 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             >
                               <option value="">Select Work Type</option>
                               <option value="office">Office</option>
@@ -890,7 +1056,9 @@ export default function EditKYC() {
 
                           {/* Experience */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Experience
                             </label>
                             <input
@@ -905,13 +1073,19 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           {/* Educational Qualification */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Educational Qualification
                             </label>
                             <input
@@ -926,14 +1100,20 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
                         </div>
 
                         {/* Languages */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className={`block text-sm font-medium ${
+                            theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                          } mb-2`}>
                             Languages
                           </label>
                           <div className="flex flex-wrap gap-2">
@@ -957,7 +1137,11 @@ export default function EditKYC() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="rounded-2xl p-6 md:p-8 bg-white border border-gray-200"
+                      className={`rounded-2xl p-6 md:p-8 border ${
+                        theme === 'dark'
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-white border-gray-200'
+                      }`}
                     >
                       {/* Permanent Address */}
                       <div className="mb-8">
@@ -967,7 +1151,9 @@ export default function EditKYC() {
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Street *
                             </label>
                             <input
@@ -986,12 +1172,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               City *
                             </label>
                             <input
@@ -1010,12 +1202,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               State *
                             </label>
                             <input
@@ -1034,12 +1232,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Postal Code *
                             </label>
                             <input
@@ -1058,7 +1262,11 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
                         </div>
@@ -1072,7 +1280,9 @@ export default function EditKYC() {
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Street *
                             </label>
                             <input
@@ -1091,12 +1301,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               City *
                             </label>
                             <input
@@ -1115,12 +1331,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               State *
                             </label>
                             <input
@@ -1139,12 +1361,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Postal Code *
                             </label>
                             <input
@@ -1163,7 +1391,11 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
                         </div>
@@ -1177,7 +1409,11 @@ export default function EditKYC() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="rounded-2xl p-6 md:p-8 bg-white border border-gray-200"
+                      className={`rounded-2xl p-6 md:p-8 border ${
+                        theme === 'dark'
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-white border-gray-200'
+                      }`}
                     >
                       <div className="space-y-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -1186,7 +1422,9 @@ export default function EditKYC() {
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Bank Name *
                             </label>
                             <input
@@ -1202,12 +1440,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Branch Name *
                             </label>
                             <input
@@ -1223,12 +1467,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Account Number *
                             </label>
                             <input
@@ -1244,12 +1494,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               IFSC Code *
                             </label>
                             <input
@@ -1265,7 +1521,11 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
                         </div>
@@ -1279,7 +1539,11 @@ export default function EditKYC() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="rounded-2xl p-6 md:p-8 bg-white border border-gray-200"
+                      className={`rounded-2xl p-6 md:p-8 border ${
+                        theme === 'dark'
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-white border-gray-200'
+                      }`}
                     >
                       <div className="space-y-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -1288,7 +1552,9 @@ export default function EditKYC() {
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Contact Name *
                             </label>
                             <input
@@ -1304,12 +1570,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Phone Number *
                             </label>
                             <input
@@ -1325,12 +1597,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Relationship *
                             </label>
                             <input
@@ -1346,12 +1624,18 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               Aadhar Number
                             </label>
                             <input
@@ -1366,7 +1650,11 @@ export default function EditKYC() {
                                   },
                                 })
                               }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
                         </div>
@@ -1380,7 +1668,11 @@ export default function EditKYC() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="rounded-2xl p-6 md:p-8 bg-white border border-gray-200"
+                      className={`rounded-2xl p-6 md:p-8 border ${
+                        theme === 'dark'
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-white border-gray-200'
+                      }`}
                     >
                       <div className="space-y-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -1391,7 +1683,9 @@ export default function EditKYC() {
                         {/* Identification Details */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               ID Type *
                             </label>
                             <select
@@ -1406,7 +1700,11 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             >
                               <option value="">Select ID Type</option>
                               <option value="Aadhar">Aadhar</option>
@@ -1417,7 +1715,9 @@ export default function EditKYC() {
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                            } mb-2`}>
                               ID Number *
                             </label>
                             <input
@@ -1433,7 +1733,11 @@ export default function EditKYC() {
                                 })
                               }
                               required
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                              className={`w-full px-4 py-2 rounded-lg border ${
+                                theme === 'dark'
+                                  ? 'bg-gray-700 border-gray-600 text-gray-200'
+                                  : 'bg-gray-50 border-gray-300 text-gray-900'
+                              }`}
                             />
                           </div>
                         </div>
@@ -1490,7 +1794,11 @@ export default function EditKYC() {
                         setActiveSection(sections[currentIndex - 1].id);
                       }
                     }}
-                    className="px-6 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    className={`px-6 py-2 transition-colors ${
+                      theme === 'dark'
+                        ? 'text-gray-400 hover:text-gray-200'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
                     disabled={activeSection === sections[0].id}
                   >
                     Previous
@@ -1501,7 +1809,11 @@ export default function EditKYC() {
                       <button
                         type="button"
                         onClick={handleNextSection}
-                        className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                        className={`px-8 py-3 rounded-xl text-white font-medium transition-all ${
+                          theme === 'dark'
+                            ? 'bg-blue-600 hover:bg-blue-700'
+                            : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
                       >
                         Next
                       </button>
@@ -1511,8 +1823,12 @@ export default function EditKYC() {
                         disabled={saving}
                         className={`px-8 py-3 rounded-xl text-white font-medium transition-all ${
                           saving
-                            ? 'bg-blue-400 cursor-not-allowed'
-                            : 'bg-blue-600 hover:bg-blue-700'
+                            ? theme === 'dark'
+                              ? 'bg-blue-500/50 cursor-not-allowed'
+                              : 'bg-blue-400 cursor-not-allowed'
+                            : theme === 'dark'
+                              ? 'bg-blue-600 hover:bg-blue-700'
+                              : 'bg-blue-600 hover:bg-blue-700'
                         }`}
                       >
                         {saving ? (
@@ -1539,7 +1855,11 @@ export default function EditKYC() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="flex items-center gap-3 text-red-600 bg-red-50 p-4 rounded-xl"
+                    className={`flex items-center gap-3 p-4 rounded-xl ${
+                      theme === 'dark'
+                        ? 'bg-red-900/50 text-red-300 border border-red-800'
+                        : 'bg-red-50 text-red-600 border border-red-100'
+                    }`}
                   >
                     <FaExclamationCircle className="w-5 h-5 flex-shrink-0" />
                     <p className="text-sm font-medium">{error}</p>
@@ -1551,7 +1871,11 @@ export default function EditKYC() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="flex items-center gap-3 text-green-600 bg-green-50 p-4 rounded-xl"
+                    className={`flex items-center gap-3 p-4 rounded-xl ${
+                      theme === 'dark'
+                        ? 'bg-green-900/50 text-green-300 border border-green-800'
+                        : 'bg-green-50 text-green-600 border border-green-100'
+                    }`}
                   >
                     <FaCheckCircle className="w-5 h-5 flex-shrink-0" />
                     <p className="text-sm font-medium">{success}</p>
