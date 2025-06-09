@@ -6,6 +6,7 @@ import { isAuthenticated, getEmployeeId } from '@/services/auth';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import Image from 'next/image';
+import { useTheme } from "@/context/ThemeContext";
 
 // Camera Modal Component
 const CameraModal = ({ isOpen, onClose, onCapture }: { isOpen: boolean; onClose: () => void; onCapture: (photo: string) => void }) => {
@@ -209,7 +210,7 @@ function MarkAttendanceContent() {
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
-  // const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -310,7 +311,11 @@ function MarkAttendanceContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl shadow-xl p-8 mb-8 text-white">
+      <div className={`rounded-2xl shadow-xl p-8 mb-8 ${
+        theme === 'dark'
+          ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+          : 'bg-gradient-to-r from-blue-600 to-blue-800'
+      }`}>
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl">
@@ -344,12 +349,22 @@ function MarkAttendanceContent() {
       {/* Main Content Grid */}
       <div className="grid md:grid-cols-2 gap-8">
         {/* Photo Section */}
-        <div className="rounded-xl shadow-lg border border-gray-200 p-8 bg-white">
-          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <FaCamera className="text-blue-600" />
+        <div className={`rounded-xl shadow-lg p-8 ${
+          theme === 'dark'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-200'
+        } border`}>
+          <h3 className={`text-xl font-bold mb-6 flex items-center gap-2 ${
+            theme === 'dark' ? 'text-white' : 'text-gray-800'
+          }`}>
+            <FaCamera className="text-blue-500" />
             Photo Verification
           </h3>
-          <div className="bg-white rounded-xl p-8 border-2 border-dashed border-blue-200 shadow-md">
+          <div className={`rounded-xl p-8 border-2 border-dashed ${
+            theme === 'dark'
+              ? 'bg-gray-800 border-gray-600'
+              : 'bg-white border-blue-200'
+          } shadow-md`}>
             <div className="flex flex-col items-center justify-center">
               {photoPreview ? (
                 <div className="relative group">
@@ -374,17 +389,29 @@ function MarkAttendanceContent() {
                 <div className="text-center">
                   <div className="relative mb-6">
                     <div className="absolute inset-0 bg-blue-200 rounded-full blur-xl opacity-20"></div>
-                    <div className="relative bg-gradient-to-br from-blue-500 to-blue-600 rounded-full p-8 inline-block shadow-xl">
+                    <div className={`relative rounded-full p-8 inline-block shadow-xl ${
+                      theme === 'dark'
+                        ? 'bg-gradient-to-br from-blue-600 to-blue-700'
+                        : 'bg-gradient-to-br from-blue-500 to-blue-600'
+                    }`}>
                       <FaCamera className="h-16 w-16 text-white" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-3">Ready to Capture</h3>
-                  <p className="text-gray-600 mb-8">
+                  <h3 className={`text-xl font-bold mb-3 ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-800'
+                  }`}>Ready to Capture</h3>
+                  <p className={`mb-8 ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                  }`}>
                     Please ensure you&apos;re in a well-lit area and facing the camera directly
                   </p>
                   <button
                     onClick={() => setShowCameraModal(true)}
-                    className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-4 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                    className={`inline-flex items-center gap-2 px-8 py-4 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 ${
+                      theme === 'dark'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700'
+                        : 'bg-gradient-to-r from-blue-600 to-blue-700'
+                    } text-white`}
                   >
                     <FaCamera className="w-5 h-5" />
                     <span>Start Camera</span>
@@ -396,19 +423,29 @@ function MarkAttendanceContent() {
         </div>
 
         {/* Status and Action Section */}
-        <div className="rounded-xl shadow-lg border border-gray-200 p-8 bg-white">
-          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <FaMapMarkerAlt className="text-blue-600" />
+        <div className={`rounded-xl shadow-lg p-8 ${
+          theme === 'dark'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-200'
+        } border`}>
+          <h3 className={`text-xl font-bold mb-6 flex items-center gap-2 ${
+            theme === 'dark' ? 'text-white' : 'text-gray-800'
+          }`}>
+            <FaMapMarkerAlt className="text-blue-500" />
             Location Verification
           </h3>
           
           <div className="space-y-6">
-            <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-              <p className="text-gray-700 mb-2">
-                <FaInfoCircle className="inline mr-2 text-blue-600" />
+            <div className={`p-4 rounded-xl border ${
+              theme === 'dark'
+                ? 'bg-gray-700 border-gray-600'
+                : 'bg-gray-50 border-gray-100'
+            }`}>
+              <p className={`mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                <FaInfoCircle className="inline mr-2 text-blue-500" />
                 Your device&apos;s location will be verified against your registered office location
               </p>
-              <p className="text-sm text-gray-600">
+              <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
                 Please ensure your device&apos;s location services are enabled
               </p>
             </div>
@@ -427,8 +464,12 @@ function MarkAttendanceContent() {
               disabled={markingAttendance || !photoPreview}
               className={`w-full flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-medium transition-all duration-200 shadow-lg ${
                 markingAttendance || !photoPreview
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-xl transform hover:scale-105'
+                  ? theme === 'dark'
+                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : theme === 'dark'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-xl transform hover:scale-105'
+                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-xl transform hover:scale-105'
               }`}
             >
               {markingAttendance ? (

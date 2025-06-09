@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import AttendanceReport from '../components/AttendanceReport';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { getEmployeeId, isAuthenticated } from '@/services/auth';
+import { useTheme } from "@/context/ThemeContext";
 
 interface AttendanceRecord {
   _id: string;
@@ -29,6 +30,7 @@ const AttendancePage = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [employeeId, setEmployeeId] = useState<string>('');
+  const { theme } = useTheme();
 
   const fetchAttendanceData = useCallback(async () => {
     setLoading(true);
@@ -116,6 +118,7 @@ const AttendancePage = () => {
         fetchReportData={fetchAttendanceData}
         formatDate={formatDate}
         employeeId={employeeId}
+        theme={theme}
       />
     </DashboardLayout>
   );

@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getEmployeeId } from "@/services/auth";
 import { motion, AnimatePresence } from "framer-motion";
-// import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "@/context/ThemeContext";
 
 interface DocumentUpload {
   type: "aadhar" | "pan" | "passport" | "photo";
@@ -66,6 +66,7 @@ const documentInfo = {
 
 export default function UploadDocuments() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [documents, setDocuments] = useState<Record<string, DocumentUpload>>({
     aadhar: {
       type: "aadhar",
@@ -272,7 +273,11 @@ export default function UploadDocuments() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="relative bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 border border-gray-200"
+        className={`relative rounded-xl shadow-sm overflow-hidden border ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700 hover:border-gray-600"
+            : "bg-white border-gray-200 hover:border-gray-300"
+        } transition-all duration-300`}
       >
         {required && (
           <div className="absolute top-3 right-3 z-10">
@@ -400,16 +405,22 @@ export default function UploadDocuments() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className={`h-screen flex flex-col ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"}`}>
       {/* KYC Upload Title Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-400 rounded-b-2xl shadow p-6">
+      <div className={`rounded-b-2xl shadow p-6 ${
+        theme === "dark"
+          ? "bg-gradient-to-r from-gray-800 to-gray-700"
+          : "bg-gradient-to-r from-blue-600 to-blue-400"
+      }`}>
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+          <div className={`p-3 ${
+            theme === "dark" ? "bg-gray-700/50" : "bg-white/20"
+          } backdrop-blur-sm rounded-xl`}>
             <FaUpload className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">KYC Document Upload</h1>
-            <p className="text-blue-100 mt-1">
+            <h1 className="text-3xl font-bold text-white">KYC Document Upload</h1>
+            <p className={theme === "dark" ? "text-gray-300" : "text-blue-100"}>
               Submit and verify your identity documents securely
             </p>
           </div>
@@ -421,21 +432,29 @@ export default function UploadDocuments() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl shadow-sm overflow-hidden mb-6 border border-gray-200"
+          className={`rounded-xl shadow-sm overflow-hidden mb-6 border ${
+            theme === "dark" 
+              ? "bg-gray-800 border-gray-700" 
+              : "bg-white border-gray-200"
+          }`}
         >
           <div className="p-6">
             <div className="flex items-start gap-4 mb-6">
               <button
                 onClick={() => router.push("/kyc")}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+                className={`p-2 rounded-lg transition-colors ${
+                  theme === "dark"
+                    ? "hover:bg-gray-700 text-gray-400 hover:text-gray-200"
+                    : "hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+                }`}
               >
                 <FaArrowLeft className="w-4 h-4" />
               </button>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900 mb-1">
-                  Document Verification
-                </h1>
-                <p className="text-sm text-gray-600">
+                <h1 className={`text-xl font-semibold mb-1 ${
+                  theme === "dark" ? "text-white" : "text-gray-900"
+                }`}>Document Verification</h1>
+                <p className={theme === "dark" ? "text-gray-400" : "text-gray-600"}>
                   Complete your KYC by uploading the required documents
                 </p>
               </div>
@@ -449,39 +468,35 @@ export default function UploadDocuments() {
                   className="flex items-center flex-1 last:flex-none"
                 >
                   <div className="flex flex-col items-center relative">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        step.status === "completed"
-                          ? "bg-green-500"
-                          : step.status === "current"
-                          ? "bg-blue-600"
-                          : "bg-gray-200"
-                      } text-white font-semibold transition-colors duration-300`}
-                    >
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      step.status === "completed"
+                        ? "bg-green-500"
+                        : step.status === "current"
+                        ? theme === "dark" ? "bg-blue-500" : "bg-blue-600"
+                        : theme === "dark" ? "bg-gray-700" : "bg-gray-200"
+                    } text-white font-semibold transition-colors duration-300`}>
                       {step.status === "completed" ? (
                         <FaCheckCircle className="w-5 h-5" />
                       ) : (
                         step.id
                       )}
                     </div>
-                    <p
-                      className={`text-sm font-medium mt-3 ${
-                        step.status === "completed"
-                          ? "text-green-600"
-                          : step.status === "current"
-                          ? "text-blue-600"
-                          : "text-gray-500"
-                      }`}
-                    >
+                    <p className={`text-sm font-medium mt-3 ${
+                      step.status === "completed"
+                        ? "text-green-500"
+                        : step.status === "current"
+                        ? theme === "dark" ? "text-blue-400" : "text-blue-600"
+                        : theme === "dark" ? "text-gray-400" : "text-gray-500"
+                    }`}>
                       {step.title}
                     </p>
                   </div>
                   {index !== steps.length - 1 && (
-                    <div
-                      className={`h-0.5 flex-1 mx-4 ${
-                        step.status === "completed" ? "bg-green-500" : "bg-gray-200"
-                      }`}
-                    />
+                    <div className={`h-0.5 flex-1 mx-4 ${
+                      step.status === "completed" 
+                        ? "bg-green-500" 
+                        : theme === "dark" ? "bg-gray-700" : "bg-gray-200"
+                    }`} />
                   )}
                 </div>
               ))}
@@ -489,6 +504,7 @@ export default function UploadDocuments() {
           </div>
         </motion.div>
 
+        {/* Update DocumentUploadCard component within the same file */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Panel - Instructions */}
           <motion.div
@@ -496,12 +512,22 @@ export default function UploadDocuments() {
             animate={{ opacity: 1, x: 0 }}
             className="lg:col-span-4"
           >
-            <div className="bg-white rounded-xl p-6 sticky top-8 border border-gray-200">
+            <div className={`rounded-xl p-6 sticky top-8 border ${
+            theme === 'dark' 
+              ? 'bg-gray-800 border-gray-700' 
+              : 'bg-white border-gray-200'
+          }`}>
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <FaInfoCircle className="w-5 h-5 text-blue-600" />
+                <div className={`p-2 rounded-lg ${
+                theme === 'dark' 
+                  ? 'bg-blue-900/50 text-blue-400' 
+                  : 'bg-blue-50 text-blue-600'
+              }`}>
+                  <FaInfoCircle className="w-5 h-5" />
                 </div>
-                <h2 className="text-lg font-semibold text-gray-900">
+                <h2 className={`text-lg font-semibold ${
+                theme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`}>
                   Guidelines
                 </h2>
               </div>
@@ -516,22 +542,32 @@ export default function UploadDocuments() {
                       transition={{ delay: index * 0.1 }}
                       className="flex items-start gap-3 group"
                     >
-                      <div className="p-2 rounded-lg bg-green-50 text-green-600 group-hover:bg-green-100 transition-colors">
+                      <div className={`p-2 rounded-lg transition-colors ${
+                      theme === 'dark'
+                        ? 'bg-green-900/50 text-green-400 group-hover:bg-green-900/70'
+                        : 'bg-green-50 text-green-600 group-hover:bg-green-100'
+                    }`}>
                         <FaCheckCircle className="w-4 h-4" />
                       </div>
-                      <p className="text-sm text-gray-600 leading-relaxed">
+                      <p className={`text-sm leading-relaxed ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                    }`}>
                         {guideline}
                       </p>
                     </motion.div>
                   ))}
                 </div>
 
-                <div className="mt-8 p-6 bg-amber-50 rounded-xl border border-amber-100">
-                  <div className="flex items-center gap-3 text-amber-700 mb-3">
+                <div className={`mt-8 p-6 rounded-xl border ${
+                theme === 'dark'
+                  ? 'bg-amber-900/20 border-amber-900/50 text-amber-300'
+                  : 'bg-amber-50 border-amber-100 text-amber-700'
+              }`}>
+                  <div className="flex items-center gap-3 mb-3">
                     <FaQuestionCircle className="w-5 h-5" />
                     <h3 className="font-semibold">Need Assistance?</h3>
                   </div>
-                  <p className="text-sm text-amber-700 leading-relaxed">
+                  <p className="text-sm leading-relaxed">
                     Having trouble with document upload? Our support team is here
                     to help at{" "}
                     <span className="font-medium">support@zenployee.com</span>

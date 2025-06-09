@@ -96,33 +96,33 @@ const HelpDeskPage = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Open': return 'bg-yellow-100 text-yellow-800';
-      case 'In Progress': return 'bg-blue-100 text-blue-800';
-      case 'Resolved': return 'bg-green-100 text-green-800';
-      case 'Closed': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'Open': return 'dark:bg-yellow-900 dark:text-yellow-200 bg-yellow-100 text-yellow-800';
+      case 'In Progress': return 'dark:bg-blue-900 dark:text-blue-200 bg-blue-100 text-blue-800';
+      case 'Resolved': return 'dark:bg-green-900 dark:text-green-200 bg-green-100 text-green-800';
+      case 'Closed': return 'dark:bg-gray-800 dark:text-gray-200 bg-gray-100 text-gray-800';
+      default: return 'dark:bg-gray-800 dark:text-gray-200 bg-gray-100 text-gray-800';
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'Urgent': return 'bg-red-100 text-red-800';
-      case 'High': return 'bg-orange-100 text-orange-800';
-      case 'Medium': return 'bg-blue-100 text-blue-800';
-      case 'Low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'Urgent': return 'dark:bg-red-900 dark:text-red-200 bg-red-100 text-red-800';
+      case 'High': return 'dark:bg-orange-900 dark:text-orange-200 bg-orange-100 text-orange-800';
+      case 'Medium': return 'dark:bg-blue-900 dark:text-blue-200 bg-blue-100 text-blue-800';
+      case 'Low': return 'dark:bg-green-900 dark:text-green-200 bg-green-100 text-green-800';
+      default: return 'dark:bg-gray-800 dark:text-gray-200 bg-gray-100 text-gray-800';
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 relative">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 relative">
       {/* Upcoming Feature Overlay */}
-      <div className="absolute inset-0 bg-gray-900/70 backdrop-blur-sm flex items-center justify-center z-50">
-        <div className="bg-white p-8 rounded-lg shadow-xl text-center max-w-md mx-4">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Coming Soon!</h2>
-          <p className="text-gray-600">
-  Our help desk feature is currently under development. We&#39;re working hard to bring you a seamless support experience.
-</p>
+      <div className="absolute inset-0 bg-gray-900/70 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl text-center max-w-md mx-4">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Coming Soon!</h2>
+          <p className="text-gray-600 dark:text-gray-300">
+            Our help desk feature is currently under development. We&#39;re working hard to bring you a seamless support experience.
+          </p>
 
           <div className="mt-6 inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-medium">
             Launching Soon
@@ -133,12 +133,12 @@ const HelpDeskPage = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Help Desk</h1>
-          <p className="mt-2 text-gray-600">Manage and track your support tickets</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Help Desk</h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-300">Manage and track your support tickets</p>
         </div>
 
         {/* Actions Bar */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-4 rounded-lg shadow-sm">
+        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
           <div className="flex-1 w-full sm:w-auto">
             <div className="relative">
               <input
@@ -146,7 +146,7 @@ const HelpDeskPage = () => {
                 placeholder="Search tickets..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             </div>
@@ -155,7 +155,7 @@ const HelpDeskPage = () => {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 dark:text-white"
             >
               <option value="all">All Status</option>
               <option value="Open">Open</option>
@@ -174,21 +174,21 @@ const HelpDeskPage = () => {
         </div>
 
         {/* Tickets List */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
           <div className="min-w-full">
             <div className="grid grid-cols-1 gap-4 p-4">
               {filteredTickets.map((ticket) => (
                 <div
                   key={ticket.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow duration-200 dark:bg-gray-700"
                 >
                   <div className="flex flex-wrap gap-4 justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-gray-900">{ticket.subject}</h3>
-                        <span className="text-sm text-gray-500">#{ticket.id}</span>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{ticket.subject}</h3>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">#{ticket.id}</span>
                       </div>
-                      <p className="mt-2 text-gray-600">{ticket.description}</p>
+                      <p className="mt-2 text-gray-600 dark:text-gray-300">{ticket.description}</p>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(ticket.status)}`}>
                           {ticket.status}
@@ -201,7 +201,7 @@ const HelpDeskPage = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="text-right text-sm text-gray-500">
+                    <div className="text-right text-sm text-gray-500 dark:text-gray-400">
                       <div>Created: {new Date(ticket.createdAt).toLocaleDateString()}</div>
                       <div>Updated: {new Date(ticket.updatedAt).toLocaleDateString()}</div>
                     </div>
@@ -209,7 +209,7 @@ const HelpDeskPage = () => {
                 </div>
               ))}
               {filteredTickets.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   No tickets found matching your criteria
                 </div>
               )}
@@ -330,4 +330,4 @@ const HelpDeskPage = () => {
   );
 };
 
-export default HelpDeskPage; 
+export default HelpDeskPage;

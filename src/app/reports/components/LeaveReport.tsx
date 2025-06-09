@@ -3,6 +3,7 @@ import { FaFileExcel, FaFilePdf, FaChevronLeft, FaCalendarAlt, } from 'react-ico
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useTheme } from "@/context/ThemeContext";
 
 interface LeaveBalance {
   EL: number;
@@ -72,6 +73,7 @@ const LeaveReport: React.FC<LeaveReportProps> = ({
   handleBack,
   formatDate,
 }) => {
+  const { theme } = useTheme();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   const downloadExcel = () => {
@@ -192,7 +194,11 @@ const LeaveReport: React.FC<LeaveReportProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-8 rounded-xl shadow-lg">
+      <div className={`rounded-xl shadow-lg p-8 ${
+        theme === 'dark'
+          ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+          : 'bg-gradient-to-r from-blue-600 to-blue-800'
+      }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
@@ -216,32 +222,54 @@ const LeaveReport: React.FC<LeaveReportProps> = ({
       {/* Leave Balance Cards */}
       {leaveData && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-purple-50 p-4 rounded-xl">
-            <div className="text-purple-600 text-sm font-medium">Earned Leave (EL)</div>
-            <div className="text-2xl font-bold text-purple-800">{leaveData.leaveBalances.EL}</div>
+          <div className={`rounded-xl p-4 ${
+            theme === 'dark' ? 'bg-gray-800 text-purple-300' : 'bg-purple-50 text-purple-600'
+          }`}>
+            <div className="text-sm font-medium">Earned Leave (EL)</div>
+            <div className={`text-2xl font-bold ${
+              theme === 'dark' ? 'text-purple-200' : 'text-purple-800'
+            }`}>{leaveData.leaveBalances.EL}</div>
           </div>
-          <div className="bg-blue-50 p-4 rounded-xl">
-            <div className="text-blue-600 text-sm font-medium">Casual Leave (CL)</div>
-            <div className="text-2xl font-bold text-blue-800">{leaveData.leaveBalances.CL}</div>
+          <div className={`rounded-xl p-4 ${
+            theme === 'dark' ? 'bg-gray-800 text-blue-300' : 'bg-blue-50 text-blue-600'
+          }`}>
+            <div className="text-sm font-medium">Casual Leave (CL)</div>
+            <div className={`text-2xl font-bold ${
+              theme === 'dark' ? 'text-blue-200' : 'text-blue-800'
+            }`}>{leaveData.leaveBalances.CL}</div>
           </div>
-          <div className="bg-green-50 p-4 rounded-xl">
-            <div className="text-green-600 text-sm font-medium">Sick Leave (SL)</div>
-            <div className="text-2xl font-bold text-green-800">{leaveData.leaveBalances.SL}</div>
+          <div className={`rounded-xl p-4 ${
+            theme === 'dark' ? 'bg-gray-800 text-green-300' : 'bg-green-50 text-green-600'
+          }`}>
+            <div className="text-sm font-medium">Sick Leave (SL)</div>
+            <div className={`text-2xl font-bold ${
+              theme === 'dark' ? 'text-green-200' : 'text-green-800'
+            }`}>{leaveData.leaveBalances.SL}</div>
           </div>
-          <div className="bg-orange-50 p-4 rounded-xl">
-            <div className="text-orange-600 text-sm font-medium">Comp Off</div>
-            <div className="text-2xl font-bold text-orange-800">{leaveData.leaveBalances.CompOff}</div>
+          <div className={`rounded-xl p-4 ${
+            theme === 'dark' ? 'bg-gray-800 text-orange-300' : 'bg-orange-50 text-orange-600'
+          }`}>
+            <div className="text-sm font-medium">Comp Off</div>
+            <div className={`text-2xl font-bold ${
+              theme === 'dark' ? 'text-orange-200' : 'text-orange-800'
+            }`}>{leaveData.leaveBalances.CompOff}</div>
           </div>
         </div>
       )}
 
       {/* Filters and Actions */}
-      <div className="flex flex-wrap gap-4 items-center justify-between p-4 bg-gray-50 rounded-xl">
+      <div className={`flex flex-wrap gap-4 items-center justify-between p-4 rounded-xl ${
+        theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'
+      }`}>
         <div className="flex gap-4">
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="px-4 py-2 border rounded-lg appearance-none bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+            className={`px-4 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              theme === 'dark'
+                ? 'bg-gray-700 border-gray-600 text-gray-200'
+                : 'bg-white border-gray-200 text-gray-900'
+            }`}
           >
             {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((year) => (
               <option key={year} value={year}>{year}</option>
@@ -270,38 +298,74 @@ const LeaveReport: React.FC<LeaveReportProps> = ({
       {/* Leave History Table */}
       {loading ? (
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <div className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 ${
+            theme === 'dark' ? 'border-blue-400' : 'border-blue-500'
+          }`}></div>
         </div>
       ) : leaveData?.leaveHistory && leaveData.leaveHistory.length > 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className={`rounded-xl shadow-sm overflow-hidden border ${
+          theme === 'dark'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-200'
+        }`}>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className={theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applied On</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  }`}>
+                    Leave Type
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  }`}>
+                    Duration
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  }`}>
+                    Days
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  }`}>
+                    Reason
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  }`}>
+                    Applied On
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  }`}>
+                    Status
+                  </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className={`divide-y ${
+                theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'
+              }`}>
                 {leaveData.leaveHistory.map((record) => (
-                  <tr key={record.leaveId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <tr key={record.leaveId} className={
+                    theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                  }>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                      theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                    }`}>
                       {record.leaveType}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-500`}>
                       {formatDate(record.startDate)} - {formatDate(record.endDate)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-500`}>
                       {record.numberOfDays} {record.isHalfDay && '(Half Day)'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                       {record.reason}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-500`}>
                       {formatDate(record.appliedOn)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -316,8 +380,10 @@ const LeaveReport: React.FC<LeaveReportProps> = ({
           </div>
         </div>
       ) : (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <p className="text-gray-500">No leave records found for the selected year</p>
+        <div className={`text-center py-12 rounded-xl ${
+          theme === 'dark' ? 'bg-gray-800 text-gray-400' : 'bg-gray-50 text-gray-500'
+        }`}>
+          <p>No leave records found for the selected year</p>
         </div>
       )}
     </div>

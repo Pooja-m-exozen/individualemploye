@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaFileExcel, FaFilePdf, FaCalendar, FaChevronLeft, FaCalendarAlt, FaCheckCircle, FaTimesCircle, FaPercentage } from 'react-icons/fa';
+import { FaFileExcel, FaFilePdf, FaCalendar, FaChevronLeft,  } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -62,10 +62,11 @@ interface AttendanceReportProps {
     fetchReportData: () => Promise<void>;
     formatDate: (dateString: string) => string;
     employeeId: string;
+    theme: 'light' | 'dark';  // Add this line
 }
 
 const AttendanceReport: React.FC<AttendanceReportProps> = ({
-    loading,
+    // loading,
     attendanceData,
     selectedMonth,
     selectedYear,
@@ -74,11 +75,10 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     handleBack,
     formatDate,
     employeeId,
+    theme
 }) => {
     const [selectedRecord, setSelectedRecord] = useState<RawAttendanceRecord | null>(null);
     const [summary, setSummary] = useState<MonthSummaryResponse['data'] | null>(null);
-    const [summaryLoading, setSummaryLoading] = useState(false);
-    const [summaryError, setSummaryError] = useState<string | null>(null);
     const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
 
     const months = [
@@ -183,7 +183,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         let yPosition = 15;
 
         // First page - Header and Attendance Table
-        doc.addImage("/exozen_logo1.png", 'PNG', 15, yPosition, 25, 8);
+        doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 15, yPosition, 25, 8);
         doc.setFontSize(11);
         doc.setTextColor(41, 128, 185);
         doc.text(`Attendance Report - ${months[selectedMonth - 1]} ${selectedYear}`, 45, yPosition + 4);
@@ -420,8 +420,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
     useEffect(() => {
         if (!employeeId || !selectedMonth || !selectedYear) return;
-        setSummaryLoading(true);
-        setSummaryError(null);
         
         fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${selectedMonth}&year=${selectedYear}`)
           .then(res => res.json())
@@ -430,14 +428,11 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               setSummary(data.data);
             } else {
               setSummary(null);
-              setSummaryError('Failed to fetch summary');
             }
           })
           .catch(() => {
             setSummary(null);
-            setSummaryError('Failed to fetch summary');
-          })
-          .finally(() => setSummaryLoading(false));
+          });
     }, [employeeId, selectedMonth, selectedYear]);
 
     useEffect(() => {
@@ -473,204 +468,157 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     };
 
     return (
-        <div className="space-y-6 bg-white rounded-xl shadow-sm p-6">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-8 rounded-xl shadow-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                  <FaFileExcel className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold">Attendance Report</h1>
-                  <p className="text-blue-100 mt-1">View and download your attendance records</p>
-                </div>
-              </div>
-              <button
-                onClick={handleBack}
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 rounded-lg transition-colors text-white"
-              >
-                <FaChevronLeft className="w-4 h-4" />
-                Back
-              </button>
-            </div>
-          </div>
-
-          {/* Summary Stats */}
-          {summaryLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm animate-pulse">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-gray-200 rounded-lg w-12 h-12"></div>
-                    <div className="space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-20"></div>
-                      <div className="h-6 bg-gray-200 rounded w-16"></div>
+        <div className={`space-y-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm p-6`}>
+            {/* Header */}
+            <div className={`${
+                theme === 'dark' 
+                    ? 'bg-white/10' 
+                    : 'bg-blue-600'
+            } text-white p-8 rounded-xl shadow-lg`}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className={`p-3 ${
+                            theme === 'dark' 
+                                ? 'bg-white/10' 
+                                : 'bg-white/20'
+                        } backdrop-blur-sm rounded-xl`}>
+                            <FaFileExcel className="w-8 h-8 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-bold">Attendance Report</h1>
+                            <p className={`${
+                                theme === 'dark' 
+                                    ? 'text-blue-200' 
+                                    : 'text-blue-100'
+                            } mt-1`}>View and download your attendance records</p>
+                        </div>
                     </div>
-                  </div>
+                    <button
+                        onClick={handleBack}
+                        className={`flex items-center gap-2 px-4 py-2 ${
+                            theme === 'dark'
+                                ? 'bg-white/5 hover:bg-white/10'
+                                : 'bg-white/10 hover:bg-white/20'
+                        } backdrop-blur-sm rounded-lg transition-colors text-white`}
+                    >
+                        <FaChevronLeft className="w-4 h-4" />
+                        Back
+                    </button>
                 </div>
-              ))}
             </div>
-          ) : summaryError ? (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6">
-              <p className="flex items-center gap-2">
-                <FaTimesCircle className="w-5 h-5" />
-                {summaryError}
-              </p>
-            </div>
-          ) : summary && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <FaCalendarAlt className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Present Days</h3>
-                    <p className="text-2xl font-bold text-gray-900">{summary.summary.presentDays + (summary.summary.halfDays / 2)}</p>
-                  </div>
+
+            {/* Filters and Actions */}
+            <div className={`flex flex-wrap gap-4 items-center justify-between p-4 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'} rounded-xl`}>
+                <div className="flex gap-4">
+                    <div className="relative">
+                        <FaCalendar className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`} />
+                        <select
+                            value={selectedMonth}
+                            onChange={(e) => handleMonthChange(parseInt(e.target.value))}
+                            className={`pl-10 pr-4 py-2 border rounded-lg appearance-none ${
+                                            theme === 'dark' 
+                                                ? 'bg-gray-800 border-gray-600 text-gray-200' 
+                                                : 'bg-white border-gray-200 text-gray-900'
+                                        } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                        >
+                          {months.map((month, index) => (
+                            <option key={index + 1} value={index + 1}>{month}</option>
+                          ))}
+                        </select>
+                    </div>
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => handleYearChange(parseInt(e.target.value))}
+                      className="px-4 py-2 border rounded-lg appearance-none bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {years.map((year) => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={downloadExcel}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <FaFileExcel className="w-4 h-4" />
+                    Export Excel
+                  </button>
+                  <button
+                    onClick={downloadPDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    <FaFilePdf className="w-4 h-4" />
+                    Export PDF
+                  </button>
                 </div>
               </div>
 
-              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <FaCheckCircle className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Half Days</h3>
-                    <p className="text-2xl font-bold text-gray-900">{summary.summary.halfDays}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-red-100 rounded-lg">
-                    <FaTimesCircle className="w-6 h-6 text-red-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">LOP Days</h3>
-                    <p className="text-2xl font-bold text-gray-900">{summary.summary.lop}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <FaPercentage className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Attendance Rate</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {((summary.summary.presentDays + (summary.summary.halfDays / 2)) / 
-                        (summary.summary.totalDays - summary.summary.weekOffs - summary.summary.holidays) * 100).toFixed(1)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Filters and Actions */}
-          <div className="flex flex-wrap gap-4 items-center justify-between p-4 bg-gray-50 rounded-xl">
-            <div className="flex gap-4">
-              <div className="relative">
-                <FaCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => handleMonthChange(parseInt(e.target.value))}
-                  className="pl-10 pr-4 py-2 border rounded-lg appearance-none bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {months.map((month, index) => (
-                    <option key={index + 1} value={index + 1}>{month}</option>
-                  ))}
-                </select>
-              </div>
-              <select
-                value={selectedYear}
-                onChange={(e) => handleYearChange(parseInt(e.target.value))}
-                className="px-4 py-2 border rounded-lg appearance-none bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {years.map((year) => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={downloadExcel}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <FaFileExcel className="w-4 h-4" />
-                Export Excel
-              </button>
-              <button
-                onClick={downloadPDF}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <FaFilePdf className="w-4 h-4" />
-                Export PDF
-              </button>
-            </div>
-          </div>
-
-          {/* Attendance Table */}
-          {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          ) : attendanceData.length > 0 ? (
-            <>
-              <div className="overflow-x-auto rounded-xl border border-gray-200">
+            {/* Attendance Table */}
+            <div className={`overflow-x-auto rounded-xl border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}`}>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours Worked</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Date
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Project
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Check In
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Check Out
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Hours Worked
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Day Type
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Status
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Actions
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
                     {attendanceData.map((record: RawAttendanceRecord, index) => (
                       <tr 
                         key={record._id || index}
-                        className="hover:bg-gray-50 transition-colors"
+                        className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           {formatDate(record.date)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           {record.projectName || 'N/A'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           {formatTime(record.punchInTime)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           {formatTime(record.punchOutTime)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           {record.punchInTime && record.punchOutTime ? (
                             record.punchInUtc && record.punchOutUtc ? (
                               formatHoursToHoursAndMinutes(calculateHoursUtc(record.punchInUtc, record.punchOutUtc))
                             ) : 'N/A'
                           ) : 'N/A'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           {record.punchInTime && record.punchOutTime ? (
                             <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               {record.punchInTime && record.punchOutTime ? 'Present' : 'Absent'}
                             </span>
                           ) : 'N/A'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                             (() => {
                                 const dayType = getDayType(record.date, selectedYear, selectedMonth);
@@ -695,7 +643,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             })()}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           <button
                             onClick={() => setSelectedRecord(record)}
                             className="text-blue-600 hover:underline"
@@ -712,7 +660,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               {/* Modal for viewing record details */}
               {selectedRecord && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-                  <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full relative animate-fade-in">
+                  <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-8 max-w-md w-full relative animate-fade-in`}>
                     <button
                       onClick={() => setSelectedRecord(null)}
                       className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl font-bold"
@@ -775,12 +723,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                   </div>
                 </div>
               )}
-            </>
-          ) : (
-            <div className="flex justify-center items-center h-64">
-              <p className="text-gray-500">No attendance records found for the selected period.</p>
-            </div>
-          )}
         </div>
       );
 };

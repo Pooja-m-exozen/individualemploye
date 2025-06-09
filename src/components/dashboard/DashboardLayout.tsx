@@ -9,6 +9,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { logout, isAuthenticated, getUserRole, getEmployeeId } from '@/services/auth';
 import { UserContext } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
+// import getConfig from 'next/config';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -108,10 +109,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    router.replace('/login');
-  };
+const handleLogout = () => {
+  logout(); // your logout function (e.g., clearing tokens or session)
+  router.replace('/login'); // navigate to login screen
+};
+
 
   const toggleMenu = (label: string) => {
     setExpandedMenus(prev => 

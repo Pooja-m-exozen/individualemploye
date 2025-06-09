@@ -20,6 +20,7 @@ import {
 import { isAuthenticated, getEmployeeId } from '@/services/auth';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import { useTheme } from "@/context/ThemeContext";
 
 interface LeaveBalance {
   EL: number;
@@ -106,77 +107,6 @@ const getLeaveTypeLabel = (type: string) => {
   }
 };
 
-// Leave Details Modal
-const LeaveDetailsModal = ({ leave, onClose }: { leave: LeaveHistory; onClose: () => void }) => (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">Leave Request Details</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <FaTimes className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-      <div className="p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="text-sm font-medium text-gray-500">Leave Type</h4>
-            <p className="mt-1 text-base font-medium text-gray-900">{getLeaveTypeLabel(leave.leaveType)}</p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-gray-500">Status</h4>
-            <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              getStatusBadgeClass(leave.status)
-            }`}>
-              {leave.status}
-            </span>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-gray-500">Duration</h4>
-            <p className="mt-1 text-base text-gray-900 flex items-center gap-2">
-              <FaCalendarAlt className="text-gray-400" />
-              {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
-              {leave.isHalfDay && (
-                <span className="ml-2 text-sm text-gray-500">
-                  ({leave.halfDayType} Half)
-                </span>
-              )}
-            </p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-gray-500">Number of Days</h4>
-            <p className="mt-1 text-base text-gray-900">{leave.numberOfDays} day{leave.numberOfDays > 1 ? 's' : ''}</p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-gray-500">Applied On</h4>
-            <p className="mt-1 text-base text-gray-900 flex items-center gap-2">
-              <FaClock className="text-gray-400" />
-              {new Date(leave.appliedOn).toLocaleDateString()}
-            </p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-gray-500">Emergency Contact</h4>
-            <p className="mt-1 text-base text-gray-900">{leave.emergencyContact}</p>
-          </div>
-        </div>
-        <div>
-          <h4 className="text-sm font-medium text-gray-500">Reason</h4>
-          <p className="mt-1 text-base text-gray-900">{leave.reason}</p>
-        </div>
-      </div>
-      <div className="p-6 border-t border-gray-200 bg-gray-50">
-        <button
-          onClick={onClose}
-          className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
 function LeaveHistoryContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -187,6 +117,7 @@ function LeaveHistoryContent() {
   const [dateFilter, setDateFilter] = useState('all');
   const [selectedLeave, setSelectedLeave] = useState<LeaveHistory | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -262,34 +193,127 @@ function LeaveHistoryContent() {
     setDateFilter('all');
   };
 
+  // Leave Details Modal
+  const LeaveDetailsModal = ({ leave, onClose }: { leave: LeaveHistory; onClose: () => void }) => (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className={`rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${
+        theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+      }`}>
+        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className="flex items-center justify-between">
+            <h3 className={`text-lg font-semibold ${
+              theme === 'dark' ? 'text-white' : 'text-gray-800'
+            }`}>Leave Request Details</h3>
+            <button onClick={onClose} className={
+              theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'
+            }>
+              <FaTimes className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Leave Type</h4>
+              <p className="mt-1 text-base font-medium text-gray-900">{getLeaveTypeLabel(leave.leaveType)}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Status</h4>
+              <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                getStatusBadgeClass(leave.status)
+              }`}>
+                {leave.status}
+              </span>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Duration</h4>
+              <p className="mt-1 text-base text-gray-900 flex items-center gap-2">
+                <FaCalendarAlt className="text-gray-400" />
+                {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                {leave.isHalfDay && (
+                  <span className="ml-2 text-sm text-gray-500">
+                    ({leave.halfDayType} Half)
+                  </span>
+                )}
+              </p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Number of Days</h4>
+              <p className="mt-1 text-base text-gray-900">{leave.numberOfDays} day{leave.numberOfDays > 1 ? 's' : ''}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Applied On</h4>
+              <p className="mt-1 text-base text-gray-900 flex items-center gap-2">
+                <FaClock className="text-gray-400" />
+                {new Date(leave.appliedOn).toLocaleDateString()}
+              </p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Emergency Contact</h4>
+              <p className="mt-1 text-base text-gray-900">{leave.emergencyContact}</p>
+            </div>
+          </div>
+          <div>
+            <h4 className="text-sm font-medium text-gray-500">Reason</h4>
+            <p className="mt-1 text-base text-gray-900">{leave.reason}</p>
+          </div>
+        </div>
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 py-8">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-8 rounded-xl shadow-lg">
+      <div className={`rounded-xl shadow-lg ${
+        theme === 'dark'
+          ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+          : 'bg-gradient-to-r from-blue-600 to-blue-800'
+      } p-8`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+            <div className={`p-3 ${
+              theme === 'dark' ? 'bg-gray-700/50' : 'bg-white/20'
+            } backdrop-blur-sm rounded-xl`}>
               <FaHistory className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Leave History</h1>
-              <p className="text-blue-100 mt-1">View and track your leave applications</p>
+              <h1 className="text-3xl font-bold text-white">Leave History</h1>
+              <p className={theme === 'dark' ? 'text-gray-300' : 'text-blue-100'}>
+                View and track your leave applications
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="p-2.5 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors rounded-lg"
+              className={`p-2.5 rounded-lg transition-colors ${
+                theme === 'dark'
+                  ? 'bg-gray-700/50 hover:bg-gray-600/50'
+                  : 'bg-white/20 hover:bg-white/30'
+              }`}
               title="Toggle Filters"
             >
-              <FaFilter className="w-5 h-5" />
+              <FaFilter className="w-5 h-5 text-white" />
             </button>
             <button
               onClick={fetchLeaveHistory}
-              className="p-2.5 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors rounded-lg"
+              className={`p-2.5 rounded-lg transition-colors ${
+                theme === 'dark'
+                  ? 'bg-gray-700/50 hover:bg-gray-600/50'
+                  : 'bg-white/20 hover:bg-white/30'
+              }`}
               title="Refresh"
             >
-              <FaSync className="w-5 h-5" />
+              <FaSync className="w-5 h-5 text-white" />
             </button>
           </div>
         </div>
@@ -299,14 +323,26 @@ function LeaveHistoryContent() {
       {leaveData && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {Object.entries(leaveData.leaveBalances).map(([type, balance]) => (
-            <div key={type} className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+            <div key={type} className={`rounded-xl shadow-sm p-6 border ${
+              theme === 'dark'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-200'
+            }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">{getLeaveTypeLabel(type)}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{balance}</p>
+                  <p className={`text-sm font-medium ${
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                  }`}>{getLeaveTypeLabel(type)}</p>
+                  <p className={`text-2xl font-bold mt-1 ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>{balance}</p>
                 </div>
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <FaCalendarAlt className="w-6 h-6 text-blue-600" />
+                <div className={`p-3 rounded-lg ${
+                  theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
+                }`}>
+                  <FaCalendarAlt className={
+                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                  } />
                 </div>
               </div>
             </div>
@@ -316,7 +352,11 @@ function LeaveHistoryContent() {
 
       {/* Filters Section */}
       {showFilters && (
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 space-y-4">
+        <div className={`rounded-xl shadow-lg border p-6 space-y-4 ${
+          theme === 'dark'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-200'
+        }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FaFilter className="text-blue-600" />
@@ -380,8 +420,14 @@ function LeaveHistoryContent() {
       )}
 
       {/* History Section */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
+      <div className={`rounded-xl shadow-lg border overflow-hidden ${
+        theme === 'dark'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-white border-gray-200'
+      }`}>
+        <div className={`p-6 border-b ${
+          theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-blue-50 rounded-lg">
@@ -434,38 +480,66 @@ function LeaveHistoryContent() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <tr className={theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}>
+                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  } uppercase`}>
                     Leave Type
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  } uppercase`}>
                     Duration
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  } uppercase`}>
                     Days
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  } uppercase`}>
                     Half Day
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  } uppercase`}>
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  } uppercase`}>
                     Applied On
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-center text-xs font-medium tracking-wider ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  } uppercase`}>
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className={`divide-y ${
+                theme === 'dark' 
+                  ? 'divide-gray-700 bg-gray-800'
+                  : 'divide-gray-200 bg-white'
+              }`}>
                 {filteredHistory.map((item) => (
-                  <tr key={item.leaveId} className="hover:bg-gray-50 transition-colors">
+                  <tr key={item.leaveId} className={`${
+                    theme === 'dark'
+                      ? 'hover:bg-gray-700/50'
+                      : 'hover:bg-gray-50'
+                  } transition-colors`}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{getLeaveTypeLabel(item.leaveType)}</div>
+                      <div className={`text-sm font-medium ${
+                        theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                      }`}>
+                        {getLeaveTypeLabel(item.leaveType)}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <div className={`text-sm ${
+                        theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                      }`}>
                         <div className="flex items-center gap-1">
                           <FaCalendarAlt className="w-3 h-3 text-gray-400" />
                           {new Date(item.startDate).toLocaleDateString()}
@@ -476,7 +550,9 @@ function LeaveHistoryContent() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <div className={`text-sm ${
+                        theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                      }`}>
                         {item.numberOfDays}
                       </div>
                     </td>
@@ -499,7 +575,9 @@ function LeaveHistoryContent() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <div className={`text-sm ${
+                        theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                      }`}>
                         <div className="flex items-center gap-1">
                           <FaClock className="w-3 h-3 text-gray-400" />
                           {new Date(item.appliedOn).toLocaleDateString()}
