@@ -61,78 +61,6 @@ interface StatusInfo {
   color: string;
 }
 
-  records: Array.from({ length: 22 }, (_, i) => {
-    const date = new Date();
-    date.setDate(i + 1);
-    const isPresent = Math.random() > 0.2;
-    const isLate = isPresent && Math.random() > 0.8;
-    
-    // Generate random punch times
-    const punchInHour = Math.floor(Math.random() * 2) + 8;
-    const punchInMinute = Math.floor(Math.random() * 60);
-    const punchOutHour = Math.floor(Math.random() * 3) + 16;
-    const punchOutMinute = Math.floor(Math.random() * 60);
-    
-    const punchInTime = isPresent ? `${punchInHour}:${punchInMinute.toString().padStart(2, '0')} AM` : null;
-    const punchOutTime = isPresent ? `${punchOutHour}:${punchOutMinute.toString().padStart(2, '0')} PM` : null;
-    
-    // Calculate total hours worked
-    const totalHours = isPresent ? (punchOutHour + 12 - punchInHour) + (punchOutMinute - punchInMinute) / 60 : 0;
-    
-    return {
-      date: date.toISOString().split('T')[0],
-      displayDate: date.toLocaleDateString('en-US', { 
-        weekday: 'short', 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
-      }),
-      status: isPresent ? 'Present' : 'Absent',
-      punchInTime,
-      punchOutTime,
-      isLate,
-      totalHoursWorked: isPresent ? `${totalHours.toFixed(2)} hrs` : '-',
-      remarks: isLate ? 'Late arrival' : undefined,
-      punchInLocation: isPresent ? {
-        latitude: 12.9716 + (Math.random() - 0.5) * 0.01,
-        longitude: 77.5946 + (Math.random() - 0.5) * 0.01
-      } : undefined,
-      punchOutLocation: isPresent ? {
-        latitude: 12.9716 + (Math.random() - 0.5) * 0.01,
-        longitude: 77.5946 + (Math.random() - 0.5) * 0.01
-      } : undefined,
-      punchInPhoto: isPresent ? '/mock-punch-in-photo.jpg' : undefined,
-      punchOutPhoto: isPresent ? '/mock-punch-out-photo.jpg' : undefined
-    };
-  })
-
-
-
-
-
-
-// Helper: check if date is Sunday, 2nd/4th Saturday, or a government holiday
-// const GOVT_HOLIDAYS = [
-//   // Add government holiday dates as 'YYYY-MM-DD' strings
-//   '2025-05-01', // Example: May Day
-//   // ... add more as needed
-// ];
-// function isHoliday(dateStr: string): boolean {
-//   const date = new Date(dateStr);
-//   const day = date.getDay(); // 0=Sunday, 6=Saturday
-//   // Sundays
-//   if (day === 0) return true;
-//   // 2nd and 4th Saturdays
-//   if (day === 6) {
-//     const dayOfMonth = date.getDate();
-//     const weekOfMonth = Math.ceil(dayOfMonth / 7);
-//     if (weekOfMonth === 2 || weekOfMonth === 4) return true;
-//   }
-//   // Government holidays
-//   if (GOVT_HOLIDAYS.includes(dateStr)) return true;
-//   return false;
-// }
-
 function ViewAttendanceContent() {
   const router = useRouter();
   const { theme } = useTheme();
@@ -375,19 +303,29 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
             : 'bg-white border-gray-200'
         }`}>
           {/* Attendance Distribution Graph */}
-          <div className="w-48 h-48 flex items-center justify-center mb-6">
-            <CircularProgressbar
-              value={parseFloat(attendanceRate)}
-              text={`${attendanceRate}%`}
-              styles={buildStyles({
-                pathColor: '#10B981',
-                textColor: '#111827',
-                trailColor: '#E5E7EB',
-                textSize: '18px',
-              })}
-            />
-                    </div>
-          <div className="text-center text-gray-500 mb-6">Attendance Rate</div>
+          <div className="flex justify-center items-center mb-6">
+            <div className="w-48 h-48">
+              <CircularProgressbar
+                value={parseFloat(attendanceRate)}
+                text={`${attendanceRate}%`}
+                styles={buildStyles({
+                  rotation: 0,
+                  strokeLinecap: 'round',
+                  textSize: '16px',
+                  pathTransitionDuration: 0.5,
+                  pathColor: theme === 'dark' ? '#22C55E' : '#10B981',
+                  textColor: theme === 'dark' ? '#FFFFFF' : '#111827',
+                  trailColor: theme === 'dark' ? '#374151' : '#E5E7EB',
+                  backgroundColor: 'transparent',
+                })}
+              />
+            </div>
+          </div>
+          <div className={`text-center ${
+            theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+          } mb-6`}>
+            Attendance Rate
+          </div>
           {/* Instructions */}
           <div className={`w-full rounded-lg p-4 border ${
             theme === 'dark'
