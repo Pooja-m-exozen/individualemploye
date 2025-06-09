@@ -24,6 +24,7 @@ import {
 import { isAuthenticated, getEmployeeId } from '@/services/auth';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import { useTheme } from "@/context/ThemeContext";
 
 interface RegularizationRequest {
   date: string;
@@ -133,6 +134,7 @@ function RegularizationContent() {
   const [showForm, setShowForm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 5;
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -261,8 +263,12 @@ function RegularizationContent() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 py-8">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-8 rounded-xl shadow-lg">
+      {/* Header with dark theme */}
+      <div className={`rounded-xl shadow-lg ${
+        theme === 'dark'
+          ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+          : 'bg-gradient-to-r from-blue-600 to-blue-800'
+      } p-8`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
@@ -276,41 +282,73 @@ function RegularizationContent() {
         </div>
       </div>
 
-      {/* Instructions and Form Section in Two Columns */}
+      {/* Instructions and Form Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Instructions Section */}
-        <div className="rounded-xl shadow-sm border border-gray-200 p-6 h-fit bg-white">
+        <div className={`rounded-xl shadow-sm border p-6 h-fit ${
+          theme === 'dark'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-200'
+        }`}>
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FaInfo className="w-5 h-5 text-blue-600" />
+            <div className={`p-2 ${
+              theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'
+            } rounded-lg`}>
+              <FaInfo className={`w-5 h-5 ${
+                theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+              }`} />
             </div>
-            <h2 className="text-xl font-semibold text-gray-800">Instructions</h2>
+            <h2 className={`text-xl font-semibold ${
+              theme === 'dark' ? 'text-white' : 'text-gray-800'
+            }`}>Instructions</h2>
           </div>
           <div className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <FaCalendarAlt className="w-4 h-4 text-blue-600" />
+                <div className={`flex items-center gap-2 ${
+                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  <FaCalendarAlt className={
+                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                  } />
                   <h3 className="font-medium">Select Date</h3>
                 </div>
-                <p className="text-sm text-gray-600 pl-6">Choose the date for which you need to regularize attendance. You can only request for past dates.</p>
+                <p className={`text-sm pl-6 ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>Choose the date for which you need to regularize attendance.</p>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <FaClock className="w-4 h-4 text-blue-600" />
+                <div className={`flex items-center gap-2 ${
+                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  <FaClock className={
+                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                  } />
                   <h3 className="font-medium">Specify Time</h3>
                 </div>
-                <p className="text-sm text-gray-600 pl-6">Enter your actual punch-in and punch-out times for the selected date.</p>
+                <p className={`text-sm pl-6 ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>Enter your actual punch-in and punch-out times for the selected date.</p>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <FaClipboardCheck className="w-4 h-4 text-blue-600" />
+                <div className={`flex items-center gap-2 ${
+                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  <FaClipboardCheck className={
+                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                  } />
                   <h3 className="font-medium">Provide Reason</h3>
                 </div>
-                <p className="text-sm text-gray-600 pl-6">Give a detailed explanation for the regularization request to help quick approval.</p>
+                <p className={`text-sm pl-6 ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>Give a detailed explanation for the regularization request to help quick approval.</p>
               </div>
             </div>
-            <div className="p-4 bg-blue-50 rounded-lg">
+            <div className={`p-4 rounded-lg ${
+              theme === 'dark'
+                ? 'bg-blue-900/20 text-blue-300'
+                : 'bg-blue-50 text-blue-800'
+            }`}>
               <div className="flex items-start gap-3">
                 <FaExclamationCircle className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div>
@@ -328,18 +366,33 @@ function RegularizationContent() {
         </div>
 
         {/* Form Section */}
-        <div className="rounded-xl shadow-sm border border-gray-200 p-6 bg-white">
+        <div className={`rounded-xl shadow-sm border p-6 ${
+          theme === 'dark'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-200'
+        }`}>
+          {/* Form Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FaEdit className="w-5 h-5 text-blue-600" />
+              <div className={`p-2 ${
+                theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'
+              } rounded-lg`}>
+                <FaEdit className={
+                  theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                } />
               </div>
-              <h2 className="text-xl font-semibold text-gray-800">New Request</h2>
+              <h2 className={`text-xl font-semibold ${
+                theme === 'dark' ? 'text-white' : 'text-gray-800'
+              }`}>New Request</h2>
             </div>
             {!showForm && (
               <button
                 onClick={() => setShowForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 font-medium"
+                className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 font-medium ${
+                  theme === 'dark'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
                 <FaEdit className="w-4 h-4" />
                 New Request
@@ -347,11 +400,15 @@ function RegularizationContent() {
             )}
           </div>
 
+          {/* Form Inputs */}
           {showForm ? (
             <form onSubmit={handleRegularizationSubmit} className="space-y-6">
+              {/* Form input fields with dark theme */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label htmlFor="date" className="block text-sm font-medium text-gray-700">
+                  <label className={`block text-sm font-medium ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                     Date <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -364,7 +421,11 @@ function RegularizationContent() {
                       onChange={handleInputChange}
                       required
                       max={new Date().toISOString().split('T')[0]}
-                      className="pl-10 w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black"
+                      className={`pl-10 w-full rounded-lg px-4 py-2.5 ${
+                        theme === 'dark'
+                          ? 'bg-gray-700 border-gray-600 text-gray-200'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } border focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                     />
                   </div>
                 </div>
@@ -379,7 +440,11 @@ function RegularizationContent() {
                     value={regularizationForm.status}
                     onChange={handleInputChange}
                     required
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black"
+                    className={`w-full rounded-lg px-4 py-2.5 ${
+                      theme === 'dark'
+                        ? 'bg-gray-700 border-gray-600 text-gray-200'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } border focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                   >
                     <option value="">Select Status</option>
                     <option value="Present">Present</option>
@@ -401,7 +466,11 @@ function RegularizationContent() {
                       value={regularizationForm.punchInTime}
                       onChange={handleInputChange}
                       required
-                      className="pl-10 w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black"
+                      className={`pl-10 w-full rounded-lg px-4 py-2.5 ${
+                        theme === 'dark'
+                          ? 'bg-gray-700 border-gray-600 text-gray-200'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } border focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                     />
                   </div>
                 </div>
@@ -419,7 +488,11 @@ function RegularizationContent() {
                       value={regularizationForm.punchOutTime}
                       onChange={handleInputChange}
                       required
-                      className="pl-10 w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black"
+                      className={`pl-10 w-full rounded-lg px-4 py-2.5 ${
+                        theme === 'dark'
+                          ? 'bg-gray-700 border-gray-600 text-gray-200'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } border focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                     />
                   </div>
                 </div>
@@ -436,7 +509,11 @@ function RegularizationContent() {
                   onChange={handleInputChange}
                   required
                   rows={4}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black"
+                  className={`w-full rounded-lg px-4 py-3 ${
+                    theme === 'dark'
+                      ? 'bg-gray-700 border-gray-600 text-gray-200'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } border focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                   placeholder="Please provide a detailed reason for attendance regularization..."
                 />
               </div>
@@ -477,7 +554,9 @@ function RegularizationContent() {
               </div>
             </form>
           ) : (
-            <div className="text-center py-12 px-4">
+            <div className={`text-center py-12 px-4 ${
+              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+            }`}>
               <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                 <FaClipboardCheck className="w-8 h-8 text-blue-600" />
               </div>
@@ -489,7 +568,11 @@ function RegularizationContent() {
       </div>
 
       {/* History Section */}
-      <div className="rounded-xl shadow-sm border border-gray-200 overflow-hidden bg-white">
+      <div className={`rounded-xl shadow-sm border overflow-hidden ${
+        theme === 'dark'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-white border-gray-200'
+      }`}>
         <div className="p-6 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">

@@ -32,6 +32,7 @@ import {
   FontSpec
 } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
+import { useTheme } from "@/context/ThemeContext";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
@@ -92,6 +93,7 @@ function LeaveViewContent() {
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
   const [chartType, setChartType] = useState<'pie' | 'bar'>('pie');
   const [viewType, setViewType] = useState<'chart' | 'table'>('chart');
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -221,8 +223,8 @@ function LeaveViewContent() {
       },
       plugins: {
         legend: {
-          position: 'bottom' as const,
           labels: {
+            color: theme === 'dark' ? '#fff' : '#1F2937',
             padding: 20,
             usePointStyle: true,
             pointStyle: 'circle',
@@ -234,9 +236,9 @@ function LeaveViewContent() {
           }
         },
         tooltip: {
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          titleColor: '#1F2937',
-          bodyColor: '#1F2937',
+          backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+          titleColor: theme === 'dark' ? '#fff' : '#1F2937',
+          bodyColor: theme === 'dark' ? '#fff' : '#1F2937',
           bodyFont: {
             size: 13,
             family: "'Inter', sans-serif",
@@ -427,7 +429,11 @@ function LeaveViewContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-8 rounded-xl shadow-lg">
+      <div className={`rounded-xl shadow-lg ${
+        theme === 'dark'
+          ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+          : 'bg-gradient-to-r from-blue-600 to-blue-800'
+      } p-8`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
@@ -456,19 +462,31 @@ function LeaveViewContent() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content - Charts and Analytics */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+            <div className={`rounded-xl shadow-sm p-6 border ${
+              theme === 'dark'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-200'
+            }`}>
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-600 bg-clip-text text-transparent">
+                <h3 className={`text-2xl font-bold ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>
                   Leave Overview
                 </h3>
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-2xl backdrop-blur-sm mr-4">
+                  <div className={`flex items-center gap-3 p-1.5 rounded-2xl backdrop-blur-sm mr-4 ${
+                    theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
+                  }`}>
                     <button
                       onClick={() => setViewType('chart')}
                       className={`px-4 py-2 rounded-xl transition-all duration-300 ${
                         viewType === 'chart'
-                          ? 'bg-white text-blue-600 shadow-md scale-105'
-                          : 'text-gray-600 hover:text-blue-600 hover:bg-white/50'
+                          ? theme === 'dark'
+                            ? 'bg-gray-600 text-white shadow-md scale-105'
+                            : 'bg-white text-blue-600 shadow-md scale-105'
+                          : theme === 'dark'
+                            ? 'text-gray-300 hover:bg-gray-600 hover:text-white'
+                            : 'text-gray-600 hover:bg-white/50'
                       }`}
                     >
                       Chart View
@@ -512,7 +530,11 @@ function LeaveViewContent() {
                   )}
                 </div>
               </div>
-              <div className="h-[400px] flex items-center justify-center">
+              
+              {/* Chart/Table Container */}
+              <div className={`h-[400px] flex items-center justify-center ${
+                theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+              }`}>
                 {viewType === 'chart' ? (
                   renderCharts()
                 ) : (
@@ -641,7 +663,11 @@ function LeaveViewContent() {
 
             {/* Quick Stats Cards */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+              <div className={`rounded-xl shadow-sm p-6 border ${
+                theme === 'dark'
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}>
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-blue-50 rounded-xl">
                     <FaCalendarAlt className="w-6 h-6 text-blue-600" />
@@ -652,7 +678,11 @@ function LeaveViewContent() {
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+              <div className={`rounded-xl shadow-sm p-6 border ${
+                theme === 'dark'
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}>
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-green-50 rounded-xl">
                     <FaCheckCircle className="w-6 h-6 text-green-600" />
@@ -667,21 +697,35 @@ function LeaveViewContent() {
           </div>
 
           {/* Instructions Panel */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 space-y-6 sticky top-6">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <div className={`lg:col-span-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>
+            <div className={`rounded-xl shadow-sm p-6 border space-y-6 sticky top-6 ${
+              theme === 'dark'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-200'
+            }`}>
+              <h3 className={`text-lg font-semibold flex items-center gap-2 ${
+                theme === 'dark' ? 'text-gray-100' : 'text-gray-800'
+              }`}>
                 <FaInfoCircle className="text-blue-600" />
                 Leave Balance Information
               </h3>
               
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <FaCalendarAlt className="w-5 h-5 text-blue-600" />
+                  <div className={`p-2 rounded-lg ${
+                    theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
+                  }`}>
+                    <FaCalendarAlt className={`w-5 h-5 ${
+                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                    }`} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-gray-800">Leave Conditions</h4>
-                    <p className="text-sm text-gray-600">
+                    <h4 className={`text-sm font-medium ${
+                      theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
+                    }`}>Leave Conditions</h4>
+                    <p className={`text-sm ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       • EL (Earned Leave): 1.5 days are added next month for every full month of work <br />
                       • SL (Sick Leave): Medical-related absences<br />
                       • CL (Casual Leave): Short-notice personal time<br />
@@ -691,12 +735,20 @@ function LeaveViewContent() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <FaChartPie className="w-5 h-5 text-blue-600" />
+                  <div className={`p-2 rounded-lg ${
+                    theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
+                  }`}>
+                    <FaChartPie className={`w-5 h-5 ${
+                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                    }`} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-gray-800">Balance Tracking</h4>
-                    <p className="text-sm text-gray-600">
+                    <h4 className={`text-sm font-medium ${
+                      theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
+                    }`}>Balance Tracking</h4>
+                    <p className={`text-sm ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       • Allocated: Total leaves granted for the current month<br />
                       • Used: Leaves taken and approved<br />
                       • Remaining: Available balance for use<br />
@@ -706,12 +758,20 @@ function LeaveViewContent() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <FaClock className="w-5 h-5 text-blue-600" />
+                  <div className={`p-2 rounded-lg ${
+                    theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
+                  }`}>
+                    <FaClock className={`w-5 h-5 ${
+                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                    }`} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-gray-800">Important Notes</h4>
-                    <p className="text-sm text-gray-600">
+                    <h4 className={`text-sm font-medium ${
+                      theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
+                    }`}>Important Notes</h4>
+                    <p className={`text-sm ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       • Leave year runs from January to December<br />
                       • Sick leave requires medical documentation<br />
                       • Comp-off must be used within 30 days
@@ -720,16 +780,26 @@ function LeaveViewContent() {
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 pt-4 space-y-4">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-blue-800 mb-2">Need Help?</h4>
-                  <p className="text-sm text-blue-600">
+              <div className={`border-t pt-4 space-y-4 ${
+                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+                <div className={`p-4 rounded-lg ${
+                  theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
+                }`}>
+                  <h4 className={`text-sm font-medium mb-2 ${
+                    theme === 'dark' ? 'text-blue-300' : 'text-blue-800'
+                  }`}>Need Help?</h4>
+                  <p className={`text-sm ${
+                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                  }`}>
                     • HR Portal: <span className="font-medium">hr.zenployee.com</span><br />
                     • Email: <span className="font-medium">hr@zenployee.com</span><br />
                     • Extension: <span className="font-medium">HRMS (4767)</span>
                   </p>
                 </div>
-                <p className="text-sm text-gray-500">
+                <p className={`text-sm ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                }`}>
                   For leave policy updates and detailed information, please refer to the employee handbook.
                 </p>
               </div>
@@ -747,4 +817,4 @@ export default function LeaveViewPage() {
       <LeaveViewContent />
     </DashboardLayout>
   );
-} 
+}

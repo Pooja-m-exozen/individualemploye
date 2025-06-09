@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import { isAuthenticated, getEmployeeId } from '@/services/auth';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useTheme } from "@/context/ThemeContext";
 
 interface Deductions {
   pf: number;
@@ -54,6 +55,7 @@ const PayslipPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState('2023-05');
+  const { theme } = useTheme();
 
   const fetchPayslip = useCallback(async () => {
     try {
@@ -149,7 +151,9 @@ const PayslipPage = () => {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+        <div className={`min-h-screen flex items-center justify-center p-6 ${
+          theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
           <div className="text-center space-y-4">
             <div className="w-20 h-20 mx-auto">
               <div className="w-full h-full border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
@@ -165,8 +169,12 @@ const PayslipPage = () => {
   if (error) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full">
+        <div className={`min-h-screen flex items-center justify-center p-6 ${
+          theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
+          <div className={`${
+            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+          } rounded-2xl shadow-lg p-8 max-w-md w-full`}>
             <div className="text-center space-y-4">
               <div className="w-16 h-16 mx-auto text-red-500">
                 <FaExclamationCircle className="w-full h-full" />
@@ -190,19 +198,37 @@ const PayslipPage = () => {
   if (!payslip && !loading && !error) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center space-y-4">
-            <FaFileInvoiceDollar className="w-16 h-16 mx-auto text-gray-400" />
-            <h3 className="text-xl font-semibold text-gray-900">No Payslip Found</h3>
-            <p className="text-gray-600">There is no payslip available for the selected month.</p>
+        <div className={`min-h-screen flex items-center justify-center p-6 ${
+          theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
+          <div className={`${
+            theme === 'dark' 
+              ? 'bg-gray-800 text-gray-200' 
+              : 'bg-white text-gray-900'
+          } rounded-2xl shadow-lg p-8 max-w-md w-full text-center space-y-4`}>
+            <FaFileInvoiceDollar className={`w-16 h-16 mx-auto ${
+              theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
+            }`} />
+            <h3 className={`text-xl font-semibold ${
+              theme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+            }`}>No Payslip Found</h3>
+            <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+              There is no payslip available for the selected month.
+            </p>
             <div className="relative max-w-xs mx-auto">
               <input
                 type="month"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className={`w-full pl-10 pr-4 py-2 rounded-xl outline-none ${
+                  theme === 'dark'
+                    ? 'bg-gray-700 border-gray-600 text-gray-200'
+                    : 'bg-white border-gray-200 text-gray-900'
+                } border focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
               />
-              <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <FaCalendarAlt className={
+                theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+              } />
             </div>
           </div>
         </div>
@@ -216,7 +242,11 @@ const PayslipPage = () => {
     <DashboardLayout>
       <div className="max-w-4xl mx-auto">
         {/* Header Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-8 rounded-xl shadow-lg mb-8">
+        <div className={`rounded-xl shadow-lg mb-8 p-8 ${
+          theme === 'dark'
+            ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+            : 'bg-gradient-to-r from-blue-600 to-blue-800'
+        }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
@@ -258,13 +288,19 @@ const PayslipPage = () => {
         </div>
 
         {/* Payslip Content */}
-        <div className="print-payslip-area bg-white border border-gray-200 rounded-lg p-8">
+        <div className={`print-payslip-area rounded-lg p-8 border ${
+          theme === 'dark'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-200'
+        }`}>
           {/* Header */}
-          <div className="p-6 border-b border-gray-200">
+          <div className={`p-6 border-b ${
+            theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+          }`}>
             <div className="flex items-start gap-6">
               <div className="relative h-16 w-auto">
                 <Image 
-                  src="/exozen_logo.png" 
+                  src="/v1/employee/exozen_logo.png" 
                   alt="Company Logo" 
                   width={64}
                   height={64}
@@ -290,90 +326,364 @@ const PayslipPage = () => {
             <table className="w-full border-collapse">
               <tbody>
                 <tr>
-                  <td className="border border-gray-300 p-2 w-1/4 text-black font-medium">Employee ID:</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.employeeId}</td>
-                  <td className="border border-gray-300 p-2 w-1/4 text-black font-medium">Paid Days:</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.presentDays}</td>
+                  <td className={`border p-2 w-1/4 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Employee ID:
+                  </td>
+                  <td className={`border p-2 ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.employeeId}
+                  </td>
+                  <td className={`border p-2 w-1/4 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Paid Days:
+                  </td>
+                  <td className={`border p-2 ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.presentDays}
+                  </td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-300 p-2 text-black font-medium">Employee Name:</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">SHIVANYA D N</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">LOP Days:</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.absentDays}</td>
+                  <td className={`border p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Employee Name:
+                  </td>
+                  <td className={`border p-2 ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    SHIVANYA D N
+                  </td>
+                  <td className={`border p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    LOP Days:
+                  </td>
+                  <td className={`border p-2 ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.absentDays}
+                  </td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-300 p-2 text-black font-medium">Designation:</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">IOT Developer</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">ESIC No:</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">EXEMTED</td>
+                  <td className={`border p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Designation:
+                  </td>
+                  <td className={`border p-2 ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    IOT Developer
+                  </td>
+                  <td className={`border p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    ESIC No:
+                  </td>
+                  <td className={`border p-2 ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    EXEMTED
+                  </td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-300 p-2 text-black font-medium">UAN No:</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">EXEMTED</td>
-                  <td className="border border-gray-300 p-2"></td>
-                  <td className="border border-gray-300 p-2"></td>
+                  <td className={`border p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    UAN No:
+                  </td>
+                  <td className={`border p-2 ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    EXEMTED
+                  </td>
+                  <td className="border p-2"></td>
+                  <td className="border p-2"></td>
                 </tr>
               </tbody>
             </table>
 
             {/* Earnings and Deductions */}
-            <table className="w-full border-collapse mt-6">
+            <table className={`w-full border-collapse mt-6 ${
+              theme === 'dark' ? 'text-gray-200' : 'text-black'
+            }`}>
               <thead>
                 <tr>
-                  <th className="border border-gray-300 p-2 text-left w-1/4 text-black">Earnings</th>
-                  <th className="border border-gray-300 p-2 text-left w-1/4 text-black">Amount</th>
-                  <th className="border border-gray-300 p-2 text-left w-1/4 text-black">Deductions</th>
-                  <th className="border border-gray-300 p-2 text-left w-1/4 text-black">Amount</th>
+                  <th className={`border border-gray-300 p-2 text-left w-1/4 ${
+                    theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-gray-50 text-black'
+                  }`}>
+                    Earnings
+                  </th>
+                  <th className={`border border-gray-300 p-2 text-left w-1/4 ${
+                    theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-gray-50 text-black'
+                  }`}>
+                    Amount
+                  </th>
+                  <th className={`border border-gray-300 p-2 text-left w-1/4 ${
+                    theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-gray-50 text-black'
+                  }`}>
+                    Deductions
+                  </th>
+                  <th className={`border border-gray-300 p-2 text-left w-1/4 ${
+                    theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-gray-50 text-black'
+                  }`}>
+                    Amount
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="border border-gray-300 p-2 text-black font-medium">Basic+VDA</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.basicPlusVDA.toFixed(2)}</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">PF</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.deductions.pf.toFixed(2)}</td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Basic+VDA
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.basicPlusVDA.toFixed(2)}
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    PF
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.deductions.pf.toFixed(2)}
+                  </td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-300 p-2 text-black font-medium">HRA</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.hra.toFixed(2)}</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">ESI</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.deductions.esi.toFixed(2)}</td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    HRA
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.hra.toFixed(2)}
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    ESI
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.deductions.esi.toFixed(2)}
+                  </td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-300 p-2 text-black font-medium">Conveyance Allowance</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.conveyanceAllowance.toFixed(2)}</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">PT</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.deductions.pt.toFixed(2)}</td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Conveyance Allowance
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.conveyanceAllowance.toFixed(2)}
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    PT
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.deductions.pt.toFixed(2)}
+                  </td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-300 p-2 text-black font-medium">Other Allowances</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.otherAllowance.toFixed(2)}</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">Salary Adv.</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">0.00</td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Other Allowances
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.otherAllowance.toFixed(2)}
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Salary Adv.
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    0.00
+                  </td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-300 p-2 text-black font-medium">Spl. Allowance</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.specialAllowance.toFixed(2)}</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">Uniform Ded.</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.deductions.uniformDeduction.toFixed(2)}</td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Spl. Allowance
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.specialAllowance.toFixed(2)}
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Uniform Ded.
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.deductions.uniformDeduction.toFixed(2)}
+                  </td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-300 p-2 text-black font-medium">Wash. Allowances</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">0.00</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">Room rent</td>
-                  <td className="border border-gray-300 p-2 text-black font-medium">{payslip.deductions.roomRent.toFixed(2)}</td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Wash. Allowances
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    0.00
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Room rent
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-medium ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.deductions.roomRent.toFixed(2)}
+                  </td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-300 p-2 text-black font-semibold">Total Amount</td>
-                  <td className="border border-gray-300 p-2 text-black font-semibold">{payslip.totalEarnings.toFixed(2)}</td>
-                  <td className="border border-gray-300 p-2 text-black font-semibold">Total Deductions</td>
-                  <td className="border border-gray-300 p-2 text-black font-semibold">{payslip.totalDeductions.toFixed(2)}</td>
+                  <td className={`border border-gray-300 p-2 font-semibold ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Total Amount
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-semibold ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.totalEarnings.toFixed(2)}
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-semibold ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    Total Deductions
+                  </td>
+                  <td className={`border border-gray-300 p-2 font-semibold ${
+                    theme === 'dark'
+                      ? 'border-gray-700 text-gray-200'
+                      : 'border-gray-300 text-black'
+                  }`}>
+                    {payslip.totalDeductions.toFixed(2)}
+                  </td>
                 </tr>
               </tbody>
             </table>
 
             {/* Net Pay */}
-            <div className="mt-6 border border-gray-300 p-4">
+            <div className={`mt-6 border p-4 ${
+              theme === 'dark'
+                ? 'border-gray-700 text-gray-200'
+                : 'border-gray-300 text-black'
+            }`}>
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-black">Net Pay:</span>
                 <span className="font-semibold text-black">{payslip.netPay.toFixed(2)} (Twenty Three Thousand Five Hundred only)</span>
@@ -381,12 +691,15 @@ const PayslipPage = () => {
             </div>
 
             {/* Footer Note */}
-            <div className="mt-6 text-sm text-gray-600">
+            <div className={`mt-6 text-sm ${
+              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               <p>Please Note: This is system generated Pay Slip, this does not require any signature for authentication.</p>
             </div>
           </div>
         </div>
 
+        {/* Print and PDF styles */}
         <style jsx global>{`
           @media print {
             body * {
@@ -394,6 +707,8 @@ const PayslipPage = () => {
             }
             .print-payslip-area, .print-payslip-area * {
               visibility: visible;
+              color: black !important;
+              background: white !important;
             }
             .print-payslip-area {
               position: absolute;
@@ -417,26 +732,6 @@ const PayslipPage = () => {
               margin: 20mm;
               size: auto;
             }
-          }
-        `}</style>
-
-        {/* Add specific styles for PDF download */}
-        <style jsx global>{`
-          .print-payslip-area table {
-            border-collapse: collapse;
-            width: 100%;
-          }
-          .print-payslip-area td,
-          .print-payslip-area th {
-            border: 1px solid #e5e7eb;
-          }
-          /* These styles will only apply during PDF generation */
-          .print-payslip-area.generating-pdf table {
-            border: 2px solid #1f2937;
-          }
-          .print-payslip-area.generating-pdf td,
-          .print-payslip-area.generating-pdf th {
-            border: 2px solid #1f2937;
           }
         `}</style>
       </div>
