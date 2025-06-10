@@ -605,11 +605,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                           {formatTime(record.punchOutTime)}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {record.punchInTime && record.punchOutTime ? (
-                            record.punchInUtc && record.punchOutUtc ? (
-                              formatHoursToHoursAndMinutes(calculateHoursUtc(record.punchInUtc, record.punchOutUtc))
-                            ) : 'N/A'
-                          ) : 'N/A'}
+                       {record.punchInTime && record.punchOutTime ? (
+  formatHoursToHoursAndMinutes(calculateHoursUtc(
+    record.punchInUtc || record.punchInTime,
+    record.punchOutUtc || record.punchOutTime
+  ))
+) : 'N/A'}
+
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           {record.punchInTime && record.punchOutTime ? (

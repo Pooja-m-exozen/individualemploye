@@ -16,21 +16,21 @@ const OFFICE_LOCATION = {
   tolerance: 10 // 10 meters tolerance for exact location match
 };
 
-// Improve distance calculation
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371e3; // Earth's radius in meters
-  const φ1 = lat1 * Math.PI/180;
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180;
-  const Δλ = (lon2-lon1) * Math.PI/180;
+// // Improve distance calculation
+// const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+//   const R = 6371e3; // Earth's radius in meters
+//   const φ1 = lat1 * Math.PI/180;
+//   const φ2 = lat2 * Math.PI/180;
+//   const Δφ = (lat2-lat1) * Math.PI/180;
+//   const Δλ = (lon2-lon1) * Math.PI/180;
 
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-          Math.cos(φ1) * Math.cos(φ2) *
-          Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+//   const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+//           Math.cos(φ1) * Math.cos(φ2) *
+//           Math.sin(Δλ/2) * Math.sin(Δλ/2);
+//   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-  return R * c; // distance in meters
-};
+//   return R * c; // distance in meters
+// };
 
 // Camera Modal Component
 const CameraModal = ({ isOpen, onClose, onCapture }: { isOpen: boolean; onClose: () => void; onCapture: (photo: string) => void }) => {
@@ -272,58 +272,58 @@ function MarkAttendanceContent() {
     setMarkAttendanceError(null);
   };
 
-  const getCurrentLocation = (): Promise<{ latitude: number; longitude: number }> => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Geolocation is not supported by your browser'));
-        return;
-      }
+  // const getCurrentLocation = (): Promise<{ latitude: number; longitude: number }> => {
+  //   return new Promise((resolve, reject) => {
+  //     if (!navigator.geolocation) {
+  //       reject(new Error('Geolocation is not supported by your browser'));
+  //       return;
+  //     }
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          });
-        },
-        (error) => {
-          reject(new Error('Failed to get location: ' + error.message));
-        }
-      );
-    });
-  };
+  //     navigator.geolocation.getCurrentPosition(
+  //       (position) => {
+  //         resolve({
+  //           latitude: position.coords.latitude,
+  //           longitude: position.coords.longitude
+  //         });
+  //       },
+  //       (error) => {
+  //         reject(new Error('Failed to get location: ' + error.message));
+  //       }
+  //     );
+  //   });
+  // };
 
-  const validateLocation = async () => {
-    try {
-      const location = await getCurrentLocation();
+  // const validateLocation = async () => {
+  //   try {
+  //     const location = await getCurrentLocation();
       
-      // For testing: Always allow attendance marking
-      setLocationError(null);
-      return true;
+  //     // For testing: Always allow attendance marking
+  //     setLocationError(null);
+  //     return true;
 
-      // Comment out the distance check for now
-      /*
-      const distance = calculateDistance(
-        location.latitude,
-        location.longitude,
-        OFFICE_LOCATION.latitude,
-        OFFICE_LOCATION.longitude
-      );
+  //     // Comment out the distance check for now
+  //     /*
+  //     const distance = calculateDistance(
+  //       location.latitude,
+  //       location.longitude,
+  //       OFFICE_LOCATION.latitude,
+  //       OFFICE_LOCATION.longitude
+  //     );
 
-      if (distance <= OFFICE_LOCATION.radius) {
-        setLocationError(null);
-        return true;
-      }
+  //     if (distance <= OFFICE_LOCATION.radius) {
+  //       setLocationError(null);
+  //       return true;
+  //     }
 
-      setLocationError(`You are ${Math.round(distance)}m away from office. Please mark attendance from within ${OFFICE_LOCATION.radius}m of office location.`);
-      return false;
-      */
-    } catch (error) {
-      console.error('Location error:', error);
-      setLocationError('Please enable location services in your device settings and try again');
-      return false;
-    }
-  };
+  //     setLocationError(`You are ${Math.round(distance)}m away from office. Please mark attendance from within ${OFFICE_LOCATION.radius}m of office location.`);
+  //     return false;
+  //     */
+  //   } catch (error) {
+  //     console.error('Location error:', error);
+  //     setLocationError('Please enable location services in your device settings and try again');
+  //     return false;
+  //   }
+  // };
 
   // Modify handleMarkAttendance for immediate submission
   const handleMarkAttendance = async () => {
