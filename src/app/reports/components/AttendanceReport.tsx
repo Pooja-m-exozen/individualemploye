@@ -50,6 +50,22 @@ interface LeaveRecord {
     lastUpdated: string;
 }
 
+interface LeaveHistory {
+    leaveId: string;
+    employeeName: string;
+    leaveType: string;
+    startDate: string;
+    endDate: string;
+    numberOfDays: number;
+    isHalfDay: boolean;
+    halfDayType: string | null;
+    status: string;
+    reason: string;
+    emergencyContact: string;
+    appliedOn: string;
+    lastUpdated: string;
+}
+
 interface AttendanceReportProps {
     loading: boolean;
     attendanceData: RawAttendanceRecord[];
@@ -80,6 +96,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const [selectedRecord, setSelectedRecord] = useState<RawAttendanceRecord | null>(null);
     const [summary, setSummary] = useState<MonthSummaryResponse['data'] | null>(null);
     const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
+    const [leaveHistory, setLeaveHistory] = useState<LeaveHistory[]>([]);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -151,10 +168,36 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     };
 
     // Add this new helper function
+    const isLeaveDate = (date: string): string | null => {
+        const target = new Date(date).toDateString();
+        for (const leave of leaveHistory) {
+            const start = new Date(leave.startDate);
+            const end = new Date(leave.endDate);
+            const status = leave.status.toLowerCase();
+
+            if (status === 'approved') {
+                const current = new Date(start);
+                while (current <= end) {
+                    if (current.toDateString() === target) {
+                        return leave.leaveType; // SL, CL, EL, etc.
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+            }
+        }
+        return null;
+    };
+
+    // Update the getAttendanceStatus function
     const getAttendanceStatus = (record: RawAttendanceRecord, dayType: string) => {
+        const leaveType = isLeaveDate(record.date);
+
+        if (leaveType) {
+            return leaveType + ' Leave'; // e.g., "SL Leave"
+        }
+
         // Check if there's any punch in/out on a holiday
         if (dayType !== 'Working Day' && record.punchInTime && record.punchOutTime) {
-            // Use regular punchInTime/punchOutTime if UTC values are not available
             const inTime = record.punchInUtc || record.punchInTime;
             const outTime = record.punchOutUtc || record.punchOutTime;
             const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
@@ -203,20 +246,20 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         });
 
         const tableRows = filteredRecords.map(record => {
-            // const dateStr = record.date.split('T')[0];
             const dayType = getDayType(record.date, selectedYear, selectedMonth);
             const status = getAttendanceStatus(record, dayType);
-            let hoursWorked = 'N/A';
+            let hoursWorked = 'Incomplete';
             
-            // Calculate hours worked
             if (record.punchInUtc && record.punchOutUtc) {
                 const hours = calculateHoursUtc(record.punchInUtc, record.punchOutUtc);
-                hoursWorked = hours !== '0' ? formatHoursToHoursAndMinutes(hours) : 'N/A';
+                hoursWorked = formatHoursToHoursAndMinutes(hours);
+            } else if (dayType !== 'Working Day') {
+                hoursWorked = '-';
             }
 
             return [
                 formatDate(record.date),
-                record.projectName || 'N/A',
+                record.projectName || '-',
                 formatTime(record.punchInTime),
                 formatTime(record.punchOutTime),
                 hoursWorked,
@@ -368,12 +411,48 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           yPosition += 10;
         }
 
-        // Move signature section to bottom of page
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const signatureY = pageHeight - 40;
+        // Add Leave History section after leave balance
+        if (leaveHistory.length > 0) {
+            yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
+            doc.setFontSize(12);
+            doc.setTextColor(41, 128, 185);
+            doc.text('Leave History', 15, yPosition);
+            yPosition += 10;
 
-        // Add note above signatures
-        const noteY = signatureY - 24;
+            const leaveHistoryHead = [['Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason']];
+            const leaveHistoryRows = leaveHistory.map(leave => [
+                leave.leaveType,
+                new Date(leave.startDate).toLocaleDateString(),
+                new Date(leave.endDate).toLocaleDateString(),
+                leave.numberOfDays + (leave.isHalfDay ? ' (Half)' : ''),
+                leave.status,
+                leave.reason.substring(0, 20) + (leave.reason.length > 20 ? '...' : '')
+            ]);
+
+            autoTable(doc, {
+                head: leaveHistoryHead,
+                body: leaveHistoryRows,
+                startY: yPosition,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 4 },
+                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                columnStyles: {
+                    0: { cellWidth: 25 },
+                    1: { cellWidth: 30 },
+                    2: { cellWidth: 30 },
+                    3: { cellWidth: 20 },
+                    4: { cellWidth: 25 },
+                    5: { cellWidth: 50 }
+                },
+                margin: { left: 15 }
+            });
+        }
+
+        // Get the final Y position after all tables
+        const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+        
+        // Add note below the leave history table with proper spacing
+        const noteY = finalY + 60; // Increased spacing from table
         doc.setFontSize(11);
         doc.setFont('bold');
         doc.setTextColor(200, 0, 0);
@@ -381,6 +460,10 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         doc.setTextColor(0, 0, 0);
         const noteText = 'Please ensure that the total working hours per day are at least 8 hours.';
         doc.text(`${noteLabel} ${noteText}`, 15, noteY);
+
+        // Calculate signature position with proper spacing after the note
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const signatureY = Math.min(pageHeight - 30, noteY + 40); // Ensure proper spacing after note
 
         // Signature lines
         doc.setDrawColor(100, 100, 100);
@@ -446,23 +529,27 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     useEffect(() => {
         if (!employeeId || !selectedMonth || !selectedYear) return;
         fetch(`https://cafm.zenapi.co.in/api/leave/history/${employeeId}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.leaveHistory) {
-              filterLeaveHistoryByMonth(
-                data.leaveHistory,
-                selectedMonth,
-                selectedYear
-              );
-            }
-          })
-          .catch(() => {
-            // Error handling
-          });
+            .then(res => res.json())
+            .then(data => {
+                if (data.leaveHistory) {
+                    // Filter leave history for selected month and year
+                    const filteredHistory = filterLeaveHistoryByMonth(
+                        data.leaveHistory,
+                        selectedMonth,
+                        selectedYear
+                    );
+                    setLeaveHistory(filteredHistory);
+                } else {
+                    setLeaveHistory([]);
+                }
+            })
+            .catch(() => {
+                setLeaveHistory([]);
+            });
     }, [employeeId, selectedMonth, selectedYear]);
 
     const formatTime = (dateString: string | null): string => {
-        if (!dateString) return 'N/A';
+        if (!dateString) return 'Incomplete';
         const match = dateString.match(/T(\d{2}:\d{2}:\d{2})/);
         return match ? match[1] : dateString;
     };
@@ -605,12 +692,19 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                           {formatTime(record.punchOutTime)}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                       {record.punchInTime && record.punchOutTime ? (
-  formatHoursToHoursAndMinutes(calculateHoursUtc(
-    record.punchInUtc || record.punchInTime,
-    record.punchOutUtc || record.punchOutTime
-  ))
-) : 'N/A'}
+    {(() => {
+  const dayType = getDayType(record.date, selectedYear, selectedMonth);
+  if (record.punchInTime && record.punchOutTime) {
+    return formatHoursToHoursAndMinutes(
+      calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime)
+    );
+  } else if (dayType !== 'Working Day') {
+    return '-';
+  } else {
+    return 'Incomplete';
+  }
+})()}
+
 
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
@@ -618,7 +712,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               {record.punchInTime && record.punchOutTime ? 'Present' : 'Absent'}
                             </span>
-                          ) : 'N/A'}
+                          ) : ''}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -635,7 +729,9 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                                     case 'Holiday':
                                         return 'bg-blue-100 text-blue-800';
                                     default:
-                                        return 'bg-red-100 text-red-800';
+                                        return status.includes('Leave')
+                                            ? 'bg-orange-100 text-orange-800'
+                                            : 'bg-red-100 text-red-800';
                                 }
                             })()
                           }`}>
