@@ -10,6 +10,8 @@ export interface RawAttendanceRecord {
     punchOutPhoto: string | null;
     punchInLatitude?: number;
     punchInLongitude?: number;
+    punchOutLatitude?: number;
+    punchOutLongitude?: number;
     status?: string;
     isLate?: boolean;
     remarks?: string;
@@ -55,6 +57,7 @@ export interface MonthSummaryResponse {
         employeeId: string;
         month: string;
         year: string;
+        attendance?: RawAttendanceRecord[];
         summary: {
             totalDays: number;
             presentDays: number;

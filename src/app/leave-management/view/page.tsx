@@ -342,10 +342,14 @@ function LeaveViewContent() {
             <Pie data={pieData} options={pieOptions} />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center">
-                <div className="text-3xl font-bold text-gray-900">
+                <div className={`text-3xl font-bold ${
+                  theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                }`}>
                   {leaveBalance.totalAllocated}
                 </div>
-                <div className="text-sm font-medium text-gray-500">
+                <div className={`text-sm font-medium ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                }`}>
                   Total Days
                 </div>
               </div>

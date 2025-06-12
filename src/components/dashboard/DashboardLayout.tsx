@@ -15,6 +15,13 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+// Add new interfaces
+interface RolePrompt {
+  show: boolean;
+  message: string[];
+  type: 'info' | 'success' | 'warning';
+}
+
 interface MenuItem {
   icon: JSX.Element;
   label: string;
@@ -28,6 +35,12 @@ interface UserDetails {
   email: string;
   employeeImage: string;
   designation: string;
+}
+
+interface RoleOption {
+  value: string;
+  label: string;
+  menuAccess: string[];
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
@@ -44,7 +57,36 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [rolePrompt, setRolePrompt] = useState<RolePrompt>({
+    show: false,
+    message: [],
+    type: 'info'
+  });
   const { theme, toggleTheme } = useTheme();
+  const [selectedRole, setSelectedRole] = useState<string>('employee');
+
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [pendingRole, setPendingRole] = useState<string | null>(null);
+
+  const roleOptions: RoleOption[] = [
+    {
+      value: 'employee',
+      label: 'Employee',
+      menuAccess: ['Dashboard', 'KYC', 'Attendance', 'Leave Management', 'Payslip', 'Reports', 'Helpdesk']
+    },
+    {
+      value: 'manager',
+      label: 'Manager',
+      menuAccess: ['Dashboard', 'KYC', 'Attendance']
+    },
+    {
+      value: 'admin',
+      label: 'Admin',
+      menuAccess: ['Dashboard', 'KYC', 'Attendance', 'Leave Management', 'Payslip', 'Reports', 'Helpdesk']
+    }
+  ];
 
   useEffect(() => {
     const checkAuth = () => {
@@ -128,9 +170,8 @@ const handleLogout = () => {
   };
 
   const getMenuItemsByRole = (): MenuItem[] => {
-    // const role = getUserRole();l
-    
-    return [
+    const currentRole = roleOptions.find(role => role.value === selectedRole);
+    const allMenuItems = [
       {
         icon: <FaTachometerAlt />,
         label: 'Dashboard',
@@ -226,6 +267,12 @@ const handleLogout = () => {
         href: '/helpdesk'
       }
     ];
+    
+    if (!currentRole) return allMenuItems;
+    
+    return allMenuItems.filter(item => 
+      currentRole.menuAccess.includes(item.label)
+    );
   };
 
   const menuItems: MenuItem[] = getMenuItemsByRole();
@@ -365,9 +412,80 @@ const handleLogout = () => {
     }
   };
 
+  const handleRoleChange = (newRole: string) => {
+    setPendingRole(newRole);
+    setPasswordInput('');
+    setPasswordError('');
+    setShowPasswordModal(true);
+    setShowProfileDropdown(false);
+  };
+
+  const handlePasswordSubmit = () => {
+    if (passwordInput === 'Qwerty123' && pendingRole) {
+      setSelectedRole(pendingRole);
+      const roleDetails = roleOptions.find(role => role.value === pendingRole);
+      if (roleDetails) {
+        showRolePrompt(roleDetails.label);
+      }
+      setShowPasswordModal(false);
+      setPendingRole(null);
+      setPasswordInput('');
+    } else {
+      setPasswordError('Invalid password. Please try again.');
+    }
+  };
+
+  const showRolePrompt = (role: string) => {
+    const messages = [
+      `Switching to ${role} role`,
+      'Enter password to confirm access'
+    ];
+    
+    setRolePrompt({
+      show: true,
+      message: messages,
+      type: 'info'
+    });
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      setRolePrompt(prev => ({ ...prev, show: false }));
+    }, 5000);
+  };
+
+  const renderRolePrompt = () => {
+    if (!rolePrompt.show) return null;
+
+    const bgColor = theme === 'dark' 
+      ? 'bg-gray-800 border-gray-700' 
+      : 'bg-blue-50 border-blue-100';
+    
+    const textColor = theme === 'dark'
+      ? 'text-white'
+      : 'text-blue-700';
+
+    return (
+      <div className={`fixed top-20 right-4 z-50 p-4 rounded-xl border ${bgColor} shadow-lg max-w-md animate-fade-in`}>
+        <div className="flex flex-col space-y-1">
+          {rolePrompt.message.map((msg, idx) => (
+            <p key={idx} className={`text-sm ${textColor}`}>{msg}</p>
+          ))}
+        </div>
+        <button 
+          onClick={() => setRolePrompt(prev => ({ ...prev, show: false }))}
+          className={`absolute top-2 right-2 ${textColor} hover:opacity-75`}
+        >
+          <FaTimes className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  };
+
   return (
     <UserContext.Provider value={userDetails}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+        {/* Add the role prompt render */}
+        {renderRolePrompt()}
         {/* Overlay for mobile */}
         {isMobileMenuOpen && (
           <div 
@@ -380,60 +498,89 @@ const handleLogout = () => {
         <aside
           className={`fixed inset-y-0 left-0 flex flex-col
             ${isSidebarExpanded ? 'w-72' : 'w-20'}
-            ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}
-            border-r shadow-xl
-            transition-all duration-300 z-30`}
+            ${theme === 'dark' ? 'bg-gray-800/95 backdrop-blur-sm border-gray-700' : 'bg-white/95 backdrop-blur-sm border-gray-200'}
+            border-r shadow-lg
+            transition-all duration-300 ease-in-out z-30
+            hover:shadow-xl`}
+          aria-label="Sidebar navigation"
         >
           {/* Logo and Toggle */}
-          <div className={`flex items-center justify-between p-5 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} h-[65px]`}>
+          <div className={`flex items-center justify-between p-5 border-b 
+            ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-100'} 
+            h-[65px] backdrop-blur-sm`}>
             <div className={`flex items-center ${isSidebarExpanded ? 'justify-start' : 'justify-center'} w-full`}>
-              <Image
-                src="/v1/employee/logo-exo .png"
-                alt="Exozen Logo"
-                width={40}
-                height={40}
-                className="rounded-xl shadow-sm"
-              />
+              <div className="relative group">
+                <Image
+                  src="/v1/employee/logo-exo .png"
+                  alt="Exozen Logo"
+                  width={40}
+                  height={40}
+                  className="rounded-xl shadow-sm transform transition-all duration-300 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 rounded-xl bg-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </div>
               {isSidebarExpanded && (
-                <span className={`ml-3 font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} text-2xl tracking-wide`}>Exozen</span>
+                <span className={`ml-3 font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} text-2xl tracking-wide
+                  transition-all duration-300 ease-in-out transform`}>
+                  Exozen
+                </span>
               )}
             </div>
             <button
               onClick={toggleSidebar}
-              className={`p-2 rounded-xl ${theme === 'dark' ? 'text-gray-400 hover:bg-gray-700 hover:text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'} transition-all duration-200 ml-auto flex-shrink-0`}
+              className={`p-2 rounded-xl 
+                ${theme === 'dark' 
+                  ? 'text-gray-400 hover:bg-gray-700/70 hover:text-white' 
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'} 
+                transition-all duration-200 ml-auto flex-shrink-0
+                focus:outline-none focus:ring-2 focus:ring-blue-500/50
+                active:scale-95`}
               title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
+              aria-label={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
             >
-              {isSidebarExpanded ? <FaChevronLeft className="w-5 h-5"/> : <FaChevronRight className="w-5 h-5"/>}
+              {isSidebarExpanded 
+                ? <FaChevronLeft className="w-5 h-5 transform transition-transform duration-200 hover:scale-110"/> 
+                : <FaChevronRight className="w-5 h-5 transform transition-transform duration-200 hover:scale-110"/>}
             </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-            <ul className="p-4 space-y-2">
+          <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
+            <ul className="p-4 space-y-1.5">
               {menuItems.map(renderMenuItem)}
             </ul>
           </nav>
         </aside>
 
         {/* Main Content with Header */}
-        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
-          isSidebarExpanded ? 'ml-72' : 'ml-20'
-        }`}>
+        <div className={`flex-1 flex flex-col min-w-0 
+          transition-all duration-300 ease-in-out 
+          ${isSidebarExpanded ? 'ml-72' : 'ml-20'}`}>
           {/* Header */}
-          <header className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} 
-            border-b shadow-lg z-20 sticky top-0 h-[64px] flex items-center transition-colors duration-200`}>
+          <header className={`${theme === 'dark' 
+            ? 'bg-gray-800/95 border-gray-700' 
+            : 'bg-white/95 border-gray-200'} 
+            border-b shadow-md z-20 sticky top-0 h-[64px] flex items-center
+            transition-colors duration-200 backdrop-blur-sm`}>
             <div className="flex items-center justify-between px-4 w-full h-full">
               {/* Left: Menu Icon & Page Title */}
               <div className="flex items-center gap-3 min-w-0">
                 <button
                   onClick={toggleSidebar}
-                  className={`p-2 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-blue-700'} 
-                    transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200`}
+                  className={`p-2 rounded-lg
+                    ${theme === 'dark' 
+                      ? 'text-gray-400 hover:text-white hover:bg-gray-700/70' 
+                      : 'text-gray-500 hover:text-blue-700 hover:bg-gray-100'} 
+                    transition-all duration-200 
+                    focus:outline-none focus:ring-2 focus:ring-blue-500/50
+                    active:scale-95`}
                   title={isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
                 >
                   <FaBars className="w-5 h-5" />
                 </button>
-                <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} tracking-tight truncate`}>
+                <h1 className={`text-xl font-bold 
+                  ${theme === 'dark' ? 'text-white' : 'text-gray-900'} 
+                  tracking-tight truncate transition-colors duration-200`}>
                   {(() => {
                     const current = menuItems.find(item => item.href === pathname);
                     return current ? current.label : '';
@@ -441,19 +588,31 @@ const handleLogout = () => {
                 </h1>
               </div>
 
-              {/* Right: Date/Time, Settings, Notifications, Profile */}
-              <div className="flex items-center gap-2 ml-auto">
+              {/* Right: Actions */}
+              <div className="flex items-center gap-3 ml-auto">
                 {/* Theme Toggle */}
                 <button
                   onClick={toggleTheme}
-                  className={`p-2 rounded-full ${theme === 'dark' ? 'text-yellow-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'} transition-all duration-200`}
+                  className={`p-2 rounded-full 
+                    ${theme === 'dark' 
+                      ? 'text-yellow-400 hover:bg-gray-700/70' 
+                      : 'text-gray-500 hover:bg-gray-100'} 
+                    transition-all duration-200
+                    focus:outline-none focus:ring-2 focus:ring-blue-500/50
+                    active:scale-95`}
                   title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
                 >
-                  {theme === 'dark' ? <FaSun className="w-5 h-5" /> : <FaMoon className="w-5 h-5" />}
+                  {theme === 'dark' 
+                    ? <FaSun className="w-5 h-5 transform hover:rotate-12 transition-transform duration-200" /> 
+                    : <FaMoon className="w-5 h-5 transform hover:-rotate-12 transition-transform duration-200" />}
                 </button>
 
                 {/* Date and Time */}
-                <div className={`${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-blue-50 text-blue-700 border-blue-100'} font-medium text-sm px-4 py-1.5 rounded-full border min-w-fit`}>
+                <div className={`${theme === 'dark' 
+                  ? 'bg-gray-700/70 text-gray-200 border-gray-600' 
+                  : 'bg-blue-50 text-blue-700 border-blue-100'} 
+                  font-medium text-sm px-4 py-1.5 rounded-full border 
+                  min-w-fit shadow-sm transition-all duration-200`}>
                   {currentDateTime}
                 </div>
 
@@ -488,19 +647,74 @@ const handleLogout = () => {
                       </div>
                       {/* Profile Dropdown */}
                       {showProfileDropdown && (
-                        <div className={`absolute right-0 top-full mt-2 w-56 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-xl border py-2 z-50 transform transition-all duration-200 origin-top-right`}>
-                          <button
-                            onClick={handleEditProfile}
-                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
-                          >
-                            <FaUser className="text-blue-500 w-5 h-5" /> Edit Profile
-                          </button>
-                          <button
-                            onClick={handleLogout}
-                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
-                          >
-                            <FaSignOutAlt className="text-red-500 w-5 h-5" /> Logout
-                          </button>
+                        <div className={`absolute right-0 top-full mt-2 w-72 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-xl border py-2 z-50 transform transition-all duration-200 origin-top-right`}>
+                          {/* User Info Section */}
+                          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center gap-3">
+                              <Image
+                                src={userDetails?.employeeImage || '/placeholder-user.jpg'}
+                                alt={userDetails?.fullName || 'User'}
+                                width={40}
+                                height={40}
+                                className="w-10 h-10 rounded-full object-cover border-2 border-white shadow"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} truncate`}>
+                                  {userDetails?.fullName}
+                                </p>
+                                <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} truncate`}>
+                                  {userDetails?.email}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Role Selection Section */}
+                          <div className="px-4 py-3">
+                            <label className={`block text-xs font-medium mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                              Switch Role
+                            </label>
+                            <div className="relative">
+                              <select
+                                value={selectedRole}
+                                onChange={(e) => handleRoleChange(e.target.value)}
+                                className={`w-full px-3 py-2 appearance-none rounded-lg border ${
+                                  theme === 'dark'
+                                    ? 'bg-gray-700 border-gray-600 text-white'
+                                    : 'bg-white border-gray-200 text-gray-900'
+                                } pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                              >
+                                {roleOptions.map(role => (
+                                  <option key={role.value} value={role.value}>
+                                    {role.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                <FaChevronRight className={`w-4 h-4 transform rotate-90 ${
+                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                }`} />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className={`h-px mx-4 my-2 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`} />
+
+                          {/* Actions Section */}
+                          <div className="px-2 py-2">
+                            <button
+                              onClick={handleEditProfile}
+                              className={`w-full text-left px-3 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'} flex items-center gap-2 rounded-lg text-sm`}
+                            >
+                              <FaEdit className="text-blue-500 w-4 h-4" /> Edit Profile
+                            </button>
+                            <button
+                              onClick={handleLogout}
+                              className={`w-full text-left px-3 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-sm`}
+                            >
+                              <FaSignOutAlt className="text-red-500 w-4 h-4" /> Logout
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -564,6 +778,57 @@ const handleLogout = () => {
                   className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                 >
                   {uploading ? 'Uploading...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Password Confirmation Modal */}
+        {showPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl max-w-sm w-full mx-auto shadow-xl p-6`}>
+              <div className="text-center mb-4">
+                <div className={`w-12 h-12 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-blue-50'} mx-auto flex items-center justify-center mb-3`}>
+                  <FaUser className={`w-6 h-6 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
+                </div>
+                <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  Confirm Role Change
+                </h2>
+                <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Enter password to switch to {pendingRole} role
+                </p>
+              </div>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className={`w-full px-4 py-2.5 rounded-lg border text-sm ${
+                  theme === 'dark'
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2`}
+                placeholder="Enter your password"
+              />
+              {passwordError && (
+                <p className="text-red-500 text-xs mb-2">{passwordError}</p>
+              )}
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setShowPasswordModal(false)}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg ${
+                    theme === 'dark'
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePasswordSubmit}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                >
+                  Confirm
                 </button>
               </div>
             </div>

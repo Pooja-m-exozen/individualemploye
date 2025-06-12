@@ -11,7 +11,7 @@ import {
   FaInfoCircle,
   FaArrowLeft,
   FaIdCard,
-  FaIdBadge,
+  // FaIdBadge,
   FaPassport,
   FaUserCircle,
   FaQuestionCircle,
@@ -21,9 +21,14 @@ import Image from "next/image";
 import { getEmployeeId } from "@/services/auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
+// import { uploadKYCDocuments } from "@/services/kyc"; // Import the new service function
 
+// Update DocumentType definition
+type DocumentType = "bankStatement" | "aadhar" | "passport" | "profile";
+
+// Add DocumentUpload interface
 interface DocumentUpload {
-  type: "aadhar" | "pan" | "passport" | "photo";
+  type: DocumentType;
   file: File | null;
   preview: string | null;
   uploading: boolean;
@@ -31,9 +36,15 @@ interface DocumentUpload {
   success: boolean;
 }
 
-type DocumentType = "aadhar" | "pan" | "passport" | "photo";
-
+// Update document types to match API format exactly
 const documentInfo = {
+  bankStatement: {
+    label: "Bank Statement",
+    description: "Upload your recent bank statement",
+    required: true,
+    formats: "PDF, JPG, PNG (max 5MB)",
+    icon: FaFileAlt,
+  },
   aadhar: {
     label: "Aadhar Card",
     description: "Upload a clear copy of your Aadhar card (front and back)",
@@ -41,43 +52,49 @@ const documentInfo = {
     formats: "PDF, JPG, PNG (max 5MB)",
     icon: FaIdCard,
   },
-  pan: {
-    label: "PAN Card",
-    description: "Upload a clear copy of your PAN card",
-    required: true,
-    formats: "PDF, JPG, PNG (max 5MB)",
-    icon: FaIdBadge,
-  },
   passport: {
     label: "Passport",
-    description: "Upload the first and last page of your passport",
+    description: "Upload a clear copy of your passport",
     required: false,
     formats: "PDF, JPG, PNG (max 5MB)",
     icon: FaPassport,
   },
-  photo: {
+  profile: {
     label: "Profile Photo",
-    description: "Upload a recent passport-size photograph",
+    description: "Upload your recent passport size photo",
     required: true,
     formats: "JPG, PNG (max 2MB)",
     icon: FaUserCircle,
   },
 } as const;
 
+interface UploadedDocument {
+  documentType: DocumentType;
+  documentURL: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+}
+
+interface UploadResponse {
+  message: string;
+  uploadedDocuments: UploadedDocument[];
+}
+
 export default function UploadDocuments() {
   const router = useRouter();
   const { theme } = useTheme();
   const [documents, setDocuments] = useState<Record<string, DocumentUpload>>({
-    aadhar: {
-      type: "aadhar",
+    bankStatement: {
+      type: "bankStatement",
       file: null,
       preview: null,
       uploading: false,
       error: null,
       success: false,
     },
-    pan: {
-      type: "pan",
+    aadhar: {
+      type: "aadhar",
       file: null,
       preview: null,
       uploading: false,
@@ -92,8 +109,8 @@ export default function UploadDocuments() {
       error: null,
       success: false,
     },
-    photo: {
-      type: "photo",
+    profile: {
+      type: "profile",
       file: null,
       preview: null,
       uploading: false,
@@ -111,8 +128,8 @@ export default function UploadDocuments() {
       const file = event.target.files?.[0];
       if (!file) return;
 
-      // Validate file size
-      const maxSize = type === "photo" ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
+      // Different size limits for profile photo vs other documents
+      const maxSize = type === "profile" ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
       if (file.size > maxSize) {
         setDocuments((prev) => ({
           ...prev,
@@ -155,82 +172,109 @@ export default function UploadDocuments() {
 
     try {
       const formData = new FormData();
-      formData.append("file", doc.file);
-      formData.append("type", type);
+      formData.append("files", doc.file);
+      formData.append("documentTypes", type);
 
       const response = await fetch(
-        `https://cafm.zenapi.co.in/api/kyc/${employeeId}/upload-document`,
+        `https://cafm.zenapi.co.in/api/kyc/${employeeId}/upload-multiple-documents`,
         {
           method: "POST",
           body: formData,
         }
       );
 
-      const data = await response.json();
+      if (!response.ok) throw new Error("Failed to upload document");
 
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to upload document");
+      const data = await response.json() as UploadResponse;
+      const uploadedDoc = data.uploadedDocuments.find(d => d.documentType === type);
+
+      if (uploadedDoc) {
+        setDocuments(prev => ({
+          ...prev,
+          [type]: {
+            ...prev[type],
+            success: true,
+            uploading: false,
+            preview: uploadedDoc.documentURL,
+            error: null
+          }
+        }));
       }
 
-      setDocuments((prev) => ({
-        ...prev,
-        [type]: { ...prev[type], success: true, uploading: false },
-      }));
+      setGlobalSuccess(data.message);
+      setTimeout(() => setGlobalSuccess(null), 3000);
+
     } catch (error) {
       setDocuments((prev) => ({
         ...prev,
         [type]: {
           ...prev[type],
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to upload document",
+          error: error instanceof Error ? error.message : "Failed to upload document",
           uploading: false,
         },
       }));
     }
   };
 
+  // Update the handleUploadAll function to handle the new API response format
   const handleUploadAll = async () => {
     setGlobalError(null);
     setGlobalSuccess(null);
     setUploadProgress(0);
 
-    const requiredDocuments = (Object.entries(documentInfo) as [
-      DocumentType,
-      typeof documentInfo[DocumentType]
-    ][])
-      .filter(([, info]) => info.required)
-      .map(([type]) => type);
-
-    const missingDocuments = requiredDocuments.filter(
-      (type) => !documents[type].file
-    );
-
-    if (missingDocuments.length > 0) {
-      setGlobalError(
-        `Please select all required documents: ${missingDocuments
-          .map((type) => documentInfo[type].label)
-          .join(", ")}`
-      );
+    const employeeId = getEmployeeId();
+    if (!employeeId) {
+      setGlobalError("Employee ID not found. Please login again.");
       return;
     }
 
     try {
-      const documentsToUpload = Object.keys(documents).filter(
-        (type) => documents[type as DocumentType].file
-      ) as DocumentType[];
+      const documentsToUpload = Object.entries(documents)
+        .filter(([, doc]) => doc.file && !doc.success);
 
-      for (let i = 0; i < documentsToUpload.length; i++) {
-        const type = documentsToUpload[i];
-        await uploadDocument(type);
-        setUploadProgress(((i + 1) / documentsToUpload.length) * 100);
+      if (documentsToUpload.length === 0) {
+        setGlobalError("No documents selected for upload");
+        return;
       }
 
-      setGlobalSuccess("All documents uploaded successfully!");
-      setTimeout(() => {
-        router.push("/kyc");
-      }, 2000);
+      const formData = new FormData();
+      documentsToUpload.forEach(([type, doc]) => {
+        if (doc.file) {
+          formData.append('documents', doc.file); // Changed to match API body
+          formData.append('documentTypes', type);  // Changed to match API body
+        }
+      });
+
+      const response = await fetch(
+        `https://cafm.zenapi.co.in/api/kyc/${employeeId}/upload-multiple-documents`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to upload documents');
+
+      const data = await response.json() as UploadResponse;
+
+      data.uploadedDocuments.forEach(doc => {
+        if (documents[doc.documentType]) {
+          setDocuments(prev => ({
+            ...prev,
+            [doc.documentType]: {
+              ...prev[doc.documentType],
+              success: true,
+              uploading: false,
+              preview: doc.documentURL,
+              error: null
+            }
+          }));
+        }
+      });
+
+      setGlobalSuccess(data.message);
+      setTimeout(() => router.push("/kyc"), 2000);
+
     } catch (error) {
       setGlobalError(
         error instanceof Error
@@ -299,9 +343,15 @@ export default function UploadDocuments() {
               <Icon className="w-6 h-6" />
             </div>
             <div className="flex-1">
-              <h3 className="text-base font-semibold text-gray-900">{label}</h3>
-              <p className="text-sm text-gray-600 mt-1">{info.description}</p>
-              <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+              <h3 className={`text-base font-semibold ${
+                theme === "dark" ? "text-gray-100" : "text-gray-900"
+              }`}>{label}</h3>
+              <p className={`text-sm ${
+                theme === "dark" ? "text-gray-300" : "text-gray-600"
+              } mt-1`}>{info.description}</p>
+              <p className={`text-xs ${
+                theme === "dark" ? "text-gray-400" : "text-gray-500"
+              } mt-1 flex items-center gap-2`}>
                 <FaFileAlt className="w-3 h-3" />
                 {info.formats}
               </p>
@@ -340,10 +390,14 @@ export default function UploadDocuments() {
                   <div className="w-14 h-14 rounded-2xl bg-blue-100/70 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <FaUpload className="w-6 h-6" />
                   </div>
-                  <p className="text-sm font-medium text-gray-700 text-center">
+                  <p className={`text-sm font-medium ${
+                    theme === "dark" ? "text-gray-200" : "text-gray-700"
+                  } text-center`}>
                     Drop your {label} here or click to browse
                   </p>
-                  <p className="text-xs text-gray-500 mt-2">{info.formats}</p>
+                  <p className={`text-xs ${
+                    theme === "dark" ? "text-gray-400" : "text-gray-500"
+                  } mt-2`}>{info.formats}</p>
                 </div>
                 <input
                   type="file"
@@ -433,8 +487,8 @@ export default function UploadDocuments() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className={`rounded-xl shadow-sm overflow-hidden mb-6 border ${
-            theme === "dark" 
-              ? "bg-gray-800 border-gray-700" 
+            theme === "dark"
+              ? "bg-gray-800 border-gray-700"
               : "bg-white border-gray-200"
           }`}
         >
@@ -493,8 +547,8 @@ export default function UploadDocuments() {
                   </div>
                   {index !== steps.length - 1 && (
                     <div className={`h-0.5 flex-1 mx-4 ${
-                      step.status === "completed" 
-                        ? "bg-green-500" 
+                      step.status === "completed"
+                        ? "bg-green-500"
                         : theme === "dark" ? "bg-gray-700" : "bg-gray-200"
                     }`} />
                   )}
@@ -638,10 +692,10 @@ export default function UploadDocuments() {
 
             {/* Document Upload Cards */}
             <div className="grid grid-cols-1 gap-6">
+              <DocumentUploadCard type="bankStatement" label="Bank Statement" required />
               <DocumentUploadCard type="aadhar" label="Aadhar Card" required />
-              <DocumentUploadCard type="pan" label="PAN Card" required />
               <DocumentUploadCard type="passport" label="Passport" />
-              <DocumentUploadCard type="photo" label="Profile Photo" required />
+              <DocumentUploadCard type="profile" label="Profile Photo" required />
             </div>
 
             {/* Submit Button */}

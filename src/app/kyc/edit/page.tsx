@@ -1145,7 +1145,9 @@ export default function EditKYC() {
                     >
                       {/* Permanent Address */}
                       <div className="mb-8">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${
+                          theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                        }`}>
                           <FaMapMarkerAlt className="text-blue-600" />
                           Permanent Address
                         </h3>
@@ -1274,7 +1276,9 @@ export default function EditKYC() {
 
                       {/* Current Address */}
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${
+                          theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                        }`}>
                           <FaMapMarkerAlt className="text-blue-600" />
                           Current Address
                         </h3>
@@ -1416,7 +1420,9 @@ export default function EditKYC() {
                       }`}
                     >
                       <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${
+                          theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                        }`}>
                           <FaMoneyCheckAlt className="text-blue-600" />
                           Bank Information
                         </h3>
@@ -1546,7 +1552,9 @@ export default function EditKYC() {
                       }`}
                     >
                       <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${
+                          theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                        }`}>
                           <FaPhoneVolume className="text-blue-600" />
                           Emergency Contact
                         </h3>
@@ -1675,7 +1683,9 @@ export default function EditKYC() {
                       }`}
                     >
                       <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${
+                          theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                        }`}>
                           <FaIdCard className="text-blue-600" />
                           Documents
                         </h3>
@@ -1744,21 +1754,29 @@ export default function EditKYC() {
 
                         {/* Uploaded Documents List */}
                         <div className="mt-6">
-                          <h4 className="text-sm font-medium text-gray-700 mb-4">Uploaded Documents</h4>
+                          <h4 className={`text-sm font-medium ${
+                            theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                          } mb-4`}>Uploaded Documents</h4>
                           {kycData.documents.length > 0 ? (
                             <div className="space-y-4">
                               {kycData.documents.map((doc) => (
                                 <div
                                   key={doc._id}
-                                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                                  className={`flex items-center justify-between p-4 rounded-lg ${
+                                    theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
+                                  }`}
                                 >
                                   <div className="flex items-center gap-3">
                                     <FaIdCard className="text-blue-600" />
                                     <div>
-                                      <p className="text-sm font-medium text-gray-900">
+                                      <p className={`text-sm font-medium ${
+                                        theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                                      }`}>
                                         {doc.type}
                                       </p>
-                                      <p className="text-xs text-gray-500">
+                                      <p className={`text-xs ${
+                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                      }`}>
                                         Uploaded on &apos;
                                         {new Date(doc.uploadedAt).toLocaleDateString()}
                                       </p>
@@ -1776,7 +1794,9 @@ export default function EditKYC() {
                               ))}
                             </div>
                           ) : (
-                            <p className="text-sm text-gray-500">No documents uploaded yet.</p>
+                            <p className={`text-sm ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                            }`}>No documents uploaded yet.</p>
                           )}
                         </div>
                       </div>
