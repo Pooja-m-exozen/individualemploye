@@ -6,10 +6,35 @@ import autoTable from 'jspdf-autotable';
 import Image from 'next/image';
 import { calculateHoursUtc, transformAttendanceRecord } from '../../utils/attendanceUtils';
 import { 
-    RawAttendanceRecord, 
+    RawAttendanceRecord as BaseRawAttendanceRecord,
     TransformedAttendanceRecord, 
     MonthSummaryResponse
 } from '../../types/attendance';
+
+interface GoogleMapsAddressComponent {
+    long_name: string;
+    short_name: string;
+    types: string[];
+}
+
+interface GoogleMapsGeocodeResult {
+    address_components: GoogleMapsAddressComponent[];
+    formatted_address: string;
+    geometry: {
+        location: {
+            lat: number;
+            lng: number;
+        };
+    };
+    place_id: string;
+    types: string[];
+}
+
+interface GoogleMapsGeocodingResponse {
+    status: string;
+    results: GoogleMapsGeocodeResult[];
+    error_message?: string;
+}
 
 interface LeaveBalance {
     allocated: number;
@@ -66,14 +91,26 @@ interface LeaveHistory {
     lastUpdated: string;
 }
 
+interface LocationDetail {
+    latitude: number;
+    longitude: number;
+    address: string | null;
+}
+
+// Extend the base interface and add location details
+interface ExtendedRawAttendanceRecord extends BaseRawAttendanceRecord {
+    punchInLocation?: LocationDetail;
+    punchOutLocation?: LocationDetail;
+}
+
 interface AttendanceReportProps {
     loading: boolean;
-    attendanceData: RawAttendanceRecord[];
+    attendanceData: ExtendedRawAttendanceRecord[];
     selectedMonth: number;
     selectedYear: number;
     handleMonthChange: (month: number) => void;
     handleYearChange: (year: number) => void;
-    handleViewRecord: (record: RawAttendanceRecord) => void;
+    handleViewRecord: (record: ExtendedRawAttendanceRecord) => void;
     handleBack: () => void;
     fetchReportData: () => Promise<void>;
     formatDate: (dateString: string) => string;
@@ -93,10 +130,12 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     employeeId,
     theme
 }) => {
-    const [selectedRecord, setSelectedRecord] = useState<RawAttendanceRecord | null>(null);
+    const [selectedRecord, setSelectedRecord] = useState<ExtendedRawAttendanceRecord | null>(null);
     const [summary, setSummary] = useState<MonthSummaryResponse['data'] | null>(null);
     const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistory[]>([]);
+    const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
+    const [outLocationAddress, setOutLocationAddress] = useState<string | null>(null);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -121,7 +160,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const years = Array.from({ length: 5 }, (_, i) => currentYear + 2 - i);
 
     // Transform attendanceData using the shared logic
-    const processedAttendanceData = attendanceData.map((record: RawAttendanceRecord): TransformedAttendanceRecord => 
+    const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord => 
         transformAttendanceRecord(record)
     );
 
@@ -167,6 +206,174 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         return 'Working Day';
     };
 
+ const enrichWithLocations = (data: ExtendedRawAttendanceRecord[]): ExtendedRawAttendanceRecord[] => {
+  return data.map(record => ({
+    ...record,
+    punchInLocation: record.punchInLatitude && record.punchInLongitude
+      ? {
+          latitude: record.punchInLatitude,
+          longitude: record.punchInLongitude,
+          address: null
+        }
+      : undefined,
+    punchOutLocation: record.punchOutLatitude && record.punchOutLongitude
+      ? {
+          latitude: record.punchOutLatitude,
+          longitude: record.punchOutLongitude,
+          address: null
+        }
+      : undefined
+  }));
+};
+
+
+    // Replace the reverseGeocode function in this block with the enhanced version
+    const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+        console.log('Geocoding request for:', { lat, lng });
+        const GOOGLE_MAPS_API_KEY = 'AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4';
+        
+        try {
+            const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
+            console.log('Geocoding URL:', url);
+
+            const response = await fetch(url);
+            const data: GoogleMapsGeocodingResponse = await response.json();
+            
+            console.log('Geocoding response:', data);
+
+            if (data.status === 'OK' && data.results?.[0]) {
+                // Extract detailed address components
+                const result = data.results[0];
+                const addressComponents = {
+                    streetNumber: '',
+                    route: '',
+                    locality: '',
+                    area: '',
+                    city: '',
+                    state: '',
+                    country: ''
+                };
+
+                result.address_components.forEach((component: GoogleMapsAddressComponent) => {
+                    if (component.types.includes('street_number')) addressComponents.streetNumber = component.long_name;
+                    if (component.types.includes('route')) addressComponents.route = component.long_name;
+                    if (component.types.includes('locality')) addressComponents.locality = component.long_name;
+                    if (component.types.includes('sublocality')) addressComponents.area = component.long_name;
+                    if (component.types.includes('administrative_area_level_2')) addressComponents.city = component.long_name;
+                    if (component.types.includes('administrative_area_level_1')) addressComponents.state = component.long_name;
+                    if (component.types.includes('country')) addressComponents.country = component.long_name;
+                });
+
+                console.log('Parsed address components:', addressComponents);
+
+                // Format address string
+                const formattedAddress = [
+                    [addressComponents.streetNumber, addressComponents.route].filter(Boolean).join(' '),
+                    addressComponents.area,
+                    addressComponents.locality,
+                    addressComponents.city,
+                    addressComponents.state,
+                    addressComponents.country
+                ].filter(Boolean).join(', ');
+
+                console.log('Formatted address:', formattedAddress);
+                return formattedAddress;
+            }
+            
+            console.warn('No results found for location:', { lat, lng });
+            return 'Location not found';
+        } catch (error) {
+            console.error('Geocoding error:', error);
+            return 'Error fetching location';
+        }
+    };
+
+    useEffect(() => {
+        if (!employeeId || !selectedMonth || !selectedYear) return;
+        
+        fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${selectedMonth}&year=${selectedYear}`)
+          .then(res => res.json())
+          .then((data: MonthSummaryResponse) => {
+            if (data.success) {
+              setSummary(data.data);
+            } else {
+              setSummary(null);
+            }
+          })
+          .catch(() => {
+            setSummary(null);
+          });
+    }, [employeeId, selectedMonth, selectedYear]);
+
+    useEffect(() => {
+        if (!employeeId) return;
+        fetch(`https://cafm.zenapi.co.in/api/leave/balance/${employeeId}`)
+          .then(res => res.json())
+          .then(data => setLeaveBalance(data))
+          .catch(() => setLeaveBalance(null));
+    }, [employeeId]);
+
+    useEffect(() => {
+        if (!employeeId || !selectedMonth || !selectedYear) return;
+        fetch(`https://cafm.zenapi.co.in/api/leave/history/${employeeId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.leaveHistory) {
+                    // Filter leave history for selected month and year
+                    const filteredHistory = filterLeaveHistoryByMonth(
+                        data.leaveHistory,
+                        selectedMonth,
+                        selectedYear
+                    );
+                    setLeaveHistory(filteredHistory);
+                } else {
+                    setLeaveHistory([]);
+                }
+            })
+            .catch(() => {
+                setLeaveHistory([]);
+            });
+    }, [employeeId, selectedMonth, selectedYear]);
+
+    // Update the useEffect for fetching locations
+    useEffect(() => {
+        const fetchLocations = async () => {
+            console.log('Selected record for location:', selectedRecord);
+
+            if (selectedRecord) {
+                try {
+                    if (selectedRecord.punchInLocation?.latitude && selectedRecord.punchInLocation?.longitude) {
+                        console.log('Fetching punch-in location:', selectedRecord.punchInLocation);
+                        const inAddress = await reverseGeocode(
+                            selectedRecord.punchInLocation.latitude,
+                            selectedRecord.punchInLocation.longitude
+                        );
+                        console.log('Punch-in address found:', inAddress);
+                        setInLocationAddress(inAddress);
+                    }
+
+                    if (selectedRecord.punchOutLocation?.latitude && selectedRecord.punchOutLocation?.longitude) {
+                        console.log('Fetching punch-out location:', selectedRecord.punchOutLocation);
+                        const outAddress = await reverseGeocode(
+                            selectedRecord.punchOutLocation.latitude,
+                            selectedRecord.punchOutLocation.longitude
+                        );
+                        console.log('Punch-out address found:', outAddress);
+                        setOutLocationAddress(outAddress);
+                    }
+                } catch (error) {
+                    console.error('Error in location fetching:', error);
+                    setInLocationAddress('Error fetching location');
+                    setOutLocationAddress('Error fetching location');
+                }
+            } else {
+                setInLocationAddress(null);
+                setOutLocationAddress(null);
+            }
+        };
+        fetchLocations();
+    }, [selectedRecord]);
+
     // Add this new helper function
     const isLeaveDate = (date: string): string | null => {
         const target = new Date(date).toDateString();
@@ -189,7 +396,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     };
 
     // Update the getAttendanceStatus function
-    const getAttendanceStatus = (record: RawAttendanceRecord, dayType: string) => {
+    const getAttendanceStatus = (record: ExtendedRawAttendanceRecord, dayType: string) => {
         const leaveType = isLeaveDate(record.date);
 
         if (leaveType) {
@@ -245,14 +452,21 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             return dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
         });
 
-        const tableRows = filteredRecords.map(record => {
+        // Helper function to safely calculate hours
+        const safeCalculateHoursUtc = (inTime?: string | null, outTime?: string | null): string => {
+            if (!inTime || !outTime) return '0';
+            return calculateHoursUtc(inTime, outTime);
+        };
+
+        const tableRows = filteredRecords.map((record: ExtendedRawAttendanceRecord) => {
             const dayType = getDayType(record.date, selectedYear, selectedMonth);
             const status = getAttendanceStatus(record, dayType);
             let hoursWorked = 'Incomplete';
             
             if (record.punchInUtc && record.punchOutUtc) {
-                const hours = calculateHoursUtc(record.punchInUtc, record.punchOutUtc);
-                hoursWorked = formatHoursToHoursAndMinutes(hours);
+                hoursWorked = formatHoursToHoursAndMinutes(
+                    safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc)
+                );
             } else if (dayType !== 'Working Day') {
                 hoursWorked = '-';
             }
@@ -501,52 +715,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         });
     };
 
-    useEffect(() => {
-        if (!employeeId || !selectedMonth || !selectedYear) return;
-        
-        fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${selectedMonth}&year=${selectedYear}`)
-          .then(res => res.json())
-          .then((data: MonthSummaryResponse) => {
-            if (data.success) {
-              setSummary(data.data);
-            } else {
-              setSummary(null);
-            }
-          })
-          .catch(() => {
-            setSummary(null);
-          });
-    }, [employeeId, selectedMonth, selectedYear]);
-
-    useEffect(() => {
-        if (!employeeId) return;
-        fetch(`https://cafm.zenapi.co.in/api/leave/balance/${employeeId}`)
-          .then(res => res.json())
-          .then(data => setLeaveBalance(data))
-          .catch(() => setLeaveBalance(null));
-    }, [employeeId]);
-
-    useEffect(() => {
-        if (!employeeId || !selectedMonth || !selectedYear) return;
-        fetch(`https://cafm.zenapi.co.in/api/leave/history/${employeeId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.leaveHistory) {
-                    // Filter leave history for selected month and year
-                    const filteredHistory = filterLeaveHistoryByMonth(
-                        data.leaveHistory,
-                        selectedMonth,
-                        selectedYear
-                    );
-                    setLeaveHistory(filteredHistory);
-                } else {
-                    setLeaveHistory([]);
-                }
-            })
-            .catch(() => {
-                setLeaveHistory([]);
-            });
-    }, [employeeId, selectedMonth, selectedYear]);
+    // In your component's main render logic, process the attendance data
+    const processedData = enrichWithLocations(attendanceData);
 
     const formatTime = (dateString: string | null): string => {
         if (!dateString) return 'Incomplete';
@@ -674,7 +844,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     </tr>
                   </thead>
                   <tbody className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {attendanceData.map((record: RawAttendanceRecord, index) => (
+                    {processedData.map((record: ExtendedRawAttendanceRecord, index) => (
                       <tr 
                         key={record._id || index}
                         className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
@@ -758,36 +928,96 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               {/* Modal for viewing record details */}
               {selectedRecord && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-                  <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-8 max-w-md w-full relative animate-fade-in`}>
+                  <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-8 max-w-2xl w-full relative animate-fade-in overflow-y-auto max-h-[90vh]`}>
                     <button
                       onClick={() => setSelectedRecord(null)}
-                      className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl font-bold"
+                      className={`absolute top-2 right-2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-800'} text-2xl font-bold`}
                       aria-label="Close"
                     >
                       &times;
                     </button>
-                    <h2 className="text-2xl font-bold mb-6 text-blue-700 text-center">Attendance Record Details</h2>
+                    <h2 className={`text-2xl font-bold mb-6 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'} text-center`}>
+                      Attendance Record Details
+                    </h2>
                     <div className="space-y-4">
-                      <div className="flex justify-between border-b pb-2">
-                        <span className="font-medium text-gray-500">Date:</span>
-                        <span className="text-gray-900">{formatDate(selectedRecord.date)}</span>
+                      <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                        <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Date:</span>
+                        <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                          {formatDate(selectedRecord.date)}
+                        </span>
                       </div>
-                      <div className="flex justify-between border-b pb-2">
-                        <span className="font-medium text-gray-500">Project Name:</span>
-                        <span className="text-gray-900">{selectedRecord.projectName || 'N/A'}</span>
+                      <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                        <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Project Name:</span>
+                        <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                          {selectedRecord.projectName || 'N/A'}
+                        </span>
                       </div>
-                      <div className="flex justify-between border-b pb-2">
-                        <span className="font-medium text-gray-500">Designation:</span>
-                        <span className="text-gray-900">{selectedRecord.designation || 'N/A'}</span>
+                      <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                        <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Designation:</span>
+                        <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                          {selectedRecord.designation || 'N/A'}
+                        </span>
                       </div>
-                      <div className="flex justify-between border-b pb-2">
-                        <span className="font-medium text-gray-500">Punch In Time:</span>
-                        <span className="text-gray-900">{formatTime(selectedRecord.punchInTime)}</span>
+                      <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                        <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch In Time:</span>
+                        <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                          {formatTime(selectedRecord.punchInTime)}
+                        </span>
                       </div>
-                      <div className="flex justify-between border-b pb-2">
-                        <span className="font-medium text-gray-500">Punch Out Time:</span>
-                        <span className="text-gray-900">{formatTime(selectedRecord.punchOutTime)}</span>
+                      <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                        <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch Out Time:</span>
+                        <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                          {formatTime(selectedRecord.punchOutTime)}
+                        </span>
                       </div>
+
+                      {/* Punch In Location Details */}
+                      <div className={`flex flex-col border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                        <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} mb-2`}>
+                          Punch In Details:
+                        </span>
+                        <div className="ml-4 space-y-2">
+                            <div className="flex justify-between">
+                                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
+                                <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                                    {formatTime(selectedRecord.punchInTime)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
+                                <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
+                                    {selectedRecord.punchInLocation 
+                                        ? (inLocationAddress || 'Fetching location...')
+                                        : 'Location not available'}
+                                </span>
+                            </div>
+                        </div>
+                      </div>
+
+                      {/* Punch Out Location Details */}
+                      <div className={`flex flex-col border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                        <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} mb-2`}>
+                          Punch Out Details:
+                        </span>
+                        <div className="ml-4 space-y-2">
+                            <div className="flex justify-between">
+                                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
+                                <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                                    {formatTime(selectedRecord.punchOutTime)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
+                                <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
+                                    {selectedRecord.punchOutLocation 
+                                        ? (outLocationAddress || 'Fetching location...')
+                                        : 'Location not available'}
+                                </span>
+                            </div>
+                        </div>
+                      </div>
+
+                      {/* Attendance Photos section remains unchanged */}
                       <div className="flex flex-col items-start border-b pb-2">
                         <span className="font-medium text-gray-500 mb-1">Attendance Photos:</span>
                         <div className="grid grid-cols-2 gap-4 w-full">
