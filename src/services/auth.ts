@@ -71,9 +71,7 @@ export const logout = () => {
   localStorage.removeItem(EXPIRES_AT_KEY);
   localStorage.removeItem('userEmail');
   localStorage.removeItem(EMPLOYEE_ID_KEY);
-  // Use window.location.href for a full page refresh on logout
-// window.location.href = '/v1/employee/login';
-
+  window.location.href = '/dashboard';
 };
 
 export const isAuthenticated = (): boolean => {

@@ -33,7 +33,7 @@ interface MenuItem {
   subItems?: MenuItem[]; // Optional for items with nested submenus
 }
 
-const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): JSX.Element => {
+const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
   const [isSidebarExpanded, setSidebarExpanded] = useState(true);
   const [currentDateTime, setCurrentDateTime] = useState<string>("");
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -94,7 +94,7 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): JSX.Element => {
 
   const handleLogout = () => {
     logout();
-    window.location.href = "/login";
+    window.location.href = "/dashboard";
   };
 
   const toggleSubmenu = (label: string) => {
