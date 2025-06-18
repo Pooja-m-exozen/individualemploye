@@ -1,5 +1,6 @@
 "use client";
 
+import { useTheme } from "@/context/ThemeContext";
 import React, { useState, useEffect } from 'react';
 import { FaChartLine, FaChartBar, FaChartPie, FaCalendarAlt, FaUserClock, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import {
@@ -73,6 +74,7 @@ const dummyPerformanceData: PerformanceMetric[] = [
 ];
 
 const PerformanceScreen: React.FC = () => {
+  const { theme } = useTheme();
   const [performanceData, setPerformanceData] = useState<PerformanceMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMetric, setSelectedMetric] = useState<'attendance' | 'tasks' | 'punctuality'>('attendance');
@@ -151,7 +153,46 @@ const PerformanceScreen: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div>
+      {/* Performance Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className={`${
+          theme === 'dark' ? 'bg-gray-700' : 'bg-white'
+        } rounded-xl shadow-lg p-6`}>
+          <h3 className={`text-lg font-semibold mb-2 ${
+            theme === 'dark' ? 'text-gray-100' : 'text-gray-800'
+          }`}>
+            Team Performance
+          </h3>
+          <p className={`text-3xl font-bold ${
+            theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+          }`}>
+            92%
+          </p>
+        </div>
+
+        {/* Add more performance metric cards */}
+      </div>
+
+      {/* Performance Reviews */}
+      <div className={`${
+        theme === 'dark' ? 'bg-gray-700' : 'bg-white'
+      } rounded-xl shadow-lg p-6`}>
+        <h2 className={`text-xl font-bold mb-4 ${
+          theme === 'dark' ? 'text-gray-100' : 'text-gray-800'
+        }`}>
+          Recent Performance Reviews
+        </h2>
+        <div className="space-y-4">
+          {/* Performance review cards */}
+          <div className={`${
+            theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'
+          } rounded-lg p-4`}>
+            {/* Add performance review content */}
+          </div>
+        </div>
+      </div>
+
       {/* Performance Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-lg shadow-md">
@@ -338,4 +379,4 @@ const PerformanceScreen: React.FC = () => {
   );
 };
 
-export default PerformanceScreen; 
+export default PerformanceScreen;

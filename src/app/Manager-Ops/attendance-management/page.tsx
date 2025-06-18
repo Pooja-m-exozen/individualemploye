@@ -2,14 +2,16 @@
 
 import React, { useEffect, useState } from "react";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
-import { FaClock, FaSignInAlt, FaSignOutAlt } from "react-icons/fa";
+import { FaClock, FaSignInAlt, FaSignOutAlt, FaDownload } from "react-icons/fa";
+import { useTheme } from "@/context/ThemeContext";
+import * as XLSX from 'xlsx';
 
 interface Employee {
   employeeId: string;
+  employeeImage: string;
   fullName: string;
   designation: string;
   projectName: string;
-  imageUrl: string;
 }
 
 interface AttendanceRecord {
@@ -28,10 +30,11 @@ interface RegularizationRequest {
   projectName: string;
   date: string;
   reason: string;
-  status: string; // Pending, Approved, Rejected
+  status: string;
 }
 
-const AttendanceManagementPage = (): JSX.Element => {
+const AttendanceManagementPage = () => {
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("View Attendance");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -41,84 +44,221 @@ const AttendanceManagementPage = (): JSX.Element => {
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
 
+  // Modified fetchEmployeeAttendance to correctly get attendance
+  const fetchEmployeeAttendance = async (employeeId: string): Promise<AttendanceRecord | null> => {
+    try {
+      const currentDate = new Date().toISOString().split('T')[0];
+      const month = new Date().getMonth() + 1;
+      const year = new Date().getFullYear();
+
+      const response = await fetch(
+        `https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${month}&year=${year}`
+      );
+      const data = await response.json();
+
+      if (data.success && data.data.summary) {
+        const summary = data.data.summary;
+        return {
+          employeeId,
+          projectName: "Exozen - Ops",
+          date: currentDate,
+          punchInTime: summary.firstPunchIn || null,
+          punchOutTime: summary.lastPunchOut || null,
+          status: summary.presentDays > 0 ? "Present" : "Absent"
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error fetching attendance for employee ${employeeId}:`, error);
+      return null;
+    }
+  };
+
+  // Modified fetchEmployees to handle attendance data properly
   useEffect(() => {
-    // Dummy data for employees
-    const dummyEmployees: Employee[] = [
-      {
-        employeeId: "EFMS3257",
-        fullName: "John Doe",
-        designation: "Software Engineer",
-        projectName: "Exozen-Ops",
-        imageUrl: "https://via.placeholder.com/50",
-      },
-      {
-        employeeId: "EFMS3258",
-        fullName: "Jane Smith",
-        designation: "Project Manager",
-        projectName: "Exozen-Ops",
-        imageUrl: "https://via.placeholder.com/50",
-      },
-    ];
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch employees
+        const response = await fetch("https://cafm.zenapi.co.in/api/kyc");
+        const data = await response.json();
 
-    setEmployees(dummyEmployees);
+        if (data.kycForms) {
+          // Filter Exozen-Ops employees
+          const exozenEmployees = data.kycForms
+            .filter((form: any) => form.personalDetails.projectName === "Exozen - Ops")
+            .map((form: any) => ({
+              employeeId: form.personalDetails.employeeId,
+              employeeImage: form.personalDetails.employeeImage,
+              fullName: form.personalDetails.fullName,
+              designation: form.personalDetails.designation,
+              projectName: form.personalDetails.projectName,
+            }));
 
-    // Dummy data for attendance records
-    const dummyAttendanceRecords: AttendanceRecord[] = [
-      {
-        employeeId: "EFMS3257",
-        projectName: "Exozen-Ops",
-        date: "2025-06-13",
-        punchInTime: "09:00 AM",
-        punchOutTime: "05:00 PM",
-        status: "Present",
-      },
-      {
-        employeeId: "EFMS3258",
-        projectName: "Exozen-Ops",
-        date: "2025-06-13",
-        punchInTime: "09:30 AM",
-        punchOutTime: "05:30 PM",
-        status: "Present",
-      },
-    ];
+          setEmployees(exozenEmployees);
 
-    setAttendanceRecords(dummyAttendanceRecords);
+          // Fetch attendance for each employee
+          const attendancePromises = exozenEmployees.map((emp: { employeeId: string; }) => fetchEmployeeAttendance(emp.employeeId));
+          const attendanceResults = await Promise.all(attendancePromises);
+          const validAttendance = attendanceResults.filter((record): record is AttendanceRecord => record !== null);
+          setAttendanceRecords(validAttendance);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    // Dummy data for regularization requests
-    const dummyRegularizationRequests: RegularizationRequest[] = [
-      {
-        requestId: "REQ001",
-        employeeId: "EFMS3257",
-        fullName: "John Doe",
-        projectName: "Exozen-Ops",
-        date: "2025-06-12",
-        reason: "Forgot to punch in",
-        status: "Pending",
-      },
-      {
-        requestId: "REQ002",
-        employeeId: "EFMS3258",
-        fullName: "Jane Smith",
-        projectName: "Exozen-Ops",
-        date: "2025-06-11",
-        reason: "System error during punch out",
-        status: "Approved",
-      },
-    ];
-
-    setRegularizationRequests(dummyRegularizationRequests);
+    fetchData();
   }, []);
 
-  const calculateHours = (punchIn: string, punchOut: string): string => {
-    const punchInDate = new Date(`2025-06-13T${punchIn}`);
-    const punchOutDate = new Date(`2025-06-13T${punchOut}`);
-    if (isNaN(punchInDate.getTime()) || isNaN(punchOutDate.getTime())) {
-      return "N/A"; // Handle invalid dates
+  // Modified regularization requests fetch
+  const fetchRegularizationRequests = async () => {
+    try {
+      const promises = employees.map(async (employee) => {
+        const response = await fetch(
+          `https://cafm.zenapi.co.in/api/attendance/${employee.employeeId}/monthly-stats?month=${new Date().getMonth() + 1}&year=2025`
+        );
+        const data = await response.json();
+        
+        if (data.success && data.data.punctualityIssues?.lateArrivals > 0) {
+          return {
+            requestId: `REQ-${employee.employeeId}-${Date.now()}`,
+            employeeId: employee.employeeId,
+            fullName: employee.fullName,
+            projectName: employee.projectName,
+            date: new Date().toISOString().split('T')[0],
+            reason: "Late Arrival",
+            status: "Pending"
+          };
+        }
+        return null;
+      });
+
+      const results = await Promise.all(promises);
+      setRegularizationRequests(results.filter(req => req !== null));
+    } catch (error) {
+      console.error("Error fetching regularization requests:", error);
     }
-    const diff = punchOutDate.getTime() - punchInDate.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m`;
+  };
+
+  // Call fetchRegularizationRequests when employees are loaded
+  React.useEffect(() => {
+    if (employees.length > 0) {
+      fetchRegularizationRequests();
+    }
+  }, [employees]);
+
+  // Updated export function to properly handle date range and API response
+  const exportAttendanceData = async () => {
+    if (!fromDate || !toDate) {
+      alert("Please select both From and To dates");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Get month and year from the selected date range
+      const startDate = new Date(fromDate);
+      const month = startDate.getMonth() + 1;
+      const year = startDate.getFullYear();
+
+      // Fetch all employees' monthly summaries
+      const summaryPromises = employees
+        .filter(emp => emp.projectName === "Exozen - Ops")
+        .map(async (employee) => {
+          try {
+            const response = await fetch(
+              `https://cafm.zenapi.co.in/api/attendance/${employee.employeeId}/monthly-summary?month=${month}&year=${year}`
+            );
+            const data = await response.json();
+            
+            if (data.success && data.data.summary) {
+              const summary = data.data.summary;
+              return {
+                'Employee ID': employee.employeeId,
+                'Employee Name': employee.fullName,
+                'Project': employee.projectName,
+                'Present Days': summary.presentDays || 0,
+                'Absent Days': summary.absentDays || 0,
+                'Late Arrivals': summary.lateArrivals || 0,
+                'Early Departures': summary.earlyDepartures || 0,
+                'Total Working Hours': summary.totalWorkingHours || 'N/A'
+              };
+            }
+            return null;
+          } catch (error) {
+            console.error(`Error fetching summary for ${employee.employeeId}:`, error);
+            return null;
+          }
+        });
+
+      const summaries = (await Promise.all(summaryPromises)).filter(summary => summary !== null);
+
+      if (summaries.length === 0) {
+        alert('No monthly summary records found for Exozen - Ops');
+        return;
+      }
+
+      // Create and download Excel file
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(summaries, {
+        header: [
+          'Employee ID',
+          'Employee Name',
+          'Project',
+          'Present Days',
+          'Absent Days',
+          'Late Arrivals',
+          'Early Departures',
+          'Total Working Hours'
+        ]
+      });
+
+      // Add column widths
+      const colWidths = [
+        { wch: 15 }, // Employee ID
+        { wch: 25 }, // Employee Name
+        { wch: 15 }, // Project
+        { wch: 12 }, // Present Days
+        { wch: 12 }, // Absent Days
+        { wch: 12 }, // Late Arrivals
+        { wch: 15 }, // Early Departures
+        { wch: 18 }, // Total Working Hours
+      ];
+      ws['!cols'] = colWidths;
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Monthly Summary');
+      XLSX.writeFile(wb, `Exozen_Ops_Monthly_Summary_${month}_${year}.xlsx`);
+
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      alert('Failed to export monthly summary. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Improved hours calculation
+  const calculateHours = (punchIn: string | null, punchOut: string | null): string => {
+    if (!punchIn || !punchOut) return "N/A";
+    try {
+      const [punchInHours, punchInMinutes] = punchIn.split(':').map(Number);
+      const [punchOutHours, punchOutMinutes] = punchOut.split(':').map(Number);
+      
+      let diffHours = punchOutHours - punchInHours;
+      let diffMinutes = punchOutMinutes - punchInMinutes;
+      
+      if (diffMinutes < 0) {
+        diffHours--;
+        diffMinutes += 60;
+      }
+      
+      return `${diffHours}h ${diffMinutes}m`;
+    } catch {
+      return "N/A";
+    }
   };
 
   const handleApprove = (requestId: string) => {
@@ -172,9 +312,13 @@ const AttendanceManagementPage = (): JSX.Element => {
 
   return (
     <ManagerOpsLayout>
-      <div className="p-4 md:p-8 min-h-screen bg-gray-100">
+      <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg p-6 mb-6 flex items-center gap-6 shadow-lg">
+        <div className={`m-6 rounded-2xl p-6 flex items-center gap-5 shadow-lg ${
+          theme === 'dark'
+            ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+            : 'bg-gradient-to-r from-blue-500 to-blue-800'
+        }`}>
           <div className="bg-white text-blue-600 p-6 rounded-full flex items-center justify-center shadow-md">
             <FaClock className="text-3xl" />
           </div>
@@ -187,15 +331,19 @@ const AttendanceManagementPage = (): JSX.Element => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6">
+        <div className="mx-6 flex gap-4 mb-6">
           {["View Attendance", "Attendance Regularization Requests"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-6 py-2 rounded-lg font-medium transition ${
                 activeTab === tab
-                  ? "bg-blue-600 text-white shadow-lg"
-                  : "bg-gray-200 text-gray-600 hover:bg-blue-500 hover:text-white"
+                  ? theme === 'dark'
+                    ? "bg-blue-600 text-white shadow-lg"
+                    : "bg-blue-500 text-white shadow-lg"
+                  : theme === 'dark'
+                    ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    : "bg-gray-200 text-gray-600 hover:bg-blue-500 hover:text-white"
               }`}
             >
               {tab}
@@ -204,116 +352,159 @@ const AttendanceManagementPage = (): JSX.Element => {
         </div>
 
         {/* Filters */}
-        <div className="mb-6 bg-white p-4 rounded-lg shadow flex items-center gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-            <div className="relative">
+        <div className={`mx-6 mb-6 ${
+          theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+        } rounded-lg p-6 shadow-lg`}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${
+                theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+              }`}>Search</label>
               <input
                 type="text"
-                placeholder="Search by Employee ID, Project, or Date"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                placeholder="Search by ID or Name"
+                className={`w-full px-4 py-2 rounded-lg ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 text-white border-gray-600' 
+                    : 'bg-white text-gray-900 border-gray-200'
+                } focus:ring-2 focus:ring-blue-500`}
               />
-              <FaClock className="absolute right-3 top-2.5 text-gray-400" />
             </div>
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-            <div className="relative">
+            
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${
+                theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+              }`}>From Date</label>
               <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className={`w-full px-4 py-2 rounded-lg ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 text-white border-gray-600' 
+                    : 'bg-white text-gray-900 border-gray-200'
+                } focus:ring-2 focus:ring-blue-500`}
               />
-              <FaSignInAlt className="absolute right-3 top-2.5 text-gray-400" />
             </div>
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-            <div className="relative">
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${
+                theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+              }`}>To Date</label>
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className={`w-full px-4 py-2 rounded-lg ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 text-white border-gray-600' 
+                    : 'bg-white text-gray-900 border-gray-200'
+                } focus:ring-2 focus:ring-blue-500`}
               />
-              <FaSignOutAlt className="absolute right-3 top-2.5 text-gray-400" />
             </div>
+          </div>
+
+          {/* Export Button */}
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={exportAttendanceData}
+              disabled={loading || !fromDate || !toDate}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                theme === 'dark'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-blue-500 text-white hover:bg-blue-600'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              <FaDownload />
+              Export Attendance
+            </button>
           </div>
         </div>
 
         {/* Tab Content */}
         {activeTab === "View Attendance" && (
-          <div className="bg-white rounded-lg shadow-lg p-6 overflow-x-auto">
+          <div className={`mx-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg p-6`}>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Attendance Records</h2>
+              <h2 className={`text-2xl font-bold ${
+                theme === 'dark' ? 'text-white' : 'text-gray-800'
+              }`}>Attendance Records</h2>
               <div className="flex gap-2">
-                <button className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                  Export
-                </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                  </svg>
-                  Refresh
+                <button
+                  onClick={exportAttendanceData}
+                  disabled={loading || !fromDate || !toDate}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                    theme === 'dark'
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  } disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+                >
+                  <FaDownload />
+                  Export Data
                 </button>
               </div>
             </div>
+
             {loading ? (
               <div className="flex justify-center items-center min-h-[300px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${
+                  theme === 'dark' ? 'border-blue-400' : 'border-blue-600'
+                }`}></div>
               </div>
             ) : (
-              <div className="relative">
-                <div className="overflow-x-auto rounded-lg border border-gray-200">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Employee</th>
-                        <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Employee ID</th>
-                        <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Project</th>
-                        <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                        <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Punch In</th>
-                        <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Punch Out</th>
-                        <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Hours Worked</th>
+              <div className={`rounded-lg border ${
+                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className={`${
+                      theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
+                    }`}>
+                      <tr>
+                        <th className={`px-6 py-4 text-left text-sm font-semibold ${
+                          theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                        } uppercase tracking-wider`}>Employee</th>
+                        <th className={`px-6 py-4 text-left text-sm font-semibold ${
+                          theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                        } uppercase tracking-wider`}>Employee ID</th>
+                        <th className={`px-6 py-4 text-left text-sm font-semibold ${
+                          theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                        } uppercase tracking-wider`}>Project</th>
+                        <th className={`px-6 py-4 text-left text-sm font-semibold ${
+                          theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                        } uppercase tracking-wider`}>Date</th>
+                        <th className={`px-6 py-4 text-left text-sm font-semibold ${
+                          theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                        } uppercase tracking-wider`}>Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className={`divide-y ${
+                      theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'
+                    }`}>
                       {filteredAttendanceRecords.map((record, index) => {
-                        const employee = employees.find(
-                          (emp) => emp.employeeId === record.employeeId
-                        );
-                        const hoursWorked =
-                          record.punchInTime && record.punchOutTime
-                            ? calculateHours(record.punchInTime, record.punchOutTime)
-                            : "N/A";
+                        const employee = employees.find(emp => emp.employeeId === record.employeeId);
 
                         return (
-                          <tr
-                            key={index}
-                            className="hover:bg-gray-50 transition-colors duration-200"
-                          >
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="relative">
-                                  <img
-                                    src={employee?.imageUrl || "/default-avatar.png"}
-                                    alt={employee?.fullName || "Employee"}
-                                    className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-100"
-                                  />
-                                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full ring-2 ring-white"></span>
-                                </div>
+                          <tr key={index} className={`${
+                            theme === 'dark' 
+                              ? 'hover:bg-gray-700' 
+                              : 'hover:bg-gray-50'
+                          } transition-colors`}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-4">
+                                <img
+                                  src={employee?.employeeImage || "/default-avatar.png"}
+                                  alt={employee?.fullName}
+                                  className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200"
+                                />
                                 <div>
-                                  <p className="font-medium text-gray-900">{employee?.fullName || "N/A"}</p>
-                                  <p className="text-sm text-gray-500">
-                                    {employee?.designation || "N/A"}
-                                  </p>
+                                  <p className={`font-medium ${
+                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                  }`}>{employee?.fullName}</p>
+                                  <p className={`text-sm ${
+                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                  }`}>{employee?.designation}</p>
                                 </div>
                               </div>
                             </td>
@@ -322,47 +513,28 @@ const AttendanceManagementPage = (): JSX.Element => {
                                 {record.employeeId}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-gray-900">{record.projectName}</td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                                </svg>
-                                {record.date}
-                              </div>
+                            <td className={`px-6 py-4 ${
+                              theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                            }`}>
+                              {record.projectName}
+                            </td>
+                            <td className={`px-6 py-4 ${
+                              theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                            }`}>
+                              {record.date}
                             </td>
                             <td className="px-6 py-4">
-                              <div className="flex items-center gap-2 text-green-600">
-                                <FaSignInAlt />
-                                {record.punchInTime || "N/A"}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2 text-red-600">
-                                <FaSignOutAlt />
-                                {record.punchOutTime || "N/A"}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span
-                                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                  record.status === "Present"
-                                    ? "bg-green-100 text-green-800"
-                                    : record.status === "Absent"
-                                    ? "bg-red-100 text-red-800"
-                                    : "bg-yellow-100 text-yellow-800"
-                                }`}
-                              >
-                                {record.status || "N/A"}
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                record.status === 'Present'
+                                  ? theme === 'dark' 
+                                    ? 'bg-green-900/30 text-green-400' 
+                                    : 'bg-green-100 text-green-800'
+                                  : theme === 'dark'
+                                    ? 'bg-red-900/30 text-red-400'
+                                    : 'bg-red-100 text-red-800'
+                              }`}>
+                                {record.status}
                               </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                                </svg>
-                                <span className="font-medium text-gray-900">{hoursWorked}</span>
-                              </div>
                             </td>
                           </tr>
                         );
@@ -370,51 +542,89 @@ const AttendanceManagementPage = (): JSX.Element => {
                     </tbody>
                   </table>
                 </div>
-                {filteredAttendanceRecords.length === 0 && (
-                  <div className="text-center py-12">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No records found</h3>
-                    <p className="mt-1 text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
-                  </div>
-                )}
+              </div>
+            )}
+            
+            {/* Empty state */}
+            {!loading && filteredAttendanceRecords.length === 0 && (
+              <div className={`text-center py-12 ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 className={`mt-2 text-sm font-medium ${
+                  theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                }`}>No records found</h3>
+                <p className="mt-1 text-sm">Try adjusting your search or filter criteria.</p>
               </div>
             )}
           </div>
         )}
 
         {activeTab === "Attendance Regularization Requests" && (
-          <div className="bg-white rounded-lg shadow-lg p-6 overflow-x-auto">
+          <div className={`mx-6 ${
+            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+          } rounded-lg shadow-lg p-6 overflow-x-auto`}>
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-gray-800">Regularization Requests</h2>
-                <p className="text-sm text-gray-500 mt-1">Review and manage attendance regularization requests</p>
+                <h2 className={`text-2xl font-bold ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-800'
+                }`}>Regularization Requests</h2>
+                <p className={`text-sm mt-1 ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                }`}>Review and manage attendance regularization requests</p>
               </div>
             </div>
 
             <div className="relative">
-              <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <div className={`overflow-x-auto rounded-lg border ${
+                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+              }`}>
                 <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Request ID</th>
-                      <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Employee</th>
-                      <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Project</th>
-                      <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Reason</th>
-                      <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  <thead className={`${
+                    theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
+                  }`}>
+                    <tr>
+                      <th className={`px-6 py-4 text-sm font-semibold ${
+                        theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                      } uppercase tracking-wider`}>Request ID</th>
+                      <th className={`px-6 py-4 text-sm font-semibold ${
+                        theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                      } uppercase tracking-wider`}>Employee</th>
+                      <th className={`px-6 py-4 text-sm font-semibold ${
+                        theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                      } uppercase tracking-wider`}>Project</th>
+                      <th className={`px-6 py-4 text-sm font-semibold ${
+                        theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                      } uppercase tracking-wider`}>Date</th>
+                      <th className={`px-6 py-4 text-sm font-semibold ${
+                        theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                      } uppercase tracking-wider`}>Reason</th>
+                      <th className={`px-6 py-4 text-sm font-semibold ${
+                        theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                      } uppercase tracking-wider`}>Status</th>
+                      <th className={`px-6 py-4 text-sm font-semibold ${
+                        theme === 'dark' ? 'text-gray-200' : 'text-gray-600'
+                      } uppercase tracking-wider`}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className={`divide-y ${
+                    theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'
+                  }`}>
                     {filteredRegularizationRequests.map((request, index) => (
-                      <tr
-                        key={index}
-                        className="hover:bg-gray-50 transition-colors duration-200"
-                      >
+                      <tr key={index} className={`${
+                        theme === 'dark' 
+                          ? 'hover:bg-gray-700' 
+                          : 'hover:bg-gray-50'
+                      } transition-colors duration-200`}>
                         <td className="px-6 py-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            theme === 'dark'
+                              ? 'bg-gray-700 text-gray-200'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
                             {request.requestId}
                           </span>
                         </td>
@@ -423,35 +633,51 @@ const AttendanceManagementPage = (): JSX.Element => {
                             <img
                               src="/default-avatar.png"
                               alt={request.fullName}
-                              className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-100"
+                              className={`w-10 h-10 rounded-full object-cover ring-2 ${
+                                theme === 'dark' ? 'ring-gray-600' : 'ring-gray-100'
+                              }`}
                             />
                             <div>
-                              <p className="font-medium text-gray-900">{request.fullName}</p>
-                              <p className="text-sm text-gray-500">{request.employeeId}</p>
+                              <p className={`font-medium ${
+                                theme === 'dark' ? 'text-white' : 'text-gray-900'
+                              }`}>{request.fullName}</p>
+                              <p className={`text-sm ${
+                                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                              }`}>{request.employeeId}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            theme === 'dark'
+                              ? 'bg-blue-900/30 text-blue-400'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
                             {request.projectName}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-gray-900">{request.date}</td>
+                        <td className={`px-6 py-4 ${
+                          theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                        }`}>{request.date}</td>
                         <td className="px-6 py-4">
-                          <div className="max-w-xs">
-                            <p className="text-sm text-gray-900 truncate">{request.reason}</p>
-                          </div>
+                          <p className={`text-sm ${
+                            theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
+                          } truncate max-w-xs`}>{request.reason}</p>
                         </td>
                         <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                              request.status === "Approved"
-                                ? "bg-green-100 text-green-800"
-                                : request.status === "Rejected"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            request.status === "Approved"
+                              ? theme === 'dark'
+                                ? 'bg-green-900/30 text-green-400'
+                                : 'bg-green-100 text-green-800'
+                              : request.status === "Rejected"
+                                ? theme === 'dark'
+                                  ? 'bg-red-900/30 text-red-400'
+                                  : 'bg-red-100 text-red-800'
+                                : theme === 'dark'
+                                  ? 'bg-yellow-900/30 text-yellow-400'
+                                  : 'bg-yellow-100 text-yellow-800'
+                          }`}>
                             {request.status}
                           </span>
                         </td>
@@ -460,19 +686,29 @@ const AttendanceManagementPage = (): JSX.Element => {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleApprove(request.requestId)}
-                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                  theme === 'dark'
+                                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                                    : 'bg-green-600 hover:bg-green-700 text-white'
+                                }`}
                               >
                                 Approve
                               </button>
                               <button
                                 onClick={() => handleReject(request.requestId)}
-                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                  theme === 'dark'
+                                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                                    : 'bg-red-600 hover:bg-red-700 text-white'
+                                }`}
                               >
                                 Reject
                               </button>
                             </div>
                           ) : (
-                            <span className="text-sm text-gray-500">No actions available</span>
+                            <span className={`text-sm ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                            }`}>No actions available</span>
                           )}
                         </td>
                       </tr>
@@ -480,13 +716,22 @@ const AttendanceManagementPage = (): JSX.Element => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Empty state with theme support */}
               {filteredRegularizationRequests.length === 0 && (
                 <div className="text-center py-12">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <svg className={`mx-auto h-12 w-12 ${
+                    theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
+                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No regularization requests found</h3>
-                  <p className="mt-1 text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
+                  <h3 className={`mt-2 text-sm font-medium ${
+                    theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                  }`}>No regularization requests found</h3>
+                  <p className={`mt-1 text-sm ${
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                  }`}>Try adjusting your search or filter criteria.</p>
                 </div>
               )}
             </div>

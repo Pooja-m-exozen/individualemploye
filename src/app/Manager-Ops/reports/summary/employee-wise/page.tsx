@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { JSX, useEffect, useState } from "react";
+import { useTheme } from "@/context/ThemeContext";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
 import { FaSpinner, FaUser, FaIdCard, FaFileExcel, FaFilePdf } from "react-icons/fa";
 import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 declare module "jspdf" {
   interface jsPDF {
@@ -55,6 +57,7 @@ interface LeaveHistory {
 }
 
 const EmployeeSummaryPage = (): JSX.Element => {
+  const { theme } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
@@ -188,31 +191,74 @@ const EmployeeSummaryPage = (): JSX.Element => {
 
   const downloadPDF = () => {
     const doc = new jsPDF();
+    const selectedEmp = employees.find(emp => emp.employeeId === selectedEmployee);
 
-    doc.text("Attendance Report", 14, 10);
-    doc.autoTable({
-      startY: 15,
-      head: [["Date", "Status", "Check-In", "Check-Out"]],
-      body: attendance.map((record) => [
-        new Date(record.date).toLocaleDateString(),
-        record.status,
-        record.punchInTime,
-        record.punchOutTime,
-      ]),
+    // Add header with employee details
+    doc.setFontSize(20);
+    doc.text('Employee Summary Report', 14, 15);
+    doc.setFontSize(12);
+    doc.text(`Employee Name: ${selectedEmp?.fullName || ''}`, 14, 25);
+    doc.text(`Employee ID: ${selectedEmp?.employeeId || ''}`, 14, 32);
+    doc.text(`Designation: ${selectedEmp?.designation || ''}`, 14, 39);
+
+    // Attendance Section with simplified columns
+    doc.setFontSize(14);
+    doc.text('Attendance Details', 14, 50);
+    autoTable(doc, {
+      startY: 55,
+      head: [['Date', 'Status', 'Total Working Hours']],
+      body: attendance.map((record) => {
+        const workingHours = record.punchInTime && record.punchOutTime
+          ? ((new Date(record.punchOutTime).getTime() - new Date(record.punchInTime).getTime()) / (1000 * 60 * 60)).toFixed(2)
+          : 'N/A';
+        
+        return [
+          new Date(record.date).toLocaleDateString(),
+          record.status,
+          workingHours
+        ];
+      }),
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [66, 139, 202] }
     });
 
+    // Leave Balance Section
     doc.addPage();
-    doc.text("Leave Balance", 14, 10);
-    doc.autoTable({
-      startY: 15,
-      head: [["Leave Type", "Allocated", "Used", "Remaining", "Pending"]],
-      body: Object.entries(leaveBalance?.balances || {}).map(([type, balance]) => [
-        type,
-        balance.allocated,
-        balance.used,
-        balance.remaining,
-        balance.pending,
+    doc.setFontSize(14);
+    doc.text('Leave Balance Details', 14, 15);
+    if (leaveBalance) {
+      autoTable(doc, {
+        startY: 20,
+        head: [['Leave Type', 'Allocated', 'Used', 'Remaining', 'Pending']],
+        body: Object.entries(leaveBalance.balances).map(([type, balance]) => [
+          type,
+          balance.allocated,
+          balance.used,
+          balance.remaining,
+          balance.pending
+        ]),
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [66, 139, 202] }
+      });
+    }
+
+    // Leave History Section
+    const finalY = (doc as any).lastAutoTable.finalY + 20;
+    doc.setFontSize(14);
+    doc.text('Leave History', 14, finalY);
+    autoTable(doc, {
+      startY: finalY + 5,
+      head: [['Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason']],
+      body: leaveHistory.map((record) => [
+        record.leaveType,
+        new Date(record.startDate).toLocaleDateString(),
+        new Date(record.endDate).toLocaleDateString(),
+        record.numberOfDays,
+        record.status,
+        record.reason
       ]),
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [66, 139, 202] }
     });
 
     doc.save(`Employee_Summary_${selectedEmployee}.pdf`);
@@ -220,10 +266,10 @@ const EmployeeSummaryPage = (): JSX.Element => {
 
   return (
     <ManagerOpsLayout>
-      <div className="min-h-screen font-sans bg-gradient-to-br from-indigo-50 via-white to-blue-50">
+      <div className={`min-h-screen font-sans ${theme === 'light' ? 'bg-gradient-to-br from-indigo-50 via-white to-blue-50' : 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'}`}>
         <div className="p-6">
-          <div className="rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r from-blue-500 to-blue-800">
-            <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
+          <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${theme === 'light' ? 'bg-gradient-to-r from-blue-500 to-blue-800' : 'bg-gradient-to-r from-gray-700 to-gray-800'}`}>
+            <div className={`${theme === 'light' ? 'bg-blue-600 bg-opacity-30' : 'bg-gray-600 bg-opacity-30'} rounded-xl p-4 flex items-center justify-center`}>
               <FaIdCard className="w-10 h-10 text-white" />
             </div>
             <div>
@@ -238,7 +284,7 @@ const EmployeeSummaryPage = (): JSX.Element => {
 
           {loading ? (
             <div className="flex justify-center items-center min-h-[300px]">
-              <FaSpinner className="animate-spin text-blue-600 w-12 h-12" />
+              <FaSpinner className={`animate-spin ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'} w-12 h-12`} />
             </div>
           ) : (
             <div>
@@ -247,10 +293,12 @@ const EmployeeSummaryPage = (): JSX.Element => {
                   {employees.map((employee) => (
                     <div
                       key={employee.employeeId}
-                      className="min-w-[300px] bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow"
+                      className={`min-w-[300px] rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow ${
+                        theme === 'light' ? 'bg-white' : 'bg-gray-800'
+                      }`}
                     >
                       <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                        <div className={`w-16 h-16 rounded-full ${theme === 'light' ? 'bg-blue-100' : 'bg-gray-700'} flex items-center justify-center overflow-hidden`}>
                           {employee.employeeImage ? (
                             <img
                               src={employee.employeeImage}
@@ -258,29 +306,29 @@ const EmployeeSummaryPage = (): JSX.Element => {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <FaUser className="w-8 h-8 text-blue-500" />
+                            <FaUser className={`w-8 h-8 ${theme === 'light' ? 'text-blue-500' : 'text-blue-400'}`} />
                           )}
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900">
+                          <h3 className={`text-lg font-semibold ${theme === 'light' ? 'text-gray-900' : 'text-gray-100'}`}>
                             {employee.fullName}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className={`text-sm ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
                             {employee.employeeId}
                           </p>
                         </div>
                       </div>
-                      <p className="text-gray-700 mb-4">
+                      <p className={`${theme === 'light' ? 'text-gray-700' : 'text-gray-300'} mb-4`}>
                         <span className="font-medium">Designation:</span>{" "}
                         {employee.designation}
                       </p>
                       <button
                         onClick={() => {
                           setSelectedEmployee(employee.employeeId);
-                          fetchAttendance(employee.employeeId); // Fetch attendance data
-                          fetchLeaveDetails(employee.employeeId); // Fetch leave data
+                          fetchAttendance(employee.employeeId);
+                          fetchLeaveDetails(employee.employeeId);
                         }}
-                        className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                        className={`w-full ${theme === 'light' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-blue-600 hover:bg-blue-700'} text-white py-2 rounded-lg transition-colors`}
                       >
                         View Summary
                       </button>
@@ -292,19 +340,27 @@ const EmployeeSummaryPage = (): JSX.Element => {
               {selectedEmployee && (
                 <div className="mt-8">
                   <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">
+                    <h2 className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-gray-100'}`}>
                       Summary for {selectedEmployee}
                     </h2>
                     <div className="flex gap-4">
                       <button
                         onClick={downloadExcel}
-                        className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+                        className={`${
+                          theme === 'light' 
+                            ? 'bg-green-500 hover:bg-green-600' 
+                            : 'bg-green-600 hover:bg-green-700'
+                        } text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2`}
                       >
                         <FaFileExcel /> Download Excel
                       </button>
                       <button
                         onClick={downloadPDF}
-                        className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+                        className={`${
+                          theme === 'light' 
+                            ? 'bg-red-500 hover:bg-red-600' 
+                            : 'bg-red-600 hover:bg-red-700'
+                        } text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2`}
                       >
                         <FaFilePdf /> Download PDF
                       </button>
@@ -313,134 +369,181 @@ const EmployeeSummaryPage = (): JSX.Element => {
 
                   {attendanceLoading || leaveLoading ? (
                     <div className="flex justify-center items-center">
-                      <FaSpinner className="animate-spin text-blue-600 w-12 h-12" />
+                      <FaSpinner className={`animate-spin ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'} w-12 h-12`} />
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="bg-white rounded-lg shadow-lg p-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                      <div className={`rounded-lg shadow-lg p-6 ${theme === 'light' ? 'bg-white' : 'bg-gray-800'}`}>
+                        <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-gray-800' : 'text-gray-100'}`}>
                           Attendance Details
                         </h3>
                         {attendance.length > 0 ? (
-                          <table className="w-full bg-gray-50 rounded-lg overflow-hidden shadow-sm">
-                            <thead className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-                              <tr>
-                                <th className="p-4 text-left font-semibold">Date</th>
-                                <th className="p-4 text-left font-semibold">Status</th>
-                                <th className="p-4 text-left font-semibold">Total Working Hours</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {attendance.map((record, index) => {
-                                const totalWorkingHours =
-                                  record.punchInTime && record.punchOutTime
-                                    ? (
-                                        (new Date(record.punchOutTime).getTime() -
-                                          new Date(record.punchInTime).getTime()) /
+                          <div className={`overflow-hidden rounded-lg border ${
+                            theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                          }`}>
+                            <table className="w-full">
+                              <thead className={`${
+                                theme === 'light' 
+                                  ? 'bg-gray-50 text-gray-700'
+                                  : 'bg-gray-800 text-gray-200'
+                              }`}>
+                                <tr>
+                                  <th className="px-4 py-3 text-left text-sm font-semibold">Date</th>
+                                  <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
+                                  <th className="px-4 py-3 text-left text-sm font-semibold">Total Working Hours</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {attendance.map((record, index) => {
+                                  const totalWorkingHours = record.punchInTime && record.punchOutTime
+                                    ? ((new Date(record.punchOutTime).getTime() -
+                                        new Date(record.punchInTime).getTime()) /
                                         (1000 * 60 * 60)
-                                      ).toFixed(2)
+                                    ).toFixed(2)
                                     : "N/A";
 
-                                return (
-                                  <tr
-                                    key={index}
-                                    className={`${
-                                      index % 2 === 0 ? "bg-white" : "bg-gray-100"
-                                    } hover:bg-blue-50 transition-colors`}
-                                  >
-                                    <td className="p-4 text-gray-700">
-                                      {new Date(record.date).toLocaleDateString()}
-                                    </td>
-                                    <td className="p-4 text-gray-700">{record.status}</td>
-                                    <td className="p-4 text-gray-700">{totalWorkingHours}</td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <p className="text-gray-600">No attendance data available.</p>
-                        )}
-                      </div>
-
-                      <div className="bg-white rounded-lg shadow-lg p-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                          Leave Details
-                        </h3>
-                        {leaveBalance && leaveHistory.length > 0 ? (
-                          <div>
-                            <h4 className="text-md font-semibold text-gray-700 mb-2">
-                              Leave Balance
-                            </h4>
-                            <table className="w-full bg-gray-50 rounded-lg overflow-hidden shadow-sm mb-4">
-                              <thead className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-                                <tr>
-                                  <th className="p-4 text-left font-semibold">Leave Type</th>
-                                  <th className="p-4 text-left font-semibold">Allocated</th>
-                                  <th className="p-4 text-left font-semibold">Used</th>
-                                  <th className="p-4 text-left font-semibold">Remaining</th>
-                                  <th className="p-4 text-left font-semibold">Pending</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {Object.entries(leaveBalance.balances).map(
-                                  ([type, balance], index) => (
-                                    <tr
-                                      key={type}
-                                      className={`${
-                                        index % 2 === 0 ? "bg-white" : "bg-gray-100"
-                                      } hover:bg-blue-50 transition-colors`}
-                                    >
-                                      <td className="p-4 text-gray-700">{type}</td>
-                                      <td className="p-4 text-gray-700">{balance.allocated}</td>
-                                      <td className="p-4 text-gray-700">{balance.used}</td>
-                                      <td className="p-4 text-gray-700">{balance.remaining}</td>
-                                      <td className="p-4 text-gray-700">{balance.pending}</td>
+                                  return (
+                                    <tr key={index} className={`${
+                                      theme === 'light'
+                                        ? 'hover:bg-gray-50'
+                                        : 'hover:bg-gray-750'
+                                    }`}>
+                                      <td className={`px-4 py-3 text-sm ${
+                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                      }`}>
+                                        {new Date(record.date).toLocaleDateString()}
+                                      </td>
+                                      <td className={`px-4 py-3 text-sm ${
+                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                      }`}>
+                                        {record.status}
+                                      </td>
+                                      <td className={`px-4 py-3 text-sm ${
+                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                      }`}>
+                                        {totalWorkingHours}
+                                      </td>
                                     </tr>
-                                  )
-                                )}
-                              </tbody>
-                            </table>
-
-                            <h4 className="text-md font-semibold text-gray-700 mb-2">
-                              Leave History
-                            </h4>
-                            <table className="w-full bg-gray-50 rounded-lg overflow-hidden shadow-sm">
-                              <thead className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-                                <tr>
-                                  <th className="p-4 text-left font-semibold">Leave Type</th>
-                                  <th className="p-4 text-left font-semibold">Start Date</th>
-                                  <th className="p-4 text-left font-semibold">End Date</th>
-                                  <th className="p-4 text-left font-semibold">Days</th>
-                                  <th className="p-4 text-left font-semibold">Status</th>
-                                  <th className="p-4 text-left font-semibold">Reason</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {leaveHistory.map((record, index) => (
-                                  <tr
-                                    key={record.leaveId}
-                                    className={`${
-                                      index % 2 === 0 ? "bg-white" : "bg-gray-100"
-                                    } hover:bg-blue-50 transition-colors`}
-                                  >
-                                    <td className="p-4 text-gray-700">{record.leaveType}</td>
-                                    <td className="p-4 text-gray-700">
-                                      {new Date(record.startDate).toLocaleDateString()}
-                                    </td>
-                                    <td className="p-4 text-gray-700">
-                                      {new Date(record.endDate).toLocaleDateString()}
-                                    </td>
-                                    <td className="p-4 text-gray-700">{record.numberOfDays}</td>
-                                    <td className="p-4 text-gray-700">{record.status}</td>
-                                    <td className="p-4 text-gray-700">{record.reason}</td>
-                                  </tr>
-                                ))}
+                                  );
+                                })}
                               </tbody>
                             </table>
                           </div>
                         ) : (
-                          <p className="text-gray-600">No leave data available.</p>
+                          <p className={`${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                            No attendance data available.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className={`rounded-lg shadow-lg p-6 ${theme === 'light' ? 'bg-white' : 'bg-gray-800'}`}>
+                        <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-gray-800' : 'text-gray-100'}`}>
+                          Leave Details
+                        </h3>
+                        {leaveBalance && leaveHistory.length > 0 ? (
+                          <div>
+                            <h4 className={`text-md font-semibold mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
+                              Leave Balance
+                            </h4>
+                            <table className={`w-full border ${
+                              theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                            } rounded-lg overflow-hidden mb-6`}>
+                              <thead className={`${
+                                theme === 'light' 
+                                  ? 'bg-gray-50 text-gray-700'
+                                  : 'bg-gray-800 text-gray-200'
+                              }`}>
+                                <tr>
+                                  <th className="px-4 py-3 text-left text-sm font-semibold">Leave Type</th>
+                                  <th className="px-4 py-3 text-left text-sm font-semibold">Allocated</th>
+                                  <th className="px-4 py-3 text-left text-sm font-semibold">Used</th>
+                                  <th className="px-4 py-3 text-left text-sm font-semibold">Remaining</th>
+                                  <th className="px-4 py-3 text-left text-sm font-semibold">Pending</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {Object.entries(leaveBalance.balances).map(([type, balance], index) => (
+                                  <tr key={type} className={`${
+                                    theme === 'light'
+                                      ? 'hover:bg-gray-50'
+                                      : 'hover:bg-gray-750'
+                                  }`}>
+                                    <td className={`px-4 py-3 text-sm ${
+                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                    }`}>{type}</td>
+                                    <td className={`px-4 py-3 text-sm ${
+                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                    }`}>{balance.allocated}</td>
+                                    <td className={`px-4 py-3 text-sm ${
+                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                    }`}>{balance.used}</td>
+                                    <td className={`px-4 py-3 text-sm ${
+                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                    }`}>{balance.remaining}</td>
+                                    <td className={`px-4 py-3 text-sm ${
+                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                    }`}>{balance.pending}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+
+                            <h4 className={`text-md font-semibold mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
+                              Leave History
+                            </h4>
+                            <div className="max-h-[400px] overflow-auto rounded-lg">
+                              <table className={`w-full border ${
+                                theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                              }`}>
+                                <thead className={`${
+                                  theme === 'light' 
+                                    ? 'bg-gray-50 text-gray-700'
+                                    : 'bg-gray-800 text-gray-200'
+                                } sticky top-0 z-10`}>
+                                  <tr>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold">Leave Type</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold">Start Date</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold">End Date</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold">Days</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold">Reason</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                  {leaveHistory.map((record, index) => (
+                                    <tr key={record.leaveId} className={`${
+                                      theme === 'light'
+                                        ? 'hover:bg-gray-50'
+                                        : 'hover:bg-gray-750'
+                                    }`}>
+                                      <td className={`px-4 py-3 text-sm ${
+                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                      }`}>{record.leaveType}</td>
+                                      <td className={`px-4 py-3 text-sm ${
+                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                      }`}>{new Date(record.startDate).toLocaleDateString()}</td>
+                                      <td className={`px-4 py-3 text-sm ${
+                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                      }`}>{new Date(record.endDate).toLocaleDateString()}</td>
+                                      <td className={`px-4 py-3 text-sm ${
+                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                      }`}>{record.numberOfDays}</td>
+                                      <td className={`px-4 py-3 text-sm ${
+                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                      }`}>{record.status}</td>
+                                      <td className={`px-4 py-3 text-sm ${
+                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                      }`}>{record.reason}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className={`${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                            No leave data available.
+                          </p>
                         )}
                       </div>
                     </div>

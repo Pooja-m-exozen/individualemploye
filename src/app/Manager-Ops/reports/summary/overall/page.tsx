@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { JSX, useEffect, useState } from "react";
+import { useTheme } from "@/context/ThemeContext";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
 import { FaSpinner } from "react-icons/fa";
 import jsPDF from "jspdf";
@@ -28,6 +29,7 @@ interface LeaveBalance {
 }
 
 const OverallSummaryPage = (): JSX.Element => {
+  const { theme } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceData, setAttendanceData] = useState<Record<string, Attendance[]>>({});
   const [leaveBalances, setLeaveBalances] = useState<Record<string, Record<string, LeaveBalance>>>(
@@ -167,53 +169,113 @@ const OverallSummaryPage = (): JSX.Element => {
 
   return (
     <ManagerOpsLayout>
-      <div className="min-h-screen font-sans bg-gray-100">
+      <div className={`min-h-screen font-sans ${
+        theme === 'light' 
+          ? 'bg-gradient-to-br from-indigo-50 via-white to-blue-50' 
+          : 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
+      }`}>
         <div className="p-6">
           {/* Header */}
-          <div className="bg-blue-600 text-white p-6 rounded-lg shadow mb-6">
-            <h1 className="text-3xl font-bold">Attendance Employee-Wise</h1>
-            <p className="text-sm mt-2">View detailed attendance and leave summaries for all employees.</p>
+          <div className={`rounded-2xl p-6 shadow-lg ${
+            theme === 'light' 
+              ? 'bg-gradient-to-r from-blue-500 to-blue-800' 
+              : 'bg-gradient-to-r from-gray-700 to-gray-800'
+          }`}>
+            <h1 className="text-3xl font-bold text-white">Attendance Employee-Wise</h1>
+            <p className="text-white text-sm mt-2 opacity-90">
+              View detailed attendance and leave summaries for all employees.
+            </p>
           </div>
 
           {/* Table */}
           {loading ? (
             <div className="flex justify-center items-center min-h-[300px]">
-              <FaSpinner className="animate-spin text-blue-600 w-12 h-12" />
+              <FaSpinner className={`animate-spin ${
+                theme === 'light' ? 'text-blue-600' : 'text-blue-400'
+              } w-12 h-12`} />
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow p-4 overflow-x-auto">
+            <div className={`rounded-lg shadow-lg p-4 overflow-x-auto ${
+              theme === 'light' ? 'bg-white' : 'bg-gray-800'
+            }`}>
               <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-blue-600 text-white">
+                <thead className={`sticky top-0 ${
+                  theme === 'light'
+                    ? 'bg-gray-50 text-gray-700'
+                    : 'bg-gray-800 text-gray-200'
+                }`}>
                   <tr>
-                    <th className="p-3 border">Employee Image</th>
-                    <th className="p-3 border">Employee ID</th>
-                    <th className="p-3 border">Name</th>
-                    <th className="p-3 border">Designation</th>
-                    <th className="p-3 border">Total Days</th>
-                    <th className="p-3 border">Present Days</th>
-                    <th className="p-3 border">Half Days</th>
-                    <th className="p-3 border">Partially Absent</th>
-                    <th className="p-3 border">Week Offs</th>
-                    <th className="p-3 border">Holidays</th>
-                    <th className="p-3 border">Used EL</th>
-                    <th className="p-3 border">Used CL</th>
-                    <th className="p-3 border">Used SL</th>
-                    <th className="p-3 border">Comp Off</th>
-                    <th className="p-3 border">Loss of Pay</th>
-                    <th className="p-3 border">Total Payable Days</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Employee Image</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Employee ID</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Name</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Designation</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Total Days</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Present Days</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Half Days</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Partially Absent</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Week Offs</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Holidays</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Used EL</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Used CL</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Used SL</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Comp Off</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Loss of Pay</th>
+                    <th className={`p-3 border ${
+                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                    }`}>Total Payable Days</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className={`divide-y ${
+                  theme === 'light' ? 'divide-gray-200' : 'divide-gray-700'
+                }`}>
                   {employees.map((employee, index) => {
                     const summary = calculateAttendanceSummary(employee.employeeId);
                     return (
                       <tr
                         key={employee.employeeId}
-                        className={`hover:bg-gray-100 ${
-                          index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                        className={`${
+                          theme === 'light'
+                            ? index % 2 === 0
+                              ? 'bg-white hover:bg-gray-50'
+                              : 'bg-gray-50 hover:bg-gray-100'
+                            : index % 2 === 0
+                              ? 'bg-gray-800 hover:bg-gray-750'
+                              : 'bg-gray-750 hover:bg-gray-700'
                         }`}
                       >
-                        <td className="p-3 border">
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                        }`}>
                           <img
                             src={employee.imageUrl}
                             alt={employee.fullName}
@@ -221,21 +283,51 @@ const OverallSummaryPage = (): JSX.Element => {
                             onError={(e) => (e.currentTarget.src = "/default-avatar.png")}
                           />
                         </td>
-                        <td className="p-3 border">{employee.employeeId}</td>
-                        <td className="p-3 border">{employee.fullName}</td>
-                        <td className="p-3 border">{employee.designation}</td>
-                        <td className="p-3 border">{summary.totalDays}</td>
-                        <td className="p-3 border">{summary.presentDays}</td>
-                        <td className="p-3 border">{summary.halfDays}</td>
-                        <td className="p-3 border">{summary.partialAbsentDays}</td>
-                        <td className="p-3 border">{summary.weekOffs}</td>
-                        <td className="p-3 border">{summary.holidays}</td>
-                        <td className="p-3 border">{summary.usedEL}</td>
-                        <td className="p-3 border">{summary.usedCL}</td>
-                        <td className="p-3 border">{summary.usedSL}</td>
-                        <td className="p-3 border">{summary.usedCompOff}</td>
-                        <td className="p-3 border">{summary.lossOfPay}</td>
-                        <td className="p-3 border">{summary.totalPayableDays}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{employee.employeeId}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{employee.fullName}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{employee.designation}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.totalDays}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.presentDays}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.halfDays}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.partialAbsentDays}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.weekOffs}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.holidays}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.usedEL}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.usedCL}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.usedSL}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.usedCompOff}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.lossOfPay}</td>
+                        <td className={`p-3 border ${
+                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
+                        }`}>{summary.totalPayableDays}</td>
                       </tr>
                     );
                   })}
