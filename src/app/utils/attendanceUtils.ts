@@ -86,3 +86,50 @@ export function transformAttendanceRecord(record: RawAttendanceRecord): Transfor
     status: record.status || 'Absent'
   };
 }
+
+export const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+  try {
+    const GOOGLE_MAPS_API_KEY = 'AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4';
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.status === 'OK' && data.results?.[0]) {
+      const result = data.results[0];
+      const addressComponents = {
+        streetNumber: '',
+        route: '',
+        locality: '',
+        area: '',
+        city: '',
+        state: '',
+        country: ''
+      };
+
+      result.address_components.forEach((component: { types: string | string[]; long_name: string; }) => {
+        if (component.types.includes('street_number')) addressComponents.streetNumber = component.long_name;
+        if (component.types.includes('route')) addressComponents.route = component.long_name;
+        if (component.types.includes('locality')) addressComponents.locality = component.long_name;
+        if (component.types.includes('sublocality')) addressComponents.area = component.long_name;
+        if (component.types.includes('administrative_area_level_2')) addressComponents.city = component.long_name;
+        if (component.types.includes('administrative_area_level_1')) addressComponents.state = component.long_name;
+        if (component.types.includes('country')) addressComponents.country = component.long_name;
+      });
+
+      const formattedAddress = [
+        [addressComponents.streetNumber, addressComponents.route].filter(Boolean).join(' '),
+        addressComponents.area,
+        addressComponents.locality,
+        addressComponents.city,
+        addressComponents.state,
+        addressComponents.country
+      ].filter(Boolean).join(', ');
+
+      return formattedAddress;
+    }
+    return 'Location not found';
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    return 'Error fetching location';
+  }
+};
