@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FaCamera, FaSpinner, FaCheckCircle, FaExclamationCircle, FaMapMarkerAlt, FaUserCheck, FaClock, FaCalendarAlt, FaInfoCircle, FaStopCircle, FaTimes } from 'react-icons/fa';
 import { isAuthenticated, getEmployeeId } from '@/services/auth';
 import { useRouter } from 'next/navigation';
@@ -8,82 +8,120 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import Image from 'next/image';
 import { useTheme } from "@/context/ThemeContext";
 
+// Improve distance calculation
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c; // distance in meters
+};
+
 // Camera Modal Component
 const CameraModal = ({ isOpen, onClose, onCapture }: { isOpen: boolean; onClose: () => void; onCapture: (photo: string) => void }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [isCapturing, setIsCapturing] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  const startCamera = useCallback(async () => {
+  const capturePhoto = useCallback(async () => {
+    let mediaStream: MediaStream | null = null;
     try {
-      setCameraError(null);
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
+      setIsCapturing(true);
+      
+      mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: facingMode,
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        setStream(mediaStream);
+
+      // Create temporary video element
+      const video = document.createElement('video');
+      video.srcObject = mediaStream;
+      video.play();
+
+      // Wait for video to be ready
+      await new Promise<void>((resolve) => {
+        video.onplaying = () => resolve();
+      });
+
+      // Create canvas and capture frame
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) throw new Error('Failed to get canvas context');
+
+      // Handle mirroring for selfie mode
+      if (facingMode === 'user') {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
       }
+
+      ctx.drawImage(video, 0, 0);
+
+      // Convert to base64
+      const imageData = canvas.toDataURL('image/jpeg', 0.9);
+
+      // Cleanup
+      mediaStream.getTracks().forEach(track => track.stop());
+      video.remove();
+
+      onCapture(imageData);
+      onClose();
+
     } catch (error) {
-      console.error('Error accessing camera:', error);
-      setCameraError('Unable to access camera. Please check permissions and try again.');
+      console.error('Photo capture error:', error);
+      setCameraError('Failed to capture photo. Please try again.');
+    } finally {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+      }
+      setIsCapturing(false);
     }
-  }, [facingMode, stream]);
+  }, [facingMode, onCapture, onClose]);
+
+  const handleCameraSwitch = useCallback(() => {
+    setFacingMode(prevMode => prevMode === 'user' ? 'environment' : 'user');
+  }, []);
+
+  const renderError = useCallback(() => (
+    <div className="p-6 text-center">
+      <div className="mb-4 text-red-500">
+        <FaExclamationCircle className="w-12 h-12 mx-auto" />
+      </div>
+      <p className="text-lg text-red-600 font-medium mb-4">{cameraError}</p>
+      <div className="space-y-3">
+        <button
+          onClick={() => setCameraError(null)}
+          className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Try Again
+        </button>
+        <button
+          onClick={onClose}
+          className="w-full px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  ), [cameraError, onClose]);
 
   useEffect(() => {
-    if (isOpen) {
-      startCamera();
-    }
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+      // Cleanup will be handled in capturePhoto
     };
-  }, [isOpen, stream, startCamera]);
-
-  const toggleCamera = () => {
-    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-  };
-
-  // Replace the startCountdown function with direct capture
-  const startCountdown = () => {
-    setIsCapturing(true);
-    capturePhoto(); // Immediately capture without countdown
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current) {
-      const canvas = document.createElement('canvas');
-      const width = 400; // Reduced size for faster upload
-      const aspectRatio = videoRef.current.videoHeight / videoRef.current.videoWidth;
-      canvas.width = width;
-      canvas.height = width * aspectRatio;
-      
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        if (facingMode === 'user') {
-          ctx.translate(canvas.width, 0);
-          ctx.scale(-1, 1);
-        }
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        
-        // Lower quality for faster upload
-        const photoData = canvas.toDataURL('image/jpeg', 0.5);
-        onCapture(photoData);
-        setIsCapturing(false);
-        onClose();
-      }
-    }
-  };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -98,77 +136,53 @@ const CameraModal = ({ isOpen, onClose, onCapture }: { isOpen: boolean; onClose:
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            disabled={isCapturing}
           >
             <FaTimes className="w-6 h-6 text-gray-600" />
           </button>
         </div>
 
         {cameraError ? (
-          <div className="p-6 text-center">
-            <div className="mb-4 text-red-500">
-              <FaExclamationCircle className="w-12 h-12 mx-auto" />
-            </div>
-            <p className="text-lg text-red-600 font-medium">{cameraError}</p>
-            <button
-              onClick={startCamera}
-              className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Retry
-            </button>
-          </div>
+          renderError()
         ) : (
-          <>
-            <div className="relative aspect-[4/3] bg-black rounded-2xl overflow-hidden">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
-              />
-              
-              {/* Overlay for countdown and guidelines */}
-              <div className="absolute inset-0 pointer-events-none">
-                {/* Face outline guide */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-64 h-64 border-2 border-white/30 rounded-full"></div>
-                </div>
-              </div>
-
-              {/* Camera controls */}
-              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-6">
-                <button
-                  onClick={toggleCamera}
-                  disabled={isCapturing}
-                  className="bg-white/20 backdrop-blur-md text-white p-4 rounded-full hover:bg-white/30 transition-all duration-200"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-                
-                <button
-                  onClick={startCountdown}
-                  disabled={isCapturing}
-                  className="bg-blue-600 text-white p-6 rounded-full hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center justify-center"
-                >
-                  {isCapturing ? (
-                    <FaSpinner className="w-8 h-8 animate-spin" />
-                  ) : (
-                    <FaCamera className="w-8 h-8" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Instructions */}
-            <div className="mt-4 p-4 bg-blue-50 rounded-xl">
-              <p className="text-sm text-blue-800 flex items-center gap-2">
-                <FaInfoCircle className="text-blue-600" />
-                Position your face within the circle and ensure good lighting for the best results
+          <div className="space-y-6 p-4">
+            <div className="text-center">
+              <FaCamera className="w-16 h-16 mx-auto text-blue-600 mb-4" />
+              <p className="text-gray-600 mb-8">
+                Click the button below to take a photo
               </p>
             </div>
-          </>
+            
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={capturePhoto}
+                disabled={isCapturing}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-full shadow-lg flex items-center gap-2"
+              >
+                {isCapturing ? (
+                  <>
+                    <FaSpinner className="animate-spin w-5 h-5" />
+                    <span>Capturing...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaCamera className="w-5 h-5" />
+                    <span>Capture Photo</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleCameraSwitch}
+                disabled={isCapturing}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-full shadow flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Switch Camera</span>
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -211,6 +225,7 @@ function MarkAttendanceContent() {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
   const { theme } = useTheme();
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -238,7 +253,15 @@ function MarkAttendanceContent() {
   };
 
   const handlePhotoCapture = (photoData: string) => {
+    // Validate that the photo is in correct format
+    if (!photoData.startsWith('data:image/')) {
+      setMarkAttendanceError('Invalid photo format');
+      return;
+    }
+    
+    // Store the full data URL
     setPhotoPreview(photoData);
+    setMarkAttendanceError(null);
   };
 
   const getCurrentLocation = (): Promise<{ latitude: number; longitude: number }> => {
@@ -247,6 +270,12 @@ function MarkAttendanceContent() {
         reject(new Error('Geolocation is not supported by your browser'));
         return;
       }
+
+      const options = {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0
+      };
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -257,7 +286,8 @@ function MarkAttendanceContent() {
         },
         (error) => {
           reject(new Error('Failed to get location: ' + error.message));
-        }
+        },
+        options
       );
     });
   };
@@ -267,18 +297,20 @@ function MarkAttendanceContent() {
     try {
       setMarkingAttendance(true);
       setMarkAttendanceError(null);
+      setLocationError(null);
+
+      if (!photoPreview) {
+        throw new Error('Please capture a photo first');
+      }
 
       const employeeId = getEmployeeId();
       if (!employeeId) {
         throw new Error('Employee ID not found. Please login again.');
       }
 
-      const location = await getCurrentLocation().catch(() => {
-        throw new Error('Please enable location services');
-      });
+      // Get current location
+      const location = await getCurrentLocation();
 
-      const base64Image = photoPreview?.split(',')[1];
-      
       const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/mark-with-photo`, {
         method: 'POST',
         headers: {
@@ -286,10 +318,11 @@ function MarkAttendanceContent() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({
-          photo: base64Image,
+          photo: photoPreview,
           latitude: location.latitude,
           longitude: location.longitude,
-          timestamp: new Date().toISOString(),
+          attendanceType: "remote", // Changed to remote since we're allowing any location
+          timestamp: new Date().toISOString()
         })
       });
 
@@ -297,7 +330,9 @@ function MarkAttendanceContent() {
       
       if (!response.ok) throw new Error(data.message || 'Failed to mark attendance');
       
-      setMarkAttendanceSuccess('Attendance marked successfully!');
+      // Show success message with employee details
+      const successMessage = `Attendance marked successfully for ${data.attendance.projectName} - ${data.attendance.designation}`;
+      setMarkAttendanceSuccess(successMessage);
       setPhotoPreview(null);
       
     } catch (error: unknown) {
@@ -458,6 +493,11 @@ function MarkAttendanceContent() {
                 <FeedbackMessage message={markAttendanceSuccess} type="success" />
               )}
             </div>
+
+            {/* Add location error message */}
+            {locationError && (
+              <FeedbackMessage message={locationError} type="error" />
+            )}
 
             <button
               onClick={handleMarkAttendance}
