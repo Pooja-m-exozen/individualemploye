@@ -38,96 +38,326 @@ interface PerformanceMetric {
   taskCompletion: number;
   punctualityScore: number;
   monthlyTrend: number[];
+  punchInDays: number;
 }
 
-const dummyPerformanceData: PerformanceMetric[] = [
-  {
-    employeeId: 'EMP001',
-    fullName: 'Alice Johnson',
-    designation: 'Software Engineer',
-    attendanceRate: 95,
-    leaveUtilization: 12,
-    taskCompletion: 88,
-    punctualityScore: 92,
-    monthlyTrend: [85, 88, 90, 87, 92, 95],
-  },
-  {
-    employeeId: 'EMP002',
-    fullName: 'Bob Williams',
-    designation: 'Project Manager',
-    attendanceRate: 98,
-    leaveUtilization: 8,
-    taskCompletion: 95,
-    punctualityScore: 96,
-    monthlyTrend: [90, 92, 94, 96, 95, 98],
-  },
-  {
-    employeeId: 'EMP003',
-    fullName: 'Charlie Brown',
-    designation: 'UX Designer',
-    attendanceRate: 92,
-    leaveUtilization: 15,
-    taskCompletion: 85,
-    punctualityScore: 88,
-    monthlyTrend: [82, 85, 88, 85, 90, 92],
-  },
-];
+interface PerformanceTrendData {
+  metrics: {
+    attendance: number[];
+    taskCompletion: number[];
+    punctuality: number[];
+    leaveUtilization: number[];
+  };
+  labels: string[];
+}
 
-const PerformanceScreen: React.FC = () => {
+interface MetricCard {
+  title: string;
+  value: string;
+  change: string;
+  icon: React.ReactNode;
+  color: string;
+}
+
+// Accept an optional employeeId prop for integration with Team Overview and page.tsx
+interface PerformanceScreenProps {
+  employeeId?: string;
+}
+
+const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ employeeId }) => {
   const { theme } = useTheme();
   const [performanceData, setPerformanceData] = useState<PerformanceMetric[]>([]);
+  const [trendData, setTrendData] = useState<PerformanceTrendData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedMetric, setSelectedMetric] = useState<'attendance' | 'tasks' | 'punctuality'>('attendance');
+  const [error, setError] = useState<string | null>(null);
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+  const [leaveRecords, setLeaveRecords] = useState<any[]>([]);
+
+  const isDark = theme === 'dark';
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setPerformanceData(dummyPerformanceData);
-      setLoading(false);
-    }, 1000);
-  }, []);
+    const fetchIntegratedData = async () => {
+      setLoading(true);
+      try {
+        // Get current month and year
+        const now = new Date();
+        const currentMonth = now.getMonth(); // 0-based
+        const currentYear = now.getFullYear();
 
-  const getMetricColor = (value: number) => {
+        // Fetch all employees (for mapping)
+        const empRes = await fetch('https://cafm.zenapi.co.in/api/kyc');
+        const empData = await empRes.json();
+        let employees: { employeeId: string; fullName: string; designation: string; projectName: string }[] = [];
+        if (empData.kycForms) {
+          employees = empData.kycForms
+            .filter((form: any) => form.personalDetails.projectName === "Exozen - Ops")
+            .map((form: any) => ({
+              employeeId: form.personalDetails.employeeId,
+              fullName: form.personalDetails.fullName,
+              designation: form.personalDetails.designation,
+              projectName: form.personalDetails.projectName,
+            }));
+        }
+        // If employeeId prop is provided, filter to that employee only
+        const filteredEmployees = employeeId
+          ? employees.filter(e => e.employeeId === employeeId)
+          : employees;
+
+        // Fetch all attendance records
+        const attRes = await fetch('https://cafm.zenapi.co.in/api/attendance/all');
+        const attData = await attRes.json();
+        let allAttendance: any[] = [];
+        if (attData.attendance) {
+          allAttendance = attData.attendance.filter((rec: any) => rec.projectName === "Exozen - Ops");
+        }
+        // Filter attendance to current month only
+        const currentMonthAttendance = allAttendance.filter((rec: any) => {
+          const recDate = new Date(rec.date);
+          return recDate.getMonth() === currentMonth && recDate.getFullYear() === currentYear;
+        });
+        setAttendanceRecords(currentMonthAttendance);
+
+        // Fetch all leave records for all filtered employees in parallel
+        const allLeave = await Promise.all(
+          filteredEmployees.map(async (emp) => {
+            try {
+              const res = await fetch(`https://cafm.zenapi.co.in/api/leave/history/${emp.employeeId}`);
+              const data = await res.json();
+              if (Array.isArray(data.leaveHistory)) {
+                // Filter leave records to current month only
+                return data.leaveHistory
+                  .filter((leave: any) => {
+                    const start = new Date(leave.startDate);
+                    const end = new Date(leave.endDate);
+                    // If any part of the leave is in the current month
+                    return (
+                      (start.getMonth() === currentMonth && start.getFullYear() === currentYear) ||
+                      (end.getMonth() === currentMonth && end.getFullYear() === currentYear)
+                    );
+                  })
+                  .map((leave: any) => ({ ...leave, employeeId: emp.employeeId }));
+              }
+              return [];
+            } catch {
+              return [];
+            }
+          })
+        );
+        setLeaveRecords(allLeave.flat());
+
+        // Integrate data and calculate metrics (attendance and leave only, current month only)
+        const integratedPerformance: PerformanceMetric[] = filteredEmployees.map((emp) => {
+          const empAttendance = currentMonthAttendance.filter((a: any) => a.employeeId === emp.employeeId);
+          const empLeaves = allLeave.flat().filter((l: any) => l.employeeId === emp.employeeId);
+          // Count number of days with punch in (for current month)
+          const punchInDays = empAttendance.filter((a: any) => a.punchInTime).length;
+          const totalDays = empAttendance.length;
+          const presentDays = empAttendance.filter((a: any) => a.status === 'Present').length;
+          const absentDays = empAttendance.filter((a: any) => a.status === 'Absent').length;
+          const holidayDays = empAttendance.filter((a: any) => a.status === 'Holiday').length;
+          // Count leave types
+          const el = empLeaves.filter((l: any) => l.leaveType === 'EL').length;
+          const cl = empLeaves.filter((l: any) => l.leaveType === 'CL').length;
+          const sl = empLeaves.filter((l: any) => l.leaveType === 'SL').length;
+          // Attendance percentage as (presentDays / totalDays) * 100 for current month
+          let attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+          // Leave utilization (approved leaves / total leaves), capped at 100
+          const approvedLeaves = empLeaves.filter((l: any) => l.status === 'Approved').length;
+          let leaveUtilization = empLeaves.length > 0 ? Math.round((approvedLeaves / empLeaves.length) * 100) : 0;
+          leaveUtilization = Math.min(leaveUtilization, 100);
+          // Dummy value for punctualityScore (replace with real if available), capped at 100
+          let punctualityScore = 80 + Math.floor(Math.random() * 20);
+          punctualityScore = Math.min(punctualityScore, 100);
+          // Monthly trend (attendance and leave only)
+          const monthlyTrend = [attendanceRate, leaveUtilization, punctualityScore];
+          return {
+            employeeId: emp.employeeId,
+            fullName: emp.fullName,
+            designation: emp.designation,
+            attendanceRate,
+            leaveUtilization,
+            taskCompletion: 0, // Not used
+            punctualityScore,
+            monthlyTrend,
+            punchInDays, // Add punchInDays for current month
+          };
+        });
+        setPerformanceData(integratedPerformance);
+        // Update trendData for attendance and leave only
+        setTrendData({
+          metrics: {
+            attendance: integratedPerformance.map(e => e.attendanceRate),
+            leaveUtilization: integratedPerformance.map(e => e.leaveUtilization),
+            punctuality: integratedPerformance.map(e => e.punctualityScore),
+            taskCompletion: integratedPerformance.map(() => 0), // Provide empty array for compatibility
+          },
+          labels: integratedPerformance.map(e => e.fullName),
+        });
+      } catch (err) {
+        setError('Failed to fetch integrated performance data');
+        console.error('Error fetching integrated performance data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchIntegratedData();
+  }, [employeeId]);
+
+  const getMetricColor = (value: number): string => {
     if (value >= 90) return 'text-green-600';
     if (value >= 75) return 'text-yellow-600';
     return 'text-red-600';
   };
 
-  const getMetricIcon = (value: number) => {
+  const getMetricIcon = (value: number): React.ReactElement => {
     if (value >= 90) return <FaCheckCircle className="text-green-500" />;
     if (value >= 75) return <FaExclamationTriangle className="text-yellow-500" />;
     return <FaExclamationTriangle className="text-red-500" />;
   };
 
+  const getChange = (current: number, previous: number): string => {
+    const diff = Math.round(current - previous);
+    const direction = current > previous ? '↑' : '↓';
+    return `${direction} ${Math.abs(diff)}%`;
+  };
+
+  const metricCards: MetricCard[] = [
+    {
+      title: 'Average Attendance',
+      value: trendData ? `${Math.round(trendData.metrics.attendance[trendData.metrics.attendance.length - 1])}%` : 'N/A',
+      change: trendData && trendData.metrics.attendance.length > 1 
+        ? getChange(
+            trendData.metrics.attendance[trendData.metrics.attendance.length - 1],
+            trendData.metrics.attendance[trendData.metrics.attendance.length - 2]
+          )
+        : 'N/A',
+      icon: <FaCalendarAlt />,
+      color: 'blue'
+    },
+    {
+      title: 'Punctuality',
+      value: trendData ? `${Math.round(trendData.metrics.punctuality[trendData.metrics.punctuality.length - 1])}%` : 'N/A',
+      change: trendData && trendData.metrics.punctuality.length > 1
+        ? getChange(
+            trendData.metrics.punctuality[trendData.metrics.punctuality.length - 1],
+            trendData.metrics.punctuality[trendData.metrics.punctuality.length - 2]
+          )
+        : 'N/A',
+      icon: <FaUserClock />,
+      color: 'yellow'
+    },
+    {
+      title: 'Leave Utilization',
+      value: trendData ? `${Math.round(trendData.metrics.leaveUtilization[trendData.metrics.leaveUtilization.length - 1])}%` : 'N/A',
+      change: trendData && trendData.metrics.leaveUtilization.length > 1
+        ? getChange(
+            trendData.metrics.leaveUtilization[trendData.metrics.leaveUtilization.length - 1],
+            trendData.metrics.leaveUtilization[trendData.metrics.leaveUtilization.length - 2]
+          )
+        : 'N/A',
+      icon: <FaChartPie />,
+      color: 'purple'
+    },
+  ];
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: {
+          color: isDark ? '#f3f4f6' : '#1f2937',
+        },
+      },
+      title: {
+        color: isDark ? '#f3f4f6' : '#1f2937',
+        display: true,
+        text: 'Overall Performance Trends',
+      },
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: isDark ? '#d1d5db' : '#374151',
+        },
+        grid: {
+          color: isDark ? '#374151' : '#e5e7eb',
+        },
+      },
+      y: {
+        ticks: {
+          color: isDark ? '#d1d5db' : '#374151',
+        },
+        grid: {
+          color: isDark ? '#374151' : '#e5e7eb',
+        },
+        min: 0,
+        max: 100,
+      },
+    },
+  };
+
   const lineChartData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-    datasets: performanceData.map((employee, index) => ({
-      label: employee.fullName,
-      data: employee.monthlyTrend,
-      borderColor: `hsl(${index * 120}, 70%, 50%)`,
-      backgroundColor: `hsla(${index * 120}, 70%, 50%, 0.1)`,
-      tension: 0.4,
-    })),
+    labels: trendData?.labels || [],
+    datasets: [
+      {
+        label: 'Attendance',
+        data: trendData?.metrics.attendance || [],
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.4,
+      },
+      {
+        label: 'Punctuality',
+        data: trendData?.metrics.punctuality || [],
+        borderColor: 'rgb(234, 179, 8)',
+        backgroundColor: 'rgba(234, 179, 8, 0.1)',
+        tension: 0.4,
+      },
+      {
+        label: 'Leave Utilization',
+        data: trendData?.metrics.leaveUtilization || [],
+        borderColor: 'rgb(168, 85, 247)',
+        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+        tension: 0.4,
+      },
+    ],
   };
 
   const barChartData = {
     labels: performanceData.map(emp => emp.fullName),
     datasets: [
       {
-        label: 'Task Completion Rate',
-        data: performanceData.map(emp => emp.taskCompletion),
-        backgroundColor: 'rgba(59, 130, 246, 0.5)',
-        borderColor: 'rgb(59, 130, 246)',
+        label: 'Punctuality',
+        data: performanceData.map(emp => emp.punctualityScore),
+        backgroundColor: 'rgba(234, 179, 8, 0.5)',
+        borderColor: 'rgb(234, 179, 8)',
         borderWidth: 1,
       },
     ],
+  };
+
+  // Calculate average metrics for the doughnut chart
+  const calculateAverages = () => {
+    if (!performanceData.length) return [0, 0, 0];
+    
+    const totalEmployees = performanceData.length;
+    const onTime = performanceData.filter(emp => emp.punctualityScore >= 90).length;
+    const late = performanceData.filter(emp => emp.punctualityScore >= 75 && emp.punctualityScore < 90).length;
+    const absent = performanceData.filter(emp => emp.punctualityScore < 75).length;
+
+    return [
+      (onTime / totalEmployees) * 100,
+      (late / totalEmployees) * 100,
+      (absent / totalEmployees) * 100,
+    ];
   };
 
   const doughnutChartData = {
     labels: ['On Time', 'Late', 'Absent'],
     datasets: [
       {
-        data: [75, 15, 10],
+        data: calculateAverages(),
         backgroundColor: [
           'rgba(34, 197, 94, 0.5)',
           'rgba(234, 179, 8, 0.5)',
@@ -143,6 +373,11 @@ const PerformanceScreen: React.FC = () => {
     ],
   };
 
+  // Calculate overall team averages for the current month
+  const avgAttendance = performanceData.length > 0 ? Math.round(performanceData.reduce((sum, e) => sum + e.attendanceRate, 0) / performanceData.length) : 0;
+  const avgPunctuality = performanceData.length > 0 ? Math.round(performanceData.reduce((sum, e) => sum + e.punctualityScore, 0) / performanceData.length) : 0;
+  const avgLeaveUtilization = performanceData.length > 0 ? Math.round(performanceData.reduce((sum, e) => sum + e.leaveUtilization, 0) / performanceData.length) : 0;
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -152,227 +387,114 @@ const PerformanceScreen: React.FC = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center">
+          <FaExclamationTriangle className="mx-auto text-red-500 text-4xl mb-4" />
+          <p className="text-lg text-gray-600">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      {/* Performance Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className={`${
-          theme === 'dark' ? 'bg-gray-700' : 'bg-white'
-        } rounded-xl shadow-lg p-6`}>
-          <h3 className={`text-lg font-semibold mb-2 ${
-            theme === 'dark' ? 'text-gray-100' : 'text-gray-800'
-          }`}>
-            Team Performance
-          </h3>
-          <p className={`text-3xl font-bold ${
-            theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-          }`}>
-            92%
-          </p>
-        </div>
-
-        {/* Add more performance metric cards */}
-      </div>
-
-      {/* Performance Reviews */}
-      <div className={`${
-        theme === 'dark' ? 'bg-gray-700' : 'bg-white'
-      } rounded-xl shadow-lg p-6`}>
-        <h2 className={`text-xl font-bold mb-4 ${
-          theme === 'dark' ? 'text-gray-100' : 'text-gray-800'
-        }`}>
-          Recent Performance Reviews
-        </h2>
-        <div className="space-y-4">
-          {/* Performance review cards */}
-          <div className={`${
-            theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'
-          } rounded-lg p-4`}>
-            {/* Add performance review content */}
+    <div className={`${theme === 'dark' ? 'dark' : ''}`}>
+      <div className={`min-h-screen p-6 transition-colors duration-300 ${isDark ? 'bg-gray-900 text-gray-100' : 'bg-gray-100 text-gray-800'}`}>
+        
+        {/* Team Metrics Row: Attendance, Punctuality, Leave Utilization */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className={`flex-1 p-6 rounded-xl shadow-lg flex flex-col items-center justify-center ${isDark ? 'bg-gray-700' : 'bg-white'}`}> 
+            <span className="text-sm font-medium text-gray-500 mb-1">Avg. Attendance</span>
+            <span className="text-2xl font-bold text-blue-600">{avgAttendance}%</span>
           </div>
-        </div>
-      </div>
-
-      {/* Performance Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-700">Average Attendance</h3>
-            <FaCalendarAlt className="text-blue-500 text-xl" />
+          <div className={`flex-1 p-6 rounded-xl shadow-lg flex flex-col items-center justify-center ${isDark ? 'bg-gray-700' : 'bg-white'}`}> 
+            <span className="text-sm font-medium text-gray-500 mb-1">Avg. Punctuality</span>
+            <span className="text-2xl font-bold text-yellow-600">{avgPunctuality}%</span>
           </div>
-          <div className="flex items-end justify-between">
-            <div className="text-3xl font-bold text-blue-600">95%</div>
-            <div className="text-sm text-green-500">↑ 2.5%</div>
+          <div className={`flex-1 p-6 rounded-xl shadow-lg flex flex-col items-center justify-center ${isDark ? 'bg-gray-700' : 'bg-white'}`}> 
+            <span className="text-sm font-medium text-gray-500 mb-1">Avg. Leave Utilization</span>
+            <span className="text-2xl font-bold text-purple-600">{avgLeaveUtilization}%</span>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-700">Task Completion</h3>
-            <FaChartBar className="text-green-500 text-xl" />
-          </div>
-          <div className="flex items-end justify-between">
-            <div className="text-3xl font-bold text-green-600">89%</div>
-            <div className="text-sm text-green-500">↑ 1.8%</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-700">Punctuality</h3>
-            <FaUserClock className="text-yellow-500 text-xl" />
-          </div>
-          <div className="flex items-end justify-between">
-            <div className="text-3xl font-bold text-yellow-600">92%</div>
-            <div className="text-sm text-red-500">↓ 0.5%</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-700">Leave Utilization</h3>
-            <FaChartPie className="text-purple-500 text-xl" />
-          </div>
-          <div className="flex items-end justify-between">
-            <div className="text-3xl font-bold text-purple-600">12%</div>
-            <div className="text-sm text-green-500">↓ 1.2%</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Performance Trends */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">Performance Trends</h3>
-        <div className="h-80">
-          <Line
-            data={lineChartData}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: 'top' as const,
-                },
-                title: {
-                  display: true,
-                  text: 'Monthly Performance Trend',
-                },
-              },
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Detailed Performance Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Attendance Rate</h3>
+        {/* Line Chart - Overall Performance Trends */}
+        <div className={`p-6 rounded-lg shadow-md mb-6 ${isDark ? 'bg-gray-700' : 'bg-white'}`}>
+          <h3 className="text-xl font-semibold mb-4">Overall Performance Trends</h3>
           <div className="h-80">
-            <Bar
-              data={barChartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    position: 'top' as const,
-                  },
-                },
-              }}
-            />
+            <Line data={lineChartData} options={chartOptions} />
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Attendance Distribution</h3>
-          <div className="h-80">
-            <Doughnut
-              data={doughnutChartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    position: 'top' as const,
-                  },
-                },
-              }}
-            />
+        {/* Bar & Doughnut Charts */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className={`p-6 rounded-lg shadow-md ${isDark ? 'bg-gray-700' : 'bg-white'}`}>
+            <h3 className="text-xl font-semibold mb-4">Punctuality</h3>
+            <div className="h-80">
+              <Bar data={barChartData} options={chartOptions} />
+            </div>
+          </div>
+          <div className={`p-6 rounded-lg shadow-md ${isDark ? 'bg-gray-700' : 'bg-white'}`}>
+            <h3 className="text-xl font-semibold mb-4">Attendance Distribution</h3>
+            <div className="h-80">
+              <Doughnut data={doughnutChartData} options={chartOptions} />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Individual Performance Table */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">Individual Performance</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Employee
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Attendance
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Task Completion
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Punctuality
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Leave Utilization
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {performanceData.map((employee) => (
-                <tr key={employee.employeeId} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{employee.fullName}</div>
+        {/* Performance Table */}
+        <div className={`p-6 rounded-lg shadow-md ${isDark ? 'bg-gray-700' : 'bg-white'}`}>
+          <h3 className="text-xl font-semibold mb-4">Individual Performance</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+              <thead className={`${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+                <tr>
+                  {['Employee', 'Punctuality', 'Leave Utilization', 'Days Punched In'].map((header) => (
+                    <th key={header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className={`divide-y divide-gray-200 dark:divide-gray-600 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
+                {performanceData.map((employee) => (
+                  <tr key={employee.employeeId} className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium">{employee.fullName}</div>
                         <div className="text-sm text-gray-500">{employee.designation}</div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {getMetricIcon(employee.attendanceRate)}
-                      <span className={`ml-2 text-sm font-medium ${getMetricColor(employee.attendanceRate)}`}>
-                        {employee.attendanceRate}%
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {getMetricIcon(employee.taskCompletion)}
-                      <span className={`ml-2 text-sm font-medium ${getMetricColor(employee.taskCompletion)}`}>
-                        {employee.taskCompletion}%
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {getMetricIcon(employee.punctualityScore)}
-                      <span className={`ml-2 text-sm font-medium ${getMetricColor(employee.punctualityScore)}`}>
-                        {employee.punctualityScore}%
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {getMetricIcon(100 - employee.leaveUtilization)}
-                      <span className={`ml-2 text-sm font-medium ${getMetricColor(100 - employee.leaveUtilization)}`}>
-                        {employee.leaveUtilization}%
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {getMetricIcon(employee.punctualityScore)}
+                        <span className={`ml-2 text-sm font-medium ${getMetricColor(employee.punctualityScore)}`}>
+                          {employee.punctualityScore}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {getMetricIcon(employee.leaveUtilization)}
+                        <span className={`ml-2 text-sm font-medium ${getMetricColor(employee.leaveUtilization)}`}>
+                          {employee.leaveUtilization}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{employee.punchInDays}</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

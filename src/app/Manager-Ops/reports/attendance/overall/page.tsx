@@ -10,6 +10,7 @@ import * as XLSX from "xlsx";
 import { Tooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
 import { Popover } from "@headlessui/react";
+import Image from 'next/image';
 
 interface Employee {
   employeeId: string;
@@ -66,8 +67,12 @@ const isHoliday = (date: Date): boolean => {
 };
 
 // Update getAttendanceStatus function
-const getAttendanceStatus = (date: Date, status?: string, punchInTime?: string): string => {
-  if (isHoliday(date)) return 'H';
+const getAttendanceStatus = (date: Date, status?: string, punchInTime?: string, punchOutTime?: string): string => {
+  if (isHoliday(date)) {
+    // If it's a holiday but has both punch in and punch out, show CF
+    if (punchInTime && punchOutTime) return 'CF';
+    return 'H';
+  }
   return status === 'Present' && punchInTime ? 'P' : 'A';
 };
 
@@ -90,6 +95,77 @@ function extractTimeHMS(dateString: string | undefined): string {
   const s = String(date.getSeconds()).padStart(2, '0');
   return `${h}:${m}:${s}`;
 }
+
+// Helper to get week offs (Sundays and 2nd/4th Saturdays) for a month
+type WeekOffType = 'sunday' | 'saturday';
+const getWeekOffs = (year: number, month: number): { date: string, type: WeekOffType }[] => {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const weekOffs: { date: string, type: WeekOffType }[] = [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month - 1, day);
+    if (date.getDay() === 0) {
+      weekOffs.push({ date: date.toISOString().split('T')[0], type: 'sunday' });
+    } else if (isSecondOrFourthSaturday(date)) {
+      weekOffs.push({ date: date.toISOString().split('T')[0], type: 'saturday' });
+    }
+  }
+  return weekOffs;
+};
+
+// Helper to get payable days (Present + Week Offs)
+const getPayableDays = (attendance: Attendance[], year: number, month: number): number => {
+  const presentDays = attendance.filter(a => a.status === 'P').length;
+  const weekOffs = getWeekOffs(year, month).filter(wo => {
+    // Only count as week off if not a government holiday
+    return !GOVERNMENT_HOLIDAYS.some(h => h.date === wo.date);
+  }).length;
+  return presentDays + weekOffs;
+};
+
+// Enhanced base64 image helper with error handling and retries
+const getBase64FromUrl = async (url: string, retries = 3): Promise<string> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to convert image to base64'));
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`Retrying image fetch, ${retries} attempts remaining`);
+      return getBase64FromUrl(url, retries - 1);
+    }
+    throw error;
+  }
+};
+
+// Helper to add logo to PDF with fallback
+const addLogoToPDF = async (doc: jsPDF, x: number, y: number, width: number, height: number): Promise<void> => {
+  try {
+    // Try primary logo first
+    const logoBase64 = await getBase64FromUrl("/v1/employee/exozen_logo1.png");
+    doc.addImage(logoBase64, 'PNG', x, y, width, height);
+  } catch (primaryError) {
+    console.warn('Failed to load primary logo, trying fallback logo');
+    try {
+      // Try fallback logo
+      const fallbackLogoBase64 = await getBase64FromUrl('/exozen_logo.png');
+      doc.addImage(fallbackLogoBase64, 'PNG', x, y, width, height);
+    } catch (fallbackError) {
+      console.error('Failed to load both logos:', fallbackError);
+      // Add text placeholder if both logos fail
+      doc.setFontSize(12);
+      doc.setTextColor(150, 150, 150);
+      doc.text('EXOZEN', x, y + height/2);
+    }
+  }
+};
 
 const OverallAttendancePage = (): JSX.Element => {
   const { theme } = useTheme();
@@ -159,7 +235,7 @@ const OverallAttendancePage = (): JSX.Element => {
             
             monthAttendance.push({
               date: dateString,
-              status: getAttendanceStatus(currentDate, dayRecord?.status, dayRecord?.punchInTime),
+              status: getAttendanceStatus(currentDate, dayRecord?.status, dayRecord?.punchInTime, dayRecord?.punchOutTime),
               punchInTime: dayRecord?.punchInTime,
               punchOutTime: dayRecord?.punchOutTime
             });
@@ -214,94 +290,93 @@ const OverallAttendancePage = (): JSX.Element => {
   };
 
   // Download functions
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margins = 10;
-
-    // Company Header
-    doc.setFontSize(24);
-    doc.setTextColor(41, 128, 185);
-    doc.text('EXOZEN', pageWidth / 2, 20, { align: 'center' });
+    let yPosition = 12;
+    const logoWidth = 60;
+    const logoHeight = 25;
+    const logoX = (pageWidth - logoWidth) / 2;
+    await addLogoToPDF(doc, logoX, yPosition, logoWidth, logoHeight);
+    yPosition += logoHeight + 6;
 
     // Report Title
-    doc.setFontSize(16);
-    doc.setTextColor(100, 100, 100);
-    doc.text('Monthly Attendance Report', pageWidth / 2, 30, { align: 'center' });
-    
+    doc.setFontSize(20);
+    doc.setTextColor(41, 128, 185);
+    doc.text('Monthly Attendance Report', pageWidth / 2, yPosition + 8, { align: 'center' });
+
     // Period
     doc.setFontSize(12);
-    doc.text(`${new Date(year, month - 1).toLocaleString('default', { month: 'long' })} ${year}`, pageWidth / 2, 35, { align: 'center' });
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${new Date(year, month - 1).toLocaleString('default', { month: 'long' })} ${year}`, pageWidth / 2, yPosition + 18, { align: 'center' });
 
-    // Generate Report Summary
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-    const summaryBox = {
-      x: margins,
-      y: 45,
-      width: pageWidth - (margins * 2),
-      height: 25
-    };
-
-    // Summary Box
-    doc.setFillColor(247, 250, 252);
-    doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(summaryBox.x, summaryBox.y, summaryBox.width, summaryBox.height, 3, 3, 'FD');
-
-    // Summary Content
-    doc.text(`Total Employees: ${employees.length}`, margins + 5, summaryBox.y + 8);
-    doc.text(`Working Days: ${getDaysInMonth(year, month)}`, margins + 5, summaryBox.y + 18);
-    doc.text(`Generated On: ${new Date().toLocaleDateString()}`, pageWidth - 60, summaryBox.y + 8);
-
-    // Create table header with correct typing
+    // Remove summary box from PDF (no summaryBox, no doc.roundedRect, no doc.text for summary)
+    // Table headers
     const daysInMonth = getDaysInMonth(year, month);
     const tableHeaders = [
       [
-        { content: 'Emp ID', styles: { fillColor: [41, 128, 185] as [number, number, number], textColor: 255, fontStyle: 'bold' as const }},
-        { content: 'Name', styles: { fillColor: [41, 128, 185] as [number, number, number], textColor: 255, fontStyle: 'bold' as const }},
-        ...Array.from({ length: daysInMonth }, (_, i) => ({
-          content: (i + 1).toString(),
-          styles: { fillColor: [41, 128, 185] as [number, number, number], textColor: 255, fontStyle: 'bold' as const }
-        })),
-        { content: 'Present', styles: { fillColor: [41, 128, 185] as [number, number, number], textColor: 255, fontStyle: 'bold' as const }},
-        { content: 'Absent', styles: { fillColor: [41, 128, 185] as [number, number, number], textColor: 255, fontStyle: 'bold' as const }},
-        { content: 'Holiday', styles: { fillColor: [41, 128, 185] as [number, number, number], textColor: 255, fontStyle: 'bold' as const }}
+        'Emp ID',
+        'Name',
+        ...Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString()),
+        'Present',
+        'Absent',
+        'Holiday',
+        'Payable Days',
       ]
     ];
 
-    // Prepare table data with correct typing
+    // Table data with payable days calculation and CF logic
     const tableData = employees.map(employee => {
       const employeeAttendance = attendanceData[employee.employeeId] || [];
       const presentCount = employeeAttendance.filter(a => a.status === 'P').length;
       const absentCount = employeeAttendance.filter(a => a.status === 'A').length;
       const holidayCount = employeeAttendance.filter(a => a.status === 'H').length;
-
+      const payableDays = getPayableDays(employeeAttendance, year, month);
       return [
         employee.employeeId,
         employee.fullName,
-        ...employeeAttendance.map(record => ({
-          content: record.status,
-          styles: {
-            fillColor: record.status === 'P' ? [232, 245, 233] as [number, number, number] : 
-                      record.status === 'H' ? [237, 231, 246] as [number, number, number] : 
-                      [253, 232, 232] as [number, number, number],
-            textColor: record.status === 'P' ? [27, 94, 32] as [number, number, number] :
-                      record.status === 'H' ? [94, 53, 177] as [number, number, number] :
-                      [183, 28, 28] as [number, number, number]
+        ...employeeAttendance.map(record => {
+          const fillColor: [number, number, number] = record.status === 'P'
+            ? [232, 245, 233]
+            : record.status === 'H'
+              ? [237, 231, 246]
+              : record.status === 'CF'
+                ? [255, 249, 196]
+                : [253, 232, 232];
+          const textColor: [number, number, number] = record.status === 'P'
+            ? [27, 94, 32]
+            : record.status === 'H'
+              ? [94, 53, 177]
+              : record.status === 'CF'
+                ? [255, 152, 0]
+                : [183, 28, 28];
+          if (['P', 'A', 'H', 'CF'].includes(record.status)) {
+            return {
+              content: record.status,
+              styles: {
+                fillColor,
+                textColor,
+                fontStyle: 'bold' as const,
+              }
+            };
+          } else {
+            return record.status;
           }
-        })),
+        }),
         presentCount.toString(),
         absentCount.toString(),
-        holidayCount.toString()
+        holidayCount.toString(),
+        payableDays.toString(),
       ];
     });
 
-    // Generate table with typed configuration
+    // Generate table with improved styling
     autoTable(doc, {
       head: tableHeaders,
       body: tableData,
-      startY: summaryBox.y + summaryBox.height + 10,
+      startY: yPosition + 28, // Add space after period
       theme: 'grid',
       styles: {
         fontSize: 8,
@@ -309,21 +384,22 @@ const OverallAttendancePage = (): JSX.Element => {
         valign: 'middle',
         halign: 'center',
         lineWidth: 0.1,
-        lineColor: [226, 232, 240] as [number, number, number]
+        lineColor: [226, 232, 240],
       },
       columnStyles: {
         0: { cellWidth: 25 },
         1: { cellWidth: 35 }
       },
       headStyles: {
-        fillColor: [41, 128, 185] as [number, number, number],
+        fillColor: [41, 128, 185],
         textColor: 255,
         fontSize: 8,
         fontStyle: 'bold',
-        halign: 'center'
+        halign: 'center',
       },
       margin: { left: margins, right: margins },
       didDrawPage: (data) => {
+        // Add page number
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
         doc.text(
@@ -335,46 +411,55 @@ const OverallAttendancePage = (): JSX.Element => {
       }
     });
 
-    // Signature section
+    // Signature section with improved styling
     const signatureY = pageHeight - 25;
     doc.setDrawColor(100, 100, 100);
     doc.setLineWidth(0.5);
-    
-    // Signature lines
     doc.line(margins, signatureY, margins + 60, signatureY);
     doc.line(pageWidth - margins - 60, signatureY, pageWidth - margins, signatureY);
-    
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
     doc.text('Authorized Signatory', margins, signatureY + 5);
     doc.text('HR Manager', pageWidth - margins - 60, signatureY + 5);
 
-    doc.save(`Attendance_Report_${month}_${year}.pdf`);
+    // Save with proper naming
+    const fileName = `Attendance_Report_${new Date(year, month - 1).toLocaleString('default', { month: 'long' })}_${year}.pdf`;
+    doc.save(fileName);
   };
-
   const downloadExcel = () => {
-    const worksheetData = employees.map((employee) => ({
-      "Employee ID": employee.employeeId,
-      "Employee Name": employee.fullName,
-      ...Object.fromEntries(
-        Array.from({ length: 31 }, (_, i) => {
-          const date = new Date(year, month - 1, i + 1).toISOString().split("T")[0];
-          const attendanceRecord = attendanceData[employee.employeeId]?.find(
-            (record) => record.date === date
-          );
-          const status = attendanceRecord
-            ? attendanceRecord.status
-            : "A";
-          return [
-            new Date(year, month - 1, i + 1).toLocaleDateString("en-US", {
-              day: "2-digit",
-              month: "short",
-            }),
-            status,
-          ];
-        })
-      ),
-    }));
+    const worksheetData = employees.map((employee) => {
+      const employeeAttendance = attendanceData[employee.employeeId] || [];
+      const presentCount = employeeAttendance.filter(a => a.status === 'P').length;
+      const absentCount = employeeAttendance.filter(a => a.status === 'A').length;
+      const holidayCount = employeeAttendance.filter(a => a.status === 'H').length;
+      const payableDays = getPayableDays(employeeAttendance, year, month);
+
+      return {
+        "Employee ID": employee.employeeId,
+        "Employee Name": employee.fullName,
+        ...Object.fromEntries(
+          Array.from({ length: getDaysInMonth(year, month) }, (_, i) => {
+            const date = new Date(year, month - 1, i + 1).toISOString().split("T")[0];
+            const attendanceRecord = employeeAttendance.find(
+              (record) => record.date === date
+            );
+            // Use the same logic as getAttendanceStatus for CF
+            let status = attendanceRecord ? attendanceRecord.status : "A";
+            return [
+              new Date(year, month - 1, i + 1).toLocaleDateString("en-US", {
+                day: "2-digit",
+                month: "short",
+              }),
+              status,
+            ];
+          })
+        ),
+        "Present Days": presentCount,
+        "Absent Days": absentCount,
+        "Holidays": holidayCount,
+        "Payable Days": payableDays,
+      };
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
     const workbook = XLSX.utils.book_new();
@@ -391,6 +476,9 @@ const OverallAttendancePage = (): JSX.Element => {
   const resetFilters = () => {
     setMonth(new Date().getMonth() + 1);
     setYear(new Date().getFullYear());
+    // Optionally, you can also clear attendanceData and employees to force reload
+    // setEmployees([]);
+    // setAttendanceData({});
   };
 
   // Enhanced Loading State
@@ -464,14 +552,7 @@ const OverallAttendancePage = (): JSX.Element => {
                 </option>
               ))}
             </select>
-            <button
-              onClick={resetFilters}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-              title="Reset filters"
-            >
-              <FaRedo />
-              Reset
-            </button>
+            
           </div>
 
           {/* Download Buttons */}
@@ -549,12 +630,17 @@ const OverallAttendancePage = (): JSX.Element => {
                         const attendanceRecord = attendanceData[employee.employeeId]?.find(
                           (record) => record.date === dateString
                         );
-                        const status = attendanceRecord?.status || 'A';
+                        let status = attendanceRecord?.status || 'A';
+                        // If holiday and has punch in/out, show CF
+                        if (status === 'H' && attendanceRecord?.punchInTime && attendanceRecord?.punchOutTime) {
+                          status = 'CF';
+                        }
                         // Badge color
                         let badgeColor = '';
                         if (status === 'P') badgeColor = theme === 'dark' ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-700';
                         else if (status === 'A') badgeColor = theme === 'dark' ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700';
                         else if (status === 'H') badgeColor = theme === 'dark' ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-700';
+                        else if (status === 'CF') badgeColor = theme === 'dark' ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-700';
                         else badgeColor = theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700';
                         return (
                           <td
