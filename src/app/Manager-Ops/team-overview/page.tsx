@@ -107,11 +107,13 @@ const TeamOverviewPage = () => {
           cl: attendanceStats.cl || 0,
           compOff: attendanceStats.compOff || 0,
           lop: attendanceStats.lop || 0,
-          attendanceRate: punctualityStats.attendanceRate || "0%",
+          attendanceRate: attendanceStats.totalDays
+            ? ((attendanceStats.presentDays / attendanceStats.totalDays) * 100).toFixed(2) + "%"
+            : "0%",
           punctualityIssues: {
-            lateArrivals: punctualityStats.punctualityIssues?.lateArrivals || 0,
-            earlyArrivals: punctualityStats.punctualityIssues?.earlyArrivals || 0,
-            earlyLeaves: punctualityStats.punctualityIssues?.earlyLeaves || 0,
+            lateArrivals: (punctualityStats.punctualityIssues?.lateArrivals ?? punctualityStats.lateArrivals) || 0,
+            earlyArrivals: (punctualityStats.punctualityIssues?.earlyArrivals ?? punctualityStats.earlyArrivals) || 0,
+            earlyLeaves: (punctualityStats.punctualityIssues?.earlyLeaves ?? punctualityStats.earlyLeaves) || 0,
           },
         });
       } else {
@@ -358,6 +360,7 @@ const TeamOverviewPage = () => {
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                         }`}>
                           <p>Late Arrivals: {graphData.punctualityIssues.lateArrivals}</p>
+                          <p>Early Arrivals: {graphData.punctualityIssues.earlyArrivals}</p>
                           <p>Early Leaves: {graphData.punctualityIssues.earlyLeaves}</p>
                         </div>
                       </div>

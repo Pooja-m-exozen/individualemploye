@@ -83,6 +83,9 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
 
   const fetchLeaveDetails = async (employeeId: string) => {
     setLeaveLoading(true);
+    // Clear previous data when fetching new employee details
+    setLeaveHistory([]);
+    setLeaveBalance(null);
     try {
       // Fetch leave balance
       const balanceResponse = await fetch(
@@ -568,7 +571,19 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                             Detailed history of leave applications for the selected employee.
                           </p>
                         </div>
-                        {selectedEmployee && leaveHistory && leaveHistory.length > 0 ? (
+                        {!selectedEmployee ? (
+                          <p className={`${
+                            theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+                          }`}>
+                            Please select an employee to view leave history.
+                          </p>
+                        ) : leaveHistory.length === 0 ? (
+                          <p className={`${
+                            theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+                          }`}>
+                            No leave history available for this employee.
+                          </p>
+                        ) : (
                           <div className="overflow-x-auto">
                             <table className={`w-full rounded-lg overflow-hidden shadow-sm ${
                               theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'
@@ -664,14 +679,6 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                               </tbody>
                             </table>
                           </div>
-                        ) : (
-                          <p className={`${
-                            theme === 'light' ? 'text-gray-600' : 'text-gray-400'
-                          }`}>
-                            {selectedEmployee
-                              ? "No leave history data available for this employee."
-                              : "Please select an employee to view leave history."}
-                          </p>
                         )}
                       </div>
                     </div>

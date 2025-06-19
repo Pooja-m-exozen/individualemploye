@@ -177,21 +177,27 @@ const OperationsManagerDashboard = (): JSX.Element => {
 
   return (
     <ManagerOpsLayout>
-      <div className={`p-4 md:p-8 min-h-screen ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
+      <div className={`p-4 md:p-8 min-h-screen ${
+        theme === 'light' 
+          ? 'bg-gradient-to-br from-indigo-50 via-white to-blue-50' 
+          : 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
+      }`}>
         {/* Header */}
-        <div className={`${
-          theme === 'dark' 
-            ? 'bg-gradient-to-r from-blue-900 to-blue-700' 
-            : 'bg-gradient-to-r from-blue-600 to-blue-800'
-          } text-white rounded-lg p-6 mb-6 flex items-center gap-6 shadow-lg`}>
+        <div className={`rounded-2xl p-6 mb-6 flex items-center gap-6 shadow-lg ${
+          theme === 'light' 
+            ? 'bg-gradient-to-r from-blue-500 to-blue-800' 
+            : 'bg-gradient-to-r from-gray-700 to-gray-800'
+        }`}>
           <div className={`${
-            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-          } text-blue-600 p-6 rounded-full flex items-center justify-center shadow-md`}>
+            theme === 'light' 
+              ? 'bg-white text-blue-600' 
+              : 'bg-gray-800 text-blue-400'
+          } p-6 rounded-full flex items-center justify-center shadow-md`}>
             <FaUsers className="text-3xl" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Operations Manager Dashboard</h1>
-            <p className="text-lg">
+            <h1 className="text-3xl font-bold text-white">Operations Manager Dashboard</h1>
+            <p className="text-white text-lg opacity-90">
               Manage your team's attendance, leave, and performance metrics.
             </p>
           </div>
@@ -387,8 +393,17 @@ const OperationsManagerDashboard = (): JSX.Element => {
         )}
 
         {activeTab === "Attendance" && (
-          <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow p-6`}>
-            <div className={`${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+          <div>
+            <div className={`${
+              theme === 'dark' 
+                ? 'bg-gray-800' 
+                : 'bg-gradient-to-r from-blue-600 to-blue-700'
+            } rounded-t-lg shadow p-4 mb-0`}>
+              <h2 className="text-xl font-semibold text-white">
+                Attendance Records
+              </h2>
+            </div>
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-b-lg shadow p-6`}>
               <AttendanceScreen />
             </div>
           </div>

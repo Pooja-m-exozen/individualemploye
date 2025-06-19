@@ -325,6 +325,9 @@ const EmployeeSummaryPage = (): JSX.Element => {
                       <button
                         onClick={() => {
                           setSelectedEmployee(employee.employeeId);
+                          setAttendance([]); // Clear previous attendance
+                          setLeaveBalance(null); // Clear previous leave balance
+                          setLeaveHistory([]); // Clear previous leave history
                           fetchAttendance(employee.employeeId);
                           fetchLeaveDetails(employee.employeeId);
                         }}
@@ -440,109 +443,121 @@ const EmployeeSummaryPage = (): JSX.Element => {
                         <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-gray-800' : 'text-gray-100'}`}>
                           Leave Details
                         </h3>
-                        {leaveBalance && leaveHistory.length > 0 ? (
+                        {leaveBalance ? (
                           <div>
                             <h4 className={`text-md font-semibold mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
                               Leave Balance
                             </h4>
-                            <table className={`w-full border ${
-                              theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                            } rounded-lg overflow-hidden mb-6`}>
-                              <thead className={`${
-                                theme === 'light' 
-                                  ? 'bg-gray-50 text-gray-700'
-                                  : 'bg-gray-800 text-gray-200'
-                              }`}>
-                                <tr>
-                                  <th className="px-4 py-3 text-left text-sm font-semibold">Leave Type</th>
-                                  <th className="px-4 py-3 text-left text-sm font-semibold">Allocated</th>
-                                  <th className="px-4 py-3 text-left text-sm font-semibold">Used</th>
-                                  <th className="px-4 py-3 text-left text-sm font-semibold">Remaining</th>
-                                  <th className="px-4 py-3 text-left text-sm font-semibold">Pending</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {Object.entries(leaveBalance.balances).map(([type, balance], index) => (
-                                  <tr key={type} className={`${
-                                    theme === 'light'
-                                      ? 'hover:bg-gray-50'
-                                      : 'hover:bg-gray-750'
-                                  }`}>
-                                    <td className={`px-4 py-3 text-sm ${
-                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                    }`}>{type}</td>
-                                    <td className={`px-4 py-3 text-sm ${
-                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                    }`}>{balance.allocated}</td>
-                                    <td className={`px-4 py-3 text-sm ${
-                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                    }`}>{balance.used}</td>
-                                    <td className={`px-4 py-3 text-sm ${
-                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                    }`}>{balance.remaining}</td>
-                                    <td className={`px-4 py-3 text-sm ${
-                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                    }`}>{balance.pending}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-
-                            <h4 className={`text-md font-semibold mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
-                              Leave History
-                            </h4>
-                            <div className="max-h-[400px] overflow-auto rounded-lg">
+                            {Object.keys(leaveBalance.balances).length > 0 ? (
                               <table className={`w-full border ${
                                 theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                              }`}>
+                              } rounded-lg overflow-hidden mb-6`}>
                                 <thead className={`${
                                   theme === 'light' 
                                     ? 'bg-gray-50 text-gray-700'
                                     : 'bg-gray-800 text-gray-200'
-                                } sticky top-0 z-10`}>
+                                }`}>
                                   <tr>
                                     <th className="px-4 py-3 text-left text-sm font-semibold">Leave Type</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold">Start Date</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold">End Date</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold">Days</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold">Reason</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold">Allocated</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold">Used</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold">Remaining</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold">Pending</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                  {leaveHistory.map((record, index) => (
-                                    <tr key={record.leaveId} className={`${
+                                  {Object.entries(leaveBalance.balances).map(([type, balance], index) => (
+                                    <tr key={type} className={`${
                                       theme === 'light'
                                         ? 'hover:bg-gray-50'
                                         : 'hover:bg-gray-750'
                                     }`}>
                                       <td className={`px-4 py-3 text-sm ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                      }`}>{record.leaveType}</td>
+                                      }`}>{type}</td>
                                       <td className={`px-4 py-3 text-sm ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                      }`}>{new Date(record.startDate).toLocaleDateString()}</td>
+                                      }`}>{balance.allocated}</td>
                                       <td className={`px-4 py-3 text-sm ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                      }`}>{new Date(record.endDate).toLocaleDateString()}</td>
+                                      }`}>{balance.used}</td>
                                       <td className={`px-4 py-3 text-sm ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                      }`}>{record.numberOfDays}</td>
+                                      }`}>{balance.remaining}</td>
                                       <td className={`px-4 py-3 text-sm ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                      }`}>{record.status}</td>
-                                      <td className={`px-4 py-3 text-sm ${
-                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                      }`}>{record.reason}</td>
+                                      }`}>{balance.pending}</td>
                                     </tr>
                                   ))}
                                 </tbody>
                               </table>
-                            </div>
+                            ) : (
+                              <p className={`${theme === 'light' ? 'text-gray-600' : 'text-gray-400'} mb-6`}>
+                                No leave balance data available for this employee.
+                              </p>
+                            )}
+
+                            <h4 className={`text-md font-semibold mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
+                              Leave History
+                            </h4>
+                            {leaveHistory.length > 0 ? (
+                              <div className="max-h-[400px] overflow-auto rounded-lg">
+                                <table className={`w-full border ${
+                                  theme === 'light' ? 'border-gray-200' : 'border-gray-700'
+                                }`}>
+                                  <thead className={`${
+                                    theme === 'light' 
+                                      ? 'bg-gray-50 text-gray-700'
+                                      : 'bg-gray-800 text-gray-200'
+                                  }`}>
+                                    <tr>
+                                      <th className="px-4 py-3 text-left text-sm font-semibold">Leave Type</th>
+                                      <th className="px-4 py-3 text-left text-sm font-semibold">Start Date</th>
+                                      <th className="px-4 py-3 text-left text-sm font-semibold">End Date</th>
+                                      <th className="px-4 py-3 text-left text-sm font-semibold">Days</th>
+                                      <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
+                                      <th className="px-4 py-3 text-left text-sm font-semibold">Reason</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                    {leaveHistory.map((record, index) => (
+                                      <tr key={record.leaveId} className={`${
+                                        theme === 'light'
+                                          ? 'hover:bg-gray-50'
+                                          : 'hover:bg-gray-750'
+                                      }`}>
+                                        <td className={`px-4 py-3 text-sm ${
+                                          theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                        }`}>{record.leaveType}</td>
+                                        <td className={`px-4 py-3 text-sm ${
+                                          theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                        }`}>{new Date(record.startDate).toLocaleDateString()}</td>
+                                        <td className={`px-4 py-3 text-sm ${
+                                          theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                        }`}>{new Date(record.endDate).toLocaleDateString()}</td>
+                                        <td className={`px-4 py-3 text-sm ${
+                                          theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                        }`}>{record.numberOfDays}</td>
+                                        <td className={`px-4 py-3 text-sm ${
+                                          theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                        }`}>{record.status}</td>
+                                        <td className={`px-4 py-3 text-sm ${
+                                          theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                        }`}>{record.reason}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className={`${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                                No leave history available for this employee.
+                              </p>
+                            )}
                           </div>
                         ) : (
                           <p className={`${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                            No leave data available.
+                            Loading leave details...
                           </p>
                         )}
                       </div>

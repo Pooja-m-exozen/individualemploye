@@ -3,10 +3,13 @@
 import React, { JSX, useEffect, useState } from "react";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
 import { useTheme } from "@/context/ThemeContext";
-import { FaSpinner } from "react-icons/fa";
+import { FaSpinner, FaClipboard, FaDownload, FaFilePdf, FaFileExcel, FaInfoCircle, FaRedo } from "react-icons/fa";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from "xlsx";
+import { Tooltip } from 'react-tooltip';
+import 'react-tooltip/dist/react-tooltip.css';
+import { Popover } from "@headlessui/react";
 
 interface Employee {
   employeeId: string;
@@ -67,6 +70,26 @@ const getAttendanceStatus = (date: Date, status?: string, punchInTime?: string):
   if (isHoliday(date)) return 'H';
   return status === 'Present' && punchInTime ? 'P' : 'A';
 };
+
+// Add this helper function for time formatting
+function formatTimeHMSS(dateString: string | undefined): string {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const h = date.getHours();
+  const m = String(date.getMinutes()).padStart(2, '0');
+  const s = String(date.getSeconds()).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+// Helper to extract time as H:mm:ss from a date string
+function extractTimeHMS(dateString: string | undefined): string {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const h = date.getHours();
+  const m = String(date.getMinutes()).padStart(2, '0');
+  const s = String(date.getSeconds()).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
 
 const OverallAttendancePage = (): JSX.Element => {
   const { theme } = useTheme();
@@ -312,32 +335,6 @@ const OverallAttendancePage = (): JSX.Element => {
       }
     });
 
-    // Add legend
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    
-    // Legend box
-    doc.setDrawColor(226, 232, 240);
-    doc.setFillColor(247, 250, 252);
-    doc.roundedRect(margins, finalY, 80, 30, 2, 2, 'FD');
-
-    // Legend items
-    const legendItems = [
-      { label: 'P - Present', color: [232, 245, 233], text: [27, 94, 32] },
-      { label: 'A - Absent', color: [253, 232, 232], text: [183, 28, 28] },
-      { label: 'H - Holiday', color: [237, 231, 246], text: [94, 53, 177] }
-    ];
-
-    legendItems.forEach((item, index) => {
-      const yPos = finalY + 8 + (index * 8);
-      // Legend box
-      doc.setFillColor(item.color[0], item.color[1], item.color[2]);
-      doc.rect(margins + 5, yPos, 5, 5, 'F');
-      // Legend text
-      doc.setTextColor(item.text[0], item.text[1], item.text[2]);
-      doc.setFontSize(8);
-      doc.text(item.label, margins + 15, yPos + 4);
-    });
-
     // Signature section
     const signatureY = pageHeight - 25;
     doc.setDrawColor(100, 100, 100);
@@ -390,6 +387,28 @@ const OverallAttendancePage = (): JSX.Element => {
     return new Date(year, month, 0).getDate();
   };
 
+  // Reset filters
+  const resetFilters = () => {
+    setMonth(new Date().getMonth() + 1);
+    setYear(new Date().getFullYear());
+  };
+
+  // Enhanced Loading State
+  const LoadingSkeleton = () => (
+    <div className="flex flex-col items-center justify-center min-h-[300px] py-10">
+      <FaSpinner className="animate-spin text-4xl text-blue-500 mb-4" />
+      <span className="text-lg text-gray-500 dark:text-gray-300">Loading attendance data...</span>
+    </div>
+  );
+
+  // Empty State
+  const EmptyState = () => (
+    <div className="flex flex-col items-center justify-center min-h-[300px] py-10">
+      <FaInfoCircle className="text-4xl text-blue-400 mb-4" />
+      <span className="text-lg text-gray-500 dark:text-gray-300">No employees or attendance data found for this period.</span>
+    </div>
+  );
+
   return (
     <ManagerOpsLayout>
       <div className={`min-h-screen font-sans ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
@@ -397,18 +416,28 @@ const OverallAttendancePage = (): JSX.Element => {
           {/* Header */}
           <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${
             theme === 'dark'
-              ? 'bg-gradient-to-r from-blue-900 to-blue-700'
+              ? 'bg-gradient-to-r from-gray-800 to-gray-700'
               : 'bg-gradient-to-r from-blue-500 to-blue-800'
           }`}>
-            <h1 className="text-3xl font-bold text-white">Overall Attendance Report</h1>
+            <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
+              <FaClipboard className="w-10 h-10 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-1">
+                Overall Attendance Report
+              </h1>
+              <p className="text-white text-base opacity-90">
+                View and analyze attendance records for all employees
+              </p>
+            </div>
           </div>
 
           {/* Filters */}
-          <div className="flex gap-4 mb-6">
+          <div className="flex gap-4 mb-6 items-center flex-wrap">
             <select
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              className={`border rounded-lg p-2 ${
+              className={`border rounded-lg p-2 min-w-[120px] ${
                 theme === 'dark' 
                   ? 'bg-gray-700 text-white border-gray-600' 
                   : 'bg-white text-black border-gray-300'
@@ -423,7 +452,7 @@ const OverallAttendancePage = (): JSX.Element => {
             <select
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className={`border rounded-lg p-2 ${
+              className={`border rounded-lg p-2 min-w-[100px] ${
                 theme === 'dark' 
                   ? 'bg-gray-700 text-white border-gray-600' 
                   : 'bg-white text-black border-gray-300'
@@ -435,43 +464,54 @@ const OverallAttendancePage = (): JSX.Element => {
                 </option>
               ))}
             </select>
+            <button
+              onClick={resetFilters}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              title="Reset filters"
+            >
+              <FaRedo />
+              Reset
+            </button>
           </div>
 
           {/* Download Buttons */}
-          <div className="flex justify-end gap-4 mb-6">
+          <div className="flex justify-end gap-4 mb-6 items-center flex-wrap">
+            {/* <span className="font-medium text-gray-600 dark:text-gray-300 mr-2">Download:</span> */}
             <button
               onClick={downloadExcel}
-              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+              title="Download as Excel"
             >
-              Download Excel
+              <FaFileExcel />
+              Excel
             </button>
             <button
               onClick={downloadPDF}
-              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+              title="Download as PDF"
             >
-              Download PDF
+              <FaFilePdf />
+              PDF
             </button>
           </div>
 
           {/* Attendance Table */}
           {loading ? (
-            <div className="flex justify-center items-center min-h-[300px]">
-              <FaSpinner className={`animate-spin ${
-                theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-              } w-12 h-12`} />
-            </div>
+            <LoadingSkeleton />
+          ) : employees.length === 0 ? (
+            <EmptyState />
           ) : (
-            <div className="overflow-x-auto">
-              <table className={`w-full rounded-lg shadow-md overflow-hidden ${
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-md">
+              <table className={`w-full min-w-[900px] rounded-lg overflow-hidden text-sm ${
                 theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-700'
               }`}>
-                <thead className={`${
+                <thead className={`sticky top-0 z-10 ${
                   theme === 'dark'
                     ? 'bg-gradient-to-r from-gray-700 to-gray-600'
                     : 'bg-gradient-to-r from-blue-600 to-blue-800'
                 } text-white`}>
                   <tr>
-                    <th className="p-4 text-left font-semibold">Employee Image</th>
+                    <th className="p-4 text-left font-semibold sticky left-0 bg-inherit z-20">Employee Image</th>
                     <th className="p-4 text-left font-semibold">Employee ID</th>
                     <th className="p-4 text-left font-semibold">Employee Name</th>
                     {Array.from({ length: getDaysInMonth(year, month) }, (_, i) => (
@@ -488,27 +528,21 @@ const OverallAttendancePage = (): JSX.Element => {
                   {employees.map((employee) => (
                     <tr 
                       key={employee.employeeId} 
-                      className={`border-b ${
+                      className={`border-b transition-colors duration-150 ${
                         theme === 'dark'
                           ? 'border-gray-700 hover:bg-gray-700 text-gray-200'
-                          : 'hover:bg-gray-100 text-gray-700'
+                          : 'hover:bg-blue-50 text-gray-700'
                       }`}
                     >
-                      <td className={`p-4 ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                      }`}>
+                      <td className={`p-4 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} sticky left-0 bg-inherit z-10`}> 
                         <img
                           src={employee.imageUrl}
                           alt={employee.fullName}
-                          className="w-12 h-12 rounded-full border border-gray-300"
+                          className="w-12 h-12 rounded-full border border-gray-300 hover:ring-2 hover:ring-blue-400 transition-all"
                         />
                       </td>
-                      <td className={`p-4 font-medium ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                      }`}>{employee.employeeId}</td>
-                      <td className={`p-4 font-medium ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                      }`}>{employee.fullName}</td>
+                      <td className={`p-4 font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>{employee.employeeId}</td>
+                      <td className={`p-4 font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>{employee.fullName}</td>
                       {Array.from({ length: getDaysInMonth(year, month) }, (_, i) => {
                         const currentDate = new Date(year, month - 1, i + 1);
                         const dateString = currentDate.toISOString().split('T')[0];
@@ -516,25 +550,18 @@ const OverallAttendancePage = (): JSX.Element => {
                           (record) => record.date === dateString
                         );
                         const status = attendanceRecord?.status || 'A';
-                        
+                        // Badge color
+                        let badgeColor = '';
+                        if (status === 'P') badgeColor = theme === 'dark' ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-700';
+                        else if (status === 'A') badgeColor = theme === 'dark' ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700';
+                        else if (status === 'H') badgeColor = theme === 'dark' ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-700';
+                        else badgeColor = theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700';
                         return (
                           <td
                             key={i + 1}
-                            className={`p-4 text-center ${getStatusColor(status, attendanceRecord?.punchInTime)} font-semibold relative group`}
+                            className={`p-2 text-center font-semibold relative group`}
                           >
-                            <div className="flex flex-col items-center">
-                              <span>{status}</span>
-                              {attendanceRecord?.punchInTime && (
-                                <div className={`hidden group-hover:block absolute z-10 bottom-full left-1/2 transform -translate-x-1/2 p-2 rounded-md shadow-lg ${
-                                  theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-                                } w-48 text-xs`}>
-                                  <p>In: {new Date(attendanceRecord.punchInTime).toLocaleTimeString()}</p>
-                                  {attendanceRecord.punchOutTime && (
-                                    <p>Out: {new Date(attendanceRecord.punchOutTime).toLocaleTimeString()}</p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                            <span className={`inline-block rounded-full px-2 py-1 text-xs font-bold shadow-sm ${badgeColor}`}>{status}</span>
                           </td>
                         );
                       })}
