@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { FaUserCircle, FaClock } from 'react-icons/fa';
 import axios from 'axios';
 import { useTheme } from '@/context/ThemeContext';
+import Image from 'next/image';
+import { KYCRecord } from '@/types/kyc';
+import { RawAttendanceRecord } from '@/app/types/attendance';
 
 interface Employee {
   employeeId: string;
@@ -33,10 +36,10 @@ const AttendanceScreen: React.FC = () => {
       axios.get('https://cafm.zenapi.co.in/api/attendance/all')
     ])
       .then(([kycRes, attRes]) => {
-        const kycForms = kycRes.data.kycForms || [];
+        const kycForms: KYCRecord[] = kycRes.data.kycForms || [];
         const filteredEmployees: Employee[] = kycForms
-          .filter((form: any) => form.personalDetails?.projectName === 'Exozen - Ops')
-          .map((form: any) => ({
+          .filter((form: KYCRecord) => form.personalDetails?.projectName === 'Exozen - Ops')
+          .map((form: KYCRecord) => ({
             employeeId: form.personalDetails.employeeId,
             employeeImage: form.personalDetails.employeeImage,
             projectName: form.personalDetails.projectName,
@@ -45,12 +48,12 @@ const AttendanceScreen: React.FC = () => {
 
         setEmployees(filteredEmployees);
 
-        const attendance = attRes.data.attendance || [];
+        const attendance: RawAttendanceRecord[] = attRes.data.attendance || [];
         const today = new Date().toISOString().split('T')[0];
         const statusMap: AttendanceStatus = {};
 
         filteredEmployees.forEach(emp => {
-          const att = attendance.find((a: any) =>
+          const att = attendance.find((a: RawAttendanceRecord) =>
             a.employeeId === emp.employeeId &&
             a.projectName === 'Exozen - Ops' &&
             a.date?.startsWith(today)
@@ -59,8 +62,8 @@ const AttendanceScreen: React.FC = () => {
           if (att?.punchInTime) {
             statusMap[emp.employeeId] = {
               status: 'Present',
-              punchInTime: att.punchInTime,
-              punchOutTime: att.punchOutTime
+              punchInTime: att.punchInTime ?? undefined,
+              punchOutTime: att.punchOutTime ?? undefined
             };
           } else {
             statusMap[emp.employeeId] = { status: 'Absent' };
@@ -112,7 +115,13 @@ const AttendanceScreen: React.FC = () => {
         ${theme === 'dark' ? 'bg-[#1a1f2e] border border-gray-800 text-white' : 'bg-white border border-gray-200 text-gray-900'}`}>
         <div className="flex items-center gap-3 mb-4">
           {employee.employeeImage ? (
-            <img src={employee.employeeImage} alt={employee.fullName} className="w-12 h-12 rounded-full object-cover border" />
+            <Image
+              src={employee.employeeImage}
+              alt={employee.fullName}
+              className="w-12 h-12 rounded-full object-cover border"
+              width={48}
+              height={48}
+            />
           ) : (
             <FaUserCircle className="w-12 h-12 text-gray-400 dark:text-gray-600" />
           )}

@@ -8,6 +8,15 @@ import * as XLSX from "xlsx";
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import autoTable from "jspdf-autotable";
+import Image from 'next/image';
+
+// Extend jsPDF to include lastAutoTable
+interface jsPDFWithAutoTable extends jsPDF {
+  lastAutoTable?: {
+    finalY: number;
+    // You can add more properties if needed
+  };
+}
 
 interface Employee {
   employeeId: string;
@@ -60,9 +69,9 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
         if (data.kycForms) {
           const filteredEmployees = data.kycForms
             .filter(
-              (form: any) => form.personalDetails.projectName === "Exozen - Ops"
+              (form: { personalDetails: { projectName: string } }) => form.personalDetails.projectName === "Exozen - Ops"
             )
-            .map((form: any) => ({
+            .map((form: { personalDetails: { employeeId: string; employeeImage: string; fullName: string; designation: string } }) => ({
               employeeId: form.personalDetails.employeeId,
               employeeImage: form.personalDetails.employeeImage,
               fullName: form.personalDetails.fullName,
@@ -111,7 +120,16 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
 
       if (historyData && Array.isArray(historyData.leaveHistory)) {
         setLeaveHistory(
-          historyData.leaveHistory.map((history: any) => ({
+          historyData.leaveHistory.map((history: {
+            leaveId: string;
+            leaveType: string;
+            startDate: string;
+            endDate: string;
+            numberOfDays: number;
+            status: string;
+            reason: string;
+            appliedOn: string;
+          }) => ({
             leaveId: history.leaveId,
             leaveType: history.leaveType,
             startDate: history.startDate,
@@ -164,7 +182,7 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
   const downloadPDF = () => {
     if (!leaveBalance || !leaveHistory || !selectedEmployee) return;
 
-    const doc = new jsPDF();
+    const doc: jsPDFWithAutoTable = new jsPDF();
     const selectedEmployeeData = employees.find(emp => emp.employeeId === selectedEmployee);
     let yPos = 15;
 
@@ -229,7 +247,7 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
     });
 
     // Get the final Y position after the first table
-    yPos = (doc as any).lastAutoTable.finalY + 15;
+    yPos = doc.lastAutoTable ? doc.lastAutoTable.finalY + 15 : yPos + 15;
 
     // Leave History header
     doc.setFontSize(12);
@@ -293,7 +311,7 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                 Employee-wise Leave Report
               </h1>
               <p className="text-white text-base opacity-90">
-                View leave details for employees in the "Exozen - Ops" project.
+                View leave details for employees in the &quot;Exozen - Ops&quot; project.
               </p>
             </div>
           </div>
@@ -313,7 +331,7 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
             } p-6 rounded-2xl flex items-center gap-3 max-w-lg mx-auto shadow-lg`}>
               <FaIdCard className="w-6 h-6 flex-shrink-0" />
               <p className="text-lg font-medium">
-                No employees found for the project "Exozen - Ops".
+                No employees found for the project &quot;Exozen - Ops&quot;.
               </p>
             </div>
           ) : (
@@ -334,10 +352,12 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                           theme === 'light' ? 'bg-blue-100' : 'bg-blue-900'
                         }`}>
                           {employee.employeeImage ? (
-                            <img
+                            <Image
                               src={employee.employeeImage}
                               alt={employee.fullName}
                               className="w-full h-full object-cover"
+                              width={64}
+                              height={64}
                             />
                           ) : (
                             <FaUser className={`w-8 h-8 ${
@@ -513,45 +533,14 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                                   )
                                 )}
                               </tbody>
-                              <tfoot className={`${
-                                theme === 'light' ? 'bg-gray-200' : 'bg-gray-700'
-                              }`}>
-                                <tr>
-                                  <td className={`p-4 font-semibold ${
-                                    theme === 'light' ? 'text-gray-800' : 'text-gray-100'
-                                  }`}>
-                                    Total
-                                  </td>
-                                  <td className={`p-4 ${
-                                    theme === 'light' ? 'text-gray-800' : 'text-gray-100'
-                                  }`}>
-                                    {leaveBalance.totalAllocated}
-                                  </td>
-                                  <td className={`p-4 ${
-                                    theme === 'light' ? 'text-gray-800' : 'text-gray-100'
-                                  }`}>
-                                    {leaveBalance.totalUsed}
-                                  </td>
-                                  <td className={`p-4 ${
-                                    theme === 'light' ? 'text-gray-800' : 'text-gray-100'
-                                  }`}>
-                                    {leaveBalance.totalRemaining}
-                                  </td>
-                                  <td className={`p-4 ${
-                                    theme === 'light' ? 'text-gray-800' : 'text-gray-100'
-                                  }`}>
-                                    {leaveBalance.totalPending}
-                                  </td>
-                                </tr>
-                              </tfoot>
                             </table>
                           </div>
                         ) : (
-                          <p className={`${
-                            theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+                          <div className={`text-center py-8 ${
+                            theme === 'light' ? 'text-gray-500' : 'text-gray-400'
                           }`}>
                             No leave balance data available.
-                          </p>
+                          </div>
                         )}
                       </div>
 
@@ -563,121 +552,56 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                           <h3 className={`text-lg font-semibold flex items-center gap-2 ${
                             theme === 'light' ? 'text-gray-800' : 'text-gray-100'
                           }`}>
-                            <FaUser className="text-blue-500" /> Leave History
+                            <FaIdCard className="text-blue-500" /> Leave History
                           </h3>
                           <p className={`text-sm ${
                             theme === 'light' ? 'text-gray-500' : 'text-gray-400'
                           }`}>
-                            Detailed history of leave applications for the selected employee.
+                            List of all leave applications.
                           </p>
                         </div>
-                        {!selectedEmployee ? (
-                          <p className={`${
-                            theme === 'light' ? 'text-gray-600' : 'text-gray-400'
-                          }`}>
-                            Please select an employee to view leave history.
-                          </p>
-                        ) : leaveHistory.length === 0 ? (
-                          <p className={`${
-                            theme === 'light' ? 'text-gray-600' : 'text-gray-400'
-                          }`}>
-                            No leave history available for this employee.
-                          </p>
-                        ) : (
+                        {leaveHistory && leaveHistory.length > 0 ? (
                           <div className="overflow-x-auto">
                             <table className={`w-full rounded-lg overflow-hidden shadow-sm ${
                               theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'
                             }`}>
-                              <thead className={`${
-                                theme === 'light' 
-                                  ? 'bg-gradient-to-r from-blue-500 to-blue-600' 
+                              <thead className={`$${
+                                theme === 'light'
+                                  ? 'bg-gradient-to-r from-blue-500 to-blue-600'
                                   : 'bg-gradient-to-r from-gray-700 to-gray-800'
                               } text-white`}>
                                 <tr>
-                                  <th className="p-4 text-left font-semibold">
-                                    Leave Type
-                                  </th>
-                                  <th className="p-4 text-left font-semibold">
-                                    Start Date
-                                  </th>
-                                  <th className="p-4 text-left font-semibold">
-                                    End Date
-                                  </th>
-                                  <th className="p-4 text-left font-semibold">
-                                    Days
-                                  </th>
-                                  <th className="p-4 text-left font-semibold">
-                                    Status
-                                  </th>
-                                  <th className="p-4 text-left font-semibold">
-                                    Reason
-                                  </th>
+                                  <th className="p-4 text-left font-semibold">Leave Type</th>
+                                  <th className="p-4 text-left font-semibold">Start Date</th>
+                                  <th className="p-4 text-left font-semibold">End Date</th>
+                                  <th className="p-4 text-left font-semibold">Days</th>
+                                  <th className="p-4 text-left font-semibold">Status</th>
+                                  <th className="p-4 text-left font-semibold">Reason</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {leaveHistory.map((record, index) => (
-                                  <tr
-                                    key={record.leaveId}
-                                    className={`${
-                                      theme === 'light'
-                                        ? index % 2 === 0 ? "bg-white" : "bg-gray-100"
-                                        : index % 2 === 0 ? "bg-gray-800" : "bg-gray-700"
-                                    } hover:bg-opacity-80 transition-colors`}
-                                  >
-                                    <td className={`p-4 ${
-                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                    }`}>
-                                      {record.leaveType}
-                                    </td>
-                                    <td className="p-4">
-                                      {new Date(record.startDate).toLocaleDateString(
-                                        "en-US",
-                                        {
-                                          year: "numeric",
-                                          month: "long",
-                                          day: "numeric",
-                                        }
-                                      )}
-                                    </td>
-                                    <td className="p-4">
-                                      {new Date(record.endDate).toLocaleDateString(
-                                        "en-US",
-                                        {
-                                          year: "numeric",
-                                          month: "long",
-                                          day: "numeric",
-                                        }
-                                      )}
-                                    </td>
-                                    <td className="p-4">
-                                      {record.numberOfDays}
-                                    </td>
-                                    <td className="p-4">
-                                      <span className={`px-3 py-1 rounded-full text-sm ${
-                                        record.status === "Approved"
-                                          ? theme === 'light' 
-                                            ? "bg-green-100 text-green-700"
-                                            : "bg-green-900 text-green-300"
-                                          : record.status === "Rejected"
-                                          ? theme === 'light'
-                                            ? "bg-red-100 text-red-700"
-                                            : "bg-red-900 text-red-300"
-                                          : theme === 'light'
-                                            ? "bg-yellow-100 text-yellow-700"
-                                            : "bg-yellow-900 text-yellow-300"
-                                      }`}>
-                                        {record.status}
-                                      </span>
-                                    </td>
-                                    <td className={`p-4 ${
-                                      theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                    }`}>
-                                      {record.reason}
-                                    </td>
+                                {leaveHistory.map((record, idx) => (
+                                  <tr key={record.leaveId} className={`$${
+                                    theme === 'light'
+                                      ? idx % 2 === 0 ? 'bg-white' : 'bg-gray-100'
+                                      : idx % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700'
+                                  }`}>
+                                    <td className="p-4">{record.leaveType}</td>
+                                    <td className="p-4">{new Date(record.startDate).toLocaleDateString()}</td>
+                                    <td className="p-4">{new Date(record.endDate).toLocaleDateString()}</td>
+                                    <td className="p-4">{record.numberOfDays}</td>
+                                    <td className="p-4">{record.status}</td>
+                                    <td className="p-4">{record.reason}</td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
+                          </div>
+                        ) : (
+                          <div className={`text-center py-8 ${
+                            theme === 'light' ? 'text-gray-500' : 'text-gray-400'
+                          }`}>
+                            No leave history data available.
                           </div>
                         )}
                       </div>

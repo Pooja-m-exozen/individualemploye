@@ -2,19 +2,19 @@
 
 import React, { JSX, useEffect, useState } from "react";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
-import { FaSpinner, FaFileExcel, FaFilePdf, FaCalendar, FaUser, FaChevronLeft, FaEye } from "react-icons/fa";
+import { FaSpinner, FaFileExcel, FaFilePdf, FaCalendar, FaUser,  FaEye } from "react-icons/fa";
 // import { calculateHoursUtc } from "@/app/utils/attendanceUtils";
 import { useTheme } from "@/context/ThemeContext";
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Image from 'next/image';
-import { calculateHoursUtc, transformAttendanceRecord } from '@/app/utils/attendanceUtils';
+import { calculateHoursUtc, } from '@/app/utils/attendanceUtils';
 
 
 declare module "jspdf" {
   interface jsPDF {
-    autoTable: (options: any) => void;
+    autoTable: (options: Parameters<typeof autoTable>[1]) => void;
   }
 }
 
@@ -111,12 +111,12 @@ interface MonthSummaryResponse {
   };
 }
 
-// Define the type for the lastAutoTable property
-type JsPDFWithAutoTable = jsPDF & {
-  lastAutoTable?: {
-    finalY: number;
-  };
-};
+// // Define the type for the lastAutoTable property
+// type JsPDFWithAutoTable = jsPDF & {
+//   lastAutoTable?: {
+//     finalY: number;
+//   };
+// };
 
 interface LocationAddresses {
   [key: string]: {
@@ -197,11 +197,10 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
         const data = await response.json();
 
         if (data.kycForms) {
-          const filteredEmployees = data.kycForms
-            .filter(
-              (form: any) => form.personalDetails.projectName === "Exozen - Ops"
-            )
-            .map((form: any) => ({
+          type KycForm = { personalDetails: { employeeId: string; employeeImage: string; fullName: string; designation: string; projectName: string; } };
+          const filteredEmployees = (data.kycForms as KycForm[])
+            .filter((form) => form.personalDetails.projectName === "Exozen - Ops")
+            .map((form) => ({
               employeeId: form.personalDetails.employeeId,
               employeeImage: form.personalDetails.employeeImage,
               fullName: form.personalDetails.fullName,
@@ -412,35 +411,29 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
     const fetchLocationAddresses = async () => {
       if (attendance.length > 0) {
         const newAddresses: LocationAddresses = {};
-        
         for (const record of attendance) {
           if (record._id && !locationAddresses[record._id]) {
-            const addresses = {in: '', out: ''};
-            
+            const addresses = { in: '', out: '' };
             if (record.punchInLocation?.latitude && record.punchInLocation?.longitude) {
               addresses.in = await reverseGeocode(
                 record.punchInLocation.latitude,
                 record.punchInLocation.longitude
               );
             }
-            
             if (record.punchOutLocation?.latitude && record.punchOutLocation?.longitude) {
               addresses.out = await reverseGeocode(
                 record.punchOutLocation.latitude,
                 record.punchOutLocation.longitude
               );
             }
-            
             newAddresses[record._id] = addresses;
           }
         }
-        
-        setLocationAddresses(prev => ({...prev, ...newAddresses}));
+        setLocationAddresses(prev => ({ ...prev, ...newAddresses }));
       }
     };
-
     fetchLocationAddresses();
-  }, [attendance]);
+  }, [attendance, locationAddresses]);
 
   const isLeaveDate = (date: string): string | null => {
     const target = new Date(date).toDateString();
@@ -612,7 +605,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
       });
 
       // Get the final Y position after the attendance table
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
 
       // Monthly Summary on same page
       if (summary) {
@@ -648,39 +641,42 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
 
       // Add Leave Balance section
       if (leaveBalance) {
-        const leaveY = (doc as any).lastAutoTable.finalY + 10;
+        const leaveY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
         doc.setFontSize(12);
         doc.setTextColor(41, 128, 185);
         doc.text('Leave Balance', 15, leaveY + 10);
 
-        const leaveData = [
-          ['Leave Type', 'Allocated', 'Used', 'Remaining'],
-          ...Object.entries(leaveBalance.balances).map(([type, balance]) => [
-            type,
-            balance.allocated.toString(),
-            balance.used.toString(),
-            balance.remaining.toString()
-          ])
-        ];
+        const leaveHeaders = ['Leave Type', 'Allocated', 'Used', 'Remaining'];
+        const leaveRows = Object.entries(leaveBalance.balances).map(([type, balance]) => [
+          type,
+          balance.allocated.toString(),
+          balance.used.toString(),
+          balance.remaining.toString()
+        ]);
 
         autoTable(doc, {
-          head: [leaveData[0]],
-          body: leaveData.slice(1),
+          head: [leaveHeaders],
+          body: leaveRows,
           startY: leaveY + 15,
           theme: 'grid',
-          styles: { fontSize: 8, cellPadding: 3 },
+          styles: { fontSize: 10, cellPadding: 4, valign: 'middle' },
           headStyles: {
             fillColor: [41, 128, 185],
             textColor: 255,
-            fontSize: 9,
-            fontStyle: 'bold'
-          }
+            fontSize: 11,
+            fontStyle: 'bold',
+            halign: 'center'
+          },
+          bodyStyles: {
+            halign: 'center'
+          },
+          alternateRowStyles: { fillColor: [245, 245, 245] }
         });
       }
 
       // Add Leave History section
       if (leaveHistory.length > 0) {
-        const historyY = (doc as any).lastAutoTable.finalY + 10;
+        const historyY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
         doc.setFontSize(12);
         doc.setTextColor(41, 128, 185);
         doc.text('Leave History', 15, historyY + 10);
@@ -713,7 +709,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
       }
 
       // Add note and signatures at the bottom
-      const finalPosition = (doc as any).lastAutoTable.finalY + 20;
+      const finalPosition = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
       doc.setFontSize(11);
       doc.setTextColor(200, 0, 0);
       doc.text('Note:', 15, finalPosition);
@@ -869,9 +865,11 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
                     <div className="flex items-center gap-4 mb-4">
                       <div className={`w-16 h-16 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-blue-100'} flex items-center justify-center overflow-hidden`}>
                         {employee.employeeImage ? (
-                          <img
+                          <Image
                             src={employee.employeeImage}
                             alt={employee.fullName}
+                            width={64}
+                            height={64}
                             className="w-full h-full object-cover"
                           />
                         ) : (

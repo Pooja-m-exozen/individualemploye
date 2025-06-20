@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
-import { FaClock, FaSignInAlt, FaSignOutAlt, FaDownload } from "react-icons/fa";
+import { FaClock,  FaDownload } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import * as XLSX from 'xlsx';
+import Image from "next/image";
+
+
 
 interface Employee {
   employeeId: string;
@@ -31,6 +34,11 @@ interface RegularizationRequest {
   date: string;
   reason: string;
   status: string;
+  punchInTime?: string;
+  punchOutTime?: string;
+  remarks?: string;
+  regularizedBy?: string;
+  employeeImage?: string;
 }
 
 const AttendanceManagementPage = () => {
@@ -43,11 +51,18 @@ const AttendanceManagementPage = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  // Modal state for rejection
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const rejectionInputRef = useRef<HTMLInputElement>(null);
 
   // Add utility to get all dates in range
   const getDateRange = (start: string, end: string): string[] => {
     const result: string[] = [];
-    let current = new Date(start);
+    const current = new Date(start);
     const last = new Date(end);
     while (current <= last) {
       result.push(current.toISOString().split('T')[0]);
@@ -67,8 +82,8 @@ const AttendanceManagementPage = () => {
         let exozenEmployees: Employee[] = [];
         if (empData.kycForms) {
           exozenEmployees = empData.kycForms
-            .filter((form: any) => form.personalDetails.projectName === "Exozen - Ops")
-            .map((form: any) => ({
+            .filter((form: { personalDetails: { projectName: string } }) => form.personalDetails.projectName === "Exozen - Ops")
+            .map((form: { personalDetails: { employeeId: string; employeeImage: string; fullName: string; designation: string; projectName: string } }) => ({
               employeeId: form.personalDetails.employeeId,
               employeeImage: form.personalDetails.employeeImage,
               fullName: form.personalDetails.fullName,
@@ -82,7 +97,7 @@ const AttendanceManagementPage = () => {
         const attData = await attRes.json();
         let allRecords: AttendanceRecord[] = [];
         if (attData.attendance) {
-          allRecords = attData.attendance.filter((rec: any) => rec.projectName === "Exozen - Ops");
+          allRecords = attData.attendance.filter((rec: AttendanceRecord) => rec.projectName === "Exozen - Ops");
         }
         // If date range is set, build attendance matrix
         if (fromDate && toDate && exozenEmployees.length > 0) {
@@ -129,41 +144,49 @@ const AttendanceManagementPage = () => {
   }, [fromDate, toDate]);
 
   // Modified regularization requests fetch
-  const fetchRegularizationRequests = async () => {
+  const fetchRegularizationRequests = useCallback(async () => {
     try {
-      const promises = employees.map(async (employee) => {
-        const response = await fetch(
-          `https://cafm.zenapi.co.in/api/attendance/${employee.employeeId}/monthly-stats?month=${new Date().getMonth() + 1}&year=2025`
-        );
-        const data = await response.json();
-        
-        if (data.success && data.data.punctualityIssues?.lateArrivals > 0) {
+      const response = await fetch("https://cafm.zenapi.co.in/api/attendance/regularization-history/all");
+      const data = await response.json();
+      if (!data.success || !data.data || !Array.isArray(data.data.regularizations)) {
+        setRegularizationRequests([]);
+        return;
+      }
+      const exozenEmployeeIds = employees
+        .filter(emp => emp.projectName === "Exozen - Ops")
+        .map(emp => emp.employeeId);
+      const requests = data.data.regularizations
+        .filter((req: any) => exozenEmployeeIds.includes(req.employeeId))
+        .map((req: any) => {
+          const emp = employees.find(e => e.employeeId === req.employeeId);
           return {
-            requestId: `REQ-${employee.employeeId}-${Date.now()}`,
-            employeeId: employee.employeeId,
-            fullName: employee.fullName,
-            projectName: employee.projectName,
-            date: new Date().toISOString().split('T')[0],
-            reason: "Late Arrival",
-            status: "Pending"
+            requestId: req._id,
+            employeeId: req.employeeId,
+            fullName: emp ? emp.fullName : '',
+            projectName: emp ? emp.projectName : '',
+            date: req.date ? req.date.split('T')[0] : '',
+            reason: req.regularizationReason || '',
+            status: req.regularizationStatus || 'Pending',
+            punchInTime: req.punchInTime || '',
+            punchOutTime: req.punchOutTime || '',
+            remarks: req.remarks || '',
+            regularizedBy: req.regularizedBy || '',
+            employeeImage: emp ? emp.employeeImage : '',
           };
-        }
-        return null;
-      });
-
-      const results = await Promise.all(promises);
-      setRegularizationRequests(results.filter(req => req !== null));
+        });
+      setRegularizationRequests(requests);
     } catch (error) {
       console.error("Error fetching regularization requests:", error);
+      setRegularizationRequests([]);
     }
-  };
+  }, [employees]);
 
   // Call fetchRegularizationRequests when employees are loaded
   React.useEffect(() => {
     if (employees.length > 0) {
       fetchRegularizationRequests();
     }
-  }, [employees]);
+  }, [employees, fetchRegularizationRequests]);
 
   // Updated export function to properly handle date range and API response
   const exportAttendanceData = async () => {
@@ -173,11 +196,20 @@ const AttendanceManagementPage = () => {
     }
     setLoading(true);
     try {
-      const exportData = attendanceRecords.map(record => {
+      // Sort attendanceRecords by employeeId and date
+      const sortedRecords = attendanceRecords.slice().sort((a, b) => {
+        if (a.employeeId === b.employeeId) {
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        }
+        return a.employeeId.localeCompare(b.employeeId);
+      });
+      // Map to export format, including employee details
+      const exportData = sortedRecords.map(record => {
         const employee = employees.find(emp => emp.employeeId === record.employeeId);
         return {
           'Employee ID': record.employeeId,
           'Employee Name': employee ? employee.fullName : '',
+          'Designation': employee ? employee.designation : '',
           'Project': record.projectName,
           'Date': record.date,
           'Status': record.status,
@@ -192,7 +224,7 @@ const AttendanceManagementPage = () => {
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(exportData);
       ws['!cols'] = [
-        { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 18 }
+        { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 18 }
       ];
       XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
       XLSX.writeFile(wb, `Exozen_Ops_Attendance_${fromDate}_to_${toDate}.xlsx`);
@@ -204,49 +236,86 @@ const AttendanceManagementPage = () => {
     }
   };
 
-  // Improved hours calculation
-  const calculateHours = (punchIn: string | null, punchOut: string | null): string => {
-    if (!punchIn || !punchOut) return "N/A";
+  // Utility function to extract time (HH:MM) from UTC string
+  const extractTime = (utcString: string | undefined) => {
+    if (!utcString) return '-';
     try {
-      const [punchInHours, punchInMinutes] = punchIn.split(':').map(Number);
-      const [punchOutHours, punchOutMinutes] = punchOut.split(':').map(Number);
-      
-      let diffHours = punchOutHours - punchInHours;
-      let diffMinutes = punchOutMinutes - punchInMinutes;
-      
-      if (diffMinutes < 0) {
-        diffHours--;
-        diffMinutes += 60;
+      const date = new Date(utcString);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().substr(11, 5); // HH:MM in 24h format
       }
-      
-      return `${diffHours}h ${diffMinutes}m`;
+      // fallback: try to extract with regex
+      const match = utcString.match(/\d{2}:\d{2}/);
+      return match ? match[0] : '-';
     } catch {
-      return "N/A";
+      return '-';
     }
   };
 
-  const handleApprove = (requestId: string) => {
-    setRegularizationRequests((prevRequests) =>
-      prevRequests.map((request) =>
-        request.requestId === requestId
-          ? { ...request, status: "Approved" }
-          : request
-      )
-    );
+  const handleApprove = async (requestId: string) => {
+    try {
+      const res = await fetch(`https://cafm.zenapi.co.in/api/attendance/regularize/${requestId}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Approved', approvedBy: 'Manager' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRegularizationRequests((prevRequests) =>
+          prevRequests.map((request) =>
+            request.requestId === requestId
+              ? { ...request, status: 'Approved' }
+              : request
+          )
+        );
+        setToast({ message: 'Request approved successfully.', type: 'success' });
+      } else {
+        setToast({ message: data.message || 'Failed to approve request.', type: 'error' });
+      }
+    } catch (error) {
+      setToast({ message: 'Failed to approve request.', type: 'error' });
+    }
   };
 
   const handleReject = (requestId: string) => {
-    setRegularizationRequests((prevRequests) =>
-      prevRequests.map((request) =>
-        request.requestId === requestId
-          ? { ...request, status: "Rejected" }
-          : request
-      )
-    );
+    setRejectRequestId(requestId);
+    setShowRejectModal(true);
+    setRejectionReason('');
+    setTimeout(() => rejectionInputRef.current?.focus(), 100);
   };
 
-  const filteredAttendanceRecords = attendanceRecords.filter((record) => {
-    const employee = employees.find(emp => emp.employeeId === record.employeeId);
+  const submitRejection = async () => {
+    if (!rejectRequestId) return;
+    try {
+      const res = await fetch(`https://cafm.zenapi.co.in/api/attendance/regularize/${rejectRequestId}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Rejected', rejectionReason })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRegularizationRequests((prevRequests) =>
+          prevRequests.map((request) =>
+            request.requestId === rejectRequestId
+              ? { ...request, status: 'Rejected' }
+              : request
+          )
+        );
+        setToast({ message: 'Request rejected successfully.', type: 'success' });
+      } else {
+        setToast({ message: data.message || 'Failed to reject request.', type: 'error' });
+      }
+    } catch (error) {
+      setToast({ message: 'Failed to reject request.', type: 'error' });
+    } finally {
+      setShowRejectModal(false);
+      setRejectRequestId(null);
+      setRejectionReason('');
+    }
+  };
+
+  const filteredAttendanceRecords = attendanceRecords.filter((record: AttendanceRecord) => {
+    const employee = employees.find((emp: Employee) => emp.employeeId === record.employeeId);
     return (
       (record.employeeId.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (employee && employee.fullName.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -255,7 +324,7 @@ const AttendanceManagementPage = () => {
     );
   });
 
-  const filteredRegularizationRequests = regularizationRequests.filter((request) => {
+  const filteredRegularizationRequests = regularizationRequests.filter((request: RegularizationRequest) => {
     const requestDate = new Date(request.date);
     const from = fromDate ? new Date(fromDate) : null;
     const to = toDate ? new Date(toDate) : null;
@@ -281,6 +350,14 @@ const AttendanceManagementPage = () => {
       setToDate(now.toISOString().split('T')[0]);
     }
   }, [fromDate, toDate]);
+
+  // Toast auto-dismiss after 5 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   return (
     <ManagerOpsLayout>
@@ -324,76 +401,75 @@ const AttendanceManagementPage = () => {
         </div>
 
         {/* Filters */}
-        <div className={`mx-6 mb-6 ${
-          theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-        } rounded-lg p-6 shadow-lg`}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-              }`}>Search</label>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by ID or Name"
-                className={`w-full px-4 py-2 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-700 text-white border-gray-600' 
-                    : 'bg-white text-gray-900 border-gray-200'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm`}
-              />
+        {activeTab === "View Attendance" && (
+          <div className={`mx-6 mb-6 ${
+            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+          } rounded-lg p-6 shadow-lg`}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                }`}>Search</label>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by ID or Name"
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    theme === 'dark' 
+                      ? 'bg-gray-700 text-white border-gray-600' 
+                      : 'bg-white text-gray-900 border-gray-200'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm`}
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                }`}>From Date</label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    theme === 'dark' 
+                      ? 'bg-gray-700 text-white border-gray-600' 
+                      : 'bg-white text-gray-900 border-gray-200'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm`}
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                }`}>To Date</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    theme === 'dark' 
+                      ? 'bg-gray-700 text-white border-gray-600' 
+                      : 'bg-white text-gray-900 border-gray-200'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm`}
+                />
+              </div>
             </div>
-            
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-              }`}>From Date</label>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className={`w-full px-4 py-2 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-700 text-white border-gray-600' 
-                    : 'bg-white text-gray-900 border-gray-200'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm`}
-              />
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-              }`}>To Date</label>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className={`w-full px-4 py-2 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-700 text-white border-gray-600' 
-                    : 'bg-white text-gray-900 border-gray-200'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm`}
-              />
+            {/* Export Button */}
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={exportAttendanceData}
+                disabled={loading || !fromDate || !toDate}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                  theme === 'dark'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                } disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm`}
+              >
+                <FaDownload />
+                Export Attendance
+              </button>
             </div>
           </div>
-
-          {/* Export Button */}
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={exportAttendanceData}
-              disabled={loading || !fromDate || !toDate}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-                theme === 'dark'
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              } disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm`}
-            >
-              <FaDownload />
-              Export Attendance
-            </button>
-          </div>
-        </div>
+        )}
 
         {/* Tab Content */}
         {activeTab === "View Attendance" && (
@@ -437,9 +513,11 @@ const AttendanceManagementPage = () => {
                           <tr key={index} className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center gap-4">
-                                <img
+                                <Image
                                   src={employee?.employeeImage || "/default-avatar.png"}
-                                  alt={employee?.fullName}
+                                  alt={employee?.fullName || "Employee"}
+                                  width={40}
+                                  height={40}
                                   className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200"
                                 />
                                 <div>
@@ -521,91 +599,50 @@ const AttendanceManagementPage = () => {
                 theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
               }`}>
                 <table className="w-full text-left">
-                  <thead className={`${
-                    theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
-                  }`}>
+                  <thead className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}`}> 
                     <tr>
-                      <th className={`px-6 py-4 text-sm font-semibold ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-black'
-                      } uppercase tracking-wider`}>Request ID</th>
-                      <th className={`px-6 py-4 text-sm font-semibold ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-black'
-                      } uppercase tracking-wider`}>Employee</th>
-                      <th className={`px-6 py-4 text-sm font-semibold ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-black'
-                      } uppercase tracking-wider`}>Project</th>
-                      <th className={`px-6 py-4 text-sm font-semibold ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-black'
-                      } uppercase tracking-wider`}>Date</th>
-                      <th className={`px-6 py-4 text-sm font-semibold ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-black'
-                      } uppercase tracking-wider`}>Reason</th>
-                      <th className={`px-6 py-4 text-sm font-semibold ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-black'
-                      } uppercase tracking-wider`}>Status</th>
-                      <th className={`px-6 py-4 text-sm font-semibold ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-black'
-                      } uppercase tracking-wider`}>Actions</th>
+                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Employee</th>
+                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Employee ID</th>
+                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Project</th>
+                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Date</th>
+                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Punch In (UTC)</th>
+                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Punch Out (UTC)</th>
+                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Reason</th>
+                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Remarks</th>
+                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Status</th>
+                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Regularized By</th>
+                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className={`divide-y ${
-                    theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'
-                  }`}>
+                  <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}> 
                     {filteredRegularizationRequests.map((request, index) => (
-                      <tr key={index} className={`${
-                        theme === 'dark' 
-                          ? 'hover:bg-gray-700' 
-                          : 'hover:bg-gray-50'
-                      } transition-colors duration-200`}>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            theme === 'dark'
-                              ? 'bg-gray-700 text-gray-200'
-                              : 'bg-gray-200 text-black'
-                          }`}>
-                            {request.requestId}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src="/default-avatar.png"
+                      <tr key={index} className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors duration-200`}>
+                        <td className="px-6 py-4 text-center align-middle">
+                          <div className="flex items-center gap-3 justify-center">
+                            <Image
+                              src={request.employeeImage || "/default-avatar.png"}
                               alt={request.fullName}
-                              className={`w-10 h-10 rounded-full object-cover ring-2 ${
-                                theme === 'dark' ? 'ring-gray-600' : 'ring-gray-100'
-                              }`}
+                              width={40}
+                              height={40}
+                              className="w-10 h-10 rounded-full object-cover ring-2 ring-blue-400"
                             />
-                            <div>
-                              <p className={`font-medium ${
-                                theme === 'dark' ? 'text-white' : 'text-black'
-                              }`}>{request.fullName}</p>
-                              <p className={`text-sm ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-black'
-                              }`}>{request.employeeId}</p>
-                              <p className={`text-sm ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-black'
-                              }`}>{request.projectName.replace(' - FMS', '')}</p>
+                            <div className="text-left">
+                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{request.fullName}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            theme === 'dark'
-                              ? 'bg-blue-900/30 text-blue-400'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {request.projectName}
+                        <td className="px-6 py-4 text-center align-middle">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {request.employeeId}
                           </span>
                         </td>
-                        <td className={`px-6 py-4 ${
-                          theme === 'dark' ? 'text-gray-200' : 'text-black'
-                        }`}>{request.date}</td>
-                        <td className="px-6 py-4">
-                          <p className={`text-sm ${
-                            theme === 'dark' ? 'text-gray-300' : 'text-black'
-                          } truncate max-w-xs`}>{request.reason}</p>
-                        </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-center align-middle">{request.projectName.replace(' - FMS', '')}</td>
+                        <td className="px-6 py-4 text-center align-middle">{request.date}</td>
+                        <td className="px-6 py-4 text-center align-middle whitespace-nowrap">{extractTime(request.punchInTime)}</td>
+                        <td className="px-6 py-4 text-center align-middle whitespace-nowrap">{extractTime(request.punchOutTime)}</td>
+                        <td className="px-6 py-4 max-w-xs truncate text-center align-middle" title={request.reason}>{request.reason}</td>
+                        <td className="px-6 py-4 max-w-xs truncate text-center align-middle" title={request.remarks}>{request.remarks}</td>
+                        <td className="px-6 py-4 text-center align-middle">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                             request.status === "Approved"
                               ? theme === 'dark'
@@ -622,9 +659,10 @@ const AttendanceManagementPage = () => {
                             {request.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-center align-middle">{request.regularizedBy || '-'}</td>
+                        <td className="px-6 py-4 text-center align-middle">
                           {request.status === "Pending" ? (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 justify-center">
                               <button
                                 onClick={() => handleApprove(request.requestId)}
                                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
@@ -647,9 +685,7 @@ const AttendanceManagementPage = () => {
                               </button>
                             </div>
                           ) : (
-                            <span className={`text-sm ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                            }`}>No actions available</span>
+                            <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>No actions available</span>
                           )}
                         </td>
                       </tr>
@@ -661,20 +697,47 @@ const AttendanceManagementPage = () => {
               {/* Empty state with theme support */}
               {filteredRegularizationRequests.length === 0 && (
                 <div className="text-center py-12">
-                  <svg className={`mx-auto h-12 w-12 ${
-                    theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
-                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`mx-auto h-12 w-12 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <h3 className={`mt-2 text-sm font-medium ${
-                    theme === 'dark' ? 'text-gray-200' : 'text-black'
-                  }`}>No regularization requests found</h3>
-                  <p className={`mt-1 text-sm ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                  }`}>Try adjusting your search or filter criteria.</p>
+                  <h3 className={`mt-2 text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>No regularization requests found</h3>
+                  <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Try adjusting your search or filter criteria.</p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Toast Notification */}
+        {toast && (
+          <div className={`fixed top-6 right-6 z-50 px-6 py-3 rounded-lg shadow-lg text-white transition-all duration-300 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>{toast.message}</div>
+        )}
+        {/* Reject Modal */}
+        {showRejectModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-md mx-4`}>
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Reject Regularization Request</h3>
+              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">Reason for rejection</label>
+              <input
+                ref={rejectionInputRef}
+                type="text"
+                value={rejectionReason}
+                onChange={e => setRejectionReason(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                placeholder="Enter reason..."
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowRejectModal(false)}
+                  className="px-4 py-2 rounded-md bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700"
+                >Cancel</button>
+                <button
+                  onClick={submitRejection}
+                  disabled={!rejectionReason.trim()}
+                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >Reject</button>
+              </div>
             </div>
           </div>
         )}

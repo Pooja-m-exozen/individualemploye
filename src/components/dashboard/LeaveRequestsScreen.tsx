@@ -1,14 +1,37 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { FaCalendarAlt, FaUserCircle, FaCheck, FaTimes, FaClock, FaInfoCircle, FaFilter, FaSearch, FaCalendarDay, FaCalendarWeek, FaCalendarCheck, FaUserClock, FaEllipsisV } from 'react-icons/fa';
+import { FaCalendarAlt, FaUserCircle, FaCheck, FaTimes, FaClock, FaInfoCircle, FaFilter, FaSearch,  } from 'react-icons/fa';
 import { useTheme } from "@/context/ThemeContext";
+import Image from 'next/image';
+import ReactDOM from 'react-dom';
 
 interface KYCDetails {
   employeeId: string;
   employeeImage: string;
   fullName: string;
   designation: string;
+}
+
+interface KYCForm {
+  personalDetails: {
+    employeeId: string;
+    employeeImage: string;
+    fullName: string;
+    designation?: string;
+    projectName: string;
+  };
+}
+
+interface LeaveHistory {
+  leaveId?: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  status: string;
+  appliedOn?: string;
+  numberOfDays: number;
 }
 
 interface LeaveRequest {
@@ -27,12 +50,18 @@ interface LeaveRequest {
 }
 
 const LeaveRequestsScreen: React.FC = () => {
-  const { theme } = useTheme ? useTheme() : { theme: 'light' };
+  const { theme } = useTheme();
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [pendingRejectId, setPendingRejectId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionError, setRejectionError] = useState('');
+  const [dashboardMessage, setDashboardMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   useEffect(() => {
     const fetchEmployeesAndLeaves = async () => {
@@ -41,9 +70,9 @@ const LeaveRequestsScreen: React.FC = () => {
         const response = await fetch("https://cafm.zenapi.co.in/api/kyc");
         const data = await response.json();
         if (data.kycForms) {
-          const filteredEmployees = data.kycForms
-            .filter((form: any) => form.personalDetails.projectName === "Exozen - Ops")
-            .map((form: any) => ({
+          const filteredEmployees = (data.kycForms as KYCForm[])
+            .filter((form: KYCForm) => form.personalDetails.projectName === "Exozen - Ops")
+            .map((form: KYCForm) => ({
               employeeId: form.personalDetails.employeeId,
               employeeImage: form.personalDetails.employeeImage,
               fullName: form.personalDetails.fullName,
@@ -57,7 +86,7 @@ const LeaveRequestsScreen: React.FC = () => {
                 const res = await fetch(`https://cafm.zenapi.co.in/api/leave/history/${emp.employeeId}`);
                 const historyData = await res.json();
                 if (Array.isArray(historyData.leaveHistory)) {
-                  return historyData.leaveHistory.map((leave: any) => ({
+                  return (historyData.leaveHistory as LeaveHistory[]).map((leave: LeaveHistory) => ({
                     ...leave,
                     employeeId: emp.employeeId,
                     employeeImage: emp.employeeImage,
@@ -73,7 +102,7 @@ const LeaveRequestsScreen: React.FC = () => {
           );
           setLeaveRequests(allLeaves.flat());
         }
-      } catch (error) {
+      } catch {
         setLeaveRequests([]);
       } finally {
         setLoading(false);
@@ -82,14 +111,75 @@ const LeaveRequestsScreen: React.FC = () => {
     fetchEmployeesAndLeaves();
   }, []);
 
-  const handleLeaveAction = (requestId: string, action: 'approve' | 'reject') => {
-    setLeaveRequests(prev =>
-      prev.map(request =>
-        request.leaveId === requestId
-          ? { ...request, status: action === 'approve' ? 'Approved' : 'Rejected' }
-          : request
-      )
-    );
+  useEffect(() => {
+    if (dashboardMessage) {
+      const timer = setTimeout(() => setDashboardMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [dashboardMessage]);
+
+  const handleLeaveAction = async (requestId: string, action: 'approve' | 'reject', reason?: string) => {
+    setActionLoading(requestId + action);
+    try {
+      let body: any;
+      if (action === 'approve') {
+        body = { status: 'Approved', approvedBy: 'Manager' };
+      } else {
+        body = { status: 'Rejected', rejectionReason: reason };
+      }
+      const response = await fetch(`https://cafm.zenapi.co.in/api/leave/update/${requestId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (response.ok && data.leave) {
+        setLeaveRequests(prev =>
+          prev.map(request =>
+            request.leaveId === requestId
+              ? { ...request, ...data.leave }
+              : request
+          )
+        );
+        setShowRejectionModal(false);
+        setRejectionReason('');
+        setPendingRejectId(null);
+        setRejectionError('');
+        setDashboardMessage({ type: 'success', text: data.message || 'Leave updated successfully.' });
+      } else {
+        setRejectionError(data.message || 'Failed to update leave request.');
+        setDashboardMessage({ type: 'error', text: data.message || 'Failed to update leave request.' });
+      }
+    } catch (error) {
+      setRejectionError('Failed to update leave request.');
+      setDashboardMessage({ type: 'error', text: 'Failed to update leave request.' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const openRejectionModal = (leaveId: string) => {
+    setPendingRejectId(leaveId);
+    setShowRejectionModal(true);
+    setRejectionReason('');
+    setRejectionError('');
+  };
+
+  const closeRejectionModal = () => {
+    setShowRejectionModal(false);
+    setPendingRejectId(null);
+    setRejectionReason('');
+    setRejectionError('');
+  };
+
+  const confirmRejection = async () => {
+    if (!rejectionReason.trim()) {
+      setRejectionError('Rejection reason is required.');
+      return;
+    }
+    if (pendingRejectId) {
+      await handleLeaveAction(pendingRejectId, 'reject', rejectionReason);
+    }
   };
 
   const filteredRequests = leaveRequests.filter(request => {
@@ -149,20 +239,20 @@ const LeaveRequestsScreen: React.FC = () => {
     }
   };
 
-  const getLeaveTypeIcon = (type: string) => {
-    switch (type) {
-      case 'Sick Leave':
-        return <FaCalendarDay className="text-red-500" />;
-      case 'Casual Leave':
-        return <FaCalendarWeek className="text-blue-500" />;
-      case 'Annual Leave':
-        return <FaCalendarCheck className="text-green-500" />;
-      case 'Emergency Leave':
-        return <FaUserClock className="text-orange-500" />;
-      default:
-        return <FaCalendarAlt className="text-gray-500" />;
-    }
-  };
+  // const getLeaveTypeIcon = (type: string) => {
+  //   switch (type) {
+  //     case 'Sick Leave':
+  //       return <FaCalendarDay className="text-red-500" />;
+  //     case 'Casual Leave':
+  //       return <FaCalendarWeek className="text-blue-500" />;
+  //     case 'Annual Leave':
+  //       return <FaCalendarCheck className="text-green-500" />;
+  //     case 'Emergency Leave':
+  //       return <FaUserClock className="text-orange-500" />;
+  //     default:
+  //       return <FaCalendarAlt className="text-gray-500" />;
+  //   }
+  // };
 
   if (loading) {
     return (
@@ -175,6 +265,12 @@ const LeaveRequestsScreen: React.FC = () => {
 
   return (
     <div className={`p-0 md:p-0 border-b-0 ${theme === 'light' ? 'bg-gradient-to-br from-indigo-50 via-white to-blue-50' : 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'} min-h-screen`}>
+      {dashboardMessage && (
+        <div className={`mb-4 px-4 py-3 rounded-lg flex items-center justify-between ${dashboardMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          <span>{dashboardMessage.text}</span>
+          <button onClick={() => setDashboardMessage(null)} className="ml-4 text-lg font-bold">&times;</button>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center space-y-4 md:space-y-0">
         <div>
           <h3 className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Leave Requests</h3>
@@ -270,7 +366,13 @@ const LeaveRequestsScreen: React.FC = () => {
                   <div className="flex items-start space-x-4">
                     <div className={`p-0.5 rounded-full border-2 ${theme === 'light' ? 'border-blue-200 bg-white' : 'border-blue-900 bg-gray-900'} shadow-sm flex items-center justify-center`} style={{ width: 48, height: 48 }}>
                       {request.employeeImage ? (
-                        <img src={request.employeeImage} alt={request.fullName} className="w-11 h-11 rounded-full object-cover" />
+                        <Image
+                          src={request.employeeImage}
+                          alt={request.fullName}
+                          width={44}
+                          height={44}
+                          className="w-11 h-11 rounded-full object-cover"
+                        />
                       ) : (
                         <FaUserCircle className="text-blue-500 text-3xl" />
                       )}
@@ -330,8 +432,9 @@ const LeaveRequestsScreen: React.FC = () => {
                 {request.status !== 'Approved' && (
                   <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                     <button
-                      onClick={() => handleLeaveAction(request.leaveId || '', 'reject')}
+                      onClick={() => openRejectionModal(request.leaveId || '')}
                       className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center"
+                      disabled={actionLoading === (request.leaveId + 'reject')}
                     >
                       <FaTimes className="mr-2" />
                       Reject
@@ -339,6 +442,7 @@ const LeaveRequestsScreen: React.FC = () => {
                     <button
                       onClick={() => handleLeaveAction(request.leaveId || '', 'approve')}
                       className="px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors flex items-center"
+                      disabled={actionLoading === (request.leaveId + 'approve')}
                     >
                       <FaCheck className="mr-2" />
                       Approve
@@ -363,6 +467,42 @@ const LeaveRequestsScreen: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Rejection Reason Modal */}
+      {showRejectionModal && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md mx-auto`}>
+            <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">Provide Rejection Reason</h3>
+            <textarea
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              rows={4}
+              placeholder="Enter reason for rejection..."
+              value={rejectionReason}
+              onChange={e => setRejectionReason(e.target.value)}
+              disabled={!!actionLoading}
+            />
+            {rejectionError && <p className="text-red-600 text-sm mt-1">{rejectionError}</p>}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={closeRejectionModal}
+                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
+                disabled={!!actionLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRejection}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center"
+                disabled={!!actionLoading}
+              >
+                <FaTimes className="mr-2" />
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

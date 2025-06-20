@@ -4,9 +4,10 @@ import React, { JSX, useEffect, useState } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
 import { FaSpinner } from "react-icons/fa";
-import jsPDF from "jspdf";
+// import jsPDF from "jspdf";
 import "jspdf-autotable";
-import * as XLSX from "xlsx";
+// import * as XLSX from "xlsx";
+import Image from "next/image";
 
 interface Employee {
   employeeId: string;
@@ -36,9 +37,9 @@ const OverallSummaryPage = (): JSX.Element => {
     {}
   );
   const [loading, setLoading] = useState<boolean>(true);
-  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
-  const [year, setYear] = useState<number>(new Date().getFullYear());
-  const [holidays, setHolidays] = useState<number>(2); // Example: Static holidays for the month.
+  const [month] = useState<number>(new Date().getMonth() + 1);
+  const [year] = useState<number>(new Date().getFullYear());
+  const [holidays] = useState<number>(2); // Example: Static holidays for the month.
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -47,10 +48,20 @@ const OverallSummaryPage = (): JSX.Element => {
         const response = await fetch("https://cafm.zenapi.co.in/api/kyc");
         const data = await response.json();
 
+        type KycForm = {
+          personalDetails: {
+            projectName: string;
+            employeeId: string;
+            fullName: string;
+            designation: string;
+            employeeImage?: string;
+          };
+        };
+
         if (data.kycForms) {
-          const filteredEmployees = data.kycForms
-            .filter((form: any) => form.personalDetails.projectName === "Exozen - Ops")
-            .map((form: any) => ({
+          const filteredEmployees = (data.kycForms as KycForm[])
+            .filter((form) => form.personalDetails.projectName === "Exozen - Ops")
+            .map((form) => ({
               employeeId: form.personalDetails.employeeId,
               fullName: form.personalDetails.fullName,
               designation: form.personalDetails.designation,
@@ -276,11 +287,12 @@ const OverallSummaryPage = (): JSX.Element => {
                         <td className={`p-3 border ${
                           theme === 'light' ? 'border-gray-200' : 'border-gray-700'
                         }`}>
-                          <img
+                          <Image
                             src={employee.imageUrl}
                             alt={employee.fullName}
-                            className="w-12 h-12 rounded-full"
-                            onError={(e) => (e.currentTarget.src = "/default-avatar.png")}
+                            width={48}
+                            height={48}
+                            className="w-12 h-12 rounded-full object-cover"
                           />
                         </td>
                         <td className={`p-3 border ${

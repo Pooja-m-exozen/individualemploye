@@ -1,20 +1,21 @@
 "use client";
 
-import React, { useState, useEffect, JSX } from "react";
+import React, { useState, useEffect, JSX, useCallback } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import dynamic from "next/dynamic";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
 import { FaUsers, FaSpinner } from "react-icons/fa";
 import "leaflet/dist/leaflet.css";
-import L from 'leaflet';
 import AttendanceScreen from '@/components/dashboard/AttendanceScreen';
 import LeaveRequestsScreen from '@/components/dashboard/LeaveRequestsScreen';
 import PerformanceScreen from '@/components/dashboard/PerformanceScreen';
+import Image from "next/image";
+import { Marker } from 'react-leaflet';
+import type { DivIcon } from 'leaflet';
 
 // Dynamically import Leaflet components with SSR disabled
 const MapContainer = dynamic(() => import("react-leaflet").then((mod) => mod.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import("react-leaflet").then((mod) => mod.TileLayer), { ssr: false });
-const Marker = dynamic(() => import("react-leaflet").then((mod) => mod.Marker), { ssr: false });
 const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), { ssr: false });
 
 interface Employee {
@@ -38,6 +39,28 @@ interface Attendance {
   punchOutTime: string | null;
 }
 
+const AsyncMarker = ({ position, imageUrl, children }: { position: [number, number], imageUrl: string, children: React.ReactNode }) => {
+  const [icon, setIcon] = useState<DivIcon | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const L = (await import('leaflet')).default;
+      const divIcon = L.divIcon({
+        html: `<div style='position: relative; text-align: center;'>
+                 <img src="${imageUrl}" alt='Employee' style='width: 50px; height: 50px; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5);' />
+               </div>`,
+        className: "custom-icon",
+        iconSize: [50, 50],
+        iconAnchor: [25, 25],
+      });
+      if (mounted) setIcon(divIcon);
+    })();
+    return () => { mounted = false; };
+  }, [imageUrl]);
+  if (!icon) return null;
+  return <Marker position={position} icon={icon}>{children}</Marker>;
+};
+
 const OperationsManagerDashboard = (): JSX.Element => {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("Overview");
@@ -46,7 +69,7 @@ const OperationsManagerDashboard = (): JSX.Element => {
   const [loading, setLoading] = useState<boolean>(true);
   const [addressCache, setAddressCache] = useState<Record<string, string>>({});
 
-  const getAddressFromCoordinates = async (lat: number, lng: number): Promise<string> => {
+  const getAddressFromCoordinates = useCallback(async (lat: number, lng: number): Promise<string> => {
     const cacheKey = `${lat},${lng}`;
     
     // Check if address is in cache
@@ -71,7 +94,7 @@ const OperationsManagerDashboard = (): JSX.Element => {
       console.error("Error fetching address:", error);
       return "Address not found";
     }
-  };
+  }, [addressCache]);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -81,8 +104,8 @@ const OperationsManagerDashboard = (): JSX.Element => {
 
         if (data.kycForms) {
           const filteredEmployees = data.kycForms
-            .filter((form: any) => form.personalDetails.projectName === "Exozen - Ops")
-            .map((form: any) => ({
+            .filter((form: { personalDetails: { projectName: string } }) => form.personalDetails.projectName === "Exozen - Ops")
+            .map((form: { personalDetails: { employeeId: string; employeeImage: string; fullName: string; designation: string; projectName: string } }) => ({
               employeeId: form.personalDetails.employeeId,
               employeeImage: form.personalDetails.employeeImage,
               fullName: form.personalDetails.fullName,
@@ -112,26 +135,26 @@ const OperationsManagerDashboard = (): JSX.Element => {
         const data = await response.json();
 
         const currentDayAttendance = data.attendance?.filter(
-          (record: any) => new Date(record.date).getDate() === day
+          (record: Record<string, unknown>) => new Date(record.date as string).getDate() === day
         );
 
         // Get addresses for each attendance record
         const attendanceWithAddresses = await Promise.all(
-          (currentDayAttendance || []).map(async (record: any) => {
+          (currentDayAttendance || []).map(async (record: Record<string, unknown>) => {
             let punchInAddress = "Address not found";
             let punchOutAddress = "Address not found";
 
             if (record.punchInLatitude && record.punchInLongitude) {
               punchInAddress = await getAddressFromCoordinates(
-                record.punchInLatitude,
-                record.punchInLongitude
+                Number(record.punchInLatitude),
+                Number(record.punchInLongitude)
               );
             }
 
             if (record.punchOutLatitude && record.punchOutLongitude) {
               punchOutAddress = await getAddressFromCoordinates(
-                record.punchOutLatitude,
-                record.punchOutLongitude
+                Number(record.punchOutLatitude),
+                Number(record.punchOutLongitude)
               );
             }
 
@@ -158,7 +181,7 @@ const OperationsManagerDashboard = (): JSX.Element => {
 
     fetchEmployees();
     fetchAttendanceData();
-  }, [employees]);
+  }, [employees, getAddressFromCoordinates]);
 
   const boundaryCoordinates = (): [number, number][] => {
     const allPositions: [number, number][] = [];
@@ -198,7 +221,7 @@ const OperationsManagerDashboard = (): JSX.Element => {
           <div>
             <h1 className="text-3xl font-bold text-white">Operations Manager Dashboard</h1>
             <p className="text-white text-lg opacity-90">
-              Manage your team's attendance, leave, and performance metrics.
+              Manage your team&apos;s attendance, leave, and performance metrics.
             </p>
           </div>
         </div>
@@ -229,7 +252,7 @@ const OperationsManagerDashboard = (): JSX.Element => {
             <>
               <h2 className={`text-xl font-bold mb-4 ${
                 theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>Today's Attendance</h2>
+              }`}>Today&apos;s Attendance</h2>
               {loading ? (
                 <div className="flex justify-center items-center min-h-[300px]">
                   <FaSpinner className={`animate-spin ${
@@ -244,149 +267,149 @@ const OperationsManagerDashboard = (): JSX.Element => {
                   } p-6 rounded-2xl flex items-center gap-3 max-w-lg mx-auto shadow-lg`}>
                   <FaUsers className="w-6 h-6 flex-shrink-0" />
                   <p className="text-lg font-medium">
-                    No employees found in the "Exozen-Ops" project.
+                    No employees found in the &apos;Exozen-Ops&apos; project.
                   </p>
                 </div>
               ) : (
-                <MapContainer
-                  key={JSON.stringify(boundaryCoordinates())} // Use a unique key to force re-render
-                  bounds={boundaryCoordinates().length > 0 ? boundaryCoordinates() : undefined}
-                  style={{ height: "500px", width: "100%" }}
-                >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  />
-                  {employees.map((employee) => {
-                    const attendance = attendanceData[employee.employeeId] || [];
-                    return attendance.map((entry, idx) => {
-                      const punchInPosition =
-                        entry.punchInLatitude && entry.punchInLongitude
-                          ? [entry.punchInLatitude, entry.punchInLongitude]
-                          : null;
+                typeof window !== 'undefined' ? (
+                  <MapContainer
+                    key={JSON.stringify(boundaryCoordinates())} // Use a unique key to force re-render
+                    bounds={boundaryCoordinates().length > 0 ? boundaryCoordinates() : undefined}
+                    style={{ height: "500px", width: "100%" }}
+                  >
+                    <TileLayer
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    />
+                    {employees.map((employee) => {
+                      const attendance = attendanceData[employee.employeeId] || [];
+                      return attendance.map((entry, idx) => {
+                        const punchInPosition =
+                          entry.punchInLatitude && entry.punchInLongitude
+                            ? [entry.punchInLatitude, entry.punchInLongitude]
+                            : null;
 
-                      const punchOutPosition =
-                        entry.punchOutLatitude && entry.punchOutLongitude
-                          ? [entry.punchOutLatitude, entry.punchOutLongitude]
-                          : null;
+                        const punchOutPosition =
+                          entry.punchOutLatitude && entry.punchOutLongitude
+                            ? [entry.punchOutLatitude, entry.punchOutLongitude]
+                            : null;
 
-                      const createCustomIcon = (imageUrl: string) =>
-                        L.divIcon({
-                          html: `<div style="position: relative; text-align: center;">
-                                   <img src="${imageUrl}" alt="Employee" style="width: 50px; height: 50px; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5);" />
-                                 </div>`,
-                          className: "custom-icon",
-                          iconSize: [50, 50],
-                          iconAnchor: [25, 25],
-                        });
-
-                      return (
-                        <React.Fragment key={`${employee.employeeId}-${idx}`}>
-                          {punchInPosition && (
-                            <Marker
-                              position={punchInPosition as [number, number]}
-                              icon={createCustomIcon(entry.punchInPhoto || employee.employeeImage)}
-                            >
-                              <Popup>
-                                <div style={{ width: "260px", padding: "12px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid #e5e7eb" }}>
-                                    <div style={{ position: "relative" }}>
-                                      <img 
-                                        src={employee.employeeImage} 
-                                        alt={employee.fullName}
-                                        style={{ width: "64px", height: "64px", borderRadius: "50%", objectFit: "cover", border: "2px solid #3b82f6" }}
-                                      />
-                                      <div style={{ position: "absolute", bottom: "-4px", right: "-4px", width: "16px", height: "16px", backgroundColor: "#22c55e", borderRadius: "50%", border: "2px solid white" }}></div>
-                                    </div>
-                                    <div>
-                                      <h3 style={{ fontSize: "16px", fontWeight: "600", color: "#1f2937" }}>{employee.fullName}</h3>
-                                      <p style={{ fontSize: "13px", color: "#4b5563" }}>{employee.designation}</p>
-                                      <p style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>ID: {employee.employeeId}</p>
-                                    </div>
-                                  </div>
-                                  
-                                  <div style={{ marginBottom: "12px" }}>
-                                      <span style={{ backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "500", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>Punched In</span>
-                                  </div>
-                                  
-                                  <div style={{ backgroundColor: "#eff6ff", padding: "10px", borderRadius: "8px" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-                                      <div style={{ width: "7px", height: "7px", backgroundColor: "#3b82f6", borderRadius: "50%" }}></div>
-                                      <h4 style={{ fontSize: "13px", fontWeight: "500", color: "#1e40af" }}>Punch-In Location</h4>
-                                    </div>
-                                    <p style={{ fontSize: "13px", color: "#4b5563", lineHeight: "1.4" }}>
-                                      {entry.punchInAddress}
-                                    </p>
-                                    <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {entry.punchInTime || 'N/A'}</p>
-                                    {entry.punchInPhoto && (
-                                      <div style={{ marginTop: "6px" }}>
-                                        <img 
-                                          src={entry.punchInPhoto} 
-                                          alt="Punch-in verification" 
-                                          style={{ width: "100%", height: "100px", objectFit: "cover", borderRadius: "6px" }}
+                        return (
+                          <React.Fragment key={`${employee.employeeId}-${idx}`}>
+                            {punchInPosition && (
+                              <AsyncMarker
+                                position={punchInPosition as [number, number]}
+                                imageUrl={entry.punchInPhoto || employee.employeeImage}
+                              >
+                                <Popup>
+                                  <div style={{ width: "260px", padding: "12px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid #e5e7eb" }}>
+                                      <div style={{ position: "relative" }}>
+                                        <Image 
+                                          src={employee.employeeImage} 
+                                          alt={employee.fullName}
+                                          width={64}
+                                          height={64}
+                                          style={{ width: "64px", height: "64px", borderRadius: "50%", objectFit: "cover", border: "2px solid #3b82f6" }}
                                         />
+                                        <div style={{ position: "absolute", bottom: "-4px", right: "-4px", width: "16px", height: "16px", backgroundColor: "#22c55e", borderRadius: "50%", border: "2px solid white" }}></div>
                                       </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </Popup>
-                            </Marker>
-                          )}
-                          {punchOutPosition && (
-                            <Marker
-                              position={punchOutPosition as [number, number]}
-                              icon={createCustomIcon(entry.punchOutPhoto || employee.employeeImage)}
-                            >
-                              <Popup>
-                                <div style={{ width: "260px", padding: "12px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid #e5e7eb" }}>
-                                    <div style={{ position: "relative" }}>
-                                      <img 
-                                        src={employee.employeeImage} 
-                                        alt={employee.fullName}
-                                        style={{ width: "64px", height: "64px", borderRadius: "50%", objectFit: "cover", border: "2px solid #22c55e" }}
-                                      />
-                                      <div style={{ position: "absolute", bottom: "-4px", right: "-4px", width: "16px", height: "16px", backgroundColor: "#ef4444", borderRadius: "50%", border: "2px solid white" }}></div>
+                                      <div>
+                                        <h3 style={{ fontSize: "16px", fontWeight: "600", color: "#1f2937" }}>{employee.fullName}</h3>
+                                        <p style={{ fontSize: "13px", color: "#4b5563" }}>{employee.designation}</p>
+                                        <p style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>ID: {employee.employeeId}</p>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <h3 style={{ fontSize: "16px", fontWeight: "600", color: "#1f2937" }}>Welcome {employee.fullName}</h3>
-                                      <p style={{ fontSize: "13px", color: "#4b5563" }}>{employee.designation}</p>
-                                      <p style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>ID: {employee.employeeId}</p>
+                                    
+                                    <div style={{ marginBottom: "12px" }}>
+                                        <span style={{ backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "500", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>Punched In</span>
+                                    </div>
+                                    
+                                    <div style={{ backgroundColor: "#eff6ff", padding: "10px", borderRadius: "8px" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                                        <div style={{ width: "7px", height: "7px", backgroundColor: "#3b82f6", borderRadius: "50%" }}></div>
+                                        <h4 style={{ fontSize: "13px", fontWeight: "500", color: "#1e40af" }}>Punch-In Location</h4>
+                                      </div>
+                                      <p style={{ fontSize: "13px", color: "#4b5563", lineHeight: "1.4" }}>
+                                        {entry.punchInAddress}
+                                      </p>
+                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {entry.punchInTime || 'N/A'}</p>
+                                      {entry.punchInPhoto && (
+                                        <div style={{ marginTop: "6px" }}>
+                                          <Image 
+                                            src={entry.punchInPhoto} 
+                                            alt="Punch-in verification" 
+                                            width={300}
+                                            height={100}
+                                            style={{ width: "100%", height: "100px", objectFit: "cover", borderRadius: "6px" }}
+                                          />
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
-                                  
-                                  <div style={{ marginBottom: "12px" }}>
-                                      <span style={{ backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "500", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>Punched Out</span>
-                                  </div>
-
-                                  <div style={{ backgroundColor: "#f0fdf4", padding: "10px", borderRadius: "8px" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-                                      <div style={{ width: "7px", height: "7px", backgroundColor: "#22c55e", borderRadius: "50%" }}></div>
-                                      <h4 style={{ fontSize: "13px", fontWeight: "500", color: "#166534" }}>Punch-Out Location</h4>
-                                    </div>
-                                    <p style={{ fontSize: "13px", color: "#4b5563", lineHeight: "1.4" }}>
-                                      {entry.punchOutAddress}
-                                    </p>
-                                    <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {entry.punchOutTime || 'N/A'}</p>
-                                    {entry.punchOutPhoto && (
-                                      <div style={{ marginTop: "6px" }}>
-                                        <img 
-                                          src={entry.punchOutPhoto} 
-                                          alt="Punch-out verification" 
-                                          style={{ width: "100%", height: "100px", objectFit: "cover", borderRadius: "6px" }}
+                                </Popup>
+                              </AsyncMarker>
+                            )}
+                            {punchOutPosition && (
+                              <AsyncMarker
+                                position={punchOutPosition as [number, number]}
+                                imageUrl={entry.punchOutPhoto || employee.employeeImage}
+                              >
+                                <Popup>
+                                  <div style={{ width: "260px", padding: "12px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid #e5e7eb" }}>
+                                      <div style={{ position: "relative" }}>
+                                        <Image 
+                                          src={employee.employeeImage} 
+                                          alt={employee.fullName}
+                                          width={64}
+                                          height={64}
+                                          style={{ width: "64px", height: "64px", borderRadius: "50%", objectFit: "cover", border: "2px solid #22c55e" }}
                                         />
+                                        <div style={{ position: "absolute", bottom: "-4px", right: "-4px", width: "16px", height: "16px", backgroundColor: "#ef4444", borderRadius: "50%", border: "2px solid white" }}></div>
                                       </div>
-                                    )}
+                                      <div>
+                                        <h3 style={{ fontSize: "16px", fontWeight: "600", color: "#1f2937" }}>Welcome {employee.fullName}</h3>
+                                        <p style={{ fontSize: "13px", color: "#4b5563" }}>{employee.designation.replace("'", "&apos;")}</p>
+                                        <p style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>ID: {employee.employeeId}</p>
+                                      </div>
+                                    </div>
+                                    
+                                    <div style={{ marginBottom: "12px" }}>
+                                        <span style={{ backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "500", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>Punched Out</span>
+                                    </div>
+
+                                    <div style={{ backgroundColor: "#f0fdf4", padding: "10px", borderRadius: "8px" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                                        <div style={{ width: "7px", height: "7px", backgroundColor: "#22c55e", borderRadius: "50%" }}></div>
+                                        <h4 style={{ fontSize: "13px", fontWeight: "500", color: "#166534" }}>Punch-Out Location</h4>
+                                      </div>
+                                      <p style={{ fontSize: "13px", color: "#4b5563", lineHeight: "1.4" }}>
+                                        {entry.punchOutAddress}
+                                      </p>
+                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {entry.punchOutTime || 'N/A'}</p>
+                                      {entry.punchOutPhoto && (
+                                        <div style={{ marginTop: "6px" }}>
+                                          <Image 
+                                            src={entry.punchOutPhoto} 
+                                            alt="Punch-out verification" 
+                                            width={300}
+                                            height={100}
+                                            style={{ width: "100%", height: "100px", objectFit: "cover", borderRadius: "6px" }}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              </Popup>
-                            </Marker>
-                          )}
-                        </React.Fragment>
-                      );
-                    });
-                  })}
-                </MapContainer>
+                                </Popup>
+                              </AsyncMarker>
+                            )}
+                          </React.Fragment>
+                        );
+                      });
+                    })}
+                  </MapContainer>
+                ) : null
               )}
             </>
           </div>

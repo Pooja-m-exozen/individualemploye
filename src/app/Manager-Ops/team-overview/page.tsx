@@ -1,11 +1,11 @@
 "use client";
 
-"use client";
+import React from "react";
+import Image from "next/image";
 
-import React, { JSX, useEffect, useState } from "react";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
 import { FaSpinner, FaUser } from "react-icons/fa";
-import { Bar, Doughnut } from "react-chartjs-2";
+// import { Bar, Doughnut } from "react-chartjs-2";
 import { useTheme } from "@/context/ThemeContext";
 import {
   Chart as ChartJS,
@@ -37,27 +37,87 @@ interface Employee {
   projectName: string;
 }
 
+// Types for API responses
+interface KycForm {
+  personalDetails: {
+    employeeId: string;
+    employeeImage: string;
+    fullName: string;
+    designation: string;
+    projectName: string;
+  };
+}
+
+interface KycApiResponse {
+  kycForms: KycForm[];
+}
+
+interface PunctualityStats {
+  punctualityIssues?: {
+    lateArrivals?: number;
+    earlyArrivals?: number;
+    earlyLeaves?: number;
+  };
+  lateArrivals?: number;
+  earlyArrivals?: number;
+  earlyLeaves?: number;
+}
+
+interface AttendanceSummary {
+  totalDays: number;
+  presentDays: number;
+  halfDays: number;
+  partiallyAbsentDays: number;
+  weekOffs: number;
+  holidays: number;
+  el: number;
+  sl: number;
+  cl: number;
+  compOff: number;
+  lop: number;
+}
+
+interface GraphData {
+  totalDays: number;
+  presentDays: number;
+  halfDays: number;
+  partiallyAbsentDays: number;
+  weekOffs: number;
+  holidays: number;
+  el: number;
+  sl: number;
+  cl: number;
+  compOff: number;
+  lop: number;
+  attendanceRate: string;
+  punctualityIssues: {
+    lateArrivals: number;
+    earlyArrivals: number;
+    earlyLeaves: number;
+  };
+}
+
 const TeamOverviewPage = () => {
   const { theme } = useTheme();
   const [employees, setEmployees] = React.useState<Employee[]>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [selectedEmployee, setSelectedEmployee] = React.useState<Employee | null>(null);
-  const [graphData, setGraphData] = React.useState<any>(null);
+  const [graphData, setGraphData] = React.useState<GraphData | null>(null);
   const [selectedMonth, setSelectedMonth] = React.useState<string>("5"); // Default month
 
   React.useEffect(() => {
     const fetchEmployees = async () => {
       try {
         const response = await fetch("https://cafm.zenapi.co.in/api/kyc");
-        const data = await response.json();
+        const data: KycApiResponse = await response.json();
 
         if (data.kycForms) {
           const filteredEmployees = data.kycForms
             .filter(
-              (form: any) =>
+              (form: KycForm) =>
                 form.personalDetails.projectName === "Exozen - Ops" // Filter by project name
             )
-            .map((form: any) => ({
+            .map((form: KycForm) => ({
               employeeId: form.personalDetails.employeeId,
               employeeImage: form.personalDetails.employeeImage,
               fullName: form.personalDetails.fullName,
@@ -84,12 +144,20 @@ const TeamOverviewPage = () => {
       const attendanceSummaryResponse = await fetch(
         `https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${month}&year=2025`
       );
-      const attendanceSummaryData = await attendanceSummaryResponse.json();
+      const attendanceSummaryData: {
+        success: boolean;
+        data: { summary: AttendanceSummary };
+        message?: string;
+      } = await attendanceSummaryResponse.json();
 
       const punctualityStatsResponse = await fetch(
         `https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-stats?month=${month}&year=2025`
       );
-      const punctualityStatsData = await punctualityStatsResponse.json();
+      const punctualityStatsData: {
+        success: boolean;
+        data: PunctualityStats;
+        message?: string;
+      } = await punctualityStatsResponse.json();
 
       if (attendanceSummaryData.success && punctualityStatsData.success) {
         const attendanceStats = attendanceSummaryData.data.summary || {};
@@ -155,7 +223,7 @@ const TeamOverviewPage = () => {
                 Team Overview
               </h1>
               <p className="text-white text-base opacity-90">
-                View details of employees in the "Exozen-Ops" project.
+                View details of employees in the &quot;Exozen-Ops&quot; project.
               </p>
             </div>
           </div>
@@ -175,7 +243,7 @@ const TeamOverviewPage = () => {
             } p-6 rounded-2xl flex items-center gap-3 max-w-lg mx-auto shadow-lg`}>
               <FaUser className="w-6 h-6 flex-shrink-0" />
               <p className="text-lg font-medium">
-                No employees found in the "Exozen-Ops" project.
+                No employees found in the &quot;Exozen-Ops&quot; project.
               </p>
             </div>
           ) : (
@@ -208,9 +276,11 @@ const TeamOverviewPage = () => {
                           theme === 'dark' ? 'bg-gray-600' : 'bg-gray-100'
                         } flex-shrink-0`}>
                           {employee.employeeImage ? (
-                            <img
+                            <Image
                               src={employee.employeeImage}
                               alt={employee.fullName}
+                              width={64}
+                              height={64}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -298,9 +368,11 @@ const TeamOverviewPage = () => {
                     <div className="flex justify-center mb-4">
                       <div className="w-24 h-24 rounded-full overflow-hidden shadow-lg border-4 border-blue-500">
                         {selectedEmployee.employeeImage ? (
-                          <img
+                          <Image
                             src={selectedEmployee.employeeImage}
                             alt={selectedEmployee.fullName}
+                            width={96}
+                            height={96}
                             className="w-full h-full object-cover"
                           />
                         ) : (

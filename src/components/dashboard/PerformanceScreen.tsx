@@ -2,7 +2,7 @@
 
 import { useTheme } from "@/context/ThemeContext";
 import React, { useState, useEffect } from 'react';
-import { FaChartLine, FaChartBar, FaChartPie, FaCalendarAlt, FaUserClock, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
+import { FaChartLine,  FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -51,13 +51,39 @@ interface PerformanceTrendData {
   labels: string[];
 }
 
-interface MetricCard {
-  title: string;
-  value: string;
-  change: string;
-  icon: React.ReactNode;
-  color: string;
+interface AttendanceRecord {
+  employeeId: string;
+  projectName: string;
+  date: string;
+  status: string;
+  punchInTime?: string;
+  punchOutTime?: string;
 }
+
+interface LeaveRecord {
+  employeeId: string;
+  startDate: string;
+  endDate: string;
+  leaveType: string;
+  status: string;
+}
+
+interface KycForm {
+  personalDetails: {
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    projectName: string;
+  };
+}
+
+// interface MetricCard {
+//   title: string;
+//   value: string;
+//   change: string;
+//   icon: React.ReactNode;
+//   color: string;
+// }
 
 // Accept an optional employeeId prop for integration with Team Overview and page.tsx
 interface PerformanceScreenProps {
@@ -70,8 +96,6 @@ const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ employeeId }) => 
   const [trendData, setTrendData] = useState<PerformanceTrendData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
-  const [leaveRecords, setLeaveRecords] = useState<any[]>([]);
 
   const isDark = theme === 'dark';
 
@@ -90,8 +114,8 @@ const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ employeeId }) => 
         let employees: { employeeId: string; fullName: string; designation: string; projectName: string }[] = [];
         if (empData.kycForms) {
           employees = empData.kycForms
-            .filter((form: any) => form.personalDetails.projectName === "Exozen - Ops")
-            .map((form: any) => ({
+            .filter((form: KycForm) => form.personalDetails.projectName === "Exozen - Ops")
+            .map((form: KycForm) => ({
               employeeId: form.personalDetails.employeeId,
               fullName: form.personalDetails.fullName,
               designation: form.personalDetails.designation,
@@ -106,16 +130,15 @@ const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ employeeId }) => 
         // Fetch all attendance records
         const attRes = await fetch('https://cafm.zenapi.co.in/api/attendance/all');
         const attData = await attRes.json();
-        let allAttendance: any[] = [];
+        let allAttendance: AttendanceRecord[] = [];
         if (attData.attendance) {
-          allAttendance = attData.attendance.filter((rec: any) => rec.projectName === "Exozen - Ops");
+          allAttendance = attData.attendance.filter((rec: AttendanceRecord) => rec.projectName === "Exozen - Ops");
         }
         // Filter attendance to current month only
-        const currentMonthAttendance = allAttendance.filter((rec: any) => {
+        const currentMonthAttendance = allAttendance.filter((rec: AttendanceRecord) => {
           const recDate = new Date(rec.date);
           return recDate.getMonth() === currentMonth && recDate.getFullYear() === currentYear;
         });
-        setAttendanceRecords(currentMonthAttendance);
 
         // Fetch all leave records for all filtered employees in parallel
         const allLeave = await Promise.all(
@@ -126,7 +149,7 @@ const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ employeeId }) => 
               if (Array.isArray(data.leaveHistory)) {
                 // Filter leave records to current month only
                 return data.leaveHistory
-                  .filter((leave: any) => {
+                  .filter((leave: LeaveRecord) => {
                     const start = new Date(leave.startDate);
                     const end = new Date(leave.endDate);
                     // If any part of the leave is in the current month
@@ -135,7 +158,7 @@ const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ employeeId }) => 
                       (end.getMonth() === currentMonth && end.getFullYear() === currentYear)
                     );
                   })
-                  .map((leave: any) => ({ ...leave, employeeId: emp.employeeId }));
+                  .map((leave: LeaveRecord) => ({ ...leave, employeeId: emp.employeeId }));
               }
               return [];
             } catch {
@@ -143,26 +166,25 @@ const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ employeeId }) => 
             }
           })
         );
-        setLeaveRecords(allLeave.flat());
 
         // Integrate data and calculate metrics (attendance and leave only, current month only)
         const integratedPerformance: PerformanceMetric[] = filteredEmployees.map((emp) => {
-          const empAttendance = currentMonthAttendance.filter((a: any) => a.employeeId === emp.employeeId);
-          const empLeaves = allLeave.flat().filter((l: any) => l.employeeId === emp.employeeId);
-          // Count number of days with punch in (for current month)
-          const punchInDays = empAttendance.filter((a: any) => a.punchInTime).length;
+          const empAttendance = currentMonthAttendance.filter((a: AttendanceRecord) => a.employeeId === emp.employeeId);
+          const empLeaves = allLeave.flat().filter((l: LeaveRecord) => l.employeeId === emp.employeeId);
+          // Count number of days with both punch in and punch out (for current month)
+          const punchInDays = empAttendance.filter((a: AttendanceRecord) => a.punchInTime && a.punchOutTime).length;
           const totalDays = empAttendance.length;
-          const presentDays = empAttendance.filter((a: any) => a.status === 'Present').length;
-          const absentDays = empAttendance.filter((a: any) => a.status === 'Absent').length;
-          const holidayDays = empAttendance.filter((a: any) => a.status === 'Holiday').length;
+          const presentDays = empAttendance.filter((a: AttendanceRecord) => a.status === 'Present').length;
+          // const absentDays = empAttendance.filter((a: AttendanceRecord) => a.status === 'Absent').length;
+          // const holidayDays = empAttendance.filter((a: AttendanceRecord) => a.status === 'Holiday').length;
           // Count leave types
-          const el = empLeaves.filter((l: any) => l.leaveType === 'EL').length;
-          const cl = empLeaves.filter((l: any) => l.leaveType === 'CL').length;
-          const sl = empLeaves.filter((l: any) => l.leaveType === 'SL').length;
+          // const el = empLeaves.filter((l: LeaveRecord) => l.leaveType === 'EL').length;
+          // const cl = empLeaves.filter((l: LeaveRecord) => l.leaveType === 'CL').length;
+          // const sl = empLeaves.filter((l: LeaveRecord) => l.leaveType === 'SL').length;
           // Attendance percentage as (presentDays / totalDays) * 100 for current month
-          let attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+          const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
           // Leave utilization (approved leaves / total leaves), capped at 100
-          const approvedLeaves = empLeaves.filter((l: any) => l.status === 'Approved').length;
+          const approvedLeaves = empLeaves.filter((l: LeaveRecord) => l.status === 'Approved').length;
           let leaveUtilization = empLeaves.length > 0 ? Math.round((approvedLeaves / empLeaves.length) * 100) : 0;
           leaveUtilization = Math.min(leaveUtilization, 100);
           // Dummy value for punctualityScore (replace with real if available), capped at 100
@@ -215,50 +237,50 @@ const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ employeeId }) => 
     return <FaExclamationTriangle className="text-red-500" />;
   };
 
-  const getChange = (current: number, previous: number): string => {
-    const diff = Math.round(current - previous);
-    const direction = current > previous ? '↑' : '↓';
-    return `${direction} ${Math.abs(diff)}%`;
-  };
+  // const getChange = (current: number, previous: number): string => {
+  //   const diff = Math.round(current - previous);
+  //   const direction = current > previous ? '↑' : '↓';
+  //   return `${direction} ${Math.abs(diff)}%`;
+  // };
 
-  const metricCards: MetricCard[] = [
-    {
-      title: 'Average Attendance',
-      value: trendData ? `${Math.round(trendData.metrics.attendance[trendData.metrics.attendance.length - 1])}%` : 'N/A',
-      change: trendData && trendData.metrics.attendance.length > 1 
-        ? getChange(
-            trendData.metrics.attendance[trendData.metrics.attendance.length - 1],
-            trendData.metrics.attendance[trendData.metrics.attendance.length - 2]
-          )
-        : 'N/A',
-      icon: <FaCalendarAlt />,
-      color: 'blue'
-    },
-    {
-      title: 'Punctuality',
-      value: trendData ? `${Math.round(trendData.metrics.punctuality[trendData.metrics.punctuality.length - 1])}%` : 'N/A',
-      change: trendData && trendData.metrics.punctuality.length > 1
-        ? getChange(
-            trendData.metrics.punctuality[trendData.metrics.punctuality.length - 1],
-            trendData.metrics.punctuality[trendData.metrics.punctuality.length - 2]
-          )
-        : 'N/A',
-      icon: <FaUserClock />,
-      color: 'yellow'
-    },
-    {
-      title: 'Leave Utilization',
-      value: trendData ? `${Math.round(trendData.metrics.leaveUtilization[trendData.metrics.leaveUtilization.length - 1])}%` : 'N/A',
-      change: trendData && trendData.metrics.leaveUtilization.length > 1
-        ? getChange(
-            trendData.metrics.leaveUtilization[trendData.metrics.leaveUtilization.length - 1],
-            trendData.metrics.leaveUtilization[trendData.metrics.leaveUtilization.length - 2]
-          )
-        : 'N/A',
-      icon: <FaChartPie />,
-      color: 'purple'
-    },
-  ];
+  // const metricCards: MetricCard[] = [
+  //   {
+  //     title: 'Average Attendance',
+  //     value: trendData ? `${Math.round(trendData.metrics.attendance[trendData.metrics.attendance.length - 1])}%` : 'N/A',
+  //     change: trendData && trendData.metrics.attendance.length > 1 
+  //       ? getChange(
+  //           trendData.metrics.attendance[trendData.metrics.attendance.length - 1],
+  //           trendData.metrics.attendance[trendData.metrics.attendance.length - 2]
+  //         )
+  //       : 'N/A',
+  //     icon: <FaCalendarAlt />,
+  //     color: 'blue'
+  //   },
+  //   {
+  //     title: 'Punctuality',
+  //     value: trendData ? `${Math.round(trendData.metrics.punctuality[trendData.metrics.punctuality.length - 1])}%` : 'N/A',
+  //     change: trendData && trendData.metrics.punctuality.length > 1
+  //       ? getChange(
+  //           trendData.metrics.punctuality[trendData.metrics.punctuality.length - 1],
+  //           trendData.metrics.punctuality[trendData.metrics.punctuality.length - 2]
+  //         )
+  //       : 'N/A',
+  //     icon: <FaUserClock />,
+  //     color: 'yellow'
+  //   },
+  //   {
+  //     title: 'Leave Utilization',
+  //     value: trendData ? `${Math.round(trendData.metrics.leaveUtilization[trendData.metrics.leaveUtilization.length - 1])}%` : 'N/A',
+  //     change: trendData && trendData.metrics.leaveUtilization.length > 1
+  //       ? getChange(
+  //           trendData.metrics.leaveUtilization[trendData.metrics.leaveUtilization.length - 1],
+  //           trendData.metrics.leaveUtilization[trendData.metrics.leaveUtilization.length - 2]
+  //         )
+  //       : 'N/A',
+  //     icon: <FaChartPie />,
+  //     color: 'purple'
+  //   },
+  // ];
 
   const chartOptions = {
     responsive: true,

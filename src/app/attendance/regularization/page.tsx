@@ -144,12 +144,19 @@ function RegularizationContent() {
     fetchRegularizationHistory();
   }, [router]);
 
+  // Fetch regularization history for the logged-in employee only
   const fetchRegularizationHistory = async () => {
     try {
       setRegularizationHistoryLoading(true);
       setRegularizationHistoryError(null);
 
       const employeeId = getEmployeeId();
+      if (!employeeId) {
+        setRegularizationHistoryError('No employee ID found. Please log in again.');
+        setRegularizationHistory([]);
+        return;
+      }
+
       const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/regularization-history`);
       const data = await response.json();
 
@@ -166,13 +173,14 @@ function RegularizationContent() {
         }
       }
     } catch  {
-      setRegularizationHistoryError( 'Failed to fetch regularization history');
+      setRegularizationHistoryError('Failed to fetch regularization history');
       setRegularizationHistory([]);
     } finally {
       setRegularizationHistoryLoading(false);
     }
   };
 
+  // Submit regularization request for the logged-in employee
   const handleRegularizationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegularizationLoading(true);
@@ -180,8 +188,12 @@ function RegularizationContent() {
     setRegularizationSuccess(null);
 
     try {
-      // Always call the real API (removed development check)
       const employeeId = getEmployeeId();
+      if (!employeeId) {
+        setRegularizationError('No employee ID found. Please log in again.');
+        setRegularizationLoading(false);
+        return;
+      }
       const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/regularize`, {
         method: 'POST',
         headers: {
@@ -227,7 +239,9 @@ function RegularizationContent() {
     }));
   };
 
+  // Defensive checks for undefined/null in filter and badge
   const getStatusBadgeClass = (status: string) => {
+    if (!status) return 'bg-gray-100 text-gray-800 border-gray-200';
     switch (status.toLowerCase()) {
       case 'approved':
         return 'bg-green-100 text-green-800 border-green-200';
@@ -241,13 +255,14 @@ function RegularizationContent() {
   };
 
   const filteredHistory = regularizationHistory.filter(item => {
-    const matchesSearch = searchQuery === '' || 
-      item.date.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.reason.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || item.actionStatus.toLowerCase() === statusFilter.toLowerCase();
-    
+    const matchesSearch = searchQuery === '' ||
+      (item.date && item.date.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.status && item.status.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.reason && item.reason.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesStatus = statusFilter === 'all' ||
+      (item.actionStatus && item.actionStatus.toLowerCase() === statusFilter.toLowerCase());
+
     return matchesSearch && matchesStatus;
   });
 
@@ -260,6 +275,12 @@ function RegularizationContent() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, statusFilter]);
+
+  function extractTime(dateStr: string): string {
+    // Try to match HH:mm from the string
+    const match = dateStr.match(/(\d{2}:\d{2})/);
+    return match ? match[1] : '';
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 py-8">
@@ -554,14 +575,12 @@ function RegularizationContent() {
               </div>
             </form>
           ) : (
-            <div className={`text-center py-12 px-4 ${
-              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-            }`}>
+            <div className={`text-center py-12 px-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
               <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                 <FaClipboardCheck className="w-8 h-8 text-blue-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Request</h3>
-              <p className="text-gray-500 mb-6">Click the New Request button to start a regularization request.</p>
+              <h3 className={`text-lg font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>No Active Request</h3>
+              <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-6`}>Click the New Request button to start a regularization request.</p>
             </div>
           )}
         </div>
@@ -579,7 +598,7 @@ function RegularizationContent() {
               <div className="p-2 bg-blue-100 rounded-lg">
                 <FaHistory className="w-5 h-5 text-blue-600" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-800">Request History</h2>
+              <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Request History</h2>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <div className="relative">
@@ -589,14 +608,14 @@ function RegularizationContent() {
                   placeholder="Search records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black"
+                  className={`w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-700 text-gray-200 placeholder:text-gray-400' : 'text-black'}`}
                 />
               </div>
               <div className="relative">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full sm:w-40 appearance-none bg-white pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black"
+                  className={`w-full sm:w-40 appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-white text-black'}`}
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
@@ -680,34 +699,29 @@ function RegularizationContent() {
                   {paginatedHistory.map((item, index) => (
                     <tr key={index} className="hover:bg-gray-50/80 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {new Date(item.date).toLocaleDateString()}
-                        </div>
+                        <div className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{
+                          item.date ? new Date(item.date).toLocaleDateString() : ''
+                        }</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{item.status}</div>
+                        <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.status || ''}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {item.punchInTime} - {item.punchOutTime}
-                        </div>
+                        <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{
+                          // Extract only the time (HH:mm) from the string, removing date and GMT/UTC details
+                          (item.punchInTime ? extractTime(item.punchInTime) : '') + ' - ' + (item.punchOutTime ? extractTime(item.punchOutTime) : '')
+                        }</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 max-w-xs truncate" title={item.reason}>
-                          {item.reason}
-                        </div>
+                        <div className={`text-sm max-w-xs truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`} title={item.reason}>{item.reason}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {new Date(item.appliedOn).toLocaleDateString()}
-                        </div>
+                        <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{
+                          item.appliedOn ? new Date(item.appliedOn).toLocaleDateString() : ''
+                        }</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          getStatusBadgeClass(item.actionStatus)
-                        }`}>
-                          {item.actionStatus}
-                        </span>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(item.actionStatus)}`}>{item.actionStatus}</span>
                       </td>
                     </tr>
                   ))}

@@ -216,10 +216,10 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           address: null
         }
       : undefined,
-    punchOutLocation: record.punchInLatitude && record.punchInLongitude
+    punchOutLocation: record.punchOutLatitude && record.punchOutLongitude
       ? {
-          latitude: record.punchInLatitude,
-          longitude: record.punchInLongitude,
+          latitude: record.punchOutLatitude,
+          longitude: record.punchOutLongitude,
           address: null
         }
       : undefined

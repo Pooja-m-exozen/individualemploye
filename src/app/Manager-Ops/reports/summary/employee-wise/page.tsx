@@ -8,10 +8,11 @@ import * as XLSX from "xlsx";
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
+import Image from "next/image";
 
 declare module "jspdf" {
   interface jsPDF {
-    autoTable: (options: any) => void;
+    autoTable: (options: Parameters<typeof autoTable>[1]) => void;
   }
 }
 
@@ -76,9 +77,9 @@ const EmployeeSummaryPage = (): JSX.Element => {
         if (data.kycForms) {
           const filteredEmployees = data.kycForms
             .filter(
-              (form: any) => form.personalDetails.projectName === "Exozen - Ops"
+              (form: { personalDetails: { projectName: string } }) => form.personalDetails.projectName === "Exozen - Ops"
             )
-            .map((form: any) => ({
+            .map((form: { personalDetails: { employeeId: string; employeeImage: string; fullName: string; designation: string } }) => ({
               employeeId: form.personalDetails.employeeId,
               employeeImage: form.personalDetails.employeeImage,
               fullName: form.personalDetails.fullName,
@@ -145,7 +146,7 @@ const EmployeeSummaryPage = (): JSX.Element => {
 
       if (historyData && Array.isArray(historyData.leaveHistory)) {
         setLeaveHistory(
-          historyData.leaveHistory.map((history: any) => ({
+          historyData.leaveHistory.map((history: LeaveHistory) => ({
             leaveId: history.leaveId,
             leaveType: history.leaveType,
             startDate: history.startDate,
@@ -207,7 +208,7 @@ const EmployeeSummaryPage = (): JSX.Element => {
     autoTable(doc, {
       startY: 55,
       head: [['Date', 'Status', 'Total Working Hours']],
-      body: attendance.map((record) => {
+      body: attendance.map((record: Attendance) => {
         const workingHours = record.punchInTime && record.punchOutTime
           ? ((new Date(record.punchOutTime).getTime() - new Date(record.punchInTime).getTime()) / (1000 * 60 * 60)).toFixed(2)
           : 'N/A';
@@ -243,7 +244,7 @@ const EmployeeSummaryPage = (): JSX.Element => {
     }
 
     // Leave History Section
-    const finalY = (doc as any).lastAutoTable.finalY + 20;
+    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
     doc.setFontSize(14);
     doc.text('Leave History', 14, finalY);
     autoTable(doc, {
@@ -277,7 +278,7 @@ const EmployeeSummaryPage = (): JSX.Element => {
                 Employee Summary Report
               </h1>
               <p className="text-white text-base opacity-90">
-                View attendance and leave details for employees in the "Exozen - Ops" project.
+                View attendance and leave details for employees in the &quot;Exozen - Ops&quot; project.
               </p>
             </div>
           </div>
@@ -300,9 +301,11 @@ const EmployeeSummaryPage = (): JSX.Element => {
                       <div className="flex items-center gap-4 mb-4">
                         <div className={`w-16 h-16 rounded-full ${theme === 'light' ? 'bg-blue-100' : 'bg-gray-700'} flex items-center justify-center overflow-hidden`}>
                           {employee.employeeImage ? (
-                            <img
+                            <Image
                               src={employee.employeeImage}
                               alt={employee.fullName}
+                              width={64}
+                              height={64}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -466,7 +469,7 @@ const EmployeeSummaryPage = (): JSX.Element => {
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                  {Object.entries(leaveBalance.balances).map(([type, balance], index) => (
+                                  {Object.entries(leaveBalance.balances).map(([type, balance],) => (
                                     <tr key={type} className={`${
                                       theme === 'light'
                                         ? 'hover:bg-gray-50'
@@ -520,7 +523,7 @@ const EmployeeSummaryPage = (): JSX.Element => {
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                    {leaveHistory.map((record, index) => (
+                                    {leaveHistory.map((record,) => (
                                       <tr key={record.leaveId} className={`${
                                         theme === 'light'
                                           ? 'hover:bg-gray-50'

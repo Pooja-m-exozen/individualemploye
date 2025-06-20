@@ -3,7 +3,9 @@
 import React, { JSX, useEffect, useState } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
-import { FaSpinner, FaCheck, FaTimes, FaBan, FaUserAlt, FaTimesCircle } from "react-icons/fa";
+import { FaSpinner,  FaUserAlt, FaTimesCircle } from "react-icons/fa";
+import Image from "next/image";
+import { LeaveRecord } from "@/app/types/leave";
 
 interface KYCDetails {
   employeeId: string;
@@ -12,55 +14,55 @@ interface KYCDetails {
   designation: string;
 }
 
-interface DummyLeaveData {
-  leaveType: string;
-  startDate: string;
-  endDate: string;
-  numberOfDays: number;
-  reason: string;
-  status: string;
-}
 
 const LeaveManagementPage = (): JSX.Element => {
   const { theme } = useTheme();
-  const [kycDetails, setKycDetails] = useState<KYCDetails[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [filterLeaveType, setFilterLeaveType] = useState<string>("All");
-  const [allLeaveRecords, setAllLeaveRecords] = useState<any[]>([]);
+  const [allLeaveRecords, setAllLeaveRecords] = useState<LeaveRecord[]>([]);
   const [leaveLoading, setLeaveLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchEmployeesAndLeaves = async () => {
-      setLoading(true);
       try {
         const response = await fetch("https://cafm.zenapi.co.in/api/kyc");
-        const data = await response.json();
+        const data: unknown = await response.json();
 
-        if (data.kycForms) {
-          const filteredEmployees = data.kycForms
-            .filter(
-              (form: any) => form.personalDetails.projectName === "Exozen - Ops"
+        if (
+          typeof data === 'object' && data !== null &&
+          'kycForms' in data &&
+          Array.isArray((data as { kycForms: unknown[] }).kycForms)
+        ) {
+          type KYCForm = { personalDetails: { employeeId: string; employeeImage: string; fullName: string; designation?: string; projectName: string } };
+          const filteredEmployees: KYCDetails[] = (data as { kycForms: unknown[] }).kycForms
+            .filter((form): form is KYCForm =>
+              typeof form === 'object' && form !== null &&
+              'personalDetails' in form &&
+              typeof (form).personalDetails === 'object' &&
+              (form as KYCForm).personalDetails !== null &&
+              (form as KYCForm).personalDetails.projectName === "Exozen - Ops"
             )
-            .map((form: any) => ({
+            .map((form) => ({
               employeeId: form.personalDetails.employeeId,
               employeeImage: form.personalDetails.employeeImage,
               fullName: form.personalDetails.fullName,
               designation: form.personalDetails.designation || "N/A",
             }));
 
-          setKycDetails(filteredEmployees);
-
           // Fetch leave history for all employees in parallel
           setLeaveLoading(true);
           const allLeaves = await Promise.all(
-            filteredEmployees.map(async (emp: { employeeId: any; fullName: any; employeeImage: any; designation: any; }) => {
+            filteredEmployees.map(async (emp: KYCDetails) => {
               try {
                 const res = await fetch(`https://cafm.zenapi.co.in/api/leave/history/${emp.employeeId}`);
-                const historyData = await res.json();
-                if (Array.isArray(historyData.leaveHistory)) {
-                  return historyData.leaveHistory.map((leave: any) => ({
+                const historyData: unknown = await res.json();
+                if (
+                  typeof historyData === 'object' && historyData !== null &&
+                  'leaveHistory' in historyData &&
+                  Array.isArray((historyData as { leaveHistory: unknown[] }).leaveHistory)
+                ) {
+                  return (historyData as { leaveHistory: Omit<LeaveRecord, 'employeeId' | 'fullName' | 'employeeImage' | 'designation'>[] }).leaveHistory.map((leave) => ({
                     ...leave,
                     employeeId: emp.employeeId,
                     fullName: emp.fullName,
@@ -80,7 +82,6 @@ const LeaveManagementPage = (): JSX.Element => {
       } catch (error) {
         console.error("Error fetching employees or leave histories:", error);
       } finally {
-        setLoading(false);
         setLeaveLoading(false);
       }
     };
@@ -88,66 +89,10 @@ const LeaveManagementPage = (): JSX.Element => {
     fetchEmployeesAndLeaves();
   }, []);
 
-  const dummyLeaveData: DummyLeaveData[] = [
-    {
-      leaveType: "EL",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date(new Date().setDate(new Date().getDate() + 5))
-        .toISOString()
-        .split("T")[0],
-      numberOfDays: 5,
-      reason: "Vacation",
-      status: "Pending",
-    },
-    {
-      leaveType: "CL",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date(new Date().setDate(new Date().getDate() + 3))
-        .toISOString()
-        .split("T")[0],
-      numberOfDays: 3,
-      reason: "Personal Work",
-      status: "Approved",
-    },
-    {
-      leaveType: "SL",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date(new Date().setDate(new Date().getDate() + 2))
-        .toISOString()
-        .split("T")[0],
-      numberOfDays: 2,
-      reason: "Sick Leave",
-      status: "Rejected",
-    },
-  ];
-
-  const filteredLeaveData =
-    activeTab === "All"
-      ? dummyLeaveData
-      : dummyLeaveData.filter((leave) => leave.status === activeTab);
-
-  const filteredSearchData = filteredLeaveData.filter(
-    (leave) =>
-      (filterLeaveType === "All" || leave.leaveType === filterLeaveType) &&
-      (leave.leaveType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        leave.startDate.includes(searchQuery) ||
-        leave.endDate.includes(searchQuery) ||
-        kycDetails[0]?.fullName.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
   const clearSearch = () => {
     setSearchQuery("");
     setFilterLeaveType("All");
   };
-
-  // Get unique, sorted leave types from allLeaveRecords
-  const leaveTypes = React.useMemo(() => {
-    const types = new Set<string>();
-    allLeaveRecords.forEach((leave) => {
-      if (leave.leaveType) types.add(leave.leaveType);
-    });
-    return ["All", ...Array.from(types).sort()];
-  }, [allLeaveRecords]);
 
   // Filtering and searching logic for allLeaveRecords
   const filteredLeaveRecords = allLeaveRecords.filter((leave) => {
@@ -191,7 +136,7 @@ const LeaveManagementPage = (): JSX.Element => {
           <div>
             <h1 className="text-3xl font-bold text-white">Employee Leave Report</h1>
             <p className="text-white text-lg opacity-90">
-              Easily manage leave details for employees in the "Exozen - Ops" project.
+              Easily manage leave details for employees in the &quot;Exozen - Ops&quot; project.
             </p>
           </div>
         </div>
@@ -285,7 +230,7 @@ const LeaveManagementPage = (): JSX.Element => {
                   {filteredLeaveRecords.map((leave, idx) => (
                     <tr key={leave.leaveId || idx} className={`${theme === 'light' ? 'hover:bg-gray-50 text-gray-900' : 'hover:bg-gray-750 text-gray-300'} transition-colors duration-200`}>
                       <td className="p-4 flex items-center space-x-2">
-                        <img src={leave.employeeImage || ""} alt={leave.fullName || "Employee"} className="w-8 h-8 rounded-full object-cover border-2" />
+                        <Image src={leave.employeeImage || "/default-profile.png"} alt={leave.fullName || "Employee"} width={32} height={32} className="w-8 h-8 rounded-full object-cover border-2" />
                         <span className={theme === 'light' ? 'text-gray-900' : 'text-gray-300'}>{leave.fullName || "N/A"}</span>
                       </td>
                       <td className="p-4">{leave.employeeId}</td>

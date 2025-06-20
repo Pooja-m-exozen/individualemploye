@@ -199,7 +199,7 @@ function LeaveHistoryContent() {
       <div className={`rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${
         theme === 'dark' ? 'bg-gray-800' : 'bg-white'
       }`}>
-        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}> 
           <div className="flex items-center justify-between">
             <h3 className={`text-lg font-semibold ${
               theme === 'dark' ? 'text-white' : 'text-gray-800'
@@ -214,11 +214,11 @@ function LeaveHistoryContent() {
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h4 className="text-sm font-medium text-gray-500">Leave Type</h4>
-              <p className="mt-1 text-base font-medium text-gray-900">{getLeaveTypeLabel(leave.leaveType)}</p>
+              <h4 className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Leave Type</h4>
+              <p className={`mt-1 text-base font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{getLeaveTypeLabel(leave.leaveType)}</p>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-gray-500">Status</h4>
+              <h4 className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Status</h4>
               <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                 getStatusBadgeClass(leave.status)
               }`}>
@@ -226,42 +226,42 @@ function LeaveHistoryContent() {
               </span>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-gray-500">Duration</h4>
-              <p className="mt-1 text-base text-gray-900 flex items-center gap-2">
-                <FaCalendarAlt className="text-gray-400" />
+              <h4 className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Duration</h4>
+              <p className={`mt-1 text-base flex items-center gap-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}> 
+                <FaCalendarAlt className={theme === 'dark' ? 'text-gray-400' : 'text-gray-400'} />
                 {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
                 {leave.isHalfDay && (
-                  <span className="ml-2 text-sm text-gray-500">
+                  <span className={`ml-2 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}> 
                     ({leave.halfDayType} Half)
                   </span>
                 )}
               </p>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-gray-500">Number of Days</h4>
-              <p className="mt-1 text-base text-gray-900">{leave.numberOfDays} day{leave.numberOfDays > 1 ? 's' : ''}</p>
+              <h4 className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Number of Days</h4>
+              <p className={`mt-1 text-base ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>{leave.numberOfDays} day{leave.numberOfDays > 1 ? 's' : ''}</p>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-gray-500">Applied On</h4>
-              <p className="mt-1 text-base text-gray-900 flex items-center gap-2">
-                <FaClock className="text-gray-400" />
+              <h4 className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Applied On</h4>
+              <p className={`mt-1 text-base flex items-center gap-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                <FaClock className={theme === 'dark' ? 'text-gray-400' : 'text-gray-400'} />
                 {new Date(leave.appliedOn).toLocaleDateString()}
               </p>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-gray-500">Emergency Contact</h4>
-              <p className="mt-1 text-base text-gray-900">{leave.emergencyContact}</p>
+              <h4 className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Emergency Contact</h4>
+              <p className={`mt-1 text-base ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>{leave.emergencyContact}</p>
             </div>
           </div>
           <div>
-            <h4 className="text-sm font-medium text-gray-500">Reason</h4>
-            <p className="mt-1 text-base text-gray-900">{leave.reason}</p>
+            <h4 className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Reason</h4>
+            <p className={`mt-1 text-base ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>{leave.reason}</p>
           </div>
         </div>
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
+        <div className={`p-6 border-t ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            className={`w-full px-4 py-2 rounded-lg transition-colors ${theme === 'dark' ? 'bg-gray-800 text-gray-200 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
           >
             Close
           </button>

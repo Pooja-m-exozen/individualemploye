@@ -3,13 +3,13 @@
 import React, { JSX, useEffect, useState } from "react";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
 import { useTheme } from "@/context/ThemeContext";
-import { FaSpinner, FaClipboard, FaDownload, FaFilePdf, FaFileExcel, FaInfoCircle, FaRedo } from "react-icons/fa";
+import { FaSpinner, FaClipboard,  FaFilePdf, FaFileExcel, FaInfoCircle, } from "react-icons/fa";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from "xlsx";
-import { Tooltip } from 'react-tooltip';
+// import { Tooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
-import { Popover } from "@headlessui/react";
+// import { Popover } from "@headlessui/react";
 import Image from 'next/image';
 
 interface Employee {
@@ -26,19 +26,19 @@ interface Attendance {
   punchOutTime?: string;
 }
 
-interface MonthSummary {
-  totalDays: number;
-  presentDays: number;
-  halfDays: number;
-  partiallyAbsentDays: number;
-  weekOffs: number;
-  holidays: number;
-  el: number;
-  sl: number;
-  cl: number;
-  compOff: number;
-  lop: number;
-}
+// interface MonthSummary {
+//   totalDays: number;
+//   presentDays: number;
+//   halfDays: number;
+//   partiallyAbsentDays: number;
+//   weekOffs: number;
+//   holidays: number;
+//   el: number;
+//   sl: number;
+//   cl: number;
+//   compOff: number;
+//   lop: number;
+// }
 
 const GOVERNMENT_HOLIDAYS = [
   { date: '2024-01-26', description: 'Republic Day' },
@@ -73,28 +73,29 @@ const getAttendanceStatus = (date: Date, status?: string, punchInTime?: string, 
     if (punchInTime && punchOutTime) return 'CF';
     return 'H';
   }
-  return status === 'Present' && punchInTime ? 'P' : 'A';
+  // Only show P if both punch in and punch out times are present
+  return (status === 'Present' && punchInTime && punchOutTime) ? 'P' : 'A';
 };
 
 // Add this helper function for time formatting
-function formatTimeHMSS(dateString: string | undefined): string {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const h = date.getHours();
-  const m = String(date.getMinutes()).padStart(2, '0');
-  const s = String(date.getSeconds()).padStart(2, '0');
-  return `${h}:${m}:${s}`;
-}
+// function formatTimeHMSS(dateString: string | undefined): string {
+//   if (!dateString) return '';
+//   const date = new Date(dateString);
+//   const h = date.getHours();
+//   const m = String(date.getMinutes()).padStart(2, '0');
+//   const s = String(date.getSeconds()).padStart(2, '0');
+//   return `${h}:${m}:${s}`;
+// }
 
 // Helper to extract time as H:mm:ss from a date string
-function extractTimeHMS(dateString: string | undefined): string {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const h = date.getHours();
-  const m = String(date.getMinutes()).padStart(2, '0');
-  const s = String(date.getSeconds()).padStart(2, '0');
-  return `${h}:${m}:${s}`;
-}
+// function extractTimeHMS(dateString: string | undefined): string {
+//   if (!dateString) return '';
+//   const date = new Date(dateString);
+//   const h = date.getHours();
+//   const m = String(date.getMinutes()).padStart(2, '0');
+//   const s = String(date.getSeconds()).padStart(2, '0');
+//   return `${h}:${m}:${s}`;
+// }
 
 // Helper to get week offs (Sundays and 2nd/4th Saturdays) for a month
 type WeekOffType = 'sunday' | 'saturday';
@@ -151,7 +152,7 @@ const addLogoToPDF = async (doc: jsPDF, x: number, y: number, width: number, hei
     // Try primary logo first
     const logoBase64 = await getBase64FromUrl("/v1/employee/exozen_logo1.png");
     doc.addImage(logoBase64, 'PNG', x, y, width, height);
-  } catch (primaryError) {
+  } catch  {
     console.warn('Failed to load primary logo, trying fallback logo');
     try {
       // Try fallback logo
@@ -167,6 +168,31 @@ const addLogoToPDF = async (doc: jsPDF, x: number, y: number, width: number, hei
   }
 };
 
+// Define types for KYC and Attendance API responses
+interface KycForm {
+  personalDetails: {
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    projectName: string;
+    employeeImage?: string;
+  };
+}
+interface KycApiResponse {
+  kycForms: KycForm[];
+}
+interface AttendanceRecord {
+  employeeId: string;
+  projectName: string;
+  date: string;
+  status: string;
+  punchInTime?: string;
+  punchOutTime?: string;
+}
+interface AttendanceApiResponse {
+  attendance: AttendanceRecord[];
+}
+
 const OverallAttendancePage = (): JSX.Element => {
   const { theme } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -180,16 +206,16 @@ const OverallAttendancePage = (): JSX.Element => {
       setLoading(true);
       try {
         const response = await fetch("https://cafm.zenapi.co.in/api/kyc");
-        const data = await response.json();
+        const data: KycApiResponse = await response.json();
 
         if (data.kycForms) {
           const filteredEmployees = data.kycForms
-            .filter((form: any) => form.personalDetails.projectName === "Exozen - Ops")
-            .map((form: any) => ({
+            .filter((form: KycForm) => form.personalDetails.projectName === "Exozen - Ops")
+            .map((form: KycForm) => ({
               employeeId: form.personalDetails.employeeId,
               fullName: form.personalDetails.fullName,
               designation: form.personalDetails.designation,
-              imageUrl: form.personalDetails.employeeImage || "/default-avatar.png", // Corrected property for employee image
+              imageUrl: form.personalDetails.employeeImage || "/default-avatar.png",
             }));
 
           setEmployees(filteredEmployees);
@@ -209,12 +235,12 @@ const OverallAttendancePage = (): JSX.Element => {
       setLoading(true);
       try {
         const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/all`);
-        const data = await response.json();
+        const data: AttendanceApiResponse = await response.json();
         
         const attendanceMap: Record<string, Attendance[]> = {};
         
         employees.forEach((employee) => {
-          const employeeAttendance = data.attendance.filter((record: any) => 
+          const employeeAttendance = data.attendance.filter((record: AttendanceRecord) => 
             record.employeeId === employee.employeeId && 
             record.projectName === "Exozen - Ops"
           );
@@ -226,7 +252,7 @@ const OverallAttendancePage = (): JSX.Element => {
             const currentDate = new Date(year, month - 1, day);
             const dateString = currentDate.toISOString().split('T')[0];
             
-            const dayRecord = employeeAttendance.find((record: any) => {
+            const dayRecord = employeeAttendance.find((record: AttendanceRecord) => {
               const recordDate = new Date(record.date);
               return recordDate.getFullYear() === currentDate.getFullYear() &&
                      recordDate.getMonth() === currentDate.getMonth() &&
@@ -257,37 +283,37 @@ const OverallAttendancePage = (): JSX.Element => {
     }
   }, [employees, month, year]);
 
-  // Update the getStatusColor function
-  const getStatusColor = (status: string, punchInTime?: string): string => {
-    if (theme === 'dark') {
-      if (status === 'P' && punchInTime) {
-        return "bg-green-900 text-green-300 relative hover:bg-green-800";
-      }
-      if (status === 'A') {
-        return "bg-red-900 text-red-300";
-      }
-      if (status === 'H') {
-        return "bg-purple-900 text-purple-300";
-      }
-      return "bg-gray-700 text-gray-300";
-    } else {
-      if (status === 'P' && punchInTime) {
-        return "bg-green-100 text-green-700 relative hover:bg-green-200";
-      }
-      if (status === 'A') {
-        return "bg-red-100 text-red-700";
-      }
-      if (status === 'H') {
-        return "bg-purple-100 text-purple-700";
-      }
-      return "bg-gray-100 text-gray-700";
-    }
-  };
+  // // Update the getStatusColor function
+  // const getStatusColor = (status: string, punchInTime?: string): string => {
+  //   if (theme === 'dark') {
+  //     if (status === 'P' && punchInTime) {
+  //       return "bg-green-900 text-green-300 relative hover:bg-green-800";
+  //     }
+  //     if (status === 'A') {
+  //       return "bg-red-900 text-red-300";
+  //     }
+  //     if (status === 'H') {
+  //       return "bg-purple-900 text-purple-300";
+  //     }
+  //     return "bg-gray-700 text-gray-300";
+  //   } else {
+  //     if (status === 'P' && punchInTime) {
+  //       return "bg-green-100 text-green-700 relative hover:bg-green-200";
+  //     }
+  //     if (status === 'A') {
+  //       return "bg-red-100 text-red-700";
+  //     }
+  //     if (status === 'H') {
+  //       return "bg-purple-100 text-purple-700";
+  //     }
+  //     return "bg-gray-100 text-gray-700";
+  //   }
+  // };
 
-  // Update the normalizeStatus function
-  const normalizeStatus = (status: string): string => {
-    return status === "Present" ? "P" : "A";
-  };
+  // // Update the normalizeStatus function
+  // const normalizeStatus = (status: string): string => {
+  //   return status === "Present" ? "P" : "A";
+  // };
 
   // Download functions
   const downloadPDF = async () => {
@@ -444,7 +470,7 @@ const OverallAttendancePage = (): JSX.Element => {
               (record) => record.date === date
             );
             // Use the same logic as getAttendanceStatus for CF
-            let status = attendanceRecord ? attendanceRecord.status : "A";
+            const status = attendanceRecord ? attendanceRecord.status : "A";
             return [
               new Date(year, month - 1, i + 1).toLocaleDateString("en-US", {
                 day: "2-digit",
@@ -470,15 +496,6 @@ const OverallAttendancePage = (): JSX.Element => {
   // Add this helper function
   const getDaysInMonth = (year: number, month: number): number => {
     return new Date(year, month, 0).getDate();
-  };
-
-  // Reset filters
-  const resetFilters = () => {
-    setMonth(new Date().getMonth() + 1);
-    setYear(new Date().getFullYear());
-    // Optionally, you can also clear attendanceData and employees to force reload
-    // setEmployees([]);
-    // setAttendanceData({});
   };
 
   // Enhanced Loading State
@@ -615,10 +632,12 @@ const OverallAttendancePage = (): JSX.Element => {
                           : 'hover:bg-blue-50 text-gray-700'
                       }`}
                     >
-                      <td className={`p-4 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} sticky left-0 bg-inherit z-10`}> 
-                        <img
+                      <td className={`p-4 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} sticky left-0 bg-inherit z-10`}>
+                        <Image
                           src={employee.imageUrl}
                           alt={employee.fullName}
+                          width={48}
+                          height={48}
                           className="w-12 h-12 rounded-full border border-gray-300 hover:ring-2 hover:ring-blue-400 transition-all"
                         />
                       </td>

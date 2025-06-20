@@ -4,6 +4,7 @@ import React, { JSX, useEffect, useState } from "react";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
 import { FaSpinner } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import Image from "next/image";
 
 interface Employee {
   employeeId: string;
@@ -29,6 +30,17 @@ interface LeaveHistory {
   reason: string;
 }
 
+// Define a type for the KYC form (only the used fields)
+type KycForm = {
+  personalDetails: {
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    projectName: string;
+    employeeImage?: string;
+  };
+};
+
 const OverallLeavePage = (): JSX.Element => {
   const { theme } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -49,8 +61,8 @@ const OverallLeavePage = (): JSX.Element => {
 
         if (data.kycForms) {
           const filteredEmployees = data.kycForms
-            .filter((form: any) => form.personalDetails.projectName === "Exozen - Ops")
-            .map((form: any) => ({
+            .filter((form: KycForm) => form.personalDetails.projectName === "Exozen - Ops")
+            .map((form: KycForm) => ({
               employeeId: form.personalDetails.employeeId,
               fullName: form.personalDetails.fullName,
               designation: form.personalDetails.designation,
@@ -159,10 +171,12 @@ const OverallLeavePage = (): JSX.Element => {
                         : 'hover:bg-gray-700 border-gray-700'
                     }`}>
                       <td className="p-4">
-                        <img
+                        <Image
                           src={employee.imageUrl}
                           alt={employee.fullName}
-                          className="w-12 h-12 rounded-full border border-gray-300"
+                          width={48}
+                          height={48}
+                          className="w-12 h-12 rounded-full border border-gray-300 object-cover"
                         />
                       </td>
                       <td className={`p-4 font-medium ${
