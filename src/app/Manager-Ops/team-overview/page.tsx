@@ -489,7 +489,7 @@ const TeamOverviewPage = () => {
                               theme === 'dark' ? 'text-white' : 'text-gray-800'
                             }`}>{graphData.partiallyAbsentDays}</span>
                           </div>
-                          <div className={`flex justify-between items-center py-2 border-b ${
+                          <div className={`flex justify-between items-center py-2 ${
                             theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
                           }`}>
                             <span className={`font-medium ${
@@ -498,64 +498,6 @@ const TeamOverviewPage = () => {
                             <span className={`text-lg font-bold ${
                               theme === 'dark' ? 'text-white' : 'text-gray-800'
                             }`}>{graphData.weekOffs}</span>
-                          </div>
-                          <div className={`flex justify-between items-center py-2 border-b ${
-                            theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
-                          }`}>
-                            <span className={`font-medium ${
-                              theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                            }`}>Holidays</span>
-                            <span className={`text-lg font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-800'
-                            }`}>{graphData.holidays}</span>
-                          </div>
-                          <div className={`flex justify-between items-center py-2 border-b ${
-                            theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
-                          }`}>
-                            <span className={`font-medium ${
-                              theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                            }`}>EL</span>
-                            <span className={`text-lg font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-800'
-                            }`}>{graphData.el}</span>
-                          </div>
-                          <div className={`flex justify-between items-center py-2 border-b ${
-                            theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
-                          }`}>
-                            <span className={`font-medium ${
-                              theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                            }`}>SL</span>
-                            <span className={`text-lg font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-800'
-                            }`}>{graphData.sl}</span>
-                          </div>
-                          <div className={`flex justify-between items-center py-2 border-b ${
-                            theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
-                          }`}>
-                            <span className={`font-medium ${
-                              theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                            }`}>CL</span>
-                            <span className={`text-lg font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-800'
-                            }`}>{graphData.cl}</span>
-                          </div>
-                          <div className={`flex justify-between items-center py-2 border-b ${
-                            theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
-                          }`}>
-                            <span className={`font-medium ${
-                              theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                            }`}>Comp Off</span>
-                            <span className={`text-lg font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-800'
-                            }`}>{graphData.compOff}</span>
-                          </div>
-                          <div className={`flex justify-between items-center py-2`}>
-                            <span className={`font-medium ${
-                              theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                            }`}>LOP</span>
-                            <span className={`text-lg font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-800'
-                            }`}>{graphData.lop}</span>
                           </div>
                         </div>
                       </div>
@@ -578,4 +520,4 @@ const TeamOverviewPage = () => {
 };
 
 export default TeamOverviewPage;
-         
+
