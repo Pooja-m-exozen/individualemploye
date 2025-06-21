@@ -720,8 +720,20 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
     const formatTime = (dateString: string | null): string => {
         if (!dateString) return 'Incomplete';
-        const match = dateString.match(/T(\d{2}:\d{2}:\d{2})/);
-        return match ? match[1] : dateString;
+    
+        // Check for various time-like patterns first
+        const timeMatch = dateString.match(/(\d{2}:\d{2}:\d{2})/);
+        if (timeMatch) {
+            return timeMatch[1];
+        }
+    
+        // Try parsing as a full date string
+        const date = new Date(dateString);
+        if (!isNaN(date.getTime())) {
+            return date.toLocaleTimeString('en-GB'); // HH:MM:SS format
+        }
+    
+        return 'Incomplete';
     };
 
     return (

@@ -41,6 +41,18 @@ interface RegularizationRequest {
   employeeImage?: string;
 }
 
+interface ApiRegularizationRequest {
+  _id: string;
+  employeeId: string;
+  date?: string;
+  regularizationReason?: string;
+  regularizationStatus?: string;
+  punchInTime?: string;
+  punchOutTime?: string;
+  remarks?: string;
+  regularizedBy?: string;
+}
+
 const AttendanceManagementPage = () => {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("View Attendance");
@@ -148,16 +160,20 @@ const AttendanceManagementPage = () => {
     try {
       const response = await fetch("https://cafm.zenapi.co.in/api/attendance/regularization-history/all");
       const data = await response.json();
-      if (!data.success || !data.data || !Array.isArray(data.data.regularizations)) {
+
+      if (!data.success || !data.regularizations || !Array.isArray(data.regularizations)) {
+        console.error("Invalid data structure for regularization requests:", data);
         setRegularizationRequests([]);
         return;
       }
+
       const exozenEmployeeIds = employees
         .filter(emp => emp.projectName === "Exozen - Ops")
         .map(emp => emp.employeeId);
-      const requests = data.data.regularizations
-        .filter((req: any) => exozenEmployeeIds.includes(req.employeeId))
-        .map((req: any) => {
+
+      const requests = data.regularizations
+        .filter((req: ApiRegularizationRequest) => exozenEmployeeIds.includes(req.employeeId))
+        .map((req: ApiRegularizationRequest) => {
           const emp = employees.find(e => e.employeeId === req.employeeId);
           return {
             requestId: req._id,
@@ -272,7 +288,7 @@ const AttendanceManagementPage = () => {
       } else {
         setToast({ message: data.message || 'Failed to approve request.', type: 'error' });
       }
-    } catch (error) {
+    } catch {
       setToast({ message: 'Failed to approve request.', type: 'error' });
     }
   };
@@ -287,7 +303,7 @@ const AttendanceManagementPage = () => {
   const submitRejection = async () => {
     if (!rejectRequestId) return;
     try {
-      const res = await fetch(`https://cafm.zenapi.co.in/api/attendance/regularize/${rejectRequestId}/approve`, {
+      const res = await fetch(`https://cafm.zenapi.co.in/api/attendance/regularize/${rejectRequestId}/reject`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'Rejected', rejectionReason })
@@ -305,7 +321,7 @@ const AttendanceManagementPage = () => {
       } else {
         setToast({ message: data.message || 'Failed to reject request.', type: 'error' });
       }
-    } catch (error) {
+    } catch  {
       setToast({ message: 'Failed to reject request.', type: 'error' });
     } finally {
       setShowRejectModal(false);
@@ -601,21 +617,21 @@ const AttendanceManagementPage = () => {
                 <table className="w-full text-left">
                   <thead className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}`}> 
                     <tr>
-                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Employee</th>
-                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Employee ID</th>
-                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Project</th>
-                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Date</th>
-                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Punch In (UTC)</th>
-                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Punch Out (UTC)</th>
-                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Reason</th>
-                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Remarks</th>
-                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Status</th>
-                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Regularized By</th>
-                      <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center">Actions</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Employee</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Employee ID</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Project</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Date</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch In (UTC)</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch Out (UTC)</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Reason</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Remarks</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Status</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Regularized By</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Actions</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}> 
-                    {filteredRegularizationRequests.map((request, index) => (
+                    {filteredRegularizationRequests.map((request: RegularizationRequest, index) => (
                       <tr key={index} className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors duration-200`}>
                         <td className="px-6 py-4 text-center align-middle">
                           <div className="flex items-center gap-3 justify-center">
@@ -636,12 +652,12 @@ const AttendanceManagementPage = () => {
                             {request.employeeId}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-center align-middle">{request.projectName.replace(' - FMS', '')}</td>
-                        <td className="px-6 py-4 text-center align-middle">{request.date}</td>
-                        <td className="px-6 py-4 text-center align-middle whitespace-nowrap">{extractTime(request.punchInTime)}</td>
-                        <td className="px-6 py-4 text-center align-middle whitespace-nowrap">{extractTime(request.punchOutTime)}</td>
-                        <td className="px-6 py-4 max-w-xs truncate text-center align-middle" title={request.reason}>{request.reason}</td>
-                        <td className="px-6 py-4 max-w-xs truncate text-center align-middle" title={request.remarks}>{request.remarks}</td>
+                        <td className={`px-6 py-4 text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{request.projectName.replace(' - FMS', '')}</td>
+                        <td className={`px-6 py-4 text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{request.date}</td>
+                        <td className={`px-6 py-4 text-center align-middle whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{extractTime(request.punchInTime)}</td>
+                        <td className={`px-6 py-4 text-center align-middle whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{extractTime(request.punchOutTime)}</td>
+                        <td className={`px-6 py-4 max-w-xs truncate text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`} title={request.reason}>{request.reason}</td>
+                        <td className={`px-6 py-4 max-w-xs truncate text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`} title={request.remarks}>{request.remarks}</td>
                         <td className="px-6 py-4 text-center align-middle">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                             request.status === "Approved"
@@ -659,7 +675,7 @@ const AttendanceManagementPage = () => {
                             {request.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-center align-middle">{request.regularizedBy || '-'}</td>
+                        <td className={`px-6 py-4 text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{request.regularizedBy || '-'}</td>
                         <td className="px-6 py-4 text-center align-middle">
                           {request.status === "Pending" ? (
                             <div className="flex gap-2 justify-center">
@@ -716,26 +732,38 @@ const AttendanceManagementPage = () => {
         {/* Reject Modal */}
         {showRejectModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-md mx-4`}>
-              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Reject Regularization Request</h3>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">Reason for rejection</label>
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg p-8 w-full max-w-md mx-4`}>
+              <h3 className={`text-lg font-semibold mb-4 ${
+                theme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`}>Reject Regularization Request</h3>
+              <label className={`block text-sm font-medium mb-2 ${
+                theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+              }`}>Reason for rejection</label>
               <input
                 ref={rejectionInputRef}
                 type="text"
                 value={rejectionReason}
                 onChange={e => setRejectionReason(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' 
+                    : 'bg-white text-gray-900 border-gray-300 placeholder-gray-500'
+                }`}
                 placeholder="Enter reason..."
               />
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setShowRejectModal(false)}
-                  className="px-4 py-2 rounded-md bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700"
+                  className={`px-4 py-2 rounded-md transition-colors ${
+                    theme === 'dark'
+                      ? 'bg-gray-600 text-gray-200 hover:bg-gray-700'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  }`}
                 >Cancel</button>
                 <button
                   onClick={submitRejection}
                   disabled={!rejectionReason.trim()}
-                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >Reject</button>
               </div>
             </div>

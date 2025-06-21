@@ -121,7 +121,7 @@ const LeaveRequestsScreen: React.FC = () => {
   const handleLeaveAction = async (requestId: string, action: 'approve' | 'reject', reason?: string) => {
     setActionLoading(requestId + action);
     try {
-      let body: any;
+      let body: { status: 'Approved'; approvedBy: string } | { status: 'Rejected'; rejectionReason?: string };
       if (action === 'approve') {
         body = { status: 'Approved', approvedBy: 'Manager' };
       } else {
@@ -150,7 +150,7 @@ const LeaveRequestsScreen: React.FC = () => {
         setRejectionError(data.message || 'Failed to update leave request.');
         setDashboardMessage({ type: 'error', text: data.message || 'Failed to update leave request.' });
       }
-    } catch (error) {
+    } catch  {
       setRejectionError('Failed to update leave request.');
       setDashboardMessage({ type: 'error', text: 'Failed to update leave request.' });
     } finally {

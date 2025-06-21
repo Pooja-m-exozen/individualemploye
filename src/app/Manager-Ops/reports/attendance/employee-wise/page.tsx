@@ -613,31 +613,43 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
         doc.setTextColor(41, 128, 185);
         doc.text('Monthly Summary', 15, finalY + 10);
 
-        const summaryData = [
-          ['Present', 'Half Days', 'Leaves', 'Holidays', 'Absent'],
-          [
+        const summaryHeaders = [
+            'Total Days', 'Present', 'Half Days', 'Partially Absent', 'Week Offs', 
+            'Holidays', 'EL', 'SL', 'CL', 'Comp Off', 'LOP'
+        ];
+        
+        const summaryValues = [
+            summary.summary.totalDays.toString(),
             summary.summary.presentDays.toString(),
             summary.summary.halfDays.toString(),
-            (summary.summary.el + summary.summary.sl + summary.summary.cl).toString(),
+            summary.summary.partiallyAbsentDays.toString(),
+            summary.summary.weekOffs.toString(),
             summary.summary.holidays.toString(),
+            summary.summary.el.toString(),
+            summary.summary.sl.toString(),
+            summary.summary.cl.toString(),
+            summary.summary.compOff.toString(),
             summary.summary.lop.toString()
-          ]
         ];
 
         autoTable(doc, {
-          head: [summaryData[0]],
-          body: [summaryData[1]],
-          startY: finalY + 15,
-          theme: 'grid',
-          styles: { fontSize: 8, cellPadding: 3, halign: 'center' },
-          headStyles: {
-            fillColor: [41, 128, 185],
-            textColor: 255,
-            fontSize: 9,
-            fontStyle: 'bold'
-          }
+            head: [summaryHeaders],
+            body: [summaryValues],
+            startY: finalY + 15,
+            theme: 'grid',
+            styles: { 
+                fontSize: 8,
+                cellPadding: 2,
+                halign: 'center'
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontSize: 9,
+                fontStyle: 'bold'
+            }
         });
-      }
+    }
 
       // Add Leave Balance section
       if (leaveBalance) {

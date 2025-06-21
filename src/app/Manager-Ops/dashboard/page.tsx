@@ -69,6 +69,12 @@ const OperationsManagerDashboard = (): JSX.Element => {
   const [loading, setLoading] = useState<boolean>(true);
   const [addressCache, setAddressCache] = useState<Record<string, string>>({});
 
+  // Helper function to remove .000Z from time string
+  const formatTime = (timeString: string | null): string => {
+    if (!timeString) return 'N/A';
+    return timeString.replace('.000Z', '');
+  };
+
   const getAddressFromCoordinates = useCallback(async (lat: number, lng: number): Promise<string> => {
     const cacheKey = `${lat},${lng}`;
     
@@ -333,7 +339,7 @@ const OperationsManagerDashboard = (): JSX.Element => {
                                       <p style={{ fontSize: "13px", color: "#4b5563", lineHeight: "1.4" }}>
                                         {entry.punchInAddress}
                                       </p>
-                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {entry.punchInTime || 'N/A'}</p>
+                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTime(entry.punchInTime)}</p>
                                       {entry.punchInPhoto && (
                                         <div style={{ marginTop: "6px" }}>
                                           <Image 
@@ -387,7 +393,7 @@ const OperationsManagerDashboard = (): JSX.Element => {
                                       <p style={{ fontSize: "13px", color: "#4b5563", lineHeight: "1.4" }}>
                                         {entry.punchOutAddress}
                                       </p>
-                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {entry.punchOutTime || 'N/A'}</p>
+                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTime(entry.punchOutTime)}</p>
                                       {entry.punchOutPhoto && (
                                         <div style={{ marginTop: "6px" }}>
                                           <Image 

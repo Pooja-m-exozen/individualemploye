@@ -3,10 +3,10 @@
 import React, { JSX, useEffect, useState } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
-import { FaSpinner } from "react-icons/fa";
-// import jsPDF from "jspdf";
-import "jspdf-autotable";
-// import * as XLSX from "xlsx";
+import { FaSpinner, FaFilePdf, FaFileExcel } from "react-icons/fa";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import Image from "next/image";
 
 interface Employee {
@@ -18,48 +18,173 @@ interface Employee {
 
 interface Attendance {
   date: string;
-  punchInTime: string | null;
-  punchOutTime: string | null;
+  status: string;
+  punchInTime?: string;
+  punchOutTime?: string;
 }
 
-interface LeaveBalance {
-  allocated: number;
-  used: number;
-  remaining: number;
-  pending: number;
+interface LeaveRecord {
+  leaveId?: string;
+  employeeId: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+}
+
+const getBase64FromUrl = async (url: string, retries = 3): Promise<string> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to convert image to base64'));
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`Retrying image fetch, ${retries} attempts remaining`);
+      return getBase64FromUrl(url, retries - 1);
+    }
+    throw error;
+  }
+};
+
+const addLogoToPDF = async (doc: jsPDF, x: number, y: number, width: number, height: number): Promise<void> => {
+  try {
+    const logoBase64 = await getBase64FromUrl("/v1/employee/exozen_logo1.png");
+    doc.addImage(logoBase64, 'PNG', x, y, width, height);
+  } catch {
+    console.warn('Failed to load primary logo, trying fallback logo');
+    try {
+      const fallbackLogoBase64 = await getBase64FromUrl('/exozen_logo.png');
+      doc.addImage(fallbackLogoBase64, 'PNG', x, y, width, height);
+    } catch (fallbackError) {
+      console.error('Failed to load both logos:', fallbackError);
+      doc.setFontSize(12);
+      doc.setTextColor(150, 150, 150);
+      doc.text('EXOZEN', x, y + height / 2);
+    }
+  }
+};
+
+const GOVERNMENT_HOLIDAYS = [
+  { date: '2024-01-26', description: 'Republic Day' },
+  { date: '2024-08-15', description: 'Independence Day' },
+];
+
+const isSecondOrFourthSaturday = (date: Date): boolean => {
+  if (date.getDay() !== 6) return false;
+  const saturday = Math.floor((date.getDate() - 1) / 7) + 1;
+  return saturday === 2 || saturday === 4;
+};
+
+const isHoliday = (date: Date): boolean => {
+  const day = date.getDay();
+  const dateString = date.toISOString().split('T')[0];
+  if (day === 0) return true;
+  if (isSecondOrFourthSaturday(date)) return true;
+  return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
+};
+
+const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string, punchInTime?: string, punchOutTime?: string): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const checkDate = new Date(date);
+  checkDate.setHours(0, 0, 0, 0);
+
+  if (checkDate > today) {
+    return '';
+  }
+
+  const onLeave = leaves.find(leave => {
+    const startDate = new Date(leave.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(leave.endDate);
+    endDate.setHours(0, 0, 0, 0);
+    return checkDate >= startDate && checkDate <= endDate && leave.status === 'Approved';
+  });
+
+  if (onLeave) {
+    return onLeave.leaveType;
+  }
+
+  if (isHoliday(date)) {
+    if (punchInTime && punchOutTime) return 'CF';
+    return 'H';
+  }
+
+  const isToday = checkDate.getTime() === today.getTime();
+  return (status === 'Present' && punchInTime && (punchOutTime || isToday)) ? 'P' : 'A';
+};
+
+const getPayableDays = (attendance: Attendance[]): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  return attendance.filter(a => {
+    const attendanceDate = new Date(a.date);
+    attendanceDate.setHours(0, 0, 0, 0);
+    if (attendanceDate > today) return false;
+    return ['P', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff'].includes(a.status);
+  }).length;
+};
+
+// Interfaces for API responses
+interface KycForm {
+  personalDetails: {
+    projectName: string;
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    employeeImage?: string;
+  };
+}
+interface KycApiResponse {
+  kycForms: KycForm[];
+}
+interface AttendanceRecord {
+  employeeId: string;
+  projectName: string;
+  date: string;
+  status: string;
+  punchInTime?: string;
+  punchOutTime?: string;
+}
+interface AttendanceApiResponse {
+  attendance: AttendanceRecord[];
+    }
+interface LeaveHistoryResponse {
+  leaveHistory: LeaveRecord[];
 }
 
 const OverallSummaryPage = (): JSX.Element => {
   const { theme } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceData, setAttendanceData] = useState<Record<string, Attendance[]>>({});
-  const [leaveBalances, setLeaveBalances] = useState<Record<string, Record<string, LeaveBalance>>>(
-    {}
-  );
+  const [leaveData, setLeaveData] = useState<Record<string, LeaveRecord[]>>({});
+  const [lopData, setLopData] = useState<Record<string, number>>({});
+  const [weekOffData, setWeekOffData] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState<boolean>(true);
-  const [month] = useState<number>(new Date().getMonth() + 1);
-  const [year] = useState<number>(new Date().getFullYear());
-  const [holidays] = useState<number>(2); // Example: Static holidays for the month.
+  const [loadingLop, setLoadingLop] = useState<boolean>(true);
+  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
+  const [year, setYear] = useState<number>(new Date().getFullYear());
+
+  const daysInMonth = new Date(year, month, 0).getDate();
 
   useEffect(() => {
-    const fetchEmployees = async () => {
+    const fetchEmployeesAndLeaves = async () => {
       setLoading(true);
       try {
-        const response = await fetch("https://cafm.zenapi.co.in/api/kyc");
-        const data = await response.json();
+        const kycResponse = await fetch("https://cafm.zenapi.co.in/api/kyc");
+        const kycData: KycApiResponse = await kycResponse.json();
 
-        type KycForm = {
-          personalDetails: {
-            projectName: string;
-            employeeId: string;
-            fullName: string;
-            designation: string;
-            employeeImage?: string;
-          };
-        };
-
-        if (data.kycForms) {
-          const filteredEmployees = (data.kycForms as KycForm[])
+        if (kycData.kycForms) {
+          const filteredEmployees = kycData.kycForms
             .filter((form) => form.personalDetails.projectName === "Exozen - Ops")
             .map((form) => ({
               employeeId: form.personalDetails.employeeId,
@@ -67,123 +192,213 @@ const OverallSummaryPage = (): JSX.Element => {
               designation: form.personalDetails.designation,
               imageUrl: form.personalDetails.employeeImage || "/default-avatar.png",
             }));
-
           setEmployees(filteredEmployees);
+
+          const leavePromises = filteredEmployees.map(emp =>
+            fetch(`https://cafm.zenapi.co.in/api/leave/history/${emp.employeeId}`)
+              .then(res => res.json())
+              .then((data: LeaveHistoryResponse) => ({
+                employeeId: emp.employeeId,
+                leaves: data.leaveHistory || []
+              }))
+          );
+          
+          const allLeaves = await Promise.all(leavePromises);
+          const leaveMap: Record<string, LeaveRecord[]> = {};
+          allLeaves.forEach(empLeaves => {
+            leaveMap[empLeaves.employeeId] = empLeaves.leaves;
+          });
+          setLeaveData(leaveMap);
         }
       } catch (error) {
-        console.error("Error fetching employees:", error);
+        console.error("Error fetching initial data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchEmployees();
+    fetchEmployeesAndLeaves();
   }, []);
 
   useEffect(() => {
-    const fetchAttendance = async () => {
-      const attendancePromises = employees.map(async (employee) => {
-        const response = await fetch(
-          `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${employee.employeeId}&month=${month}&year=${year}`
+    const fetchSummaryData = async () => {
+      if (employees.length === 0) return;
+      setLoadingLop(true);
+      try {
+        const summaryPromises = employees.map(emp =>
+          fetch(`https://cafm.zenapi.co.in/api/attendance/${emp.employeeId}/monthly-summary?month=${month}&year=${year}`)
+            .then(res => res.json())
+            .then(data => ({
+              employeeId: emp.employeeId,
+              lop: data.data?.summary?.lop ?? 0,
+              weekOffs: data.data?.summary?.weekOffs ?? 0,
+            }))
         );
-        const data = await response.json();
-        return { employeeId: employee.employeeId, attendance: data.attendance || [] };
-      });
-
-      const results = await Promise.all(attendancePromises);
-      const attendanceMap: Record<string, Attendance[]> = {};
-      results.forEach((result) => {
-        attendanceMap[result.employeeId] = result.attendance;
-      });
-      setAttendanceData(attendanceMap);
+        
+        const allSummaryData = await Promise.all(summaryPromises);
+        const lopMap: Record<string, number> = {};
+        const weekOffMap: Record<string, number> = {};
+        allSummaryData.forEach(data => {
+          lopMap[data.employeeId] = data.lop;
+          weekOffMap[data.employeeId] = data.weekOffs;
+        });
+        setLopData(lopMap);
+        setWeekOffData(weekOffMap);
+      } catch (error) {
+        console.error("Error fetching summary data:", error);
+      } finally {
+        setLoadingLop(false);
+      }
     };
 
-    const fetchLeaveBalances = async () => {
-      const balancePromises = employees.map(async (employee) => {
-        const response = await fetch(
-          `https://cafm.zenapi.co.in/api/leave/balance/${employee.employeeId}`
-        );
-        const data = await response.json();
-        return { employeeId: employee.employeeId, balances: data.balances || {} };
-      });
-
-      const results = await Promise.all(balancePromises);
-      const balancesMap: Record<string, Record<string, LeaveBalance>> = {};
-      results.forEach((result) => {
-        balancesMap[result.employeeId] = result.balances;
-      });
-      setLeaveBalances(balancesMap);
-    };
-
-    if (employees.length > 0) {
-      fetchAttendance();
-      fetchLeaveBalances();
-    }
+    fetchSummaryData();
   }, [employees, month, year]);
 
-  const calculateAttendanceSummary = (employeeId: string) => {
-    const attendance = attendanceData[employeeId] || [];
-    const totalDays = new Date(year, month, 0).getDate();
-    const weekOffs = Array.from({ length: totalDays }, (_, i) => new Date(year, month - 1, i + 1))
-      .filter((date) => date.getDay() === 0 || date.getDay() === 6) // Sundays and Saturdays
-      .length;
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      if (employees.length === 0) return;
+      setLoading(true);
+      try {
+        const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/all`);
+        const data: AttendanceApiResponse = await response.json();
+        
+        const attendanceMap: Record<string, Attendance[]> = {};
+        
+        employees.forEach((employee) => {
+          const employeeAttendance = data.attendance.filter((record: AttendanceRecord) => 
+            record.employeeId === employee.employeeId && 
+            record.projectName === "Exozen - Ops"
+          );
+          const employeeLeaves = leaveData[employee.employeeId] || [];
 
-    let presentDays = 0;
-    let halfDays = 0;
-    let partialAbsentDays = 0;
-    let absentDays = 0;
+          const daysInMonth = new Date(year, month, 0).getDate();
+          const monthAttendance: Attendance[] = [];
 
-    attendance.forEach((record) => {
-      const status = calculateStatus(record.punchInTime, record.punchOutTime);
-      if (status === "P") presentDays++;
-      else if (status === "H/A") halfDays++;
-      else if (status === "P/A") partialAbsentDays++;
-      else absentDays++;
+          for (let day = 1; day <= daysInMonth; day++) {
+            const currentDate = new Date(year, month - 1, day);
+            const dateString = currentDate.toISOString().split('T')[0];
+            
+            const dayRecord = employeeAttendance.find((record) => {
+              const recordDate = new Date(record.date);
+              return recordDate.getFullYear() === currentDate.getFullYear() &&
+                     recordDate.getMonth() === currentDate.getMonth() &&
+                     recordDate.getDate() === currentDate.getDate();
+            });
+            
+            monthAttendance.push({
+              date: dateString,
+              status: getAttendanceStatus(currentDate, employeeLeaves, dayRecord?.status, dayRecord?.punchInTime, dayRecord?.punchOutTime),
+              punchInTime: dayRecord?.punchInTime,
+              punchOutTime: dayRecord?.punchOutTime
+            });
+          }
+          
+          attendanceMap[employee.employeeId] = monthAttendance;
+        });
+
+        setAttendanceData(attendanceMap);
+      } catch (error) {
+        console.error("Error fetching attendance:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAttendance();
+  }, [employees, leaveData, month, year]);
+
+  const downloadPDF = async () => {
+    const doc = new jsPDF('landscape');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    await addLogoToPDF(doc, (pageWidth / 2) - 30, 10, 60, 25);
+    doc.setFontSize(18);
+    doc.text('Attendance Summary Report', pageWidth / 2, 45, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text(`${new Date(0, month - 1).toLocaleString('default', { month: 'long' })} ${year}`, pageWidth / 2, 55, { align: 'center' });
+
+    const tableHeaders = [
+        ['Employee', 'ID', 'Total Days', 'Present', 'Absent', 'Week Offs', 'Holidays', 'CF', 'EL', 'CL', 'SL', 'LOP', 'Payable Days']
+    ];
+
+    const tableData = employees.map(employee => {
+        const empAttendance = attendanceData[employee.employeeId] || [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const getCount = (status: string) => empAttendance.filter(a => {
+            const d = new Date(a.date);
+            d.setHours(0, 0, 0, 0);
+            return a.status === status && d <= today;
+        }).length;
+
+        return [
+            employee.fullName,
+            employee.employeeId,
+            daysInMonth,
+            getCount('P'),
+            getCount('A'),
+            weekOffData[employee.employeeId] ?? 0,
+            getCount('H'),
+            getCount('CF'),
+            getCount('EL'),
+            getCount('CL'),
+            getCount('SL'),
+            lopData[employee.employeeId] ?? 0,
+            getPayableDays(empAttendance)
+        ];
     });
 
-    const usedLeaves = leaveBalances[employeeId] || {};
-    const usedEL = usedLeaves["EL"]?.used || 0;
-    const usedCL = usedLeaves["CL"]?.used || 0;
-    const usedSL = usedLeaves["SL"]?.used || 0;
-    const usedCompOff = usedLeaves["CompOff"]?.used || 0;
-    const lossOfPay = absentDays;
+    autoTable(doc, {
+        head: tableHeaders,
+        body: tableData,
+        startY: 65,
+        theme: 'grid',
+    });
 
-    const totalPayableDays =
-      presentDays + halfDays * 0.5 + partialAbsentDays * 0.25 + usedEL + usedCL + usedSL + usedCompOff;
-
-    return {
-      totalDays,
-      presentDays,
-      halfDays,
-      partialAbsentDays,
-      weekOffs,
-      holidays,
-      usedEL,
-      usedCL,
-      usedSL,
-      usedCompOff,
-      lossOfPay,
-      totalPayableDays,
-    };
+    doc.save(`Attendance_Summary_${month}_${year}.pdf`);
   };
+  
+  const downloadExcel = () => {
+      const worksheetData = employees.map(employee => {
+          const empAttendance = attendanceData[employee.employeeId] || [];
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
 
-  const calculateStatus = (punchInTime: string | null, punchOutTime: string | null): string => {
-    if (!punchInTime || !punchOutTime) return "A"; // Absent
-    const hoursWorked =
-      (new Date(punchOutTime).getTime() - new Date(punchInTime).getTime()) / (1000 * 60 * 60);
+          const getCount = (status: string) => empAttendance.filter(a => {
+              const d = new Date(a.date);
+              d.setHours(0, 0, 0, 0);
+              return a.status === status && d <= today;
+          }).length;
 
-    if (hoursWorked >= 8) return "P"; // Present
-    if (hoursWorked > 4.5 && hoursWorked < 8) return "H/A"; // Half-day Present
-    if (hoursWorked > 1 && hoursWorked <= 4.5) return "P/A"; // Partial Present
-    return "A"; // Absent
+          return {
+              'Employee Name': employee.fullName,
+              'Employee ID': employee.employeeId,
+              'Total Days': daysInMonth,
+              'Present': getCount('P'),
+              'Absent': getCount('A'),
+              'Week Offs': weekOffData[employee.employeeId] ?? 0,
+              'Holidays': getCount('H'),
+              'CF': getCount('CF'),
+              'EL': getCount('EL'),
+              'CL': getCount('CL'),
+              'SL': getCount('SL'),
+              'LOP': lopData[employee.employeeId] ?? 0,
+              'Payable Days': getPayableDays(empAttendance)
+          };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Summary");
+      XLSX.writeFile(workbook, `Attendance_Summary_${month}_${year}.xlsx`);
   };
 
   return (
     <ManagerOpsLayout>
       <div className={`min-h-screen font-sans ${
         theme === 'light' 
-          ? 'bg-gradient-to-br from-indigo-50 via-white to-blue-50' 
-          : 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
+          ? 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-500' 
+          : 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-200'
       }`}>
         <div className="p-6">
           {/* Header */}
@@ -192,10 +407,54 @@ const OverallSummaryPage = (): JSX.Element => {
               ? 'bg-gradient-to-r from-blue-500 to-blue-800' 
               : 'bg-gradient-to-r from-gray-700 to-gray-800'
           }`}>
-            <h1 className="text-3xl font-bold text-white">Attendance Employee-Wise</h1>
+            <h1 className="text-3xl font-bold text-white">Attendance Summary</h1>
             <p className="text-white text-sm mt-2 opacity-90">
               View detailed attendance and leave summaries for all employees.
             </p>
+          </div>
+
+          {/* Filters */}
+          <div className="my-4 flex justify-between items-center">
+            <div className="flex gap-4">
+              <select
+                value={month}
+                onChange={(e) => setMonth(Number(e.target.value))}
+                className={`border rounded-lg p-2 ${
+                  theme === 'dark'
+                    ? 'bg-gray-700 text-white border-gray-600'
+                    : 'bg-white text-black border-gray-300'
+                }`}
+              >
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {new Date(0, i).toLocaleString('default', { month: 'long' })}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value))}
+                className={`border rounded-lg p-2 ${
+                  theme === 'dark'
+                    ? 'bg-gray-700 text-white border-gray-600'
+                    : 'bg-white text-black border-gray-300'
+                }`}
+              >
+                {[new Date().getFullYear(), new Date().getFullYear() - 1].map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-4">
+              <button onClick={downloadExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                  <FaFileExcel />
+                  <span>Excel</span>
+              </button>
+              <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                  <FaFilePdf />
+                  <span>PDF</span>
+              </button>
+            </div>
           </div>
 
           {/* Table */}
@@ -216,130 +475,109 @@ const OverallSummaryPage = (): JSX.Element => {
                     : 'bg-gray-800 text-gray-200'
                 }`}>
                   <tr>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Employee Image</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Employee ID</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Name</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Designation</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Total Days</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Present Days</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Half Days</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Partially Absent</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Week Offs</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Holidays</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Used EL</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Used CL</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Used SL</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Comp Off</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Loss of Pay</th>
-                    <th className={`p-3 border ${
-                      theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                    }`}>Total Payable Days</th>
+                    <th className="p-3 text-left">Employee</th>
+                    <th className="p-3 text-center">Total Days</th>
+                    <th className="p-3 text-center">Present</th>
+                    <th className="p-3 text-center">Absent</th>
+                    <th className="p-3 text-center">Week Offs</th>
+                    <th className="p-3 text-center">Holidays</th>
+                    <th className="p-3 text-center">CF</th>
+                    <th className="p-3 text-center">EL</th>
+                    <th className="p-3 text-center">CL</th>
+                    <th className="p-3 text-center">SL</th>
+                    <th className="p-3 text-center">LOP</th>
+                    <th className="p-3 text-center">Payable Days</th>
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${
                   theme === 'light' ? 'divide-gray-200' : 'divide-gray-700'
                 }`}>
-                  {employees.map((employee, index) => {
-                    const summary = calculateAttendanceSummary(employee.employeeId);
+                  {employees.map((employee,) => {
+                    const empAttendance = attendanceData[employee.employeeId] || [];
+
+                    if (loading && empAttendance.length === 0) {
+                      return (
+                        <tr key={employee.employeeId}>
+                          <td colSpan={12} className="p-3 text-center">Loading summary for {employee.fullName}...</td>
+                        </tr>
+                      );
+                    }
+
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    const getCount = (status: string) => empAttendance.filter(a => {
+                      const d = new Date(a.date);
+                      d.setHours(0, 0, 0, 0);
+                      return a.status === status && d <= today;
+                    }).length;
+
+                    const presentDays = getCount('P');
+                    const absentDays = getCount('A');
+                    const holidayCount = getCount('H');
+                    const cfCount = getCount('CF');
+                    const elCount = getCount('EL');
+                    const clCount = getCount('CL');
+                    const slCount = getCount('SL');
+                    const payableDays = getPayableDays(empAttendance);
+                    
                     return (
                       <tr
                         key={employee.employeeId}
-                        className={`${
+                        className={`transition-colors ${
                           theme === 'light'
-                            ? index % 2 === 0
-                              ? 'bg-white hover:bg-gray-50'
-                              : 'bg-gray-50 hover:bg-gray-100'
-                            : index % 2 === 0
-                              ? 'bg-gray-800 hover:bg-gray-750'
-                              : 'bg-gray-750 hover:bg-gray-700'
+                            ? 'hover:bg-gray-50'
+                            : 'hover:bg-gray-700'
                         }`}
                       >
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200' : 'border-gray-700'
-                        }`}>
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
                           <Image
                             src={employee.imageUrl}
                             alt={employee.fullName}
-                            width={48}
-                            height={48}
-                            className="w-12 h-12 rounded-full object-cover"
+                              width={40}
+                              height={40}
+                              className="w-10 h-10 rounded-full object-cover"
                           />
+                            <div>
+                                <div className="font-bold">{employee.fullName}</div>
+                                <div className="text-xs opacity-70">{employee.employeeId}</div>
+                            </div>
+                          </div>
                         </td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{employee.employeeId}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{employee.fullName}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{employee.designation}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.totalDays}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.presentDays}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.halfDays}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.partialAbsentDays}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.weekOffs}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.holidays}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.usedEL}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.usedCL}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.usedSL}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.usedCompOff}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.lossOfPay}</td>
-                        <td className={`p-3 border ${
-                          theme === 'light' ? 'border-gray-200 text-gray-700' : 'border-gray-700 text-gray-200'
-                        }`}>{summary.totalPayableDays}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{daysInMonth}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{presentDays}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{absentDays}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{loadingLop ? '...' : weekOffData[employee.employeeId] ?? 0}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{holidayCount}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{cfCount}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{elCount}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{clCount}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{slCount}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{loadingLop ? '...' : lopData[employee.employeeId] ?? 0}</td>
+                        <td className={`p-3 border text-center font-bold ${
+                          theme === 'light' ? 'border-gray-200 text-blue-600' : 'border-gray-700 text-blue-400'
+                        }`}>{payableDays}</td>
                       </tr>
                     );
                   })}

@@ -475,10 +475,10 @@ const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ employeeId }) => 
           <h3 className="text-xl font-semibold mb-4">Individual Performance</h3>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-              <thead className={`${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+              <thead className={`${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
                 <tr>
                   {['Employee', 'Punctuality', 'Leave Utilization', 'Days Punched In'].map((header) => (
-                    <th key={header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th key={header} className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-black'}`}>
                       {header}
                     </th>
                   ))}
@@ -486,7 +486,7 @@ const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ employeeId }) => 
               </thead>
               <tbody className={`divide-y divide-gray-200 dark:divide-gray-600 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
                 {performanceData.map((employee) => (
-                  <tr key={employee.employeeId} className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
+                  <tr key={employee.employeeId} className={`${isDark ? 'dark:hover:bg-gray-700' : ''} ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium">{employee.fullName}</div>

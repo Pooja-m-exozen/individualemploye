@@ -461,8 +461,8 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                               theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'
                             }`}>
                               <thead className={`${
-                                theme === 'light' 
-                                  ? 'bg-gradient-to-r from-blue-500 to-blue-600' 
+                                theme === 'light'
+                                  ? 'bg-gradient-to-r from-blue-500 to-blue-600'
                                   : 'bg-gradient-to-r from-gray-700 to-gray-800'
                               } text-white`}>
                                 <tr>
@@ -565,7 +565,7 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                             <table className={`w-full rounded-lg overflow-hidden shadow-sm ${
                               theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'
                             }`}>
-                              <thead className={`$${
+                              <thead className={`${
                                 theme === 'light'
                                   ? 'bg-gradient-to-r from-blue-500 to-blue-600'
                                   : 'bg-gradient-to-r from-gray-700 to-gray-800'
@@ -581,17 +581,17 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                               </thead>
                               <tbody>
                                 {leaveHistory.map((record, idx) => (
-                                  <tr key={record.leaveId} className={`$${
+                                  <tr key={record.leaveId} className={`${
                                     theme === 'light'
                                       ? idx % 2 === 0 ? 'bg-white' : 'bg-gray-100'
                                       : idx % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700'
                                   }`}>
-                                    <td className="p-4">{record.leaveType}</td>
-                                    <td className="p-4">{new Date(record.startDate).toLocaleDateString()}</td>
-                                    <td className="p-4">{new Date(record.endDate).toLocaleDateString()}</td>
-                                    <td className="p-4">{record.numberOfDays}</td>
-                                    <td className="p-4">{record.status}</td>
-                                    <td className="p-4">{record.reason}</td>
+                                    <td className={`p-4 font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>{record.leaveType}</td>
+                                    <td className={`p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{new Date(record.startDate).toLocaleDateString()}</td>
+                                    <td className={`p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{new Date(record.endDate).toLocaleDateString()}</td>
+                                    <td className={`p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{record.numberOfDays}</td>
+                                    <td className={`p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{record.status}</td>
+                                    <td className={`p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{record.reason}</td>
                                   </tr>
                                 ))}
                               </tbody>

@@ -80,10 +80,10 @@ const AttendanceScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-[#0f1219]">
+      <div className={`min-h-screen w-full flex items-center justify-center ${theme === 'dark' ? 'bg-[#0f1219]' : 'bg-gray-50'}`}>
         <div className="flex flex-col items-center gap-4">
           <FaClock className="animate-spin text-4xl text-blue-600" />
-          <p className="text-lg font-medium text-gray-600 dark:text-gray-300">Loading attendance data...</p>
+          <p className={`text-lg font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Loading attendance data...</p>
         </div>
       </div>
     );
