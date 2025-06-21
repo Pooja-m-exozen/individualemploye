@@ -128,6 +128,12 @@ const OperationsManagerDashboard = (): JSX.Element => {
       }
     };
 
+    fetchEmployees();
+  }, []);
+
+  useEffect(() => {
+    if (employees.length === 0) return;
+
     const fetchAttendanceData = async () => {
       const today = new Date();
       const day = today.getDate();
@@ -135,57 +141,66 @@ const OperationsManagerDashboard = (): JSX.Element => {
       const year = today.getFullYear();
 
       const attendancePromises = employees.map(async (employee) => {
-        const response = await fetch(
-          `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${employee.employeeId}&month=${month}&year=${year}`
-        );
-        const data = await response.json();
+        try {
+          const response = await fetch(
+            `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${employee.employeeId}&month=${month}&year=${year}`
+          );
+          if (!response.ok) {
+            console.error(`Failed to fetch attendance for ${employee.employeeId}`);
+            return { employeeId: employee.employeeId, attendance: [] };
+          }
+          const data = await response.json();
 
-        const currentDayAttendance = data.attendance?.filter(
-          (record: Record<string, unknown>) => new Date(record.date as string).getDate() === day
-        );
+          const currentDayAttendance = data.attendance?.filter(
+            (record: Record<string, unknown>) => new Date(record.date as string).getDate() === day
+          );
 
-        // Get addresses for each attendance record
-        const attendanceWithAddresses = await Promise.all(
-          (currentDayAttendance || []).map(async (record: Record<string, unknown>) => {
-            let punchInAddress = "Address not found";
-            let punchOutAddress = "Address not found";
+          const attendanceWithAddresses = await Promise.all(
+            (currentDayAttendance || []).map(async (record: Record<string, unknown>) => {
+              let punchInAddress = "Address not found";
+              let punchOutAddress = "Address not found";
 
-            if (record.punchInLatitude && record.punchInLongitude) {
-              punchInAddress = await getAddressFromCoordinates(
-                Number(record.punchInLatitude),
-                Number(record.punchInLongitude)
-              );
-            }
+              if (record.punchInLatitude && record.punchInLongitude) {
+                punchInAddress = await getAddressFromCoordinates(
+                  Number(record.punchInLatitude),
+                  Number(record.punchInLongitude)
+                );
+              }
 
-            if (record.punchOutLatitude && record.punchOutLongitude) {
-              punchOutAddress = await getAddressFromCoordinates(
-                Number(record.punchOutLatitude),
-                Number(record.punchOutLongitude)
-              );
-            }
+              if (record.punchOutLatitude && record.punchOutLongitude) {
+                punchOutAddress = await getAddressFromCoordinates(
+                  Number(record.punchOutLatitude),
+                  Number(record.punchOutLongitude)
+                );
+              }
 
-            return {
-              ...record,
-              punchInAddress,
-              punchOutAddress,
-              punchInTime: record.punchInTime || null,
-              punchOutTime: record.punchOutTime || null,
-            };
-          })
-        );
+              return {
+                ...record,
+                punchInAddress,
+                punchOutAddress,
+                punchInTime: record.punchInTime || null,
+                punchOutTime: record.punchOutTime || null,
+              };
+            })
+          );
 
-        return { employeeId: employee.employeeId, attendance: attendanceWithAddresses };
+          return { employeeId: employee.employeeId, attendance: attendanceWithAddresses };
+        } catch (error) {
+          console.error(`Error fetching attendance for ${employee.employeeId}:`, error);
+          return { employeeId: employee.employeeId, attendance: [] };
+        }
       });
 
       const results = await Promise.all(attendancePromises);
       const attendanceMap: Record<string, Attendance[]> = {};
       results.forEach((result) => {
-        attendanceMap[result.employeeId] = result.attendance;
+        if (result) {
+          attendanceMap[result.employeeId] = result.attendance;
+        }
       });
       setAttendanceData(attendanceMap);
     };
 
-    fetchEmployees();
     fetchAttendanceData();
   }, [employees, getAddressFromCoordinates]);
 

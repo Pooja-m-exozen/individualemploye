@@ -445,6 +445,16 @@ const OverallAttendancePage = (): JSX.Element => {
     <ManagerOpsLayout>
       <div className={`min-h-screen font-sans ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
         <div className="p-6">
+          <div className={`rounded-2xl p-6 shadow-lg mb-6 ${
+              theme === 'light' 
+                ? 'bg-gradient-to-r from-blue-500 to-blue-800' 
+                : 'bg-gradient-to-r from-gray-700 to-gray-800'
+            }`}>
+              <h1 className="text-3xl font-bold text-white">Overall Attendance Summary</h1>
+              <p className="text-white text-sm mt-2 opacity-90">
+                View detailed attendance and leave summaries for all employees.
+              </p>
+            </div>
           <div className="flex gap-4 mb-6 items-center flex-wrap">
             <select
               value={month}
