@@ -47,6 +47,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
+  const [showManagerPasswordModal, setShowManagerPasswordModal] = useState(false);
+  const [ManagerPassword, setManagerPassword] = useState('');
+  const [ManagerPasswordError, setManagerPasswordError] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -114,7 +117,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
 
 const handleLogout = () => {
   logout(); // your logout function (e.g., clearing tokens or session)
-  // router.replace('/v1/employee/login'); // navigate to login screen
+  router.replace('/login'); // navigate to login screen
 };
 
 
@@ -131,7 +134,7 @@ const handleLogout = () => {
   };
 
   const getMenuItemsByRole = (): MenuItem[] => {
-    // const role = getUserRole(); // Get the user's role
+    const role = getUserRole(); // Get the user's role
 
     const menuItems: MenuItem[] = [
       {
@@ -386,6 +389,22 @@ const handleLogout = () => {
     }
   };
 
+  const handleManagerView = () => {
+    setShowProfileDropdown(false);
+    setShowManagerPasswordModal(true);
+  };
+
+  const handleManagerPasswordSubmit = () => {
+    if (ManagerPassword === 'Manager@2025exo!') {
+      setManagerPasswordError(false);
+      setShowManagerPasswordModal(false);
+      setManagerPassword('');
+      router.push('/Manager/dashboard');
+    } else {
+      setManagerPasswordError(true);
+    }
+  };
+
   return (
     <UserContext.Provider value={userDetails}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
@@ -519,6 +538,15 @@ const handleLogout = () => {
                               <FaTasks className="text-blue-500 w-5 h-5" /> Ops-Manager View
                             </button>
                           )}
+                          {/* Add Manager option if the role is Manager */}
+                          {getUserRole() === 'Manager' && (
+                            <button
+                              onClick={handleManagerView}
+                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-green-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                            >
+                              <FaTasks className="text-green-500 w-5 h-5" /> Manager
+                            </button>
+                          )}
                           <button
                             onClick={handleEditProfile}
                             className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
@@ -627,6 +655,40 @@ const handleLogout = () => {
                 <button
                   onClick={handlePasswordSubmit}
                   className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Manager Ops-Manager Password Modal */}
+        {showManagerPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowManagerPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <input
+                  type="password"
+                  value={ManagerPassword}
+                  onChange={(e) => setManagerPassword(e.target.value)}
+                  placeholder="Enter Ops-Manager Manager Password"
+                  className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-green-500`}
+                />
+                {ManagerPasswordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
+                <button
+                  onClick={handleManagerPasswordSubmit}
+                  className="px-8 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
                 >
                   Submit
                 </button>
