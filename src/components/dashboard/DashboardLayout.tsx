@@ -114,7 +114,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
 
 const handleLogout = () => {
   logout(); // your logout function (e.g., clearing tokens or session)
-  router.replace('/login'); // navigate to login screen
+  // router.replace('/v1/employee/login'); // navigate to login screen
 };
 
 
