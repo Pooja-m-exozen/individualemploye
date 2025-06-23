@@ -31,7 +31,15 @@ const menuItems = [
       { label: "View", href: "/Manager/id-card-management/view" },
     ]
   },
-  { label: "Uniform Management", icon: <FaTshirt />, href: "/Manager/uniform-management" },
+  {
+    label: "Uniform Management",
+    icon: <FaTshirt />,
+    subItems: [
+      { label: "Requests", href: "/Manager/uniform-management/requests" },
+      { label: "View", href: "/Manager/uniform-management/view" },
+      { label: "Project Wise Applicable", href: "/Manager/uniform-management/project-wise-applicable" },
+    ]
+  },
   { label: "Attendance Management", icon: <FaCalendarAlt />, href: "/Manager/attendance-management" },
   { label: "Leave Management", icon: <FaPlaneDeparture />, href: "/Manager/leave-management" },
   { label: "Stores Management", icon: <FaStore />, href: "/Manager/stores-management" },
