@@ -5,7 +5,6 @@ import Image from "next/image";
 import { FaTachometerAlt, FaUsers, FaTasks, FaCog, FaSun, FaMoon, FaBell, FaBars, FaSignOutAlt, FaChevronRight, FaIdCard, FaTshirt, FaCalendarAlt, FaPlaneDeparture, FaStore, FaMoneyBillWave, FaProjectDiagram, FaIdBadge } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { getEmployeeId, logout } from "@/services/auth";
-import Link from "next/link";
 
 interface ManagerDashboardLayoutProps {
   children: React.ReactNode;
@@ -123,20 +122,20 @@ const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
                       <ul className="pl-8 space-y-1">
                         {item.subItems.map((sub) => (
                           <li key={sub.label}>
-                            <Link href={sub.href} className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 text-sm ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}>
+                            <a href={sub.href} className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 text-sm ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}>
                               <FaChevronRight className="mr-2 text-xs" />
                               {sub.label}
-                            </Link>
+                            </a>
                           </li>
                         ))}
                       </ul>
                     )}
                   </div>
                 ) : (
-                  <Link href={item.href} className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${isSidebarExpanded ? "justify-start" : "justify-center"} ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}>
+                  <a href={item.href} className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${isSidebarExpanded ? "justify-start" : "justify-center"} ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}>
                     <span className="text-xl">{item.icon}</span>
                     {isSidebarExpanded && <span className="ml-3 font-medium">{item.label}</span>}
-                  </Link>
+                  </a>
                 )}
               </li>
             ))}
@@ -192,4 +191,4 @@ const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
   );
 };
 
-export default ManagerDashboardLayout;
+export default ManagerDashboardLayout; 
