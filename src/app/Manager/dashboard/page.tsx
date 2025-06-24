@@ -2,6 +2,7 @@
 
 import React from "react";
 import { FaUsers, FaProjectDiagram, FaFileAlt, FaCheckCircle, FaChartBar, FaBell, FaUserPlus, FaPlusCircle } from "react-icons/fa";
+import { useTheme } from "@/context/ThemeContext";
 
 const summary = [
   { label: "Total Employees", value: 120, icon: <FaUsers className="w-7 h-7" /> },
@@ -43,6 +44,8 @@ const pendingApprovals = [
 ];
 
 export default function ManagerDashboardPage() {
+  const { theme } = useTheme();
+
   // Pie chart calculations
   const totalProjects = projectDistribution.reduce((sum, p) => sum + p.value, 0);
   let acc = 0;
@@ -74,10 +77,26 @@ export default function ManagerDashboardPage() {
     .join(" ");
 
   return (
-    <div className="min-h-screen font-sans bg-gradient-to-br from-indigo-50 via-white to-blue-50">
+    <div
+      className={`min-h-screen font-sans transition-colors duration-300 ${
+        theme === "dark"
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
+          : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
+      }`}
+    >
       {/* Header */}
-      <div className="rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r from-blue-500 to-blue-800">
-        <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
+      <div
+        className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r ${
+          theme === "dark"
+            ? "from-blue-900 to-blue-700"
+            : "from-blue-500 to-blue-800"
+        }`}
+      >
+        <div
+          className={`rounded-xl p-4 flex items-center justify-center ${
+            theme === "dark" ? "bg-blue-900 bg-opacity-40" : "bg-blue-600 bg-opacity-30"
+          }`}
+        >
           <FaChartBar className="w-10 h-10 text-white" />
         </div>
         <div>
@@ -87,23 +106,46 @@ export default function ManagerDashboardPage() {
       </div>
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-4 mb-8 justify-end">
-        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg shadow transition-colors">
+        <button
+          className={`flex items-center gap-2 font-semibold px-5 py-2 rounded-lg shadow transition-colors ${
+            theme === "dark"
+              ? "bg-blue-700 hover:bg-blue-800 text-white"
+              : "bg-blue-600 hover:bg-blue-700 text-white"
+          }`}
+        >
           <FaUserPlus /> Add Employee
         </button>
-        <button className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-5 py-2 rounded-lg shadow transition-colors">
+        <button
+          className={`flex items-center gap-2 font-semibold px-5 py-2 rounded-lg shadow transition-colors ${
+            theme === "dark"
+              ? "bg-green-700 hover:bg-green-800 text-white"
+              : "bg-green-500 hover:bg-green-600 text-white"
+          }`}
+        >
           <FaPlusCircle /> Create Project
         </button>
       </div>
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
         {summary.map((item) => (
-          <div key={item.label} className="bg-white rounded-2xl shadow p-6 flex items-center gap-4 border border-blue-100">
-            <div className="bg-blue-100 rounded-xl p-3 flex items-center justify-center">
+          <div
+            key={item.label}
+            className={`rounded-2xl shadow p-6 flex items-center gap-4 border ${
+              theme === "dark"
+                ? "bg-gray-800 border-blue-900"
+                : "bg-white border-blue-100"
+            }`}
+          >
+            <div
+              className={`rounded-xl p-3 flex items-center justify-center ${
+                theme === "dark" ? "bg-blue-900" : "bg-blue-100"
+              }`}
+            >
               {item.icon}
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-700">{item.value}</div>
-              <div className="text-gray-500 text-sm font-medium">{item.label}</div>
+              <div className={`text-2xl font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>{item.value}</div>
+              <div className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>{item.label}</div>
             </div>
           </div>
         ))}
@@ -111,24 +153,32 @@ export default function ManagerDashboardPage() {
       {/* Graphs + Recent Activities */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
         {/* Attendance Graph */}
-        <div className="bg-white rounded-2xl shadow p-6 border border-blue-100 col-span-2 flex flex-col">
-          <div className="font-bold text-blue-700 mb-4">Attendance Trend (Last 6 Months)</div>
+        <div
+          className={`rounded-2xl shadow p-6 border col-span-2 flex flex-col ${
+            theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
+          }`}
+        >
+          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Attendance Trend (Last 6 Months)</div>
           <div className="flex items-end h-48 gap-4">
             {attendanceData.map((d) => (
               <div key={d.month} className="flex flex-col items-center flex-1">
                 <div
-                  className="w-10 rounded-t-lg bg-blue-500"
+                  className={theme === "dark" ? "w-10 rounded-t-lg bg-blue-700" : "w-10 rounded-t-lg bg-blue-500"}
                   style={{ height: `${d.value * 1.5}px`, minHeight: 10 }}
                 ></div>
-                <div className="text-xs text-gray-500 mt-2">{d.month}</div>
-                <div className="text-xs text-blue-700 font-bold">{d.value}%</div>
+                <div className={`text-xs mt-2 ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>{d.month}</div>
+                <div className={`text-xs font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>{d.value}%</div>
               </div>
             ))}
           </div>
         </div>
         {/* Project Distribution Pie Chart */}
-        <div className="bg-white rounded-2xl shadow p-6 border border-blue-100 flex flex-col items-center">
-          <div className="font-bold text-blue-700 mb-4">Project Distribution</div>
+        <div
+          className={`rounded-2xl shadow p-6 border flex flex-col items-center ${
+            theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
+          }`}
+        >
+          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Project Distribution</div>
           <svg width={120} height={120} viewBox="0 0 120 120" className="mb-4">
             {pieSlices}
           </svg>
@@ -136,7 +186,7 @@ export default function ManagerDashboardPage() {
             {projectDistribution.map((p) => (
               <span key={p.name} className="flex items-center gap-2 text-sm">
                 <span className="w-3 h-3 rounded-full" style={{ background: p.color }}></span>
-                {p.name}
+                <span className={theme === "dark" ? "text-gray-200" : "text-gray-700"}>{p.name}</span>
               </span>
             ))}
           </div>
@@ -145,8 +195,12 @@ export default function ManagerDashboardPage() {
       {/* Leave Trend Line Chart + Recent Activities */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
         {/* Leave Trend Line Chart */}
-        <div className="bg-white rounded-2xl shadow p-6 border border-blue-100 flex flex-col items-center col-span-2">
-          <div className="font-bold text-blue-700 mb-4">Leave Trend (Last 6 Months)</div>
+        <div
+          className={`rounded-2xl shadow p-6 border flex flex-col items-center col-span-2 ${
+            theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
+          }`}
+        >
+          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Leave Trend (Last 6 Months)</div>
           <svg width={240} height={140} className="mb-4">
             <polyline
               fill="none"
@@ -170,7 +224,7 @@ export default function ManagerDashboardPage() {
                 x={20 + (i * 100) / (leaveMonths.length - 1)}
                 y={135}
                 textAnchor="middle"
-                className="text-xs fill-gray-400"
+                className={theme === "dark" ? "text-xs fill-gray-400" : "text-xs fill-gray-400"}
               >
                 {m}
               </text>
@@ -178,17 +232,21 @@ export default function ManagerDashboardPage() {
           </svg>
         </div>
         {/* Recent Activities */}
-        <div className="bg-white rounded-2xl shadow p-6 border border-blue-100 flex flex-col">
-          <div className="font-bold text-blue-700 mb-4">Recent Activities</div>
+        <div
+          className={`rounded-2xl shadow p-6 border flex flex-col ${
+            theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
+          }`}
+        >
+          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Recent Activities</div>
           <ul className="space-y-4">
             {recentActivities.map((act, idx) => (
               <li key={idx} className="flex items-center gap-3">
-                <span className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-50">
+                <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-blue-900" : "bg-blue-50"}`}>
                   {act.icon}
                 </span>
                 <div className="flex-1">
-                  <div className="text-gray-700 text-sm">{act.text}</div>
-                  <div className="text-xs text-gray-400">{act.time}</div>
+                  <div className={theme === "dark" ? "text-gray-200 text-sm" : "text-gray-700 text-sm"}>{act.text}</div>
+                  <div className={theme === "dark" ? "text-xs text-gray-400" : "text-xs text-gray-400"}>{act.time}</div>
                 </div>
               </li>
             ))}
@@ -196,28 +254,28 @@ export default function ManagerDashboardPage() {
         </div>
       </div>
       {/* Pending Approvals Table */}
-      <div className="bg-white rounded-2xl shadow p-6 border border-blue-100">
-        <div className="font-bold text-blue-700 mb-4">Pending Approvals</div>
+      <div className={`rounded-2xl shadow p-6 border ${theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"}`}>
+        <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Pending Approvals</div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-blue-100">
-            <thead className="bg-blue-50">
+          <table className="min-w-full divide-y">
+            <thead className={theme === "dark" ? "bg-blue-900" : "bg-blue-50"}>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Employee</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Status</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Type</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-blue-50">
+            <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
               {pendingApprovals.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-12 text-center text-gray-500">No pending approvals</td>
+                  <td colSpan={3} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No pending approvals</td>
                 </tr>
               ) : pendingApprovals.map((item) => (
-                <tr key={item.id} className="hover:bg-blue-50 transition">
-                  <td className="px-4 py-3 font-bold text-blue-800">{item.type}</td>
+                <tr key={item.id} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
+                  <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{item.type}</td>
                   <td className="px-4 py-3">{item.employee}</td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">{item.status}</span>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${theme === "dark" ? "bg-yellow-900 text-yellow-200" : "bg-yellow-100 text-yellow-800"}`}>{item.status}</span>
                   </td>
                 </tr>
               ))}
@@ -227,4 +285,4 @@ export default function ManagerDashboardPage() {
       </div>
     </div>
   );
-} 
+}

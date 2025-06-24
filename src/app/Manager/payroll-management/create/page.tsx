@@ -4,6 +4,7 @@ import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayou
 import { FaMoneyBillWave, FaUser, FaBuilding, FaBriefcase, FaCheckCircle, FaArrowLeft, FaInfoCircle, FaPlus, FaExclamationCircle } from "react-icons/fa";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "@/context/ThemeContext";
 
 const dummyEmployees = [
   { employeeId: "EMP001", fullName: "John Doe", projectName: "Project Alpha", designation: "Security Guard", employeeImage: "", hasPayroll: true },
@@ -32,6 +33,7 @@ const dummyMonths = [
 ];
 
 export default function PayrollCreatePage() {
+  const { theme } = useTheme();
   const [activeStep, setActiveStep] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
@@ -100,16 +102,16 @@ export default function PayrollCreatePage() {
 
   return (
     <ManagerDashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 flex flex-col">
+      <div className={`min-h-screen flex flex-col transition-colors duration-300 ${theme === "dark" ? "bg-gradient-to-br from-gray-900 via-gray-950 to-blue-950" : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"}`}>
         {/* Header */}
-        <div className="rounded-b-2xl shadow p-6 bg-gradient-to-r from-blue-600 to-blue-400">
+        <div className={`rounded-b-2xl shadow p-6 bg-gradient-to-r ${theme === "dark" ? "from-blue-900 to-blue-700" : "from-blue-600 to-blue-400"}`}>
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+            <div className={`p-3 rounded-xl ${theme === "dark" ? "bg-white/10 backdrop-blur-sm" : "bg-white/20 backdrop-blur-sm"}`}>
               <FaMoneyBillWave className="w-8 h-8 text-white" />
             </div>
             <div>
               <h1 className="text-3xl font-bold text-white">Payroll Creation</h1>
-              <p className="text-blue-100">Create and manage employee payrolls</p>
+              <p className={theme === "dark" ? "text-blue-200" : "text-blue-100"}>Create and manage employee payrolls</p>
             </div>
           </div>
         </div>
@@ -117,36 +119,34 @@ export default function PayrollCreatePage() {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl shadow-sm overflow-hidden mb-6 border bg-white border-gray-200"
+            className={`rounded-xl shadow-sm overflow-hidden mb-6 border transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}
           >
             {/* Stepper */}
             <div className="flex justify-between items-center w-full px-6 pt-6">
               {steps.map((step, idx) => (
                 <div key={step.id} className="flex items-center flex-1 last:flex-none">
                   <div className="flex flex-col items-center relative">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold transition-colors duration-300 ${
                       activeStep > step.id
                         ? "bg-green-500"
                         : activeStep === step.id
-                        ? "bg-blue-600"
-                        : "bg-gray-200"
-                    } text-white font-semibold transition-colors duration-300`}>
+                        ? theme === "dark" ? "bg-blue-800" : "bg-blue-600"
+                        : theme === "dark" ? "bg-gray-800" : "bg-gray-200"
+                    }`}>
                       {activeStep > step.id ? <FaCheckCircle className="w-5 h-5" /> : step.id}
                     </div>
                     <p className={`text-sm font-medium mt-3 ${
                       activeStep > step.id
                         ? "text-green-500"
                         : activeStep === step.id
-                        ? "text-blue-600"
-                        : "text-gray-500"
+                        ? theme === "dark" ? "text-blue-300" : "text-blue-600"
+                        : theme === "dark" ? "text-gray-400" : "text-gray-500"
                     }`}>
                       {step.title}
                     </p>
                   </div>
                   {idx !== steps.length - 1 && (
-                    <div className={`h-0.5 flex-1 mx-4 ${
-                      activeStep > step.id ? "bg-green-500" : "bg-gray-200"
-                    }`} />
+                    <div className={`h-0.5 flex-1 mx-4 ${activeStep > step.id ? "bg-green-500" : theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
                   )}
                 </div>
               ))}
@@ -159,22 +159,22 @@ export default function PayrollCreatePage() {
               animate={{ opacity: 1, x: 0 }}
               className="lg:col-span-4"
             >
-              <div className="rounded-xl p-6 sticky top-8 border bg-white border-gray-200">
+              <div className={`rounded-xl p-6 sticky top-8 border transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
+                  <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-50 text-blue-600"}`}>
                     <FaInfoCircle className="w-5 h-5" />
                   </div>
-                  <h2 className="text-lg font-semibold text-gray-900">Guidelines</h2>
+                  <h2 className={`text-lg font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>Guidelines</h2>
                 </div>
                 <ul className="space-y-4">
                   {guidelines.map((g, i) => (
                     <li key={i} className="flex items-start gap-3">
-                      <span className="p-2 rounded-lg bg-green-50 text-green-600"><FaCheckCircle className="w-4 h-4" /></span>
-                      <span className="text-sm text-gray-700 leading-relaxed">{g}</span>
+                      <span className={`p-2 rounded-lg ${theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-50 text-green-600"}`}><FaCheckCircle className="w-4 h-4" /></span>
+                      <span className={`text-sm leading-relaxed ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>{g}</span>
                     </li>
                   ))}
                 </ul>
-                <div className="mt-8 p-4 rounded-xl border bg-blue-50 border-blue-100 text-blue-700">
+                <div className={`mt-8 p-4 rounded-xl border transition-colors duration-300 ${theme === "dark" ? "bg-blue-900 border-blue-800 text-blue-200" : "bg-blue-50 border-blue-100 text-blue-700"}`}>
                   <div className="flex items-center gap-2 mb-2">
                     <FaMoneyBillWave className="w-4 h-4" />
                     <span className="font-semibold">Need Help?</span>
@@ -191,9 +191,9 @@ export default function PayrollCreatePage() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="flex items-center gap-4 text-red-600 bg-red-50 p-6 rounded-xl border border-red-100"
+                    className={`flex items-center gap-4 p-6 rounded-xl border transition-colors duration-300 ${theme === "dark" ? "text-red-300 bg-red-950 border-red-900" : "text-red-600 bg-red-50 border-red-100"}`}
                   >
-                    <div className="p-3 bg-red-100 rounded-xl">
+                    <div className={`p-3 rounded-xl ${theme === "dark" ? "bg-red-900" : "bg-red-100"}`}>
                       <FaExclamationCircle className="w-6 h-6" />
                     </div>
                     <div>
@@ -207,9 +207,9 @@ export default function PayrollCreatePage() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="flex items-center gap-4 text-green-600 bg-green-50 p-6 rounded-xl border border-green-100"
+                    className={`flex items-center gap-4 p-6 rounded-xl border transition-colors duration-300 ${theme === "dark" ? "text-green-300 bg-green-950 border-green-900" : "text-green-600 bg-green-50 border-green-100"}`}
                   >
-                    <div className="p-3 bg-green-100 rounded-xl">
+                    <div className={`p-3 rounded-xl ${theme === "dark" ? "bg-green-900" : "bg-green-100"}`}>
                       <FaCheckCircle className="w-6 h-6" />
                     </div>
                     <div>
@@ -227,25 +227,25 @@ export default function PayrollCreatePage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    className="rounded-2xl p-6 border bg-white border-gray-200"
+                    className={`rounded-2xl p-6 border transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}
                   >
                     {/* Filters Row */}
                     <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
                       <div className="relative">
-                        <FaUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <FaUser className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="text"
                           placeholder="Search by name, project, designation, or ID..."
                           value={search}
                           onChange={e => setSearch(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-500"
+                          className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
                         />
                       </div>
                       <div>
                         <select
                           value={projectFilter}
                           onChange={e => { setProjectFilter(e.target.value); setEmployeeFilter(""); }}
-                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
+                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                         >
                           <option value="">All Projects</option>
                           {dummyProjects.map(p => <option key={p} value={p}>{p}</option>)}
@@ -255,7 +255,7 @@ export default function PayrollCreatePage() {
                         <select
                           value={designationFilter}
                           onChange={e => { setDesignationFilter(e.target.value); setEmployeeFilter(""); }}
-                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
+                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                         >
                           <option value="">All Designations</option>
                           {dummyDesignations.map(d => <option key={d} value={d}>{d}</option>)}
@@ -265,7 +265,7 @@ export default function PayrollCreatePage() {
                         <select
                           value={employeeFilter}
                           onChange={e => setEmployeeFilter(e.target.value)}
-                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
+                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                         >
                           <option value="">All Employees</option>
                           {filteredEmployeeOptions.map(emp => (
@@ -277,7 +277,7 @@ export default function PayrollCreatePage() {
                         <select
                           value={monthFilter}
                           onChange={e => setMonthFilter(e.target.value)}
-                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
+                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                         >
                           <option value="">All Months</option>
                           {dummyMonths.map(m => <option key={m} value={m}>{m}</option>)}
@@ -288,11 +288,11 @@ export default function PayrollCreatePage() {
                     {/* Employee List */}
                     <div className="grid grid-cols-1 gap-6">
                       {filteredEmployees.length === 0 ? (
-                        <div className="text-center text-gray-500 py-12">No employees found.</div>
+                        <div className={`text-center py-12 ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>No employees found.</div>
                       ) : (
                         filteredEmployees.map(emp => (
-                          <div key={emp.employeeId} className="flex items-center gap-6 bg-blue-50 rounded-xl p-6 border border-blue-100 shadow-sm hover:shadow-md transition">
-                            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                          <div key={emp.employeeId} className={`flex items-center gap-6 rounded-xl p-6 border shadow-sm hover:shadow-md transition ${theme === "dark" ? "bg-blue-950 border-blue-900" : "bg-blue-50 border-blue-100"}`}>
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center overflow-hidden ${theme === "dark" ? "bg-blue-900" : "bg-blue-100"}`}>
                               {emp.employeeImage ? (
                                 <Image src={emp.employeeImage} alt={emp.fullName} width={64} height={64} className="object-cover w-full h-full" />
                               ) : (
@@ -301,16 +301,16 @@ export default function PayrollCreatePage() {
                             </div>
                             <div className="flex-1">
                               <div className="flex flex-wrap gap-2 items-center mb-1">
-                                <span className="font-bold text-lg text-blue-900">{emp.fullName}</span>
-                                <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full font-semibold">{emp.employeeId}</span>
+                                <span className={`font-bold text-lg ${theme === "dark" ? "text-blue-200" : "text-blue-900"}`}>{emp.fullName}</span>
+                                <span className={`text-xs px-2 py-1 rounded-full font-semibold ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-200 text-blue-800"}`}>{emp.employeeId}</span>
                               </div>
-                              <div className="flex flex-wrap gap-4 text-sm text-gray-700">
+                              <div className={`flex flex-wrap gap-4 text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
                                 <span className="flex items-center gap-1"><FaBuilding className="w-4 h-4 text-blue-400" /> {emp.projectName}</span>
                                 <span className="flex items-center gap-1"><FaBriefcase className="w-4 h-4 text-blue-400" /> {emp.designation}</span>
                               </div>
                             </div>
                             <button
-                              className="px-5 py-2 rounded-lg bg-blue-600 text-white font-semibold text-base hover:bg-blue-700 transition flex items-center gap-2"
+                              className={`px-5 py-2 rounded-lg font-semibold text-base transition flex items-center gap-2 ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                               onClick={() => handleSelectEmployee(emp)}
                             >
                               <FaPlus className="w-4 h-4" /> Create Payroll
@@ -328,16 +328,16 @@ export default function PayrollCreatePage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    className="rounded-2xl p-6 border bg-white border-gray-200"
+                    className={`rounded-2xl p-6 border transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}
                   >
                     <button
-                      className="mb-4 flex items-center gap-2 text-blue-600 hover:underline"
+                      className={`mb-4 flex items-center gap-2 hover:underline transition-colors duration-200 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`}
                       onClick={() => { setActiveStep(1); setSelectedEmployee(null); }}
                     >
                       <FaArrowLeft className="w-4 h-4" /> Back to Employee List
                     </button>
                     <div className="flex items-center gap-4 mb-6">
-                      <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center overflow-hidden ${theme === "dark" ? "bg-blue-900" : "bg-blue-100"}`}>
                         {selectedEmployee.employeeImage ? (
                           <Image src={selectedEmployee.employeeImage} alt={selectedEmployee.fullName} width={64} height={64} className="object-cover w-full h-full" />
                         ) : (
@@ -345,9 +345,9 @@ export default function PayrollCreatePage() {
                         )}
                       </div>
                       <div>
-                        <div className="font-bold text-lg text-blue-900">{selectedEmployee.fullName}</div>
-                        <div className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full font-semibold inline-block">{selectedEmployee.employeeId}</div>
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-700 mt-1">
+                        <div className={`font-bold text-lg ${theme === "dark" ? "text-blue-200" : "text-blue-900"}`}>{selectedEmployee.fullName}</div>
+                        <div className={`text-xs px-2 py-1 rounded-full font-semibold inline-block ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-200 text-blue-800"}`}>{selectedEmployee.employeeId}</div>
+                        <div className={`flex flex-wrap gap-4 text-sm mt-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
                           <span className="flex items-center gap-1"><FaBuilding className="w-4 h-4 text-blue-400" /> {selectedEmployee.projectName}</span>
                           <span className="flex items-center gap-1"><FaBriefcase className="w-4 h-4 text-blue-400" /> {selectedEmployee.designation}</span>
                         </div>
@@ -355,21 +355,21 @@ export default function PayrollCreatePage() {
                     </div>
                     <form className="space-y-6" onSubmit={e => { setPayrollForm({ ...payrollForm }); handlePayrollSubmit(e); }}>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
-                        <select className="w-full px-4 py-2 rounded-lg border border-gray-200" value={payrollForm.month} onChange={e => setPayrollForm(f => ({ ...f, month: e.target.value }))} required>
+                        <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Month</label>
+                        <select className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100" : "border-gray-200"}`} value={payrollForm.month} onChange={e => setPayrollForm(f => ({ ...f, month: e.target.value }))} required>
                           <option value="">Select Month</option>
                           {dummyMonths.map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                        <input type="number" className="w-full px-4 py-2 rounded-lg border border-gray-200" placeholder="2025" value={payrollForm.year} onChange={e => setPayrollForm(f => ({ ...f, year: e.target.value }))} required />
+                        <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Year</label>
+                        <input type="number" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100" : "border-gray-200"}`} placeholder="2025" value={payrollForm.year} onChange={e => setPayrollForm(f => ({ ...f, year: e.target.value }))} required />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                        <input type="number" className="w-full px-4 py-2 rounded-lg border border-gray-200" placeholder="Amount" value={payrollForm.amount} onChange={e => setPayrollForm(f => ({ ...f, amount: e.target.value }))} required />
+                        <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Amount</label>
+                        <input type="number" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100" : "border-gray-200"}`} placeholder="Amount" value={payrollForm.amount} onChange={e => setPayrollForm(f => ({ ...f, amount: e.target.value }))} required />
                       </div>
-                      <button type="submit" className="w-full mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-base hover:bg-blue-700 transition">Continue</button>
+                      <button type="submit" className={`w-full mt-4 px-4 py-2 rounded-lg font-semibold text-base transition ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`}>Continue</button>
                     </form>
                   </motion.div>
                 )}
@@ -380,18 +380,18 @@ export default function PayrollCreatePage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    className="rounded-2xl p-6 border bg-white border-gray-200"
+                    className={`rounded-2xl p-6 border transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}
                   >
                     <div className="flex items-center gap-4 mb-6">
                       <FaCheckCircle className="w-10 h-10 text-green-500" />
                       <div>
-                        <div className="font-bold text-lg text-blue-900">Payroll Confirmation</div>
-                        <div className="text-gray-600 text-sm">Please review the payroll details before finishing.</div>
+                        <div className={`font-bold text-lg ${theme === "dark" ? "text-blue-200" : "text-blue-900"}`}>Payroll Confirmation</div>
+                        <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Please review the payroll details before finishing.</div>
                       </div>
                     </div>
                     <div className="mb-6">
                       <div className="flex items-center gap-4 mb-2">
-                        <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center overflow-hidden ${theme === "dark" ? "bg-blue-900" : "bg-blue-100"}`}>
                           {selectedEmployee.employeeImage ? (
                             <Image src={selectedEmployee.employeeImage} alt={selectedEmployee.fullName} width={64} height={64} className="object-cover w-full h-full" />
                           ) : (
@@ -399,31 +399,31 @@ export default function PayrollCreatePage() {
                           )}
                         </div>
                         <div>
-                          <div className="font-bold text-lg text-blue-900">{selectedEmployee.fullName}</div>
-                          <div className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full font-semibold inline-block">{selectedEmployee.employeeId}</div>
-                          <div className="flex flex-wrap gap-4 text-sm text-gray-700 mt-1">
+                          <div className={`font-bold text-lg ${theme === "dark" ? "text-blue-200" : "text-blue-900"}`}>{selectedEmployee.fullName}</div>
+                          <div className={`text-xs px-2 py-1 rounded-full font-semibold inline-block ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-200 text-blue-800"}`}>{selectedEmployee.employeeId}</div>
+                          <div className={`flex flex-wrap gap-4 text-sm mt-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
                             <span className="flex items-center gap-1"><FaBuilding className="w-4 h-4 text-blue-400" /> {selectedEmployee.projectName}</span>
                             <span className="flex items-center gap-1"><FaBriefcase className="w-4 h-4 text-blue-400" /> {selectedEmployee.designation}</span>
                           </div>
                         </div>
                       </div>
                       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-blue-50 rounded-xl p-4">
-                          <div className="text-xs text-gray-500 mb-1">Month</div>
-                          <div className="font-semibold text-blue-800">{payrollForm.month}</div>
+                        <div className={`rounded-xl p-4 ${theme === "dark" ? "bg-blue-950" : "bg-blue-50"}`}>
+                          <div className={`text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Month</div>
+                          <div className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{payrollForm.month}</div>
                         </div>
-                        <div className="bg-blue-50 rounded-xl p-4">
-                          <div className="text-xs text-gray-500 mb-1">Year</div>
-                          <div className="font-semibold text-blue-800">{payrollForm.year}</div>
+                        <div className={`rounded-xl p-4 ${theme === "dark" ? "bg-blue-950" : "bg-blue-50"}`}>
+                          <div className={`text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Year</div>
+                          <div className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{payrollForm.year}</div>
                         </div>
-                        <div className="bg-blue-50 rounded-xl p-4">
-                          <div className="text-xs text-gray-500 mb-1">Amount</div>
-                          <div className="font-semibold text-blue-800">₹{payrollForm.amount}</div>
+                        <div className={`rounded-xl p-4 ${theme === "dark" ? "bg-blue-950" : "bg-blue-50"}`}>
+                          <div className={`text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Amount</div>
+                          <div className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>₹{payrollForm.amount}</div>
                         </div>
                       </div>
                     </div>
                     <button
-                      className="w-full mt-4 px-4 py-2 rounded-lg bg-green-600 text-white font-semibold text-base hover:bg-green-700 transition"
+                      className={`w-full mt-4 px-4 py-2 rounded-lg font-semibold text-base transition ${theme === "dark" ? "bg-green-800 text-white hover:bg-green-900" : "bg-green-600 text-white hover:bg-green-700"}`}
                       onClick={handleFinish}
                       disabled={confirmed}
                     >
@@ -440,31 +440,31 @@ export default function PayrollCreatePage() {
                     exit={{ opacity: 0, y: -20 }}
                     className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4"
                   >
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 relative">
+                    <div className={`rounded-2xl shadow-2xl max-w-lg w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
                       <button
-                        className="absolute top-4 right-4 text-gray-400 hover:text-blue-600"
+                        className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
                         onClick={() => setShowCreateDetails(false)}
                       >
                         <FaArrowLeft className="w-6 h-6" />
                       </button>
-                      <h2 className="text-2xl font-bold text-blue-700 mb-4 flex items-center gap-2">
+                      <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
                         <FaMoneyBillWave className="w-5 h-5" /> Create Payroll Details for {selectedEmployee.fullName}
                       </h2>
-                      <div className="mb-4 text-gray-700 text-sm">No payroll/HR details found for this employee. Please create new details below.</div>
+                      <div className={`mb-4 text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>No payroll/HR details found for this employee. Please create new details below.</div>
                       <form className="space-y-4" onSubmit={handleCreateDetails}>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Basic Salary</label>
-                          <input type="number" className="w-full px-4 py-2 rounded-lg border border-gray-200" placeholder="Basic Salary" />
+                          <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Basic Salary</label>
+                          <input type="number" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100" : "border-gray-200"}`} placeholder="Basic Salary" />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">HR Allowance</label>
-                          <input type="number" className="w-full px-4 py-2 rounded-lg border border-gray-200" placeholder="HR Allowance" />
+                          <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>HR Allowance</label>
+                          <input type="number" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100" : "border-gray-200"}`} placeholder="HR Allowance" />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Other Details</label>
-                          <input type="text" className="w-full px-4 py-2 rounded-lg border border-gray-200" placeholder="Other details" />
+                          <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Other Details</label>
+                          <input type="text" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100" : "border-gray-200"}`} placeholder="Other details" />
                         </div>
-                        <button type="submit" className="w-full mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-base hover:bg-blue-700 transition">Create Details</button>
+                        <button type="submit" className={`w-full mt-4 px-4 py-2 rounded-lg font-semibold text-base transition ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`}>Create Details</button>
                       </form>
                     </div>
                   </motion.div>
@@ -476,4 +476,4 @@ export default function PayrollCreatePage() {
       </div>
     </ManagerDashboardLayout>
   );
-} 
+}

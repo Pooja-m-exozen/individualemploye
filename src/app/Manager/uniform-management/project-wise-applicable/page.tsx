@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import ManagerDashboardLayout from '@/components/dashboard/ManagerDashboardLayout';
 import { FaIdCard, FaInfoCircle } from 'react-icons/fa';
+import { useTheme } from "@/context/ThemeContext";
 
 const MOCK_PROJECTS = ['Project Alpha', 'Project Beta', 'Project Gamma'];
 const MOCK_DESIGNATIONS = ['Security Guard', 'Supervisor', 'Technician', 'Driver'];
@@ -14,6 +15,7 @@ const MOCK_EMPLOYEES = [
 ];
 
 const UniformProjectWiseApplicablePage = () => {
+  const { theme } = useTheme();
   const [mappings, setMappings] = useState([
     { id: 1, project: 'Project Alpha', designation: 'Security Guard', employeeId: '', payable: true, type: 'designation' },
     { id: 2, project: 'Project Beta', designation: 'Supervisor', employeeId: '', payable: false, type: 'designation' },
@@ -103,10 +105,10 @@ const UniformProjectWiseApplicablePage = () => {
 
   return (
     <ManagerDashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 flex flex-col items-center py-8">
+      <div className={`min-h-screen flex flex-col items-center py-8 ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
         {/* Modern Header */}
-        <div className="rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r from-blue-500 to-blue-800 w-full max-w-5xl mx-auto">
-          <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
+        <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg w-full max-w-5xl mx-auto ${theme === 'dark' ? 'bg-gradient-to-r from-blue-900 to-blue-700' : 'bg-gradient-to-r from-blue-500 to-blue-800'}`}>
+          <div className={`${theme === 'dark' ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-600 bg-opacity-30'} rounded-xl p-4 flex items-center justify-center`}>
             <FaIdCard className="w-10 h-10 text-white" />
           </div>
           <div>
@@ -116,19 +118,19 @@ const UniformProjectWiseApplicablePage = () => {
         </div>
         <div className="w-full max-w-5xl mx-auto flex flex-col md:flex-row gap-8">
           {/* Sidebar Navigation */}
-          <aside className="md:w-64 flex-shrink-0 flex flex-col gap-6">
-            <div className="rounded-2xl p-4 sticky top-8 bg-white border border-blue-100 shadow">
+          <aside className={`md:w-64 flex-shrink-0 flex flex-col gap-6`}>
+            <div className={`rounded-2xl p-4 sticky top-8 border shadow ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'}`}>
               <nav className="space-y-1">
                 <button
                   onClick={() => setActiveTab('designation')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors font-medium text-lg ${activeTab === 'designation' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-blue-50'}`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors font-medium text-lg ${activeTab === 'designation' ? (theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700') : (theme === 'dark' ? 'text-blue-200 hover:bg-blue-900' : 'text-gray-600 hover:bg-blue-50')}`}
                 >
                   <FaIdCard className="w-5 h-5" />
                   <span>Designation Wise</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('uniformType')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors font-medium text-lg ${activeTab === 'uniformType' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-blue-50'}`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors font-medium text-lg ${activeTab === 'uniformType' ? (theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700') : (theme === 'dark' ? 'text-blue-200 hover:bg-blue-900' : 'text-gray-600 hover:bg-blue-50')}`}
                 >
                   <FaIdCard className="w-5 h-5" />
                   <span>Uniform Types</span>
@@ -136,14 +138,14 @@ const UniformProjectWiseApplicablePage = () => {
               </nav>
             </div>
             {/* Instructions/Info Card */}
-            <div className="relative rounded-2xl p-6 border bg-blue-50 border-blue-200 shadow-xl flex flex-col gap-3 items-start transition-all duration-300 hover:shadow-2xl">
+            <div className={`relative rounded-2xl p-6 border shadow-xl flex flex-col gap-3 items-start transition-all duration-300 hover:shadow-2xl ${theme === 'dark' ? 'bg-blue-950 border-blue-900' : 'bg-blue-50 border-blue-200'}`}>
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-xl bg-blue-100 flex items-center justify-center">
+                <div className={`${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'} p-2 rounded-xl flex items-center justify-center`}>
                   <FaInfoCircle className="w-6 h-6 text-blue-600" />
                 </div>
-                <h3 className="text-lg font-bold text-blue-800 tracking-tight">Instructions & Notes</h3>
+                <h3 className={`text-lg font-bold tracking-tight ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Instructions & Notes</h3>
               </div>
-              <ul className="space-y-2 text-blue-800 text-sm pl-2">
+              <ul className={`space-y-2 text-sm pl-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
                 <li>• Use the sidebar to switch between mapping and uniform types.</li>
                 <li>• Add, edit, or view mappings and types in the main area.</li>
                 <li>• All fields marked with * are mandatory.</li>
@@ -155,14 +157,14 @@ const UniformProjectWiseApplicablePage = () => {
             {activeTab === 'designation' && (
               <>
                 {/* Add Mapping Form */}
-                <section className="bg-white rounded-2xl p-8 border border-blue-100 shadow-xl mb-8">
-                  <h2 className="text-xl font-bold text-blue-700 mb-4">Add Designation Wise Uniform</h2>
+                <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-8 border shadow-xl mb-8`}>
+                  <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Add Designation Wise Uniform</h2>
                   <form onSubmit={handleAdd} className="flex flex-col gap-6">
                     <div className="flex flex-col md:flex-row gap-4">
                       <div className="flex-1">
-                        <label className="block text-blue-800 font-semibold mb-1">Project</label>
+                        <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Project</label>
                         <select
-                          className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                           value={form.project}
                           onChange={e => setForm(f => ({ ...f, project: e.target.value }))}
                           required
@@ -172,9 +174,9 @@ const UniformProjectWiseApplicablePage = () => {
                         </select>
                       </div>
                       <div className="flex-1">
-                        <label className="block text-blue-800 font-semibold mb-1">Designation</label>
+                        <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Designation</label>
                         <select
-                          className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                           value={form.designation}
                           onChange={e => setForm(f => ({ ...f, designation: e.target.value, employeeId: '' }))}
                           required
@@ -185,9 +187,9 @@ const UniformProjectWiseApplicablePage = () => {
                       </div>
                       {form.designation && filteredEmployees.length > 0 && (
                         <div className="flex-1">
-                          <label className="block text-blue-800 font-semibold mb-1">Employee ID (optional)</label>
+                          <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee ID (optional)</label>
                           <select
-                            className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                             value={form.employeeId}
                             onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}
                           >
@@ -197,7 +199,7 @@ const UniformProjectWiseApplicablePage = () => {
                         </div>
                       )}
                       <div className="flex-1 flex flex-col justify-end">
-                        <label className="block text-blue-800 font-semibold mb-1">Payable</label>
+                        <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Payable</label>
                         <div className="flex items-center gap-3 mt-1">
                           <label className="flex items-center gap-1 cursor-pointer">
                             <input
@@ -227,28 +229,28 @@ const UniformProjectWiseApplicablePage = () => {
                   </form>
                 </section>
                 {/* Mappings Table */}
-                <section className="bg-white rounded-2xl p-8 border border-blue-100 shadow-xl">
-                  <h2 className="text-xl font-bold text-blue-700 mb-4">Current Mappings</h2>
+                <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-8 border shadow-xl`}>
+                  <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Current Mappings</h2>
                   {mappings.length === 0 ? (
-                    <div className="text-blue-500 text-center py-8">No mappings yet. Add a mapping above.</div>
+                    <div className={`${theme === 'dark' ? 'text-blue-400' : 'text-blue-500'} text-center py-8`}>No mappings yet. Add a mapping above.</div>
                   ) : (
-                    <table className="min-w-full divide-y divide-blue-100">
-                      <thead className="bg-blue-50">
+                    <table className={`min-w-full divide-y ${theme === 'dark' ? 'divide-gray-800' : 'divide-blue-100'}`}>
+                      <thead className={theme === 'dark' ? 'bg-blue-950' : 'bg-blue-50'}>
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Project</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Designation/Employee</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Payable</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Actions</th>
+                          <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Project</th>
+                          <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Designation/Employee</th>
+                          <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Payable</th>
+                          <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-blue-50">
+                      <tbody className={theme === 'dark' ? 'divide-gray-800' : 'divide-blue-50'}>
                         {mappings.map(m => (
-                          <tr key={m.id} className="hover:bg-blue-50 transition">
+                          <tr key={m.id} className={theme === 'dark' ? 'hover:bg-blue-950 transition' : 'hover:bg-blue-50 transition'}>
                             {editId === m.id ? (
                               <>
                                 <td className="px-4 py-3">
                                   <select
-                                    className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                                     value={editForm.project}
                                     onChange={e => setEditForm(f => ({ ...f, project: e.target.value }))}
                                     required
@@ -259,7 +261,7 @@ const UniformProjectWiseApplicablePage = () => {
                                 </td>
                                 <td className="px-4 py-3">
                                   <select
-                                    className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2"
+                                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 mb-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                                     value={editForm.designation}
                                     onChange={e => setEditForm(f => ({ ...f, designation: e.target.value, employeeId: '' }))}
                                     required
@@ -269,7 +271,7 @@ const UniformProjectWiseApplicablePage = () => {
                                   </select>
                                   {editForm.designation && editFilteredEmployees.length > 0 && (
                                     <select
-                                      className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                      className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                                       value={editForm.employeeId}
                                       onChange={e => setEditForm(f => ({ ...f, employeeId: e.target.value }))}
                                     >
@@ -304,13 +306,13 @@ const UniformProjectWiseApplicablePage = () => {
                                 </td>
                                 <td className="px-4 py-3 flex gap-2">
                                   <button type="button" className="px-4 py-1 rounded-lg bg-green-500 text-white font-semibold text-sm hover:bg-green-600 transition" onClick={() => saveEdit(m.id)}>Save</button>
-                                  <button type="button" className="px-4 py-1 rounded-lg bg-gray-300 text-gray-700 font-semibold text-sm hover:bg-gray-400 transition" onClick={cancelEdit}>Cancel</button>
+                                  <button type="button" className={`px-4 py-1 rounded-lg font-semibold text-sm transition ${theme === 'dark' ? 'bg-gray-700 text-blue-100 hover:bg-gray-800' : 'bg-gray-300 text-gray-700 hover:bg-gray-400'}`} onClick={cancelEdit}>Cancel</button>
                                 </td>
                               </>
                             ) : (
                               <>
-                                <td className="px-4 py-3 font-bold text-blue-800">{m.project}</td>
-                                <td className="px-4 py-3 text-black">
+                                <td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>{m.project}</td>
+                                <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>
                                   {m.employeeId
                                     ? MOCK_EMPLOYEES.find(emp => emp.employeeId === m.employeeId)?.fullName + ` (${m.employeeId}) [${m.designation}]`
                                     : m.designation}
@@ -319,7 +321,7 @@ const UniformProjectWiseApplicablePage = () => {
                                   {m.payable ? <span className="inline-block bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">Payable</span> : <span className="inline-block bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-semibold">Non-Payable</span>}
                                 </td>
                                 <td className="px-4 py-3 flex gap-2">
-                                  <button type="button" className="px-4 py-1 rounded-lg bg-blue-100 text-blue-700 font-semibold text-sm hover:bg-blue-200 transition" onClick={() => startEdit(m)}>Edit</button>
+                                  <button type="button" className={`px-4 py-1 rounded-lg font-semibold text-sm transition ${theme === 'dark' ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`} onClick={() => startEdit(m)}>Edit</button>
                                 </td>
                               </>
                             )}
@@ -429,4 +431,4 @@ const UniformProjectWiseApplicablePage = () => {
   );
 };
 
-export default UniformProjectWiseApplicablePage; 
+export default UniformProjectWiseApplicablePage;

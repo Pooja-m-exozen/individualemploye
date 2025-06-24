@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { FaSearch, FaUsers, FaChevronRight, FaCheckCircle, FaIdCard, FaTshirt, FaCalendarAlt, FaPlaneDeparture, FaMoneyBillWave, FaFileAlt } from "react-icons/fa";
+import { useTheme } from "@/context/ThemeContext";
 
 type WorkflowKey = 'kyc' | 'idCard' | 'uniform' | 'attendance' | 'leave' | 'payslip';
 
@@ -63,6 +64,7 @@ const workflowSteps: { key: WorkflowKey; label: string; icon: React.ReactNode }[
 ];
 
 export default function EmployeeManagementPage() {
+  const { theme } = useTheme();
   const [search, setSearch] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedStep, setSelectedStep] = useState<WorkflowKey | null>(null);
@@ -130,11 +132,27 @@ export default function EmployeeManagementPage() {
   };
 
   return (
-    <div className="min-h-screen font-sans bg-gradient-to-br from-indigo-50 via-white to-blue-50">
+    <div
+      className={`min-h-screen font-sans transition-colors duration-300 ${
+        theme === "dark"
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
+          : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
+      }`}
+    >
       <div className="p-6">
         {/* Header */}
-        <div className="rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r from-blue-500 to-blue-800">
-          <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
+        <div
+          className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r ${
+            theme === "dark"
+              ? "from-blue-900 to-blue-700"
+              : "from-blue-500 to-blue-800"
+          }`}
+        >
+          <div
+            className={`rounded-xl p-4 flex items-center justify-center ${
+              theme === "dark" ? "bg-blue-900 bg-opacity-40" : "bg-blue-600 bg-opacity-30"
+            }`}
+          >
             <FaUsers className="w-10 h-10 text-white" />
           </div>
           <div>
@@ -145,36 +163,40 @@ export default function EmployeeManagementPage() {
         {/* Search Bar */}
         <div className="flex flex-row flex-wrap gap-2 mb-6 items-center w-full">
           <div className="relative flex-1 min-w-[180px] max-w-xs">
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
             <input
               type="text"
               placeholder="Search employee name or ID..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black placeholder:text-gray-400"
+              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+                theme === "dark"
+                  ? "bg-gray-800 border-blue-900 text-white"
+                  : "bg-white border-gray-200 text-black"
+              }`}
             />
           </div>
         </div>
         {/* Table */}
-        <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white shadow-xl">
-          <table className="min-w-full divide-y divide-blue-100">
-            <thead className="bg-blue-50 sticky top-0 z-10">
+        <div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+          <table className="min-w-full divide-y">
+            <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Employee ID</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Designation</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Workflow</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Action</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Workflow</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-blue-50">
+            <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
               {filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-gray-500">No employees found</td>
+                  <td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No employees found</td>
                 </tr>
               ) : filteredEmployees.map((emp, idx) => (
-                <tr key={idx} className="hover:bg-blue-50 transition">
-                  <td className="px-4 py-3 font-bold text-blue-800">{emp.employeeId}</td>
+                <tr key={idx} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
+                  <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{emp.employeeId}</td>
                   <td className="px-4 py-3">{emp.fullName}</td>
                   <td className="px-4 py-3">{emp.designation}</td>
                   <td className="px-4 py-3">
@@ -183,14 +205,21 @@ export default function EmployeeManagementPage() {
                         <span key={step.key} className="flex items-center">
                           <button
                             type="button"
-                            className={`rounded-full p-2 focus:outline-none cursor-pointer transition ring-0 ${emp.workflow[step.key] ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'} hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
+                            className={`rounded-full p-2 focus:outline-none cursor-pointer transition ring-0 ${emp.workflow[step.key]
+                              ? theme === "dark"
+                                ? 'bg-green-900 text-green-300'
+                                : 'bg-green-100 text-green-700'
+                              : theme === "dark"
+                                ? 'bg-gray-800 text-gray-500'
+                                : 'bg-gray-100 text-gray-400'
+                            } hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
                             onClick={() => setSelectedStep(step.key)}
                             title={`View ${step.label} details`}
                             tabIndex={0}
                           >
                             {step.icon}
                           </button>
-                          {i < workflowSteps.length - 1 && <FaChevronRight className="mx-1 text-gray-300" />}
+                          {i < workflowSteps.length - 1 && <FaChevronRight className={theme === "dark" ? "mx-1 text-gray-600" : "mx-1 text-gray-300"} />}
                         </span>
                       ))}
                     </div>
@@ -198,7 +227,7 @@ export default function EmployeeManagementPage() {
                   <td className="px-4 py-3">
                     <button
                       onClick={() => setSelectedEmployee(emp)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow"
+                      className={`px-4 py-2 rounded-lg font-semibold shadow ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                     >
                       View Workflow
                     </button>
@@ -211,25 +240,32 @@ export default function EmployeeManagementPage() {
         {/* Workflow Modal */}
         {selectedEmployee && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-xl relative">
+            <div className={`rounded-2xl shadow-xl p-8 w-full max-w-xl relative ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white"}`}>
               <button
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl"
+                className={`absolute top-4 right-4 text-2xl ${theme === "dark" ? "text-gray-400 hover:text-gray-200" : "text-gray-400 hover:text-gray-700"}`}
                 onClick={() => setSelectedEmployee(null)}
                 aria-label="Close"
               >
                 &times;
               </button>
-              <h2 className="text-2xl font-bold text-blue-700 mb-6">Employee Workflow</h2>
+              <h2 className={`text-2xl font-bold mb-6 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Employee Workflow</h2>
               <div className="mb-4">
-                <div className="font-semibold text-lg text-gray-800">{selectedEmployee.fullName} <span className="text-gray-500 text-base">({selectedEmployee.employeeId})</span></div>
-                <div className="text-gray-600 text-sm">{selectedEmployee.designation}</div>
+                <div className={`font-semibold text-lg ${theme === "dark" ? "text-gray-100" : "text-gray-800"}`}>{selectedEmployee.fullName} <span className={theme === "dark" ? "text-gray-400 text-base" : "text-gray-500 text-base"}>({selectedEmployee.employeeId})</span></div>
+                <div className={theme === "dark" ? "text-gray-400 text-sm" : "text-gray-600 text-sm"}>{selectedEmployee.designation}</div>
               </div>
               <div className="flex flex-col gap-6">
                 {workflowSteps.map((step, idx) => (
                   <div key={step.key} className="flex items-center gap-4">
                     <button
                       type="button"
-                      className={`rounded-full p-2 focus:outline-none cursor-pointer transition ring-0 ${selectedEmployee.workflow[step.key] ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'} hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
+                      className={`rounded-full p-2 focus:outline-none cursor-pointer transition ring-0 ${selectedEmployee.workflow[step.key]
+                        ? theme === "dark"
+                          ? 'bg-green-900 text-green-300'
+                          : 'bg-green-100 text-green-700'
+                        : theme === "dark"
+                          ? 'bg-gray-800 text-gray-500'
+                          : 'bg-gray-100 text-gray-400'
+                      } hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
                       onClick={() => setSelectedStep(step.key)}
                       title={`View ${step.label} details`}
                       tabIndex={0}
@@ -240,7 +276,7 @@ export default function EmployeeManagementPage() {
                     {selectedEmployee.workflow[step.key] ? (
                       <FaCheckCircle className="text-green-500 w-5 h-5" />
                     ) : (
-                      <span className="text-gray-400">Pending</span>
+                      <span className={theme === "dark" ? "text-gray-500" : "text-gray-400"}>Pending</span>
                     )}
                   </div>
                 ))}
@@ -248,7 +284,7 @@ export default function EmployeeManagementPage() {
               <div className="flex justify-end mt-8">
                 <button
                   onClick={() => setSelectedEmployee(null)}
-                  className="px-6 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow"
+                  className={`px-6 py-2 rounded-lg font-semibold shadow ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                 >
                   Close
                 </button>
@@ -259,9 +295,9 @@ export default function EmployeeManagementPage() {
         {/* Step Details Modal */}
         {selectedStep && selectedEmployee && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md relative">
+            <div className={`rounded-2xl shadow-xl p-8 w-full max-w-md relative ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white"}`}>
               <button
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl"
+                className={`absolute top-4 right-4 text-2xl ${theme === "dark" ? "text-gray-400 hover:text-gray-200" : "text-gray-400 hover:text-gray-700"}`}
                 onClick={() => setSelectedStep(null)}
                 aria-label="Close"
               >
@@ -273,7 +309,7 @@ export default function EmployeeManagementPage() {
                   <div className="flex justify-end mt-8">
                     <button
                       onClick={() => setSelectedStep(null)}
-                      className="px-6 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow"
+                      className={`px-6 py-2 rounded-lg font-semibold shadow ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                     >
                       Close
                     </button>
@@ -286,4 +322,4 @@ export default function EmployeeManagementPage() {
       </div>
     </div>
   );
-} 
+}

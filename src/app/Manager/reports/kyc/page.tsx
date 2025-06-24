@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { FaSearch, FaIdCard, FaFileExport } from "react-icons/fa";
+import { useTheme } from "@/context/ThemeContext";
 
 const dummyKYCRecords = [
   {
@@ -48,6 +49,7 @@ function downloadPDF() {
 }
 
 export default function KYCReportPage() {
+  const { theme } = useTheme();
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("All Projects");
   const [designationFilter, setDesignationFilter] = useState("All Designations");
@@ -70,11 +72,11 @@ export default function KYCReportPage() {
   }, [search, projectFilter, designationFilter, statusFilter]);
 
   return (
-    <div className="min-h-screen font-sans bg-gradient-to-br from-indigo-50 via-white to-blue-50">
+    <div className={`min-h-screen font-sans ${theme === 'dark' ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
       <div className="p-6">
         {/* Header */}
-        <div className="rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r from-blue-500 to-blue-800">
-          <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
+        <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${theme === 'dark' ? 'bg-gradient-to-r from-blue-900 to-blue-800' : 'bg-gradient-to-r from-blue-500 to-blue-800'}`}>
+          <div className={`${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-600 bg-opacity-30'} rounded-xl p-4 flex items-center justify-center`}>
             <FaIdCard className="w-10 h-10 text-white" />
           </div>
           <div>
@@ -89,7 +91,7 @@ export default function KYCReportPage() {
               <select
                 value={projectFilter}
                 onChange={e => setProjectFilter(e.target.value)}
-                className="w-full appearance-none bg-white pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black"
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
               >
                 {projectOptions.map((project) => (
                   <option key={project} value={project}>{project}</option>
@@ -100,7 +102,7 @@ export default function KYCReportPage() {
               <select
                 value={designationFilter}
                 onChange={e => setDesignationFilter(e.target.value)}
-                className="w-full appearance-none bg-white pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black"
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
               >
                 {designationOptions.map((designation) => (
                   <option key={designation} value={designation}>{designation}</option>
@@ -111,7 +113,7 @@ export default function KYCReportPage() {
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
-                className="w-full appearance-none bg-white pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black"
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
               >
                 {statusOptions.map((status) => (
                   <option key={status} value={status}>{status}</option>
@@ -125,55 +127,55 @@ export default function KYCReportPage() {
                 placeholder="Search employee name or ID..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black placeholder:text-gray-400"
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
               />
             </div>
           </div>
           <div className="flex gap-2 justify-end">
             <button
               onClick={downloadExcel}
-              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${theme === 'dark' ? 'bg-green-700 text-white hover:bg-green-800' : 'bg-green-500 text-white hover:bg-green-600'}`}
             >
               <FaFileExport /> Export Excel
             </button>
             <button
               onClick={downloadPDF}
-              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${theme === 'dark' ? 'bg-red-700 text-white hover:bg-red-800' : 'bg-red-500 text-white hover:bg-red-600'}`}
             >
               <FaFileExport /> Export PDF
             </button>
           </div>
         </div>
         {/* Table */}
-        <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white shadow-xl">
-          <table className="min-w-full divide-y divide-blue-100">
-            <thead className="bg-blue-50 sticky top-0 z-10">
+        <div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-blue-100 bg-white'}`}>
+          <table className={`min-w-full divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-blue-100'}`}>
+            <thead className={theme === 'dark' ? 'bg-blue-950 sticky top-0 z-10' : 'bg-blue-50 sticky top-0 z-10'}>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Employee ID</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Project</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Designation</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Status</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Employee ID</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Name</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Project</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Designation</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-blue-50">
+            <tbody className={theme === 'dark' ? 'divide-y divide-gray-800' : 'divide-y divide-blue-50'}>
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-gray-500">No records found</td>
+                  <td colSpan={5} className={`px-4 py-12 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>No records found</td>
                 </tr>
               ) : filteredRecords.map((rec, idx) => (
-                <tr key={idx} className="hover:bg-blue-50 transition">
-                  <td className="px-4 py-3 font-bold text-blue-800">{rec.employeeId}</td>
-                  <td className="px-4 py-3">{rec.fullName}</td>
-                  <td className="px-4 py-3">{rec.project}</td>
-                  <td className="px-4 py-3">{rec.designation}</td>
+                <tr key={idx} className={theme === 'dark' ? 'hover:bg-blue-950 transition' : 'hover:bg-blue-50 transition'}>
+                  <td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>{rec.employeeId}</td>
+                  <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>{rec.fullName}</td>
+                  <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>{rec.project}</td>
+                  <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>{rec.designation}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                       rec.status === "Approved"
-                        ? "bg-green-100 text-green-800"
+                        ? theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800'
                         : rec.status === "Pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-red-100 text-red-800"
+                        ? theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800'
+                        : theme === 'dark' ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800'
                     }`}>
                       {rec.status}
                     </span>
@@ -186,4 +188,4 @@ export default function KYCReportPage() {
       </div>
     </div>
   );
-} 
+}

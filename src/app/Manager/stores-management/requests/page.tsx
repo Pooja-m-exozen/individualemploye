@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { FaStore, FaSearch, FaFilter, FaCheckCircle, FaTimesCircle, FaDownload, FaChevronLeft, FaChevronRight, FaClock } from "react-icons/fa";
+import { useTheme } from "@/context/ThemeContext";
 
 const dummyRequests = [
   { id: "REQ001", item: "Uniform Shirt", quantity: 50, requestedBy: "John Doe", date: "2025-06-10", status: "Pending" },
@@ -12,20 +13,29 @@ const dummyRequests = [
 
 const statusOptions = ["Approved", "Pending", "Rejected"];
 
-function getStatusColor(status: string) {
+function getStatusColor(status: string, theme: string) {
   switch (status.toLowerCase()) {
     case "approved":
-      return "bg-emerald-100 text-emerald-800 border-emerald-200";
+      return theme === "dark"
+        ? "bg-emerald-900 text-emerald-200 border-emerald-700"
+        : "bg-emerald-100 text-emerald-800 border-emerald-200";
     case "pending":
-      return "bg-amber-100 text-amber-800 border-amber-200";
+      return theme === "dark"
+        ? "bg-amber-900 text-amber-200 border-amber-700"
+        : "bg-amber-100 text-amber-800 border-amber-200";
     case "rejected":
-      return "bg-red-100 text-red-800 border-red-200";
+      return theme === "dark"
+        ? "bg-red-900 text-red-200 border-red-700"
+        : "bg-red-100 text-red-800 border-red-200";
     default:
-      return "bg-gray-100 text-gray-800 border-gray-200";
+      return theme === "dark"
+        ? "bg-gray-700 text-gray-200 border-gray-600"
+        : "bg-gray-100 text-gray-800 border-gray-200";
   }
 }
 
 export default function StoreRequestsPage() {
+  const { theme } = useTheme();
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
@@ -49,11 +59,29 @@ export default function StoreRequestsPage() {
 
   return (
     <ManagerDashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 flex flex-col py-8">
+      <div
+        className={`min-h-screen flex flex-col py-8 transition-colors duration-300 ${
+          theme === "dark"
+            ? "bg-gradient-to-br from-gray-900 via-gray-950 to-blue-950"
+            : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"
+        }`}
+      >
         {/* Header */}
-        <div className="rounded-2xl mb-8 p-6 flex items-center justify-between shadow-lg bg-gradient-to-r from-blue-500 to-blue-800 w-full max-w-7xl mx-auto">
+        <div
+          className={`rounded-2xl mb-8 p-6 flex items-center justify-between shadow-lg w-full max-w-7xl mx-auto bg-gradient-to-r ${
+            theme === "dark"
+              ? "from-blue-900 to-blue-700"
+              : "from-blue-500 to-blue-800"
+          }`}
+        >
           <div className="flex items-center gap-5">
-            <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
+            <div
+              className={`rounded-xl p-4 flex items-center justify-center ${
+                theme === "dark"
+                  ? "bg-blue-900 bg-opacity-40"
+                  : "bg-blue-600 bg-opacity-30"
+              }`}
+            >
               <FaStore className="w-10 h-10 text-white" />
             </div>
             <div>
@@ -62,7 +90,13 @@ export default function StoreRequestsPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50 transition-all duration-200 shadow-sm hover:shadow-md">
+            <button
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md ${
+                theme === "dark"
+                  ? "bg-gray-900 text-blue-200 hover:bg-blue-900"
+                  : "bg-white text-blue-600 hover:bg-blue-50"
+              }`}
+            >
               <FaDownload className="w-4 h-4" />
               Export Data
             </button>
@@ -71,37 +105,43 @@ export default function StoreRequestsPage() {
         {/* Main Content Area */}
         <div className="flex-1 px-6">
           <div className="max-w-7xl mx-auto">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div
+              className={`rounded-xl shadow-sm border overflow-hidden transition-colors duration-300 ${
+                theme === "dark"
+                  ? "bg-gray-900 border-gray-800"
+                  : "bg-white border-gray-200"
+              }`}
+            >
               {loading ? (
                 <div className="flex flex-col justify-center items-center py-16">
                   <div className="relative">
-                    <FaClock className="animate-spin text-blue-600 w-12 h-12" />
-                    <div className="absolute inset-0 rounded-full border-4 border-blue-100 animate-pulse"></div>
+                    <FaClock className={`animate-spin w-12 h-12 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`} />
+                    <div className={`absolute inset-0 rounded-full border-4 animate-pulse ${theme === "dark" ? "border-blue-900" : "border-blue-100"}`}></div>
                   </div>
-                  <p className="text-gray-600 font-medium mt-4">Loading store requests...</p>
-                  <p className="text-sm text-gray-500 mt-1">Please wait while we fetch the data</p>
+                  <p className={theme === "dark" ? "text-gray-200 font-medium mt-4" : "text-gray-600 font-medium mt-4"}>Loading store requests...</p>
+                  <p className={theme === "dark" ? "text-sm text-gray-400 mt-1" : "text-sm text-gray-500 mt-1"}>Please wait while we fetch the data</p>
                 </div>
               ) : error ? (
                 <div className="p-8 flex flex-col items-center justify-center">
-                  <div className="bg-red-50 rounded-full p-4 mb-4">
-                    <FaTimesCircle className="w-8 h-8 text-red-600" />
+                  <div className={theme === "dark" ? "bg-red-900 rounded-full p-4 mb-4" : "bg-red-50 rounded-full p-4 mb-4"}>
+                    <FaTimesCircle className={theme === "dark" ? "w-8 h-8 text-red-300" : "w-8 h-8 text-red-600"} />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Data</h3>
-                  <p className="text-gray-600 text-center max-w-md">{error}</p>
+                  <h3 className={theme === "dark" ? "text-lg font-semibold text-gray-100 mb-2" : "text-lg font-semibold text-gray-900 mb-2"}>Error Loading Data</h3>
+                  <p className={theme === "dark" ? "text-gray-300 text-center max-w-md" : "text-gray-600 text-center max-w-md"}>{error}</p>
                   <button 
                     onClick={() => setError(null)}
-                    className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                    className={`mt-4 px-6 py-2 rounded-lg transition-colors duration-200 ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                   >
                     Try Again
                   </button>
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="p-8 flex flex-col items-center justify-center">
-                  <div className="bg-gray-50 rounded-full p-4 mb-4">
-                    <FaStore className="w-8 h-8 text-gray-400" />
+                  <div className={theme === "dark" ? "bg-gray-800 rounded-full p-4 mb-4" : "bg-gray-50 rounded-full p-4 mb-4"}>
+                    <FaStore className={theme === "dark" ? "w-8 h-8 text-gray-500" : "w-8 h-8 text-gray-400"} />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Requests Found</h3>
-                  <p className="text-gray-600 text-center max-w-md">
+                  <h3 className={theme === "dark" ? "text-lg font-semibold text-gray-100 mb-2" : "text-lg font-semibold text-gray-900 mb-2"}>No Requests Found</h3>
+                  <p className={theme === "dark" ? "text-gray-300 text-center max-w-md" : "text-gray-600 text-center max-w-md"}>
                     {search || statusFilter
                       ? "No store requests match your current filters. Try adjusting your search criteria."
                       : "No store requests available at the moment."
@@ -111,32 +151,36 @@ export default function StoreRequestsPage() {
               ) : (
                 <>
                   {/* Search and Filter Section */}
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                  <div className={`px-6 py-4 border-b transition-colors duration-300 ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
                     <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
                       <div className="flex-1 min-w-0">
                         <div className="relative">
-                          <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
                           <input
                             type="text"
                             placeholder="Search by request ID, item, or requester..."
                             value={search}
                             onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
-                            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-500"
+                            className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
                           />
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => setShowFilters(!showFilters)}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                            showFilters 
-                              ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                              : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${
+                            showFilters
+                              ? theme === "dark"
+                                ? "bg-blue-900 text-blue-200 border-blue-800"
+                                : "bg-blue-100 text-blue-700 border-blue-200"
+                              : theme === "dark"
+                              ? "bg-gray-900 text-gray-300 border-gray-700 hover:bg-gray-800"
+                              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
                           }`}
                         >
                           <FaFilter className="w-4 h-4" />
                           Filters
-                          <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full ml-1">
+                          <span className={`text-xs px-2 py-1 rounded-full ml-1 ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-700"}`}>
                             {[statusFilter].filter(Boolean).length}
                           </span>
                         </button>
@@ -144,32 +188,30 @@ export default function StoreRequestsPage() {
                     </div>
                     {/* Advanced Filters Panel */}
                     {showFilters && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {/* Status Filter */}
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
-                              Status
-                            </label>
-                            <select
-                              value={statusFilter}
-                              onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 text-sm"
-                            >
-                              <option value="">All Status</option>
-                              {statusOptions.map(status => (
-                                <option key={status} value={status}>{status}</option>
-                              ))}
-                            </select>
-                          </div>
+                      <div className={`mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-4 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        {/* Status Filter */}
+                        <div>
+                          <label className={`block text-xs font-semibold uppercase tracking-wide mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                            Status
+                          </label>
+                          <select
+                            value={statusFilter}
+                            onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 text-sm ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
+                          >
+                            <option value="">All Status</option>
+                            {statusOptions.map(status => (
+                              <option key={status} value={status}>{status}</option>
+                            ))}
+                          </select>
                         </div>
                         {/* Clear Filters */}
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                        <div className={`flex items-center justify-between mt-4 pt-4 border-t col-span-full ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
                           <div className="flex items-center gap-3">
                             {statusFilter && (
                               <button
                                 onClick={() => { setStatusFilter(""); setCurrentPage(1); }}
-                                className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors duration-200"
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${theme === "dark" ? "bg-red-900 text-red-200 hover:bg-red-800" : "bg-red-50 text-red-700 hover:bg-red-100"}`}
                               >
                                 <FaTimesCircle className="w-4 h-4" />
                                 Clear All Filters
@@ -177,8 +219,8 @@ export default function StoreRequestsPage() {
                             )}
                           </div>
                           <div className="text-right">
-                            <div className="text-sm text-gray-600">
-                              Showing <span className="font-semibold text-gray-900">{filtered.length}</span> of <span className="font-semibold text-gray-900">{dummyRequests.length}</span> requests
+                            <div className={theme === "dark" ? "text-sm text-gray-300" : "text-sm text-gray-600"}>
+                              Showing <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>{filtered.length}</span> of <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>{dummyRequests.length}</span> requests
                             </div>
                           </div>
                         </div>
@@ -187,28 +229,28 @@ export default function StoreRequestsPage() {
                   </div>
                   {/* Requests Table */}
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                    <table className={`min-w-full divide-y transition-colors duration-300 ${theme === "dark" ? "divide-gray-800" : "divide-gray-200"}`}>
+                      <thead className={theme === "dark" ? "bg-gray-900" : "bg-gray-50"}>
                         <tr>
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Request ID</th>
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Item</th>
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Quantity</th>
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Requested By</th>
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Date</th>
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</th>
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Actions</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Request ID</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Item</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Quantity</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Requested By</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Date</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Status</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className={theme === "dark" ? "bg-gray-900 divide-y divide-gray-800" : "bg-white divide-y divide-gray-200"}>
                         {paginated.map((req, idx) => (
-                          <tr key={idx} className="hover:bg-blue-50 transition-all duration-200 group">
-                            <td className="px-6 py-4 font-bold text-blue-800">{req.id}</td>
-                            <td className="px-6 py-4">{req.item}</td>
-                            <td className="px-6 py-4">{req.quantity}</td>
-                            <td className="px-6 py-4">{req.requestedBy}</td>
-                            <td className="px-6 py-4">{req.date}</td>
+                          <tr key={idx} className={`transition-all duration-200 group ${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-blue-50"}`}>
+                            <td className={`px-6 py-4 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{req.id}</td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.item}</td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.quantity}</td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.requestedBy}</td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.date}</td>
                             <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${getStatusColor(req.status)}`}>
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${getStatusColor(req.status, theme)}`}>
                                 {req.status === "Approved" && <FaCheckCircle className="w-3 h-3 mr-1" />}
                                 {req.status === "Pending" && <FaClock className="w-3 h-3 mr-1" />}
                                 {req.status === "Rejected" && <FaTimesCircle className="w-3 h-3 mr-1" />}
@@ -216,7 +258,7 @@ export default function StoreRequestsPage() {
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <button className="px-4 py-1 rounded-lg bg-blue-100 text-blue-700 font-semibold text-sm hover:bg-blue-200 transition">View</button>
+                              <button className={`px-4 py-1 rounded-lg font-semibold text-sm transition ${theme === "dark" ? "bg-blue-900 text-blue-200 hover:bg-blue-800" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}>View</button>
                             </td>
                           </tr>
                         ))}
@@ -225,20 +267,20 @@ export default function StoreRequestsPage() {
                   </div>
                   {/* Pagination Controls */}
                   {totalPages > 1 && (
-                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                    <div className={`px-6 py-4 border-t transition-colors duration-300 ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
                       <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-600">
-                          Showing <span className="font-semibold text-gray-900">{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
-                          <span className="font-semibold text-gray-900">
+                        <div className={theme === "dark" ? "text-sm text-gray-300" : "text-sm text-gray-600"}>
+                          Showing <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
+                          <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>
                             {Math.min(currentPage * rowsPerPage, filtered.length)}
                           </span>{' '}
-                          of <span className="font-semibold text-gray-900">{filtered.length}</span> results
+                          of <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>{filtered.length}</span> results
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                             disabled={currentPage === 1}
-                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${theme === "dark" ? "text-gray-400 bg-gray-900 border border-gray-700 hover:bg-gray-800" : "text-gray-500 bg-white border border-gray-300 hover:bg-gray-50"}`}
                           >
                             <FaChevronLeft className="w-4 h-4" />
                             Previous
@@ -261,8 +303,12 @@ export default function StoreRequestsPage() {
                                   onClick={() => setCurrentPage(pageNum)}
                                   className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                                     currentPage === pageNum
-                                      ? 'bg-blue-600 text-white shadow-md'
-                                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                                      ? theme === "dark"
+                                        ? "bg-blue-800 text-white shadow-md"
+                                        : "bg-blue-600 text-white shadow-md"
+                                      : theme === "dark"
+                                      ? "text-gray-300 bg-gray-900 border border-gray-700 hover:bg-gray-800"
+                                      : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
                                   }`}
                                 >
                                   {pageNum}
@@ -273,7 +319,7 @@ export default function StoreRequestsPage() {
                           <button
                             onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                             disabled={currentPage === totalPages}
-                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${theme === "dark" ? "text-gray-400 bg-gray-900 border border-gray-700 hover:bg-gray-800" : "text-gray-500 bg-white border border-gray-300 hover:bg-gray-50"}`}
                           >
                             Next
                             <FaChevronRight className="w-4 h-4" />
@@ -290,4 +336,4 @@ export default function StoreRequestsPage() {
       </div>
     </ManagerDashboardLayout>
   );
-} 
+}
