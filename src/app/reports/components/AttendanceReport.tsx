@@ -522,7 +522,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 'Present Days',
                 'Half Days',
                 'Partially Absent',
-                'Week Offs',
+                'Total Weekoff', // Replaces 'Week Offs'
                 'Holidays',
                 'EL',
                 'SL',
@@ -535,7 +535,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 summary?.summary.presentDays ?? 0,
                 summary?.summary.halfDays ?? 0,
                 summary?.summary.partiallyAbsentDays ?? 0,
-                summary?.summary.weekOffs ?? 0,
+                summary?.summary.weekOffs ?? 0, // Total Weekoff
                 summary?.summary.holidays ?? 0,
                 summary?.summary.el ?? 0,
                 summary?.summary.sl ?? 0,
@@ -561,7 +561,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 1: { cellWidth: 17.5 },
                 2: { cellWidth: 17.5 },
                 3: { cellWidth: 17.5 },
-                4: { cellWidth: 17.5 },
+                4: { cellWidth: 20 }, // Total Weekoff
                 5: { cellWidth: 17.5 },
                 6: { cellWidth: 17.5 },
                 7: { cellWidth: 17.5 },
@@ -579,13 +579,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         
         if (summary) {
             const workingDays = summary.summary.totalDays - (summary.summary.weekOffs + summary.summary.holidays);
-            const presentDaysWithLeaves = summary.summary.presentDays + (summary.summary.halfDays / 2) + 
-                summary.summary.el + summary.summary.sl + summary.summary.cl;
-            const attendancePercentage = ((presentDaysWithLeaves / workingDays) * 100).toFixed(2);
-            
+            const totalWeekoff = summary.summary.weekOffs ?? 0;
+            const totalPayableDays = summary.summary.presentDays + (summary.summary.halfDays / 2) + summary.summary.el + summary.summary.sl + summary.summary.cl + summary.summary.compOff;
+            const attendancePercentage = ((totalPayableDays / workingDays) * 100).toFixed(2);
             doc.text([
                 `Total Working Days: ${workingDays} days`,
-                `Total Present Days (including leaves): ${presentDaysWithLeaves} days`,
+                `Total Weekoff: ${totalWeekoff} days`,
+                `Total Payable Days: ${totalPayableDays} days`,
                 `Attendance Percentage: ${attendancePercentage}%`
             ], 15, yPosition, { lineHeightFactor: 1.5 });
         }
@@ -719,21 +719,30 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const processedData = enrichWithLocations(attendanceData);
 
     const formatTime = (dateString: string | null): string => {
-        if (!dateString) return 'Incomplete';
-    
-        // Check for various time-like patterns first
+        if (!dateString) return '-';
+
+        // If it's already in HH:mm:ss or HH:mm format
         const timeMatch = dateString.match(/(\d{2}:\d{2}:\d{2})/);
         if (timeMatch) {
             return timeMatch[1];
         }
-    
+        const timeMatchShort = dateString.match(/(\d{2}:\d{2})/);
+        if (timeMatchShort) {
+            return timeMatchShort[1];
+        }
+
         // Try parsing as a full date string
         const date = new Date(dateString);
         if (!isNaN(date.getTime())) {
-            return date.toLocaleTimeString('en-GB'); // HH:MM:SS format
+            // If the time is 00:00:00, treat as missing
+            const h = date.getHours();
+            const m = date.getMinutes();
+            const s = date.getSeconds();
+            if (h === 0 && m === 0 && s === 0) return '-';
+            return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }
-    
-        return 'Incomplete';
+
+        return '-';
     };
 
     return (

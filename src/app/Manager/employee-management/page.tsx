@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { FaSearch, FaUsers, FaChevronRight, FaCheckCircle, FaIdCard, FaTshirt, FaCalendarAlt, FaPlaneDeparture, FaMoneyBillWave, FaFileAlt } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -11,48 +11,6 @@ interface Employee {
   designation: string;
   workflow: Record<WorkflowKey, boolean>;
 }
-
-const dummyEmployees: Employee[] = [
-  {
-    employeeId: "EMP001",
-    fullName: "John Doe",
-    designation: "Manager",
-    workflow: {
-      kyc: true,
-      idCard: true,
-      uniform: false,
-      attendance: true,
-      leave: true,
-      payslip: true,
-    },
-  },
-  {
-    employeeId: "EMP002",
-    fullName: "Jane Smith",
-    designation: "Developer",
-    workflow: {
-      kyc: true,
-      idCard: true,
-      uniform: true,
-      attendance: true,
-      leave: false,
-      payslip: false,
-    },
-  },
-  {
-    employeeId: "EMP003",
-    fullName: "Alice Brown",
-    designation: "Analyst",
-    workflow: {
-      kyc: true,
-      idCard: false,
-      uniform: false,
-      attendance: false,
-      leave: false,
-      payslip: false,
-    },
-  },
-];
 
 const workflowSteps: { key: WorkflowKey; label: string; icon: React.ReactNode }[] = [
   { key: "kyc", label: "KYC", icon: <FaFileAlt className="w-5 h-5" /> },
@@ -68,62 +26,184 @@ export default function EmployeeManagementPage() {
   const [search, setSearch] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedStep, setSelectedStep] = useState<WorkflowKey | null>(null);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 6;
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetch("https://cafm.zenapi.co.in/api/kyc")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to fetch employees");
+        const data = await res.json();
+        const kycForms = Array.isArray(data.kycForms) ? data.kycForms : [];
+        // Prepare employee base info
+        const baseEmployees = kycForms.map((form: any) => {
+          const pd = form.personalDetails || {};
+          return {
+            employeeId: pd.employeeId || pd.empId || "",
+            fullName: pd.fullName || pd.name || "",
+            designation: pd.designation || "",
+          };
+        }).filter((emp: any) => emp.employeeId);
+        // Fetch summary for each employee
+        const summaryPromises = baseEmployees.map(async (emp: any) => {
+          try {
+            const summaryRes = await fetch(`https://cafm.zenapi.co.in/api/employees/${emp.employeeId}/summary`);
+            if (!summaryRes.ok) throw new Error();
+            const summary = await summaryRes.json();
+            return {
+              ...emp,
+              workflow: {
+                kyc: summary.kyc && summary.kyc.status === "Approved",
+                idCard: summary.idCard && summary.idCard.status === "Issued",
+                uniform: summary.uniform && Array.isArray(summary.uniform.items) && summary.uniform.items.length > 0,
+                attendance: summary.attendance && Array.isArray(summary.attendance.recent) && summary.attendance.recent.length > 0,
+                leave: summary.leave && Array.isArray(summary.leave.recent) && summary.leave.recent.length > 0,
+                payslip: summary.payroll && Array.isArray(summary.payroll) && summary.payroll.length > 0,
+              },
+              summary, // Store the full summary for details modal
+            };
+          } catch {
+            return {
+              ...emp,
+              workflow: {
+                kyc: false,
+                idCard: false,
+                uniform: false,
+                attendance: false,
+                leave: false,
+                payslip: false,
+              },
+              summary: null,
+            };
+          }
+        });
+        const employeesWithWorkflow = await Promise.all(summaryPromises);
+        setEmployees(employeesWithWorkflow);
+      })
+      .catch((err: any) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
   const filteredEmployees = useMemo(() => {
-    return dummyEmployees.filter((emp) =>
+    return employees.filter((emp) =>
       emp.fullName.toLowerCase().includes(search.toLowerCase()) ||
       emp.employeeId.toLowerCase().includes(search.toLowerCase())
     );
-  }, [search]);
+  }, [search, employees]);
+
+  const totalPages = Math.ceil(filteredEmployees.length / pageSize);
+  const paginatedEmployees = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredEmployees.slice(start, start + pageSize);
+  }, [filteredEmployees, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, employees]);
 
   // Dummy data for each step
-  const getStepDetails = (step: WorkflowKey, emp: Employee) => {
+  const getStepDetails = (step: WorkflowKey, emp: any) => {
+    const summary = emp.summary || {};
     switch (step) {
       case "kyc":
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">KYC Details</h3>
-            <p className="text-gray-700">KYC status: {emp.workflow.kyc ? "Completed" : "Pending"}</p>
-            <p className="text-gray-500 text-sm mt-2">(Show KYC info here...)</p>
+            <p className="text-gray-700">KYC status: {summary.kyc?.status || "Pending"}</p>
+            {summary.kyc?.documents && summary.kyc.documents.length > 0 && (
+              <div className="mt-2">
+                <div className="font-semibold mb-1">Documents:</div>
+                <ul className="list-disc ml-6">
+                  {summary.kyc.documents.map((doc: any, i: number) => (
+                    <li key={i} className="mb-1">
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">{doc.type}</a> <span className="text-xs text-gray-500">({new Date(doc.uploadedAt).toLocaleDateString()})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         );
       case "idCard":
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">ID Card</h3>
-            <p className="text-gray-700">ID Card status: {emp.workflow.idCard ? "Generated" : "Pending"}</p>
-            <p className="text-gray-500 text-sm mt-2">(Show ID Card info here...)</p>
+            <p className="text-gray-700">ID Card status: {summary.idCard?.status || "Pending"}</p>
+            {summary.idCard?.issuedDate && <p className="text-gray-500 text-sm mt-2">Issued on: {new Date(summary.idCard.issuedDate).toLocaleDateString()}</p>}
           </div>
         );
       case "uniform":
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">Uniform</h3>
-            <p className="text-gray-700">Uniform status: {emp.workflow.uniform ? "Issued" : "Not Issued"}</p>
-            <p className="text-gray-500 text-sm mt-2">(Show uniform info here...)</p>
+            <p className="text-gray-700">Uniform status: {summary.uniform && summary.uniform.items && summary.uniform.items.length > 0 ? "Issued" : "Not Issued"}</p>
+            {summary.uniform?.items && summary.uniform.items.length > 0 && (
+              <ul className="list-disc ml-6 mt-2">
+                {summary.uniform.items.map((item: any, i: number) => (
+                  <li key={i}>{item.name || "Uniform Item"}</li>
+                ))}
+              </ul>
+            )}
           </div>
         );
       case "attendance":
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">Attendance</h3>
-            <p className="text-gray-700">Attendance status: {emp.workflow.attendance ? "Active" : "Inactive"}</p>
-            <p className="text-gray-500 text-sm mt-2">(Show attendance info here...)</p>
+            <p className="text-gray-700">Attendance status: {summary.attendance?.recent && summary.attendance.recent.length > 0 ? "Active" : "Inactive"}</p>
+            {summary.attendance?.recent && summary.attendance.recent.length > 0 && (
+              <div className="mt-2">
+                <div className="font-semibold mb-1">Recent Attendance:</div>
+                <ul className="list-disc ml-6">
+                  {summary.attendance.recent.slice(0, 5).map((att: any, i: number) => (
+                    <li key={i}>
+                      {att.date}: {att.status} {att.punchInTime && (<span className="text-xs text-gray-500">(In: {new Date(att.punchInTime).toLocaleTimeString()})</span>)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         );
       case "leave":
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">Leave</h3>
-            <p className="text-gray-700">Leave status: {emp.workflow.leave ? "Available" : "Not Available"}</p>
-            <p className="text-gray-500 text-sm mt-2">(Show leave info here...)</p>
+            <p className="text-gray-700">Leave status: {summary.leave?.recent && summary.leave.recent.length > 0 ? "Available" : "Not Available"}</p>
+            {summary.leave?.recent && summary.leave.recent.length > 0 && (
+              <div className="mt-2">
+                <div className="font-semibold mb-1">Recent Leaves:</div>
+                <ul className="list-disc ml-6">
+                  {summary.leave.recent.slice(0, 5).map((lv: any, i: number) => (
+                    <li key={i}>
+                      {lv.leaveType} ({lv.status}): {lv.startDate} to {lv.endDate} <span className="text-xs text-gray-500">{lv.reason}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         );
       case "payslip":
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">Payslip</h3>
-            <p className="text-gray-700">Payslip status: {emp.workflow.payslip ? "Available" : "Not Available"}</p>
-            <p className="text-gray-500 text-sm mt-2">(Show payslip info here...)</p>
+            <p className="text-gray-700">Payslip status: {summary.payroll && summary.payroll.length > 0 ? "Available" : "Not Available"}</p>
+            {summary.payroll && summary.payroll.length > 0 && (
+              <div className="mt-2">
+                <div className="font-semibold mb-1">Payslip(s):</div>
+                <ul className="list-disc ml-6">
+                  {summary.payroll.slice(0, 5).map((pay: any, i: number) => (
+                    <li key={i}>{pay.month || "Payslip"}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         );
       default:
@@ -179,63 +259,108 @@ export default function EmployeeManagementPage() {
         </div>
         {/* Table */}
         <div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
-          <table className="min-w-full divide-y">
-            <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
-              <tr>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Workflow</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>
-              </tr>
-            </thead>
-            <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
-              {filteredEmployees.length === 0 ? (
+          {loading ? (
+            <div className="py-12 text-center text-lg font-semibold">Loading employees...</div>
+          ) : error ? (
+            <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
+          ) : (
+            <>
+            <table className="min-w-full divide-y">
+              <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                 <tr>
-                  <td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No employees found</td>
+                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
+                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name</th>
+                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation</th>
+                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Workflow</th>
+                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>
                 </tr>
-              ) : filteredEmployees.map((emp, idx) => (
-                <tr key={idx} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                  <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{emp.employeeId}</td>
-                  <td className="px-4 py-3">{emp.fullName}</td>
-                  <td className="px-4 py-3">{emp.designation}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2 items-center">
-                      {workflowSteps.map((step, i) => (
-                        <span key={step.key} className="flex items-center">
-                          <button
-                            type="button"
-                            className={`rounded-full p-2 focus:outline-none cursor-pointer transition ring-0 ${emp.workflow[step.key]
-                              ? theme === "dark"
-                                ? 'bg-green-900 text-green-300'
-                                : 'bg-green-100 text-green-700'
-                              : theme === "dark"
-                                ? 'bg-gray-800 text-gray-500'
-                                : 'bg-gray-100 text-gray-400'
-                            } hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
-                            onClick={() => setSelectedStep(step.key)}
-                            title={`View ${step.label} details`}
-                            tabIndex={0}
-                          >
-                            {step.icon}
-                          </button>
-                          {i < workflowSteps.length - 1 && <FaChevronRight className={theme === "dark" ? "mx-1 text-gray-600" : "mx-1 text-gray-300"} />}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => setSelectedEmployee(emp)}
-                      className={`px-4 py-2 rounded-lg font-semibold shadow ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
-                    >
-                      View Workflow
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                {paginatedEmployees.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No employees found</td>
+                  </tr>
+                ) : paginatedEmployees.map((emp, idx) => (
+                  <tr key={idx} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
+                    <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{emp.employeeId}</td>
+                    <td className="px-4 py-3">{emp.fullName}</td>
+                    <td className="px-4 py-3">{emp.designation}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2 items-center">
+                        {workflowSteps.map((step, i) => (
+                          <span key={step.key} className="flex items-center">
+                            <button
+                              type="button"
+                              className={`rounded-full p-2 focus:outline-none cursor-pointer transition ring-0 ${emp.workflow[step.key]
+                                ? theme === "dark"
+                                  ? 'bg-green-900 text-green-300'
+                                  : 'bg-green-100 text-green-700'
+                                : theme === "dark"
+                                  ? 'bg-gray-800 text-gray-500'
+                                  : 'bg-gray-100 text-gray-400'
+                              } hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
+                              onClick={() => {
+                                setSelectedEmployee(emp);
+                                setSelectedStep(step.key);
+                              }}
+                              title={`View ${step.label} details`}
+                              tabIndex={0}
+                            >
+                              {step.icon}
+                            </button>
+                            {i < workflowSteps.length - 1 && <FaChevronRight className={theme === "dark" ? "mx-1 text-gray-600" : "mx-1 text-gray-300"} />}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setSelectedEmployee(emp)}
+                        className={`px-4 py-2 rounded-lg font-semibold shadow ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+                      >
+                        View Workflow
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-end items-center gap-2 px-4 py-4">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1 rounded border text-sm font-medium transition-colors ${
+                    currentPage === 1
+                      ? "opacity-50 cursor-not-allowed"
+                      : theme === "dark"
+                      ? "bg-gray-800 border-blue-900 text-white hover:bg-blue-900"
+                      : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                  }`}
+                >
+                  Previous
+                </button>
+                <span className="text-sm font-semibold">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-1 rounded border text-sm font-medium transition-colors ${
+                    currentPage === totalPages
+                      ? "opacity-50 cursor-not-allowed"
+                      : theme === "dark"
+                      ? "bg-gray-800 border-blue-900 text-white hover:bg-blue-900"
+                      : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+            </>
+          )}
         </div>
         {/* Workflow Modal */}
         {selectedEmployee && (
