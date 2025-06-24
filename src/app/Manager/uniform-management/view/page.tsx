@@ -1,47 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaTshirt, FaSearch, FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaUser, FaTable, FaThLarge, FaDownload } from 'react-icons/fa';
 import ManagerDashboardLayout from '@/components/dashboard/ManagerDashboardLayout';
 import { useTheme } from "@/context/ThemeContext";
-
-const MOCK_UNIFORM_REQUESTS = [
-	{
-		_id: '1',
-		employee: {
-			employeeId: 'EMP001',
-			fullName: 'John Doe',
-			designation: 'Security Guard',
-			employeeImage: '/placeholder-user.jpg',
-			projectName: 'Project Alpha',
-		},
-		status: 'Approved',
-		requestedItems: ['Shirt', 'Trousers', 'Cap'],
-	},
-	{
-		_id: '2',
-		employee: {
-			employeeId: 'EMP002',
-			fullName: 'Jane Smith',
-			designation: 'Supervisor',
-			employeeImage: '/placeholder-user.jpg',
-			projectName: 'Project Beta',
-		},
-		status: 'Rejected',
-		requestedItems: ['Jacket', 'Shoes'],
-	},
-	{
-		_id: '3',
-		employee: {
-			employeeId: 'EMP003',
-			fullName: 'Alice Johnson',
-			designation: 'Technician',
-			employeeImage: '/placeholder-user.jpg',
-			projectName: 'Project Gamma',
-		},
-		status: 'Pending',
-		requestedItems: ['Belt', 'Cap'],
-	},
-];
 
 const statusBadge = (status: string) => {
 	switch (status) {
@@ -54,15 +15,15 @@ const statusBadge = (status: string) => {
 	}
 };
 
-const exportToCSV = (data: typeof MOCK_UNIFORM_REQUESTS) => {
+const exportToCSV = (data: any[]) => {
 	const header = ['Employee ID', 'Name', 'Designation', 'Project', 'Status', 'Requested Items'];
 	const rows = data.map(req => [
-		req.employee.employeeId,
-		req.employee.fullName,
-		req.employee.designation,
-		req.employee.projectName,
-		req.status,
-		req.requestedItems.join('; ')
+		req.employeeId,
+		req.fullName,
+		req.designation,
+		req.projectName,
+		req.approvalStatus,
+		Array.isArray(req.uniformType) ? req.uniformType.join('; ') : ''
 	]);
 	const csvContent = [header, ...rows].map(e => e.map(x => `"${x}"`).join(",")).join("\n");
 	const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -79,12 +40,44 @@ const UniformViewPage = () => {
 	const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
 	const [statusFilter, setStatusFilter] = useState('All');
 	const { theme } = useTheme();
+	const [uniformRequests, setUniformRequests] = useState<any[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [currentPage, setCurrentPage] = useState(1);
+	const rowsPerPage = 10;
 
-	const filteredRequests = MOCK_UNIFORM_REQUESTS.filter(req =>
-		(statusFilter === 'All' || req.status === statusFilter) &&
-		(req.employee.fullName.toLowerCase().includes(search.toLowerCase()) ||
-			req.employee.employeeId.toLowerCase().includes(search.toLowerCase()))
+	useEffect(() => {
+		const fetchUniforms = async () => {
+			setLoading(true);
+			setError(null);
+			try {
+				const res = await fetch('https://cafm.zenapi.co.in/api/uniforms/all');
+				const data = await res.json();
+				if (data.success && Array.isArray(data.uniforms)) {
+					setUniformRequests(data.uniforms);
+				} else {
+					setError('Failed to fetch uniform requests.');
+				}
+			} catch (err) {
+				setError('Error fetching uniform requests.');
+			}
+			setLoading(false);
+		};
+		fetchUniforms();
+	}, []);
+
+	const filteredRequests = uniformRequests.filter(req =>
+		(statusFilter === 'All' || req.approvalStatus === statusFilter) &&
+		(req.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+			req.employeeId?.toLowerCase().includes(search.toLowerCase()))
 	);
+
+	const totalPages = Math.ceil(filteredRequests.length / rowsPerPage);
+	const paginatedRequests = filteredRequests.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+	const handlePageChange = (page: number) => {
+		if (page >= 1 && page <= totalPages) setCurrentPage(page);
+	};
 
 	return (
 		<ManagerDashboardLayout>
@@ -141,7 +134,14 @@ const UniformViewPage = () => {
 				</div>
 				{/* Requests List: Card or Table View */}
 				<div className="w-full max-w-4xl mx-auto">
-					{filteredRequests.length === 0 ? (
+					{loading ? (
+						<div className="text-center py-12 text-blue-600 font-bold">Loading uniform requests...</div>
+					) : error ? (
+						<div className="bg-red-50 text-red-600 p-8 rounded-2xl flex flex-col items-center gap-4 max-w-lg mx-auto shadow-lg">
+							<FaTimesCircle className="w-12 h-12 flex-shrink-0" />
+							<p className="text-xl font-semibold">{error}</p>
+						</div>
+					) : filteredRequests.length === 0 ? (
 						<div className="bg-yellow-50 text-yellow-600 p-8 rounded-2xl flex flex-col items-center gap-4 max-w-lg mx-auto shadow-lg">
 							<FaUser className="w-12 h-12 flex-shrink-0" />
 							<p className="text-xl font-semibold">No uniform requests found.</p>
@@ -155,59 +155,81 @@ const UniformViewPage = () => {
 									className={`rounded-2xl shadow-xl p-7 flex flex-col gap-5 border-l-8 hover:shadow-2xl transition group relative 
           ${theme === 'dark' ? 'bg-gray-900 border-blue-900' : 'bg-white border-blue-400'}`}
 								>
-									<div className="flex items-center gap-6">
-										<img
-											src={req.employee.employeeImage || "/placeholder-user.jpg"}
-											alt={req.employee.fullName}
-											className={`w-20 h-20 rounded-full object-cover border-2 shadow group-hover:scale-105 transition 
-              ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}
-										/>
-										<div className="flex-1 min-w-0">
-											<h2 className={`text-xl font-bold mb-1 truncate ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{req.employee.fullName}</h2>
-											<div className="flex flex-wrap items-center gap-2 mb-1">
-												<span className={`text-base font ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>{req.employee.designation}</span>
-												<span className={`text-sm font-bold px-2 py-0.5 rounded ${theme === 'dark' ? 'text-blue-100 bg-gray-800' : 'text-black bg-gray-100'}`}>{req.employee.employeeId}</span>
-											</div>
-											<p className={`text-xs mb-1 truncate ${theme === 'dark' ? 'text-blue-400' : 'text-blue-400'}`}>{req.employee.projectName}</p>
-											{statusBadge(req.status)}
-											<div className={`mt-2 text-xs ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>
-												<span className="font-semibold">Requested Items:</span> {req.requestedItems.join(", ")}
-											</div>
+									<div className="flex flex-col gap-2">
+										<h2 className={`text-xl font-bold mb-1 truncate ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{req.fullName}</h2>
+										<div className="flex flex-wrap items-center gap-2 mb-1">
+											<span className={`text-base font ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>{req.designation}</span>
+											<span className={`text-sm font-bold px-2 py-0.5 rounded ${theme === 'dark' ? 'text-blue-100 bg-gray-800' : 'text-black bg-gray-100'}`}>{req.employeeId}</span>
+										</div>
+										<p className={`text-xs mb-1 truncate ${theme === 'dark' ? 'text-blue-400' : 'text-blue-400'}`}>{req.projectName}</p>
+										{statusBadge(req.approvalStatus)}
+										<div className={`mt-2 text-xs ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>
+											<span className="font-semibold">Requested Items:</span> {Array.isArray(req.uniformType) ? req.uniformType.join(", ") : ''}
 										</div>
 									</div>
 								</div>
 							))}
 						</div>
 					) : (
-						<div className="overflow-x-auto rounded-2xl shadow-lg bg-white">
-							<table className="min-w-full divide-y divide-blue-100">
-								<thead className="bg-blue-50">
+						<div className={`overflow-x-auto rounded-2xl shadow-lg ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} mx-auto`} style={{ maxWidth: '900px' }}>
+							<table className={`min-w-full table-fixed ${theme === 'dark' ? 'divide-y divide-gray-800' : 'divide-y divide-blue-100'}`}>
+								<thead className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-50'}>
 									<tr>
-										<th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Photo</th>
-										<th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Name</th>
-										<th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Designation</th>
-										<th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Employee ID</th>
-										<th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Project</th>
-										<th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Requested Items</th>
-										<th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Status</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`} style={{width: '18%'}}>Name</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`} style={{width: '16%'}}>Designation</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`} style={{width: '14%'}}>Employee ID</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`} style={{width: '18%'}}>Project</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`} style={{width: '22%'}}>Requested Items</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`} style={{width: '12%'}}>Status</th>
 									</tr>
 								</thead>
-								<tbody className="divide-y divide-blue-50">
-									{filteredRequests.map((req) => (
-										<tr key={req._id} className="hover:bg-blue-50 transition">
-											<td className="px-4 py-3">
-												<img src={req.employee.employeeImage || "/placeholder-user.jpg"} alt={req.employee.fullName} className="w-12 h-12 rounded-full object-cover border-2 border-blue-200 shadow" />
-											</td>
-											<td className="px-4 py-3 font-bold text-blue-800">{req.employee.fullName}</td>
-											<td className="px-4 py-3 font text-black">{req.employee.designation}</td>
-											<td className="px-4 py-3 font text-black">{req.employee.employeeId}</td>
-											<td className="px-4 py-3 text-blue-500">{req.employee.projectName}</td>
-											<td className="px-4 py-3 text-gray-700">{req.requestedItems.join(", ")}</td>
-											<td className="px-4 py-3">{statusBadge(req.status)}</td>
+								<tbody className={theme === 'dark' ? 'divide-y divide-gray-800' : 'divide-y divide-blue-50'}>
+									{paginatedRequests.map((req) => (
+										<tr key={req._id} className={theme === 'dark' ? 'hover:bg-gray-800 transition' : 'hover:bg-blue-50 transition'}>
+											<td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-100' : 'text-blue-800'}`}>{req.fullName}</td>
+											<td className={`px-4 py-3 font ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>{req.designation}</td>
+											<td className={`px-4 py-3 font ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>{req.employeeId}</td>
+											<td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-500'}`}>{req.projectName}</td>
+											<td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>{Array.isArray(req.uniformType) ? req.uniformType.join(", ") : ''}</td>
+											<td className={`px-4 py-3`}>{statusBadge(req.approvalStatus)}</td>
 										</tr>
 									))}
 								</tbody>
 							</table>
+							{/* Pagination Controls */}
+							{totalPages > 1 && (
+								<div className="flex justify-center items-center gap-2 py-4">
+									<button
+										disabled={currentPage === 1}
+										onClick={() => handlePageChange(currentPage - 1)}
+										className={`px-3 py-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-blue-100 text-blue-700'} font-semibold disabled:opacity-50`}
+									>
+										Prev
+									</button>
+									{Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+										<button
+											key={page}
+											onClick={() => handlePageChange(page)}
+											className={`px-3 py-1 rounded font-semibold border ${currentPage === page
+												? theme === 'dark'
+													? 'bg-blue-800 text-white border-blue-800'
+													: 'bg-blue-600 text-white border-blue-600'
+												: theme === 'dark'
+													? 'bg-gray-900 text-blue-200 border-gray-700'
+													: 'bg-white text-blue-700 border-blue-200'}`}
+										>
+											{page}
+										</button>
+									))}
+									<button
+										disabled={currentPage === totalPages}
+										onClick={() => handlePageChange(currentPage + 1)}
+										className={`px-3 py-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-blue-100 text-blue-700'} font-semibold disabled:opacity-50`}
+									>
+										Next
+									</button>
+								</div>
+							)}
 						</div>
 					)}
 				</div>

@@ -18,24 +18,8 @@ interface UniformRequest {
   requestedItems: string[];
 }
 
-// Mock employees and items for creation
-const MOCK_EMPLOYEES = [
-  {
-    employeeId: "EMP003",
-    fullName: "Alice Johnson",
-    designation: "Technician",
-    employeeImage: "/placeholder-user.jpg",
-    projectName: "Project Gamma",
-  },
-  {
-    employeeId: "EMP004",
-    fullName: "Bob Williams",
-    designation: "Driver",
-    employeeImage: "/placeholder-user.jpg",
-    projectName: "Project Delta",
-  },
-];
-const MOCK_ITEMS = ["Shirt", "Trousers", "Cap", "Jacket", "Shoes", "Belt"];
+// Define available uniform items (if you want to keep them fixed, otherwise make this dynamic)
+const UNIFORM_ITEMS = ["Shirt", "Trousers", "Cap", "Jacket", "Shoes", "Belt"];
 
 export default function UniformRequestsPage() {
   const { theme } = useTheme();
@@ -51,8 +35,12 @@ export default function UniformRequestsPage() {
   const [newRequest, setNewRequest] = useState<{
     employeeId: string;
     requestedItems: string[];
-  }>({ employeeId: "", requestedItems: [] });
+    sizes: { [key: string]: string };
+    qty: number;
+    remarks: string;
+  }>({ employeeId: "", requestedItems: [], sizes: {}, qty: 1, remarks: "" });
   const [createLoading, setCreateLoading] = useState(false);
+  const [customItem, setCustomItem] = useState("");
 
   useEffect(() => {
     fetchRequests();
@@ -62,35 +50,9 @@ export default function UniformRequestsPage() {
     setLoading(true);
     setError(null);
     try {
-      setTimeout(() => {
-        setRequests([
-          {
-            _id: "1",
-            employee: {
-              employeeId: "EMP001",
-              fullName: "John Doe",
-              designation: "Security Guard",
-              employeeImage: "/placeholder-user.jpg",
-              projectName: "Project Alpha",
-            },
-            status: "Pending",
-            requestedItems: ["Shirt", "Trousers", "Cap"],
-          },
-          {
-            _id: "2",
-            employee: {
-              employeeId: "EMP002",
-              fullName: "Jane Smith",
-              designation: "Supervisor",
-              employeeImage: "/placeholder-user.jpg",
-              projectName: "Project Beta",
-            },
-            status: "Pending",
-            requestedItems: ["Jacket", "Shoes"],
-          },
-        ]);
-        setLoading(false);
-      }, 800);
+      // TODO: Replace with real API call when available
+      setRequests([]); // No dummy data, empty by default
+      setLoading(false);
     } catch (err: any) {
       setError("Failed to fetch uniform requests.");
       setLoading(false);
@@ -114,29 +76,40 @@ export default function UniformRequestsPage() {
 
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRequest.employeeId || newRequest.requestedItems.length === 0) return;
+    if (!newRequest.employeeId || newRequest.requestedItems.length === 0 || newRequest.qty < 1) return;
     setCreateLoading(true);
-    const employee = MOCK_EMPLOYEES.find(emp => emp.employeeId === newRequest.employeeId);
-    if (!employee) {
+    // Prepare API body
+    const body = {
+      uniformType: newRequest.requestedItems,
+      size: newRequest.sizes,
+      qty: newRequest.qty,
+      remarks: newRequest.remarks
+    };
+    try {
+      const res = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${newRequest.employeeId}/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok || data.success === false) {
+        setToast({ type: "error", message: data.message || "Failed to create uniform request." });
+        setCreateLoading(false);
+        setTimeout(() => setToast(null), 3500);
+        return;
+      }
+      setShowCreateModal(false);
+      setNewRequest({ employeeId: "", requestedItems: [], sizes: {}, qty: 1, remarks: "" });
       setCreateLoading(false);
-      setToast({ type: "error", message: "Employee not found." });
+      setToast({ type: "success", message: "Uniform request created successfully." });
       setTimeout(() => setToast(null), 3500);
-      return;
+      // Optionally refresh requests from API if you have a GET endpoint
+      // fetchRequests();
+    } catch (err: any) {
+      setCreateLoading(false);
+      setToast({ type: "error", message: err.message || "Failed to create uniform request." });
+      setTimeout(() => setToast(null), 3500);
     }
-    setRequests(prev => [
-      {
-        _id: Date.now().toString(),
-        employee,
-        status: "Pending",
-        requestedItems: newRequest.requestedItems,
-      },
-      ...prev,
-    ]);
-    setShowCreateModal(false);
-    setNewRequest({ employeeId: "", requestedItems: [] });
-    setCreateLoading(false);
-    setToast({ type: "success", message: "Uniform request created successfully." });
-    setTimeout(() => setToast(null), 3500);
   };
 
   const filteredRequests = requests.filter(req =>
@@ -240,23 +213,20 @@ export default function UniformRequestsPage() {
               <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}><FaTshirt /> Create Uniform Request</h2>
               <form onSubmit={handleCreateRequest} className="space-y-5">
                 <div>
-                  <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee</label>
-                  <select
+                  <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee ID</label>
+                  <input
+                    type="text"
                     className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                    placeholder="Enter employee ID..."
                     value={newRequest.employeeId}
                     onChange={e => setNewRequest(r => ({ ...r, employeeId: e.target.value }))}
                     required
-                  >
-                    <option value="">Select employee...</option>
-                    {MOCK_EMPLOYEES.map(emp => (
-                      <option key={emp.employeeId} value={emp.employeeId}>{emp.fullName} ({emp.employeeId})</option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Requested Items</label>
-                  <div className="flex flex-wrap gap-2">
-                    {MOCK_ITEMS.map(item => (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {UNIFORM_ITEMS.map(item => (
                       <label
                         key={item}
                         className={`flex items-center gap-1 px-3 py-1 rounded-lg cursor-pointer border ${theme === 'dark' ? 'bg-blue-900/20 border-blue-900 text-blue-100' : 'bg-blue-50 border-blue-100 text-blue-700'}`}
@@ -266,20 +236,109 @@ export default function UniformRequestsPage() {
                           className={theme === 'dark' ? 'accent-blue-400' : 'accent-blue-600'}
                           checked={newRequest.requestedItems.includes(item)}
                           onChange={e => {
-                            setNewRequest(r => e.target.checked
-                              ? { ...r, requestedItems: [...r.requestedItems, item] }
-                              : { ...r, requestedItems: r.requestedItems.filter(i => i !== item) }
-                            );
+                            setNewRequest(r => {
+                              const checked = e.target.checked;
+                              let requestedItems = checked
+                                ? [...r.requestedItems, item]
+                                : r.requestedItems.filter(i => i !== item);
+                              let sizes = { ...r.sizes };
+                              if (!checked) delete sizes[item];
+                              return { ...r, requestedItems, sizes };
+                            });
                           }}
                         />
                         <span>{item}</span>
                       </label>
                     ))}
                   </div>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      className={`flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                      placeholder="Add custom item..."
+                      value={customItem}
+                      onChange={e => setCustomItem(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className={`px-4 py-2 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-60`}
+                      disabled={!customItem.trim() || newRequest.requestedItems.includes(customItem.trim())}
+                      onClick={() => {
+                        const item = customItem.trim();
+                        if (item && !newRequest.requestedItems.includes(item)) {
+                          setNewRequest(r => ({ ...r, requestedItems: [...r.requestedItems, item] }));
+                          setCustomItem("");
+                        }
+                      }}
+                    >Add</button>
+                  </div>
+                  {/* Show all requested items with remove option */}
+                  {newRequest.requestedItems.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {newRequest.requestedItems.map(item => (
+                        <span key={item} className={`flex items-center gap-1 px-3 py-1 rounded-lg border ${theme === 'dark' ? 'bg-blue-900/20 border-blue-900 text-blue-100' : 'bg-blue-50 border-blue-100 text-blue-700'}`}>
+                          {item}
+                          <button
+                            type="button"
+                            className="ml-1 text-red-500 hover:text-red-700 font-bold"
+                            onClick={() => setNewRequest(r => {
+                              const requestedItems = r.requestedItems.filter(i => i !== item);
+                              let sizes = { ...r.sizes };
+                              delete sizes[item];
+                              return { ...r, requestedItems, sizes };
+                            })}
+                            title="Remove"
+                          >×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* For each selected item, show a size input */}
+                {newRequest.requestedItems.length > 0 && (
+                  <div>
+                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Sizes</label>
+                    <div className="flex flex-wrap gap-2">
+                      {newRequest.requestedItems.map(item => (
+                        <div key={item} className="flex items-center gap-2">
+                          <span>{item}:</span>
+                          <input
+                            type="text"
+                            placeholder="Size"
+                            className={`w-20 border rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                            value={newRequest.sizes[item] || ""}
+                            onChange={e => setNewRequest(r => ({ ...r, sizes: { ...r.sizes, [item]: e.target.value } }))}
+                            required
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Quantity</label>
+                  <input
+                    type="number"
+                    min={1}
+                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                    value={newRequest.qty}
+                    onChange={e => setNewRequest(r => ({ ...r, qty: Number(e.target.value) }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Remarks</label>
+                  <input
+                    type="text"
+                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                    placeholder="Remarks..."
+                    value={newRequest.remarks}
+                    onChange={e => setNewRequest(r => ({ ...r, remarks: e.target.value }))}
+                  />
                 </div>
                 <button
                   type="submit"
-                  disabled={createLoading || !newRequest.employeeId || newRequest.requestedItems.length === 0}
+                  disabled={createLoading || !newRequest.employeeId || newRequest.requestedItems.length === 0 || Object.values(newRequest.sizes).some(s => !s) || newRequest.qty < 1}
                   className={`w-full py-2 rounded-xl font-bold shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
                 >
                   {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}Create Request
@@ -288,127 +347,136 @@ export default function UniformRequestsPage() {
             </div>
           </div>
         )}
-        {/* Requests List: Card or Table View */}
-        <div className="w-full max-w-5xl mx-auto">
+        {/* Requests List (Card or Table View) */}
+        <div className={`w-full max-w-5xl mx-auto ${loading ? 'animate-pulse' : ''}`}>
           {loading ? (
-            <div className="flex flex-col justify-center items-center min-h-[200px] gap-3">
-              <FaSpinner className={theme === 'dark' ? "animate-spin text-blue-300 w-10 h-10" : "animate-spin text-blue-600 w-10 h-10"} />
-              <span className={theme === 'dark' ? "text-blue-200 font-medium" : "text-blue-700 font-medium"}>Loading pending uniform requests...</span>
+            <div className="py-10 text-center">
+              <p className={`text-lg ${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'}`}>Loading requests...</p>
             </div>
           ) : error ? (
-            <div className={theme === 'dark' ? "bg-red-900 text-red-200 p-6 rounded-2xl flex items-center gap-3 max-w-lg mx-auto shadow-lg" : "bg-red-50 text-red-600 p-6 rounded-2xl flex items-center gap-3 max-w-lg mx-auto shadow-lg"}>
-              <FaTimesCircle className="w-6 h-6 flex-shrink-0" />
-              <p className="text-lg font-medium">{error}</p>
+            <div className="py-10 text-center">
+              <p className={`text-lg font-semibold ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>{error}</p>
             </div>
           ) : filteredRequests.length === 0 ? (
-            <div className={theme === 'dark' ? "bg-yellow-900 text-yellow-200 p-6 rounded-2xl flex flex-col items-center gap-3 max-w-lg mx-auto shadow-lg" : "bg-yellow-50 text-yellow-600 p-6 rounded-2xl flex flex-col items-center gap-3 max-w-lg mx-auto shadow-lg"}>
-              <FaUser className="w-10 h-10 flex-shrink-0" />
-              <p className="text-lg font-medium">No pending uniform requests found.</p>
+            <div className="py-10 text-center">
+              <p className={`text-lg ${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'}`}>No uniform requests found.</p>
             </div>
-          ) : (
-            viewMode === 'card' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {filteredRequests.map((req) => (
-                  <div key={req._id} className={`${theme === 'dark' ? 'bg-gray-800 border-blue-900' : 'bg-white border-blue-400'} rounded-2xl shadow-xl p-7 flex flex-col gap-5 border-l-8 hover:shadow-2xl transition group relative`}>
-                    <div className="flex items-center gap-6">
-                      <img
-                        src={req.employee.employeeImage || "/placeholder-user.jpg"}
-                        alt={req.employee.fullName}
-                        className={`w-20 h-20 rounded-full object-cover border-2 ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'} shadow group-hover:scale-105 transition`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h2 className={`text-xl font-bold mb-1 truncate ${theme === 'dark' ? 'text-white' : 'text-black-800'}`}>{req.employee.fullName}</h2>
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <span className={`text-base font ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>{req.employee.designation}</span>
-                          <span className={`text-sm font-bold px-2 py-0.5 rounded ${theme === 'dark' ? 'text-blue-100 bg-blue-900' : 'text-black bg-gray-100'}`}>{req.employee.employeeId}</span>
-                        </div>
-                        <p className={`text-xs mb-1 truncate ${theme === 'dark' ? 'text-blue-300' : 'text-blue-400'}`}>{req.employee.projectName}</p>
-                        <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-700'}`}>Pending</span>
-                        <div className={`mt-2 text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                          <span className="font-semibold">Requested Items:</span> {req.requestedItems.join(", ")}
-                        </div>
-                      </div>
+          ) : viewMode === 'card' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredRequests.map(request => (
+                <div key={request._id} className={`p-5 rounded-2xl shadow-lg transition-all duration-300 ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-16 h-16 rounded-full overflow-hidden">
+                      <img src={request.employee.employeeImage} alt={request.employee.fullName} className="w-full h-full object-cover" />
                     </div>
-                    <div className="flex gap-3 mt-2">
-                      <button
-                        onClick={() => handleAction(req._id, "approve")}
-                        disabled={actionLoading === req._id + "approve"}
-                        title="Approve Request"
-                        className={`flex-1 flex items-center justify-center gap-2 px-5 py-2 rounded-full font-semibold text-base shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gradient-to-r from-blue-800 to-blue-900 text-white hover:from-blue-900 hover:to-blue-950' : 'bg-gradient-to-r from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800'}`}
-                      >
-                        {actionLoading === req._id + "approve" ? <FaSpinner className="animate-spin" /> : <FaCheckCircle className="text-white" />}
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleAction(req._id, "reject")}
-                        disabled={actionLoading === req._id + "reject"}
-                        title="Reject Request"
-                        className={`flex-1 flex items-center justify-center gap-2 px-5 py-2 rounded-full font-semibold text-base shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-300 ${theme === 'dark' ? 'bg-gradient-to-r from-red-800 to-red-900 text-white hover:from-red-900 hover:to-red-950' : 'bg-gradient-to-r from-red-400 to-red-600 text-white hover:from-red-500 hover:to-red-700'}`}
-                      >
-                        {actionLoading === req._id + "reject" ? <FaSpinner className="animate-spin" /> : <FaTimesCircle className="text-white" />}
-                        Reject
-                      </button>
+                    <div className="flex-1">
+                      <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{request.employee.fullName}</h3>
+                      <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{request.employee.designation} - {request.employee.projectName}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className={`${theme === 'dark' ? 'overflow-x-auto rounded-2xl shadow-lg bg-gray-800 border-blue-900' : 'overflow-x-auto rounded-2xl shadow-lg bg-white border-blue-100'}`}>
-                <table className="min-w-full divide-y">
-                  <thead className={theme === 'dark' ? 'bg-blue-900' : 'bg-blue-50'}>
-                    <tr>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Photo</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Name</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Designation</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Employee ID</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Project</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Requested Items</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Status</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Actions</th>
+                  <div className="flex flex-col gap-2 mb-4">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Status:</span>
+                      <span className={`text-sm ${request.status === 'Approved' ? 'text-green-500' : request.status === 'Rejected' ? 'text-red-500' : 'text-yellow-500'}`}>{request.status}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Items:</span>
+                      <div className="flex flex-wrap gap-2">
+                        {request.requestedItems.map(item => (
+                          <span key={item} className={`text-xs rounded-full py-1 px-3 ${theme === 'dark' ? 'bg-blue-900 text-blue-100' : 'bg-blue-50 text-blue-700'}`}>
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAction(request._id, request.status === 'Approved' ? 'reject' : 'approve')}
+                      className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none ${request.status === 'Approved'
+                        ? theme === 'dark'
+                          ? 'bg-red-600 text-white hover:bg-red-700'
+                          : 'bg-red-500 text-white hover:bg-red-600'
+                        : theme === 'dark'
+                          ? 'bg-green-600 text-white hover:bg-green-700'
+                          : 'bg-green-500 text-white hover:bg-green-600'}`}
+                    >
+                      {actionLoading === request._id + (request.status === 'Approved' ? 'reject' : 'approve') ? <FaSpinner className="animate-spin" /> : request.status === 'Approved' ? 'Reject' : 'Approve'}
+                    </button>
+                    <button
+                      onClick={() => setRequests(prev => prev.filter(req => req._id !== request._id))}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none ${theme === 'dark' ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    >
+                      <FaTimesCircle /> Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl shadow-lg">
+              <table className={`min-w-full divide-y divide-gray-200 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+                <thead className={theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">{/* Checkbox for bulk actions */}</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Employee ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Designation</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Project</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Requested Items</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredRequests.map(request => (
+                    <tr key={request._id} className={theme === 'dark' ? 'bg-gray-800' : 'bg-white'}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{/* Checkbox */}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.employeeId}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.fullName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.designation}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.projectName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${request.status === 'Approved' ? 'bg-green-100 text-green-700' : request.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {request.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex flex-wrap gap-2">
+                          {request.requestedItems.map(item => (
+                            <span key={item} className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${theme === 'dark' ? 'bg-blue-900 text-blue-100' : 'bg-blue-50 text-blue-700'}`}>
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAction(request._id, request.status === 'Approved' ? 'reject' : 'approve')}
+                            className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none ${request.status === 'Approved'
+                              ? theme === 'dark'
+                                ? 'bg-red-600 text-white hover:bg-red-700'
+                                : 'bg-red-500 text-white hover:bg-red-600'
+                              : theme === 'dark'
+                                ? 'bg-green-600 text-white hover:bg-green-700'
+                                : 'bg-green-500 text-white hover:bg-green-600'}`}
+                          >
+                            {actionLoading === request._id + (request.status === 'Approved' ? 'reject' : 'approve') ? <FaSpinner className="animate-spin" /> : request.status === 'Approved' ? 'Reject' : 'Approve'}
+                          </button>
+                          <button
+                            onClick={() => setRequests(prev => prev.filter(req => req._id !== request._id))}
+                            className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none ${theme === 'dark' ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                          >
+                            <FaTimesCircle /> Remove
+                          </button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className={theme === 'dark' ? 'divide-y divide-blue-900' : 'divide-y divide-blue-50'}>
-                    {filteredRequests.map((req) => (
-                      <tr key={req._id} className={theme === 'dark' ? 'hover:bg-blue-900 transition' : 'hover:bg-blue-50 transition'}>
-                        <td className="px-4 py-3">
-                          <img src={req.employee.employeeImage || "/placeholder-user.jpg"} alt={req.employee.fullName} className={`w-12 h-12 rounded-full object-cover border-2 shadow ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`} />
-                        </td>
-                        <td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>{req.employee.fullName}</td>
-                        <td className={`px-4 py-3 font ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>{req.employee.designation}</td>
-                        <td className={`px-4 py-3 font ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>{req.employee.employeeId}</td>
-                        <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-500'}`}>{req.employee.projectName}</td>
-                        <td className={`px-4 py-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{req.requestedItems.join(", ")}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-700'}`}>Pending</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleAction(req._id, "approve")}
-                              disabled={actionLoading === req._id + "approve"}
-                              title="Approve Request"
-                              className={`flex items-center justify-center gap-2 px-4 py-1 rounded-full font-semibold text-sm shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gradient-to-r from-blue-800 to-blue-900 text-white hover:from-blue-900 hover:to-blue-950' : 'bg-gradient-to-r from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800'}`}
-                            >
-                              {actionLoading === req._id + "approve" ? <FaSpinner className="animate-spin" /> : <FaCheckCircle className="text-white" />}
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleAction(req._id, "reject")}
-                              disabled={actionLoading === req._id + "reject"}
-                              title="Reject Request"
-                              className={`flex items-center justify-center gap-2 px-4 py-1 rounded-full font-semibold text-sm shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-300 ${theme === 'dark' ? 'bg-gradient-to-r from-red-800 to-red-900 text-white hover:from-red-900 hover:to-red-950' : 'bg-gradient-to-r from-red-400 to-red-600 text-white hover:from-red-500 hover:to-red-700'}`}
-                            >
-                              {actionLoading === req._id + "reject" ? <FaSpinner className="animate-spin" /> : <FaTimesCircle className="text-white" />}
-                              Reject
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

@@ -1,10 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ManagerDashboardLayout from '@/components/dashboard/ManagerDashboardLayout';
 import { FaIdCard, FaInfoCircle } from 'react-icons/fa';
 import { useTheme } from "@/context/ThemeContext";
 
-const MOCK_PROJECTS = ['Project Alpha', 'Project Beta', 'Project Gamma'];
 const MOCK_DESIGNATIONS = ['Security Guard', 'Supervisor', 'Technician', 'Driver'];
 const MOCK_EMPLOYEES = [
   { employeeId: 'EMP001', fullName: 'John Doe', designation: 'Security Guard' },
@@ -16,14 +15,19 @@ const MOCK_EMPLOYEES = [
 
 const UniformProjectWiseApplicablePage = () => {
   const { theme } = useTheme();
-  const [mappings, setMappings] = useState([
-    { id: 1, project: 'Project Alpha', designation: 'Security Guard', employeeId: '', payable: true, type: 'designation' },
-    { id: 2, project: 'Project Beta', designation: 'Supervisor', employeeId: '', payable: false, type: 'designation' },
-  ]);
-  const [form, setForm] = useState({ project: '', designation: '', employeeId: '', payable: true });
-  const [error, setError] = useState('');
-  const [editId, setEditId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ project: '', designation: '', employeeId: '', payable: true });
+  // Projects
+  const [projects, setProjects] = useState<any[]>([]);
+  const [projectLoading, setProjectLoading] = useState(true);
+  const [projectError, setProjectError] = useState('');
+  // Employees for selected project
+  const [projectEmployees, setProjectEmployees] = useState<any[]>([]);
+  const [employeeLoading, setEmployeeLoading] = useState(false);
+  const [employeeError, setEmployeeError] = useState('');
+  // Uniform options for selected employee
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [uniformOptions, setUniformOptions] = useState<any | null>(null);
+  const [uniformOptionsLoading, setUniformOptionsLoading] = useState(false);
+  const [uniformOptionsError, setUniformOptionsError] = useState('');
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'designation' | 'uniformType'>('designation');
@@ -33,10 +37,84 @@ const UniformProjectWiseApplicablePage = () => {
   const [uniformTypeForm, setUniformTypeForm] = useState({ project: '', designation: '', name: '', description: '' });
   const [uniformTypeError, setUniformTypeError] = useState('');
 
-  // Filter employees by selected designation
+  // Mappings and form state (move above filteredEmployees)
+  const [mappings, setMappings] = useState<any[]>([]); // Remove dummy data
+  const [form, setForm] = useState({ project: '', designation: '', employeeId: '', payable: true });
+  const [error, setError] = useState('');
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({ project: '', designation: '', employeeId: '', payable: true });
+
+  // Filter employees by selected designation (after form is declared)
   const filteredEmployees = form.designation
     ? MOCK_EMPLOYEES.filter(emp => emp.designation === form.designation)
     : [];
+
+  // Fetch all projects on mount
+  useEffect(() => {
+    setProjectLoading(true);
+    fetch('https://cafm.zenapi.co.in/api/project/projects')
+      .then(res => res.json())
+      .then(data => {
+        setProjects(Array.isArray(data) ? data : []);
+        setProjectLoading(false);
+      })
+      .catch(() => {
+        setProjectError('Failed to load projects');
+        setProjectLoading(false);
+      });
+  }, []);
+
+  // Fetch employees for selected project
+  useEffect(() => {
+    if (!form.project) {
+      setProjectEmployees([]);
+      return;
+    }
+    setEmployeeLoading(true);
+    setEmployeeError('');
+    fetch('https://cafm.zenapi.co.in/api/uniforms/all')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.uniforms)) {
+          const emps = data.uniforms.filter((u: any) => u.projectName === form.project)
+            .map((u: any) => ({ employeeId: u.employeeId, fullName: u.fullName, designation: u.designation }));
+          setProjectEmployees(emps);
+        } else {
+          setProjectEmployees([]);
+        }
+        setEmployeeLoading(false);
+      })
+      .catch(() => {
+        setEmployeeError('Failed to load employees');
+        setEmployeeLoading(false);
+      });
+  }, [form.project]);
+
+  // Fetch uniform options for selected employee
+  useEffect(() => {
+    if (!selectedEmployeeId) {
+      setUniformOptions(null);
+      return;
+    }
+    setUniformOptionsLoading(true);
+    setUniformOptionsError('');
+    fetch(`https://cafm.zenapi.co.in/api/uniforms/${selectedEmployeeId}/options`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setUniformOptions(data);
+        } else {
+          setUniformOptions(null);
+          setUniformOptionsError('No uniform options found');
+        }
+        setUniformOptionsLoading(false);
+      })
+      .catch(() => {
+        setUniformOptions(null);
+        setUniformOptionsError('Failed to load uniform options');
+        setUniformOptionsLoading(false);
+      });
+  }, [selectedEmployeeId]);
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,12 +244,16 @@ const UniformProjectWiseApplicablePage = () => {
                         <select
                           className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                           value={form.project}
-                          onChange={e => setForm(f => ({ ...f, project: e.target.value }))}
+                          onChange={e => {
+                            setForm(f => ({ ...f, project: e.target.value, designation: '', employeeId: '' }));
+                            setSelectedEmployeeId('');
+                          }}
                           required
                         >
-                          <option value="">Select project...</option>
-                          {MOCK_PROJECTS.map(p => <option key={p} value={p}>{p}</option>)}
+                          <option value="">{projectLoading ? 'Loading projects...' : 'Select project...'}</option>
+                          {projects.map((p: any) => <option key={p._id} value={p.projectName}>{p.projectName}</option>)}
                         </select>
+                        {projectError && <div className="text-red-500 text-xs mt-1">{projectError}</div>}
                       </div>
                       <div className="flex-1">
                         <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Designation</label>
@@ -185,17 +267,24 @@ const UniformProjectWiseApplicablePage = () => {
                           {MOCK_DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
                       </div>
-                      {form.designation && filteredEmployees.length > 0 && (
+                      {/* Employee dropdown after project selection */}
+                      {form.project && (
                         <div className="flex-1">
-                          <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee ID (optional)</label>
+                          <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee (requested)</label>
                           <select
                             className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                             value={form.employeeId}
-                            onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}
+                            onChange={e => {
+                              setForm(f => ({ ...f, employeeId: e.target.value }));
+                              setSelectedEmployeeId(e.target.value);
+                            }}
                           >
-                            <option value="">All employees in designation</option>
-                            {filteredEmployees.map(emp => <option key={emp.employeeId} value={emp.employeeId}>{emp.fullName} ({emp.employeeId})</option>)}
+                            <option value="">All employees in project</option>
+                            {employeeLoading ? <option>Loading...</option> : projectEmployees.map(emp => (
+                              <option key={emp.employeeId} value={emp.employeeId}>{emp.fullName} ({emp.employeeId}) [{emp.designation}]</option>
+                            ))}
                           </select>
+                          {employeeError && <div className="text-red-500 text-xs mt-1">{employeeError}</div>}
                         </div>
                       )}
                       <div className="flex-1 flex flex-col justify-end">
@@ -227,6 +316,35 @@ const UniformProjectWiseApplicablePage = () => {
                     {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
                     <button type="submit" className="self-end px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400">Add Mapping</button>
                   </form>
+                  {/* Uniform options for selected employee */}
+                  {selectedEmployeeId && (
+                    <div className={`mt-8 p-6 rounded-2xl border shadow-xl ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-blue-50 border-blue-200'}`}>
+                      {uniformOptionsLoading ? (
+                        <div className="text-blue-500">Loading uniform options...</div>
+                      ) : uniformOptionsError ? (
+                        <div className="text-red-500">{uniformOptionsError}</div>
+                      ) : uniformOptions ? (
+                        <>
+                          <h3 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Uniform Options for {uniformOptions.employeeDetails.fullName} ({uniformOptions.employeeDetails.employeeId})</h3>
+                          <div className="mb-2 text-sm font-semibold">Designation: {uniformOptions.employeeDetails.designation} | Project: {uniformOptions.employeeDetails.projectName}</div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {uniformOptions.uniformOptions.map((opt: any) => (
+                              <div key={opt.type} className={`rounded-xl p-4 border ${theme === 'dark' ? 'bg-gray-800 border-blue-900' : 'bg-white border-blue-200'} shadow`}>
+                                <div className="font-bold mb-1">{opt.type}</div>
+                                {opt.sizes && (
+                                  <div className="text-xs">Sizes: {opt.sizes.join(', ')}</div>
+                                )}
+                                {opt.set && (
+                                  <div className="text-xs">Set: {opt.set.join(', ')}</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-2 text-xs text-blue-500">Max Quantity: {uniformOptions.maxQuantity}</div>
+                        </>
+                      ) : null}
+                    </div>
+                  )}
                 </section>
                 {/* Mappings Table */}
                 <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-8 border shadow-xl`}>
@@ -256,7 +374,7 @@ const UniformProjectWiseApplicablePage = () => {
                                     required
                                   >
                                     <option value="">Select project...</option>
-                                    {MOCK_PROJECTS.map(p => <option key={p} value={p}>{p}</option>)}
+                                    {projects.map((p: any) => <option key={p._id} value={p.projectName}>{p.projectName}</option>)}
                                   </select>
                                 </td>
                                 <td className="px-4 py-3">
@@ -334,34 +452,34 @@ const UniformProjectWiseApplicablePage = () => {
               </>
             )}
             {activeTab === 'uniformType' && (
-              <section className="bg-white rounded-2xl p-8 border border-blue-100 shadow-xl">
+              <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-8 border shadow-xl`}>
                 <div className="flex items-center gap-6 mb-6">
-                  <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
+                  <div className={`${theme === 'dark' ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-600 bg-opacity-30'} rounded-xl p-4 flex items-center justify-center`}>
                     <FaIdCard className="w-10 h-10 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-blue-800 mb-1">Create Uniform Type</h1>
-                    <p className="text-blue-700 text-base opacity-90">Define types of uniforms for each project and designation</p>
+                    <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'} mb-1`}>Create Uniform Type</h1>
+                    <p className={`text-base opacity-90 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Define types of uniforms for each project and designation</p>
                   </div>
                 </div>
                 <form onSubmit={handleUniformTypeAdd} className="flex flex-col gap-6 mb-8">
                   <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1">
-                      <label className="block text-blue-800 font-semibold mb-1">Project</label>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Project</label>
                       <select
-                        className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                         value={uniformTypeForm.project}
                         onChange={e => setUniformTypeForm(f => ({ ...f, project: e.target.value }))}
                         required
                       >
-                        <option value="">Select project...</option>
-                        {MOCK_PROJECTS.map(p => <option key={p} value={p}>{p}</option>)}
+                        <option value="">{projectLoading ? 'Loading projects...' : 'Select project...'}</option>
+                        {projects.map((p: any) => <option key={p._id} value={p.projectName}>{p.projectName}</option>)}
                       </select>
                     </div>
                     <div className="flex-1">
-                      <label className="block text-blue-800 font-semibold mb-1">Designation</label>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Designation</label>
                       <select
-                        className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                         value={uniformTypeForm.designation}
                         onChange={e => setUniformTypeForm(f => ({ ...f, designation: e.target.value }))}
                         required
@@ -373,20 +491,20 @@ const UniformProjectWiseApplicablePage = () => {
                   </div>
                   <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1">
-                      <label className="block text-blue-800 font-semibold mb-1">Uniform Type Name</label>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Uniform Type Name</label>
                       <input
                         type="text"
-                        className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                         value={uniformTypeForm.name}
                         onChange={e => setUniformTypeForm(f => ({ ...f, name: e.target.value }))}
                         required
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="block text-blue-800 font-semibold mb-1">Description</label>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Description</label>
                       <input
                         type="text"
-                        className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
                         value={uniformTypeForm.description}
                         onChange={e => setUniformTypeForm(f => ({ ...f, description: e.target.value }))}
                       />
@@ -395,27 +513,27 @@ const UniformProjectWiseApplicablePage = () => {
                   {uniformTypeError && <div className="text-red-500 text-sm mt-2">{uniformTypeError}</div>}
                   <button type="submit" className="self-end px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400">Add Uniform Type</button>
                 </form>
-                <div className="bg-white rounded-2xl shadow-lg p-8 border border-blue-100">
-                  <h2 className="text-xl font-bold text-blue-700 mb-4">Uniform Types</h2>
+                <div className={`rounded-2xl shadow-lg p-8 border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'}`}>
+                  <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Uniform Types</h2>
                   {uniformTypes.length === 0 ? (
-                    <div className="text-blue-500 text-center py-8">No uniform types yet. Add a uniform type above.</div>
+                    <div className={`${theme === 'dark' ? 'text-blue-400' : 'text-blue-500'} text-center py-8`}>No uniform types yet. Add a uniform type above.</div>
                   ) : (
-                    <table className="min-w-full divide-y divide-blue-100">
-                      <thead className="bg-blue-50">
+                    <table className={`min-w-full divide-y ${theme === 'dark' ? 'divide-gray-800' : 'divide-blue-100'}`}>
+                      <thead className={theme === 'dark' ? 'bg-blue-950' : 'bg-blue-50'}>
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Project</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Designation</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Uniform Type</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Description</th>
+                          <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Project</th>
+                          <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Designation</th>
+                          <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Uniform Type</th>
+                          <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Description</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-blue-50">
+                      <tbody className={theme === 'dark' ? 'divide-gray-800' : 'divide-blue-50'}>
                         {uniformTypes.map(u => (
-                          <tr key={u.id} className="hover:bg-blue-50 transition">
-                            <td className="px-4 py-3 font-bold text-blue-800">{u.project}</td>
-                            <td className="px-4 py-3">{u.designation}</td>
-                            <td className="px-4 py-3">{u.name}</td>
-                            <td className="px-4 py-3">{u.description}</td>
+                          <tr key={u.id} className={theme === 'dark' ? 'hover:bg-blue-950 transition' : 'hover:bg-blue-50 transition'}>
+                            <td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>{u.project}</td>
+                            <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{u.designation}</td>
+                            <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{u.name}</td>
+                            <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{u.description}</td>
                           </tr>
                         ))}
                       </tbody>
