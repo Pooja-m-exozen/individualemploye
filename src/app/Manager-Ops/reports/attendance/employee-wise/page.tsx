@@ -649,6 +649,21 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
                 fontStyle: 'bold'
             }
         });
+
+        // Add working days, weekoff, total payable days, attendance percentage below monthly summary
+        const summaryTableY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+        const workingDays = summary.summary.totalDays - (summary.summary.weekOffs + summary.summary.holidays);
+        const totalWeekoff = summary.summary.weekOffs ?? 0;
+        const totalPayableDays = summary.summary.presentDays + (summary.summary.halfDays / 2) + summary.summary.el + summary.summary.sl + summary.summary.cl + summary.summary.compOff;
+        const attendancePercentage = workingDays > 0 ? ((totalPayableDays / workingDays) * 100).toFixed(2) : '0.00';
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.text([
+            `Total Working Days: ${workingDays} days`,
+            `Total Weekoff: ${totalWeekoff} days`,
+            `Total Payable Days: ${totalPayableDays} days`,
+            `Attendance Percentage: ${attendancePercentage}%`
+        ], 15, summaryTableY, { lineHeightFactor: 1.5 });
     }
 
       // Add Leave Balance section
