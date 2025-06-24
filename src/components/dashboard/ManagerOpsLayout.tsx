@@ -94,7 +94,7 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
 
   const handleLogout = () => {
     logout();
-    window.location.href = "/dashboard";
+    window.location.href = "/v1/employee/login";
   };
 
   const toggleSubmenu = (label: string) => {
