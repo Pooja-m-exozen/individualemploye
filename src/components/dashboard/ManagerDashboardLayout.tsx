@@ -40,11 +40,54 @@ const menuItems = [
       { label: "Project Wise Applicable", href: "/Manager/uniform-management/project-wise-applicable" },
     ]
   },
-  { label: "Attendance Management", icon: <FaCalendarAlt />, href: "/Manager/attendance-management" },
-  { label: "Leave Management", icon: <FaPlaneDeparture />, href: "/Manager/leave-management" },
-  { label: "Stores Management", icon: <FaStore />, href: "/Manager/stores-management" },
-  { label: "Payroll Management", icon: <FaMoneyBillWave />, href: "/Manager/payroll-management" },
-  { label: "Reports", icon: <FaTasks />, href: "/Manager/reports" },
+  {
+    label: "Attendance Management",
+    icon: <FaCalendarAlt />,
+    subItems: [
+      { label: "View", href: "/Manager/attendance-management/view" },
+      { label: "Create Shifts", href: "/Manager/attendance-management/create-shifts" },
+    ]
+  },
+  {
+    label: "Leave Management",
+    icon: <FaPlaneDeparture />,
+    subItems: [
+      { label: "View", href: "/Manager/leave-management/view" },
+    ]
+  },
+  {
+    label: "Stores Management",
+    icon: <FaStore />,
+    subItems: [
+      { label: "Requests", href: "/Manager/stores-management/requests" },
+      { label: "In Stock", href: "/Manager/stores-management/in-stock" },
+      { label: "DC", href: "/Manager/stores-management/dc" },
+    ]
+  },
+  {
+    label: "Payroll Management",
+    icon: <FaMoneyBillWave />,
+    subItems: [
+      { label: "Create", href: "/Manager/payroll-management/create" },
+      { label: "Update", href: "/Manager/payroll-management/update" },
+      { label: "View", href: "/Manager/payroll-management/view" },
+    ]
+  },
+  {
+    label: "Reports",
+    icon: <FaTasks />,
+    subItems: [
+      { label: "KYC", href: "/Manager/reports/kyc" },
+      { label: "ID Card", href: "/Manager/reports/id-card" },
+      { label: "Uniform", href: "/Manager/reports/uniform" },
+      { label: "Attendance", href: "/Manager/reports/attendance" },
+      { label: "Leave", href: "/Manager/reports/leave" },
+      { label: "Stores", href: "/Manager/reports/stores" },
+      { label: "Payroll", href: "/Manager/reports/payroll" },
+      { label: "Project", href: "/Manager/reports/project" },
+      { label: "Employee", href: "/Manager/reports/employee" },
+    ]
+  },
 ];
 
 const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
@@ -118,10 +161,10 @@ const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
                   <div>
                     <button
                       onClick={() => setOpenSubmenu(openSubmenu === item.label ? null : item.label)}
-                      className={`flex items-center px-4 py-3 w-full rounded-xl transition-all duration-200 ${isSidebarExpanded ? "justify-start" : "justify-center"} ${theme === "dark" ? (openSubmenu === item.label ? "bg-gray-700 text-white" : "hover:bg-gray-700 hover:text-white") : (openSubmenu === item.label ? "bg-blue-50 text-blue-700" : "hover:bg-gray-200 hover:text-gray-800")}`}
+                      className={`flex items-center px-4 py-3 w-full rounded-xl transition-all duration-200 ${isSidebarExpanded ? "justify-start" : "justify-center"} whitespace-nowrap overflow-hidden text-ellipsis ${theme === "dark" ? (openSubmenu === item.label ? "bg-gray-700 text-white" : "hover:bg-gray-700 hover:text-white") : (openSubmenu === item.label ? "bg-blue-50 text-blue-700" : "hover:bg-gray-200 hover:text-gray-800")}`}
                     >
                       <span className="text-xl">{item.icon}</span>
-                      {isSidebarExpanded && <span className="ml-3 font-medium">{item.label}</span>}
+                      {isSidebarExpanded && <span className="ml-3 font-medium whitespace-nowrap overflow-hidden text-ellipsis">{item.label}</span>}
                       <span className="ml-auto">
                         <FaChevronRight className={`transition-transform ${openSubmenu === item.label ? "rotate-90" : ""}`} />
                       </span>
