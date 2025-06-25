@@ -148,7 +148,7 @@ const UniformViewPage = () => {
 							<p className="text-sm text-yellow-700">Try adjusting your filters or search criteria.</p>
 						</div>
 					) : viewMode === 'card' ? (
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto" style={{ maxHeight: '520px', minHeight: '200px' }}>
 							{filteredRequests.map((req) => (
 								<div
 									key={req._id}
@@ -171,7 +171,7 @@ const UniformViewPage = () => {
 							))}
 						</div>
 					) : (
-						<div className={`overflow-x-auto rounded-2xl shadow-lg ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} mx-auto`} style={{ maxWidth: '900px' }}>
+						<div className={`overflow-x-auto rounded-2xl shadow-lg ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} mx-auto`} style={{ maxWidth: '900px', maxHeight: '520px', minHeight: '200px', overflowY: 'auto' }}>
 							<table className={`min-w-full table-fixed ${theme === 'dark' ? 'divide-y divide-gray-800' : 'divide-y divide-blue-100'}`}>
 								<thead className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-50'}>
 									<tr>
