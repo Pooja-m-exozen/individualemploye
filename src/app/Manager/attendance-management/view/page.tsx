@@ -91,6 +91,20 @@ export default function AttendanceViewPage() {
     fetchAttendance();
   }, []);
 
+  // Set default project to 'Exozen-Ops' when switching to Project Wise Attendance
+  useEffect(() => {
+    if (activeTab === "Project Wise Attendance" && !projectFilter) {
+      // Find if 'Exozen-Ops' exists in uniqueProjects
+      const exozenProject = attendanceData.find(row => row.projectName === "Exozen-Ops");
+      if (exozenProject) {
+        setProjectFilter("Exozen-Ops");
+      } else if (uniqueProjects.length > 0) {
+        setProjectFilter(uniqueProjects[0]);
+      }
+    }
+    // eslint-disable-next-line
+  }, [activeTab, attendanceData]);
+
   // Fetch project attendance when project, fromDate, or toDate changes (only in Project Wise Attendance tab)
   useEffect(() => {
     if (activeTab === "Project Wise Attendance" && projectFilter) {
@@ -301,7 +315,7 @@ export default function AttendanceViewPage() {
                 onChange={e => setProjectFilter(e.target.value)}
                 className={`w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-black border-gray-300 focus:ring-blue-600'}`}
               >
-                <option value="">All Projects</option>
+                {/* No 'All Projects' option, only list unique projects */}
                 {uniqueProjects.map(project => (
                   <option key={project} value={project}>{project}</option>
                 ))}
