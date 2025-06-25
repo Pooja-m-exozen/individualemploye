@@ -1,61 +1,13 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { FaSearch, FaPlaneDeparture, FaFileExport } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory } from "@/services/leave";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
-const dummyLeaveRecords = [
-	{
-		employeeId: "EMP001",
-		fullName: "John Doe",
-		project: "Project Alpha",
-		designation: "Manager",
-		status: "Approved",
-	},
-	{
-		employeeId: "EMP002",
-		fullName: "Jane Smith",
-		project: "Project Beta",
-		designation: "Developer",
-		status: "Pending",
-	},
-	{
-		employeeId: "EMP003",
-		fullName: "Alice Brown",
-		project: "Project Gamma",
-		designation: "Analyst",
-		status: "Rejected",
-	},
-	{
-		employeeId: "EMP004",
-		fullName: "Bob Lee",
-		project: "Project Alpha",
-		designation: "HR",
-		status: "Approved",
-	},
-	// ...more records
-];
-
-const projectOptions = [
-	"All Projects",
-	"Project Alpha",
-	"Project Beta",
-	"Project Gamma",
-];
-const designationOptions = [
-	"All Designations",
-	"Manager",
-	"Developer",
-	"Analyst",
-	"HR",
-];
 const statusOptions = ["All Statuses", "Approved", "Pending", "Rejected"];
-
-function downloadExcel() {
-	alert("Excel export coming soon!");
-}
-function downloadPDF() {
-	alert("PDF export coming soon!");
-}
 
 export default function LeaveReportPage() {
 	const { theme } = useTheme();
@@ -64,8 +16,68 @@ export default function LeaveReportPage() {
 	const [designationFilter, setDesignationFilter] = useState("All Designations");
 	const [statusFilter, setStatusFilter] = useState("All Statuses");
 
+	const [leaveRecords, setLeaveRecords] = useState<any[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+
+	// Dynamic dropdowns from ID card API
+	const [projectOptions, setProjectOptions] = useState<string[]>(["All Projects"]);
+	const [designationOptions, setDesignationOptions] = useState<string[]>(["All Designations"]);
+
+	const [currentPage, setCurrentPage] = useState(1);
+	const rowsPerPage = 15;
+
+	// Fetch project and designation options from ID card API
+	useEffect(() => {
+		fetch("https://cafm.zenapi.co.in/api/id-cards/all")
+			.then((res) => res.json() as Promise<{ allIdCards?: { projectName?: string; designation?: string }[] }>)
+			.then((data) => {
+				if (data.allIdCards) {
+					const projects = Array.from(new Set((data.allIdCards.map((f) => f.projectName).filter(Boolean) as string[])));
+					const designations = Array.from(new Set((data.allIdCards.map((f) => f.designation).filter(Boolean) as string[])));
+					setProjectOptions(["All Projects", ...projects.sort()]);
+					setDesignationOptions(["All Designations", ...designations.sort()]);
+				}
+			});
+	}, []);
+
+	useEffect(() => {
+		setLoading(true);
+		getAllEmployeesLeaveHistory()
+			.then((data) => {
+				const records: any[] = [];
+				data.forEach((emp) => {
+					if (emp.leaveHistory && emp.leaveHistory.leaveHistory) {
+						emp.leaveHistory.leaveHistory.forEach((leave) => {
+						const project = emp.kyc.personalDetails.projectName;
+						const designation = emp.kyc.personalDetails.designation;
+						records.push({
+							employeeId: emp.kyc.personalDetails.employeeId,
+							fullName: emp.kyc.personalDetails.fullName,
+							project,
+							designation,
+							status: leave.status,
+							leaveType: leave.leaveType,
+							startDate: leave.startDate,
+							endDate: leave.endDate,
+							numberOfDays: leave.numberOfDays,
+							appliedOn: leave.appliedOn,
+						});
+					});
+				}
+				});
+				setLeaveRecords(records);
+				setLoading(false);
+				setError(null);
+			})
+			.catch((e) => {
+				setError("Failed to load leave records");
+				setLoading(false);
+			});
+	}, []);
+
 	const filteredRecords = useMemo(() => {
-		return dummyLeaveRecords.filter((rec) => {
+		return leaveRecords.filter((rec) => {
 			const matchesSearch =
 				search === "" ||
 				rec.fullName.toLowerCase().includes(search.toLowerCase()) ||
@@ -84,16 +96,67 @@ export default function LeaveReportPage() {
 				matchesStatus
 			);
 		});
+	}, [search, projectFilter, designationFilter, statusFilter, leaveRecords]);
+
+	// Pagination logic
+	const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);
+	const paginatedRecords = filteredRecords.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+	// Reset to first page if filters/search change
+	useEffect(() => {
+		setCurrentPage(1);
 	}, [search, projectFilter, designationFilter, statusFilter]);
 
+	function formatDate(dateStr?: string) {
+		if (!dateStr) return "-";
+		return dateStr.split("T")[0];
+	}
+
+	function downloadExcel() {
+		const data = filteredRecords.map((rec) => ({
+			"Employee ID": rec.employeeId || "-",
+			"Name": rec.fullName || "-",
+			"Project": rec.project || "-",
+			"Designation": rec.designation || "-",
+			"Status": rec.status || "-",
+			"Leave Type": rec.leaveType || "-",
+			"Start Date": formatDate(rec.startDate),
+			"End Date": formatDate(rec.endDate),
+			"Days": rec.numberOfDays || "-",
+			"Applied On": formatDate(rec.appliedOn),
+		}));
+		const worksheet = XLSX.utils.json_to_sheet(data);
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, "Leave Report");
+		XLSX.writeFile(workbook, "leave_report.xlsx");
+	}
+
+	function downloadPDF() {
+		const doc = new jsPDF();
+		const tableData = filteredRecords.map((rec) => [
+			rec.employeeId || "-",
+			rec.fullName || "-",
+			rec.project || "-",
+			rec.designation || "-",
+			rec.status || "-",
+			rec.leaveType || "-",
+			formatDate(rec.startDate),
+			formatDate(rec.endDate),
+			rec.numberOfDays || "-",
+			formatDate(rec.appliedOn),
+		]);
+		autoTable(doc, {
+			head: [["Employee ID", "Name", "Project", "Designation", "Status", "Leave Type", "Start Date", "End Date", "Days", "Applied On"]],
+			body: tableData,
+			startY: 20,
+			styles: { fontSize: 9 },
+			headStyles: { fillColor: [41, 128, 185] },
+		});
+		doc.save("leave_report.pdf");
+	}
+
 	return (
-		<div
-			className={`min-h-screen font-sans ${
-				theme === "dark"
-					? "bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950"
-					: "bg-gradient-to-br from-indigo-50 via-white to-blue-50"
-			}`}
-		>
+		<div className={`min-h-screen font-sans ${theme === "dark" ? "bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950" : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"}`}>
 			<div className="p-6">
 				{/* Header */}
 				<div
@@ -212,147 +275,87 @@ export default function LeaveReportPage() {
 					</div>
 				</div>
 				{/* Table */}
-				<div
-					className={`overflow-x-auto rounded-xl border shadow-xl ${
-						theme === "dark" ? "border-gray-700 bg-gray-900" : "border-blue-100 bg-white"
-					}`}
-				>
-					<table
-						className={`min-w-full divide-y ${
-							theme === "dark" ? "divide-gray-700" : "divide-blue-100"
-						}`}
-					>
-						<thead
-							className={
-								theme === "dark"
-									? "bg-blue-950 sticky top-0 z-10"
-									: "bg-blue-50 sticky top-0 z-10"
-							}
-						>
-							<tr>
-								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-										theme === "dark" ? "text-blue-300" : "text-blue-700"
-									}`}
-								>
-									Employee ID
-								</th>
-								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-										theme === "dark" ? "text-blue-300" : "text-blue-700"
-									}`}
-								>
-									Name
-								</th>
-								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-										theme === "dark" ? "text-blue-300" : "text-blue-700"
-									}`}
-								>
-									Project
-								</th>
-								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-										theme === "dark" ? "text-blue-300" : "text-blue-700"
-									}`}
-								>
-									Designation
-								</th>
-								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-										theme === "dark" ? "text-blue-300" : "text-blue-700"
-									}`}
-								>
-									Status
-								</th>
-							</tr>
-						</thead>
-						<tbody
-							className={
-								theme === "dark"
-									? "divide-y divide-gray-800"
-									: "divide-y divide-blue-50"
-							}
-						>
-							{filteredRecords.length === 0 ? (
-								<tr>
-									<td
-										colSpan={5}
-										className={`px-4 py-12 text-center ${
-											theme === "dark" ? "text-gray-400" : "text-gray-500"
-										}`}
-									>
-										No records found
-									</td>
-								</tr>
-							) : (
-								filteredRecords.map((rec, idx) => (
-									<tr
-										key={idx}
-										className={
-											theme === "dark"
-												? "hover:bg-blue-950 transition"
-												: "hover:bg-blue-50 transition"
-										}
-									>
-										<td
-											className={`px-4 py-3 font-bold ${
-												theme === "dark" ? "text-blue-200" : "text-blue-800"
-											}`}
-										>
-											{rec.employeeId}
-										</td>
-										<td
-											className={
-												theme === "dark"
-													? "px-4 py-3 text-gray-100"
-													: "px-4 py-3 text-black"
-											}
-										>
-											{rec.fullName}
-										</td>
-										<td
-											className={
-												theme === "dark"
-													? "px-4 py-3 text-gray-100"
-													: "px-4 py-3 text-black"
-											}
-										>
-											{rec.project}
-										</td>
-										<td
-											className={
-												theme === "dark"
-													? "px-4 py-3 text-gray-100"
-													: "px-4 py-3 text-black"
-											}
-										>
-											{rec.designation}
-										</td>
-										<td className="px-4 py-3">
-											<span
-												className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-													rec.status === "Approved"
+				<div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === "dark" ? "border-gray-700 bg-gray-900" : "border-blue-100 bg-white"}`}>
+					{loading ? (
+						<div className="p-8 text-center text-gray-400">Loading leave records...</div>
+					) : error ? (
+						<div className="p-8 text-center text-red-500">{error}</div>
+					) : (
+						<>
+							<table className={`min-w-full divide-y ${theme === "dark" ? "divide-gray-700" : "divide-blue-100"}`}>
+								<thead className={theme === "dark" ? "bg-blue-950 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+									<tr>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Employee ID</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Name</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Project</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Designation</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Status</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Leave Type</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Start Date</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>End Date</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Days</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Applied On</th>
+									</tr>
+								</thead>
+								<tbody className={theme === "dark" ? "divide-y divide-gray-800" : "divide-y divide-blue-50"}>
+									{paginatedRecords.length === 0 ? (
+										<tr>
+											<td colSpan={10} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No records found</td>
+										</tr>
+									) : (
+										paginatedRecords.map((rec, idx) => (
+											<tr key={idx} className={theme === "dark" ? "hover:bg-blue-950 transition" : "hover:bg-blue-50 transition"}>
+												<td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{rec.employeeId}</td>
+												<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.fullName}</td>
+												<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.project}</td>
+												<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.designation}</td>
+												<td className="px-4 py-3">
+													<span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${rec.status === "Approved"
 														? theme === "dark"
 															? "bg-green-900 text-green-200"
 															: "bg-green-100 text-green-800"
 														: rec.status === "Pending"
-														? theme === "dark"
-															? "bg-yellow-900 text-yellow-200"
-															: "bg-yellow-100 text-yellow-800"
-														: theme === "dark"
-														? "bg-red-900 text-red-200"
-														: "bg-red-100 text-red-800"
-												}`}
-											>
-												{rec.status}
-											</span>
-										</td>
-									</tr>
-								))
+															? theme === "dark"
+																? "bg-yellow-900 text-yellow-200"
+																: "bg-yellow-100 text-yellow-800"
+															: theme === "dark"
+																? "bg-red-900 text-red-200"
+																: "bg-red-100 text-red-800"}`}>{rec.status}</span>
+												</td>
+												<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.leaveType}</td>
+												<td className={theme === "dark" ? "px-4 py-3 text-gray-100 whitespace-nowrap" : "px-4 py-3 text-black whitespace-nowrap"}>{formatDate(rec.startDate)}</td>
+												<td className={theme === "dark" ? "px-4 py-3 text-gray-100 whitespace-nowrap" : "px-4 py-3 text-black whitespace-nowrap"}>{formatDate(rec.endDate)}</td>
+												<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.numberOfDays}</td>
+												<td className={theme === "dark" ? "px-4 py-3 text-gray-100 whitespace-nowrap" : "px-4 py-3 text-black whitespace-nowrap"}>{formatDate(rec.appliedOn)}</td>
+											</tr>
+										))
+									)}
+								</tbody>
+							</table>
+							{/* Pagination Controls */}
+							{totalPages > 1 && (
+								<div className="flex justify-center items-center gap-2 mt-4">
+									<button
+										onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+										disabled={currentPage === 1}
+										className={`px-3 py-1 rounded ${currentPage === 1 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : theme === "dark" ? "bg-blue-900 text-white hover:bg-blue-800" : "bg-blue-500 text-white hover:bg-blue-600"}`}
+									>
+										Prev
+									</button>
+									<span className="px-2 text-sm font-medium">
+										Page {currentPage} of {totalPages}
+									</span>
+									<button
+										onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+										disabled={currentPage === totalPages}
+										className={`px-3 py-1 rounded ${currentPage === totalPages ? "bg-gray-300 text-gray-500 cursor-not-allowed" : theme === "dark" ? "bg-blue-900 text-white hover:bg-blue-800" : "bg-blue-500 text-white hover:bg-blue-600"}`}
+									>
+										Next
+									</button>
+								</div>
 							)}
-						</tbody>
-					</table>
+						</>
+					)}
 				</div>
 			</div>
 		</div>

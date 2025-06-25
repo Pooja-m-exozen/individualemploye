@@ -47,6 +47,8 @@ const menuItems = [
     subItems: [
       { label: "View", href: "/Manager/attendance-management/view" },
       { label: "Create Shifts", href: "/Manager/attendance-management/create-shifts" },
+      { label: " Attendance Regularization ", href: "/Manager/attendance-management/regularization" },
+    
     ]
   },
   {

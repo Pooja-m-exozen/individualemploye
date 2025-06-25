@@ -1,62 +1,29 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { FaSearch, FaIdCard, FaFileExport } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
-const dummyIDCardRecords = [
-	{
-		employeeId: "EMP001",
-		fullName: "John Doe",
-		project: "Project Alpha",
-		designation: "Manager",
-		status: "Generated",
-	},
-	{
-		employeeId: "EMP002",
-		fullName: "Jane Smith",
-		project: "Project Beta",
-		designation: "Developer",
-		status: "Pending",
-	},
-	{
-		employeeId: "EMP003",
-		fullName: "Alice Brown",
-		project: "Project Gamma",
-		designation: "Analyst",
-		status: "Rejected",
-	},
-	{
-		employeeId: "EMP004",
-		fullName: "Bob Lee",
-		project: "Project Alpha",
-		designation: "HR",
-		status: "Generated",
-	},
-	// ...more records
-];
-
-const projectOptions = [
-	"All Projects",
-	"Project Alpha",
-	"Project Beta",
-	"Project Gamma",
-];
-const designationOptions = [
-	"All Designations",
-	"Manager",
-	"Developer",
-	"Analyst",
-	"HR",
-];
-const statusOptions = ["All Statuses", "Generated", "Pending", "Rejected"];
-
-function downloadExcel() {
-	// Dummy export function
-	alert("Excel export coming soon!");
-}
-function downloadPDF() {
-	// Dummy export function
-	alert("PDF export coming soon!");
+// API response type
+interface IdCard {
+	_id: string;
+	employeeId: string;
+	fullName: string;
+	designation: string;
+	gender?: string;
+	projectName: string;
+	bloodGroup?: string;
+	employeeImage?: string;
+	status: string;
+	validUntil?: string;
+	createdAt?: string;
+	updatedAt?: string;
+	issuedDate?: string;
+	requestDate?: string;
+	approvalDate?: string;
+	approvedBy?: string;
 }
 
 export default function IDCardReportPage() {
@@ -65,28 +32,133 @@ export default function IDCardReportPage() {
 	const [projectFilter, setProjectFilter] = useState("All Projects");
 	const [designationFilter, setDesignationFilter] = useState("All Designations");
 	const [statusFilter, setStatusFilter] = useState("All Statuses");
+	const [idCardRecords, setIdCardRecords] = useState<IdCard[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState("");
+	const [projectOptions, setProjectOptions] = useState<string[]>(["All Projects"]);
+	const [designationOptions, setDesignationOptions] = useState<string[]>(["All Designations"]);
+	const [statusOptions, setStatusOptions] = useState<string[]>(["All Statuses"]);
+	const [sortBy, setSortBy] = useState<"projectName" | "designation" | "status" | "">("");
+	const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+	const [currentPage, setCurrentPage] = useState(1);
+	const rowsPerPage = 15;
 
+	useEffect(() => {
+		setLoading(true);
+		fetch("https://cafm.zenapi.co.in/api/id-cards/all")
+			.then((res) => res.json())
+			.then((data) => {
+				if (data.allIdCards) {
+					setIdCardRecords(data.allIdCards);
+					// Populate filter options dynamically
+					const projects = Array.from(
+						new Set<string>(
+							data.allIdCards.map((f: IdCard) => f.projectName).filter(Boolean)
+						)
+					);
+					const designations = Array.from(
+						new Set<string>(
+							data.allIdCards.map((f: IdCard) => f.designation).filter(Boolean)
+						)
+					);
+					const statuses = Array.from(
+						new Set<string>(
+							data.allIdCards.map((f: IdCard) => f.status).filter(Boolean)
+						)
+					);
+					setProjectOptions(["All Projects", ...projects]);
+					setDesignationOptions(["All Designations", ...designations]);
+					setStatusOptions(["All Statuses", ...statuses]);
+				} else {
+					setIdCardRecords([]);
+				}
+				setLoading(false);
+			})
+			.catch(() => {
+				setError("Failed to fetch ID Card data.");
+				setLoading(false);
+			});
+	}, []);
+
+	// Filtering
 	const filteredRecords = useMemo(() => {
-		return dummyIDCardRecords.filter((rec) => {
+		return idCardRecords.filter((rec) => {
 			const matchesSearch =
 				search === "" ||
-				rec.fullName.toLowerCase().includes(search.toLowerCase()) ||
-				rec.employeeId.toLowerCase().includes(search.toLowerCase());
+				(rec.fullName && rec.fullName.toLowerCase().includes(search.toLowerCase())) ||
+				(rec.employeeId && rec.employeeId.toLowerCase().includes(search.toLowerCase()));
 			const matchesProject =
-				projectFilter === "All Projects" || rec.project === projectFilter;
+				projectFilter === "All Projects" || rec.projectName === projectFilter;
 			const matchesDesignation =
-				designationFilter === "All Designations" ||
-				rec.designation === designationFilter;
+				designationFilter === "All Designations" || rec.designation === designationFilter;
 			const matchesStatus =
 				statusFilter === "All Statuses" || rec.status === statusFilter;
-			return (
-				matchesSearch &&
-				matchesProject &&
-				matchesDesignation &&
-				matchesStatus
-			);
+			return matchesSearch && matchesProject && matchesDesignation && matchesStatus;
 		});
-	}, [search, projectFilter, designationFilter, statusFilter]);
+	}, [search, projectFilter, designationFilter, statusFilter, idCardRecords]);
+
+	// Sorting
+	const sortedRecords = useMemo(() => {
+		if (!sortBy) return filteredRecords;
+		return [...filteredRecords].sort((a, b) => {
+			const aVal = (a[sortBy] || "").toString().toLowerCase();
+			const bVal = (b[sortBy] || "").toString().toLowerCase();
+			if (aVal < bVal) return sortDir === "asc" ? -1 : 1;
+			if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
+			return 0;
+		});
+	}, [filteredRecords, sortBy, sortDir]);
+
+	// Pagination
+	const totalPages = Math.ceil(sortedRecords.length / rowsPerPage);
+	const paginatedRecords = sortedRecords.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+	// Reset to first page if filters/search/sort change
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [search, projectFilter, designationFilter, statusFilter, sortBy, sortDir]);
+
+	function handleSort(col: "projectName" | "designation" | "status") {
+		if (sortBy === col) {
+			setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+		} else {
+			setSortBy(col);
+			setSortDir("asc");
+		}
+	}
+
+	function downloadExcel(records: IdCard[]) {
+		const data = records.map((rec) => ({
+			"Employee ID": rec.employeeId || "-",
+			"Name": rec.fullName || "-",
+			"Project": rec.projectName || "-",
+			"Designation": rec.designation || "-",
+			"Status": rec.status || "-",
+		}));
+		const worksheet = XLSX.utils.json_to_sheet(data);
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, "ID Card Report");
+		XLSX.writeFile(workbook, "id_card_report.xlsx");
+	}
+
+	function downloadPDF(records: IdCard[]) {
+		const doc = new jsPDF();
+		const tableData = records.map((rec) => [
+			rec.employeeId || "-",
+			rec.fullName || "-",
+			rec.projectName || "-",
+			rec.designation || "-",
+			rec.status || "-",
+		]);
+		autoTable(doc, {
+			head: [["Employee ID", "Name", "Project", "Designation", "Status"]],
+			body: tableData,
+			startY: 20,
+			styles: { fontSize: 10 },
+			headStyles: { fillColor: [41, 128, 185] },
+		});
+		doc.save("id_card_report.pdf");
+	}
 
 	return (
 		<div
@@ -192,7 +264,7 @@ export default function IDCardReportPage() {
 					</div>
 					<div className="flex gap-2 justify-end">
 						<button
-							onClick={downloadExcel}
+							onClick={() => downloadExcel(filteredRecords)}
 							className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
 								theme === "dark"
 									? "bg-green-700 text-white hover:bg-green-800"
@@ -202,7 +274,7 @@ export default function IDCardReportPage() {
 							<FaFileExport /> Export Excel
 						</button>
 						<button
-							onClick={downloadPDF}
+							onClick={() => downloadPDF(filteredRecords)}
 							className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
 								theme === "dark"
 									? "bg-red-700 text-white hover:bg-red-800"
@@ -219,143 +291,188 @@ export default function IDCardReportPage() {
 						theme === "dark" ? "border-gray-700 bg-gray-900" : "border-blue-100 bg-white"
 					}`}
 				>
-					<table
-						className={`min-w-full divide-y ${
-							theme === "dark" ? "divide-gray-700" : "divide-blue-100"
-						}`}
-					>
-						<thead
-							className={
-								theme === "dark"
-									? "bg-blue-950 sticky top-0 z-10"
-									: "bg-blue-50 sticky top-0 z-10"
-							}
+					{loading ? (
+						<div className="p-8 text-center text-lg text-blue-600">Loading...</div>
+					) : error ? (
+						<div className="p-8 text-center text-lg text-red-600">{error}</div>
+					) : (
+						<table
+							className={`min-w-full divide-y ${
+								theme === "dark" ? "divide-gray-700" : "divide-blue-100"
+							}`}
 						>
-							<tr>
-								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-										theme === "dark" ? "text-blue-300" : "text-blue-700"
-									}`}
-								>
-									Employee ID
-								</th>
-								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-										theme === "dark" ? "text-blue-300" : "text-blue-700"
-									}`}
-								>
-									Name
-								</th>
-								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-										theme === "dark" ? "text-blue-300" : "text-blue-700"
-									}`}
-								>
-									Project
-								</th>
-								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-										theme === "dark" ? "text-blue-300" : "text-blue-700"
-									}`}
-								>
-									Designation
-								</th>
-								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-										theme === "dark" ? "text-blue-300" : "text-blue-700"
-									}`}
-								>
-									Status
-								</th>
-							</tr>
-						</thead>
-						<tbody
-							className={
-								theme === "dark"
-									? "divide-y divide-gray-800"
-									: "divide-y divide-blue-50"
-							}
-						>
-							{filteredRecords.length === 0 ? (
+							<thead
+								className={
+									theme === "dark"
+										? "bg-blue-950 sticky top-0 z-10"
+										: "bg-blue-50 sticky top-0 z-10"
+								}
+							>
 								<tr>
-									<td
-										colSpan={5}
-										className={`px-4 py-12 text-center ${
-											theme === "dark" ? "text-gray-400" : "text-gray-500"
+									<th
+										className={`px-4 py-3 text-left text-xs font-bold uppercase ${
+											theme === "dark" ? "text-blue-300" : "text-blue-700"
 										}`}
 									>
-										No records found
-									</td>
-								</tr>
-							) : (
-								filteredRecords.map((rec, idx) => (
-									<tr
-										key={idx}
-										className={
-											theme === "dark"
-												? "hover:bg-blue-950 transition"
-												: "hover:bg-blue-50 transition"
-										}
+										Employee ID
+									</th>
+									<th
+										className={`px-4 py-3 text-left text-xs font-bold uppercase ${
+											theme === "dark" ? "text-blue-300" : "text-blue-700"
+										}`}
 									>
+										Name
+									</th>
+									<th
+										className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${
+											theme === "dark" ? "text-blue-300" : "text-blue-700"
+										}`}
+										onClick={() => handleSort("projectName")}
+									>
+										Project{" "}
+										{sortBy === "projectName" && (sortDir === "asc" ? "▲" : "▼")}
+									</th>
+									<th
+										className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${
+											theme === "dark" ? "text-blue-300" : "text-blue-700"
+										}`}
+										onClick={() => handleSort("designation")}
+									>
+										Designation{" "}
+										{sortBy === "designation" && (sortDir === "asc" ? "▲" : "▼")}
+									</th>
+									<th
+										className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${
+											theme === "dark" ? "text-blue-300" : "text-blue-700"
+										}`}
+										onClick={() => handleSort("status")}
+									>
+										Status {sortBy === "status" && (sortDir === "asc" ? "▲" : "▼")}
+									</th>
+								</tr>
+							</thead>
+							<tbody
+								className={
+									theme === "dark"
+										? "divide-y divide-gray-800"
+										: "divide-y divide-blue-50"
+								}
+							>
+								{paginatedRecords.length === 0 ? (
+									<tr>
 										<td
-											className={`px-4 py-3 font-bold ${
-												theme === "dark" ? "text-blue-200" : "text-blue-800"
+											colSpan={5}
+											className={`px-4 py-12 text-center ${
+												theme === "dark" ? "text-gray-400" : "text-gray-500"
 											}`}
 										>
-											{rec.employeeId}
-										</td>
-										<td
-											className={
-												theme === "dark"
-													? "px-4 py-3 text-gray-100"
-													: "px-4 py-3 text-black"
-											}
-										>
-											{rec.fullName}
-										</td>
-										<td
-											className={
-												theme === "dark"
-													? "px-4 py-3 text-gray-100"
-													: "px-4 py-3 text-black"
-											}
-										>
-											{rec.project}
-										</td>
-										<td
-											className={
-												theme === "dark"
-													? "px-4 py-3 text-gray-100"
-													: "px-4 py-3 text-black"
-											}
-										>
-											{rec.designation}
-										</td>
-										<td className="px-4 py-3">
-											<span
-												className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-													rec.status === "Generated"
-														? theme === "dark"
-															? "bg-green-900 text-green-200"
-															: "bg-green-100 text-green-800"
-														: rec.status === "Pending"
-														? theme === "dark"
-															? "bg-yellow-900 text-yellow-200"
-															: "bg-yellow-100 text-yellow-800"
-														: theme === "dark"
-														? "bg-red-900 text-red-200"
-														: "bg-red-100 text-red-800"
-												}`}
-											>
-												{rec.status}
-											</span>
+											No records found
 										</td>
 									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+								) : (
+									paginatedRecords.map((rec, idx) => (
+										<tr
+											key={idx}
+											className={
+												theme === "dark"
+													? "hover:bg-blue-950 transition"
+													: "hover:bg-blue-50 transition"
+											}
+										>
+											<td
+												className={`px-4 py-3 font-bold ${
+													theme === "dark" ? "text-blue-200" : "text-blue-800"
+												}`}
+											>
+												{rec.employeeId}
+											</td>
+											<td
+												className={
+													theme === "dark"
+														? "px-4 py-3 text-gray-100"
+														: "px-4 py-3 text-black"
+												}
+											>
+												{rec.fullName}
+											</td>
+											<td
+												className={
+													theme === "dark"
+														? "px-4 py-3 text-gray-100"
+														: "px-4 py-3 text-black"
+												}
+											>
+												{rec.projectName}
+											</td>
+											<td
+												className={
+													theme === "dark"
+														? "px-4 py-3 text-gray-100"
+														: "px-4 py-3 text-black"
+												}
+											>
+												{rec.designation}
+											</td>
+											<td className="px-4 py-3">
+												<span
+													className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+														rec.status === "Issued"
+															? theme === "dark"
+																? "bg-green-900 text-green-200"
+																: "bg-green-100 text-green-800"
+															: rec.status === "Approved"
+															? theme === "dark"
+																? "bg-yellow-900 text-yellow-200"
+																: "bg-yellow-100 text-yellow-800"
+															: theme === "dark"
+															? "bg-red-900 text-red-200"
+															: "bg-red-100 text-red-800"
+													}`}
+												>
+													{rec.status}
+												</span>
+											</td>
+										</tr>
+									))
+								)}
+							</tbody>
+						</table>
+					)}
 				</div>
+				{/* Pagination Controls */}
+				{totalPages > 1 && (
+					<div className="flex justify-center items-center gap-2 mt-4">
+						<button
+							onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+							disabled={currentPage === 1}
+							className={`px-3 py-1 rounded ${
+								currentPage === 1
+									? "bg-gray-300 text-gray-500 cursor-not-allowed"
+									: theme === "dark"
+									? "bg-blue-900 text-white hover:bg-blue-800"
+									: "bg-blue-500 text-white hover:bg-blue-600"
+							}`}
+						>
+							Prev
+						</button>
+						<span className="px-2 text-sm font-medium">
+							Page {currentPage} of {totalPages}
+						</span>
+						<button
+							onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+							disabled={currentPage === totalPages}
+							className={`px-3 py-1 rounded ${
+								currentPage === totalPages
+									? "bg-gray-300 text-gray-500 cursor-not-allowed"
+									: theme === "dark"
+									? "bg-blue-900 text-white hover:bg-blue-800"
+									: "bg-blue-500 text-white hover:bg-blue-600"
+							}`}
+						>
+							Next
+						</button>
+					</div>
+				)}
 			</div>
 		</div>
 	);

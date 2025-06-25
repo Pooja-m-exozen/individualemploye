@@ -3,53 +3,51 @@ import React, { useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { FaSpinner, FaCheck, FaTimes, FaBan, FaUserAlt, FaTimesCircle } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-
-const dummyKycDetails = [
-  {
-    employeeId: "EMP001",
-    employeeImage: "https://via.placeholder.com/50",
-    fullName: "John Doe",
-    designation: "Security Guard",
-  },
-];
-
-const dummyLeaveData = [
-  {
-    leaveType: "EL",
-    startDate: "2025-06-10",
-    endDate: "2025-06-15",
-    numberOfDays: 5,
-    reason: "Vacation",
-    status: "Pending",
-  },
-  {
-    leaveType: "CL",
-    startDate: "2025-06-12",
-    endDate: "2025-06-15",
-    numberOfDays: 3,
-    reason: "Personal Work",
-    status: "Approved",
-  },
-  {
-    leaveType: "SL",
-    startDate: "2025-06-14",
-    endDate: "2025-06-16",
-    numberOfDays: 2,
-    reason: "Sick Leave",
-    status: "Rejected",
-  },
-];
+import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory } from "@/services/leave";
+import { showToast, ToastStyles } from "@/components/Toast";
+import { api } from "@/services/api";
 
 export default function LeaveManagementViewPage() {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterLeaveType, setFilterLeaveType] = useState("All");
+  const [allLeaveData, setAllLeaveData] = useState<EmployeeWithLeaveHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectLeaveId, setRejectLeaveId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejectionError, setRejectionError] = useState("");
+
+  React.useEffect(() => {
+    setLoading(true);
+    getAllEmployeesLeaveHistory()
+      .then((data) => {
+        setAllLeaveData(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Failed to fetch leave history for all employees");
+        setLoading(false);
+      });
+  }, []);
+
+  // Flatten all leave records with employee info
+  const allLeaves = allLeaveData.flatMap((emp) =>
+    (emp.leaveHistory?.leaveHistory || []).map((leave) => ({
+      ...leave,
+      employeeName: emp.kyc.personalDetails.fullName,
+      employeeId: emp.kyc.personalDetails.employeeId,
+      designation: emp.kyc.personalDetails.designation,
+      employeeImage: emp.kyc.personalDetails.employeeImage,
+    }))
+  );
 
   const filteredLeaveData =
     activeTab === "All"
-      ? dummyLeaveData
-      : dummyLeaveData.filter((leave) => leave.status === activeTab);
+      ? allLeaves
+      : allLeaves.filter((leave) => leave.status === activeTab);
 
   const filteredSearchData = filteredLeaveData.filter(
     (leave) =>
@@ -57,16 +55,147 @@ export default function LeaveManagementViewPage() {
       (leave.leaveType.toLowerCase().includes(searchQuery.toLowerCase()) ||
         leave.startDate.includes(searchQuery) ||
         leave.endDate.includes(searchQuery) ||
-        dummyKycDetails[0]?.fullName.toLowerCase().includes(searchQuery.toLowerCase()))
+        leave.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        leave.employeeId.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
+
+  // Calculate paginated data
+  const totalRows = filteredSearchData.length;
+  const totalPages = Math.ceil(totalRows / rowsPerPage);
+  const paginatedData = filteredSearchData.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
+  // Reset to first page when filters/search change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, filterLeaveType]);
 
   const clearSearch = () => {
     setSearchQuery("");
     setFilterLeaveType("All");
   };
 
+  const updateLeaveStatus = async (
+    leaveId: string,
+    status: "Approved" | "Rejected",
+    rejectionReason?: string
+  ) => {
+    const payload: any = { status };
+    if (status === "Rejected" && rejectionReason) {
+      payload.rejectionReason = rejectionReason;
+    }
+    const response = await api.put(`/leave/update/${leaveId}`, payload);
+    return response.data;
+  };
+
+  const refreshLeaveData = async () => {
+    setLoading(true);
+    try {
+      const data = await getAllEmployeesLeaveHistory();
+      setAllLeaveData(data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (leaveId: string) => {
+    try {
+      await updateLeaveStatus(leaveId, "Approved");
+      showToast({ message: "Leave approved successfully!", type: "success" });
+      await refreshLeaveData();
+    } catch (e) {
+      showToast({ message: "Failed to approve leave", type: "error" });
+    }
+  };
+
+  const handleReject = (leaveId: string) => {
+    setRejectLeaveId(leaveId);
+    setRejectionReason("");
+    setRejectionError("");
+    setRejectModalOpen(true);
+  };
+
+  const handleRejectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectionReason.trim()) {
+      setRejectionError("Rejection reason is required.");
+      return;
+    }
+    if (!rejectLeaveId) return;
+    setRejectModalOpen(false);
+    try {
+      await updateLeaveStatus(rejectLeaveId, "Rejected", rejectionReason.trim());
+      showToast({ message: "Leave rejected successfully!", type: "success" });
+      await refreshLeaveData();
+    } catch (e) {
+      showToast({ message: "Failed to reject leave", type: "error" });
+    } finally {
+      setRejectLeaveId(null);
+      setRejectionReason("");
+      setRejectionError("");
+    }
+  };
+
+  const closeRejectModal = () => {
+    setRejectModalOpen(false);
+    setRejectLeaveId(null);
+    setRejectionReason("");
+    setRejectionError("");
+  };
+
   return (
     <ManagerDashboardLayout>
+      <ToastStyles />
+      <style>{`
+        .custom-toast-container {
+          position: fixed;
+          top: 1.5rem;
+          right: 1.5rem;
+          z-index: 9999;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+      `}</style>
+      {/* Move toast container to top right */}
+      {rejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4 text-red-600">Reject Leave Request</h2>
+            <form onSubmit={handleRejectSubmit}>
+              <textarea
+                className="w-full border border-gray-300 rounded-lg p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-red-400 text-black"
+                rows={4}
+                placeholder="Enter reason for rejection..."
+                value={rejectionReason}
+                onChange={e => setRejectionReason(e.target.value)}
+              />
+              {rejectionError && <div className="text-red-500 text-sm mb-2">{rejectionError}</div>}
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={closeRejectModal}
+                  className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded bg-red-600 text-white font-semibold hover:bg-red-700"
+                >
+                  Reject
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <div
         className={`p-4 md:p-8 min-h-screen transition-colors duration-300 ${
           theme === "dark" ? "bg-gray-900" : "bg-gray-50"
@@ -96,7 +225,7 @@ export default function LeaveManagementViewPage() {
         </div>
         {/* Tabs for Filtering */}
         <div className="flex gap-4 mb-6">
-          {["All", "Approved", "Rejected", "Canceled", "Pending"].map((tab) => (
+          {["All", "Approved", "Rejected", "Pending"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -163,135 +292,159 @@ export default function LeaveManagementViewPage() {
             theme === "dark" ? "bg-gray-800" : "bg-white"
           }`}
         >
-          <div className="min-w-[1200px]">
-            <table className="w-full">
-              <thead>
-                <tr className={theme === "dark" ? "border-b-2 border-gray-700" : "border-b-2 border-gray-200"}>
-                  <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Employee</th>
-                  <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Leave Details</th>
-                  <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Duration</th>
-                  <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Reason</th>
-                  <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Status</th>
-                  {activeTab === "Pending" && (
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Actions</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className={theme === "dark" ? "divide-y divide-gray-700" : "divide-y divide-gray-200"}>
-                {filteredSearchData.map((leave, index) => (
-                  <tr
-                    key={index}
-                    className={`transition-colors duration-200 ${
-                      theme === "dark"
-                        ? "hover:bg-gray-700"
-                        : "hover:bg-gray-50"
-                    }`}
-                  >
-                    <td className="p-4">
-                      <div className="flex items-center space-x-4">
-                        <img
-                          src={dummyKycDetails[0]?.employeeImage || ""}
-                          alt={dummyKycDetails[0]?.fullName || "Employee"}
-                          className={`w-12 h-12 rounded-full object-cover border-2 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}
-                        />
-                        <div>
-                          <div className={theme === "dark" ? "font-medium text-gray-100" : "font-medium text-gray-900"}>{dummyKycDetails[0]?.fullName || "N/A"}</div>
-                          <div className={theme === "dark" ? "text-sm text-gray-400" : "text-sm text-gray-500"}>{dummyKycDetails[0]?.employeeId || "N/A"}</div>
-                          <div className={theme === "dark" ? "text-sm text-gray-400" : "text-sm text-gray-500"}>{dummyKycDetails[0]?.designation || "N/A"}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className={
-                        theme === "dark"
-                          ? "px-3 py-1 bg-blue-900 text-blue-200 rounded-full text-sm font-medium"
-                          : "px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                      }>
-                        {leave.leaveType}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="space-y-1">
-                        <div className={theme === "dark" ? "text-sm text-gray-100" : "text-sm text-gray-900"}>
-                          {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
-                        </div>
-                        <div className={theme === "dark" ? "text-sm text-gray-400" : "text-sm text-gray-500"}>
-                          {leave.numberOfDays} {leave.numberOfDays === 1 ? 'day' : 'days'}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className={theme === "dark" ? "text-sm text-gray-100 max-w-xs truncate" : "text-sm text-gray-900 max-w-xs truncate"} title={leave.reason}>
-                        {leave.reason}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
-                          leave.status === "Approved"
-                            ? theme === "dark"
-                              ? "bg-green-900 text-green-200"
-                              : "bg-green-100 text-green-800"
-                            : leave.status === "Rejected"
-                            ? theme === "dark"
-                              ? "bg-red-900 text-red-200"
-                              : "bg-red-100 text-red-800"
-                            : leave.status === "Pending"
-                            ? theme === "dark"
-                              ? "bg-yellow-900 text-yellow-200"
-                              : "bg-yellow-100 text-yellow-800"
-                            : theme === "dark"
-                            ? "bg-gray-700 text-gray-200"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {leave.status}
-                      </span>
-                    </td>
+          {loading ? (
+            <div className="flex justify-center items-center h-40">
+              <FaSpinner className="animate-spin text-3xl text-blue-500" />
+            </div>
+          ) : error ? (
+            <div className="text-red-500 text-center py-8">{error}</div>
+          ) : (
+            <div className="min-w-[1200px]">
+              <table className="w-full">
+                <thead>
+                  <tr className={theme === "dark" ? "border-b-2 border-gray-700" : "border-b-2 border-gray-200"}>
+                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Employee</th>
+                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Leave Details</th>
+                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Duration</th>
+                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Reason</th>
+                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Status</th>
                     {activeTab === "Pending" && (
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => console.log("Approve")}
-                            className={`p-2 rounded-lg transition-colors duration-200 ${
-                              theme === "dark"
-                                ? "text-green-300 hover:text-green-400 hover:bg-green-900"
-                                : "text-green-600 hover:text-green-800 hover:bg-green-50"
-                            }`}
-                            title="Approve"
-                          >
-                            <FaCheck className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => console.log("Reject")}
-                            className={`p-2 rounded-lg transition-colors duration-200 ${
-                              theme === "dark"
-                                ? "text-red-300 hover:text-red-400 hover:bg-red-900"
-                                : "text-red-600 hover:text-red-800 hover:bg-red-50"
-                            }`}
-                            title="Reject"
-                          >
-                            <FaTimes className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => console.log("Cancel")}
-                            className={`p-2 rounded-lg transition-colors duration-200 ${
-                              theme === "dark"
-                                ? "text-gray-300 hover:text-gray-400 hover:bg-gray-700"
-                                : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                            }`}
-                            title="Cancel"
-                          >
-                            <FaBan className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </td>
+                      <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Actions</th>
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className={theme === "dark" ? "divide-y divide-gray-700" : "divide-y divide-gray-200"}>
+                  {paginatedData.map((leave, index) => (
+                    <tr
+                      key={leave.leaveId}
+                      className={`transition-colors duration-200 ${
+                        theme === "dark"
+                          ? "hover:bg-gray-700"
+                          : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <td className="p-4">
+                        <div>
+                          <div className={theme === "dark" ? "font-medium text-gray-100" : "font-medium text-gray-900"}>{leave.employeeName || "N/A"}</div>
+                          <div className={theme === "dark" ? "text-sm text-gray-400" : "text-sm text-gray-500"}>{leave.employeeId || "N/A"}</div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className={
+                          theme === "dark"
+                            ? "px-3 py-1 bg-blue-900 text-blue-200 rounded-full text-sm font-medium"
+                            : "px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                        }>
+                          {leave.leaveType}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="space-y-1">
+                          <div className={theme === "dark" ? "text-sm text-gray-100" : "text-sm text-gray-900"}>
+                            {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                          </div>
+                          <div className={theme === "dark" ? "text-sm text-gray-400" : "text-sm text-gray-500"}>
+                            {leave.numberOfDays} {leave.numberOfDays === 1 ? 'day' : 'days'}
+                            {leave.isHalfDay ? ` (${leave.halfDayType || 'Half Day'})` : ''}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className={theme === "dark" ? "text-sm text-gray-100 max-w-xs truncate" : "text-sm text-gray-900 max-w-xs truncate"} title={leave.reason}>
+                          {leave.reason}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                            leave.status === "Approved"
+                              ? theme === "dark"
+                                ? "bg-green-900 text-green-200"
+                                : "bg-green-100 text-green-800"
+                              : leave.status === "Rejected"
+                              ? theme === "dark"
+                                ? "bg-red-900 text-red-200"
+                                : "bg-red-100 text-red-800"
+                              : leave.status === "Pending"
+                              ? theme === "dark"
+                                ? "bg-yellow-900 text-yellow-200"
+                                : "bg-yellow-100 text-yellow-800"
+                              : theme === "dark"
+                              ? "bg-gray-700 text-gray-200"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {leave.status}
+                        </span>
+                      </td>
+                      {activeTab === "Pending" && (
+                        <td className="p-4">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleApprove(leave.leaveId)}
+                              className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${
+                                theme === "dark"
+                                  ? "bg-green-800 text-white hover:bg-green-700"
+                                  : "bg-green-500 text-white hover:bg-green-600"
+                              }`}
+                              title="Approve"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleReject(leave.leaveId)}
+                              className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${
+                                theme === "dark"
+                                  ? "bg-red-800 text-white hover:bg-red-700"
+                                  : "bg-red-500 text-white hover:bg-red-600"
+                              }`}
+                              title="Reject"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center mt-4 gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1 rounded border font-medium transition-colors duration-200 ${
+                    currentPage === 1
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : theme === 'dark'
+                      ? 'bg-gray-700 text-white hover:bg-blue-800'
+                      : 'bg-white text-blue-700 hover:bg-blue-100'
+                  }`}
+                >
+                  Prev
+                </button>
+                <span className="mx-2 text-sm font-medium">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-1 rounded border font-medium transition-colors duration-200 ${
+                    currentPage === totalPages
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : theme === 'dark'
+                      ? 'bg-gray-700 text-white hover:bg-blue-800'
+                      : 'bg-white text-blue-700 hover:bg-blue-100'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+            </div>
+          )}
         </div>
       </div>
     </ManagerDashboardLayout>
