@@ -253,8 +253,8 @@ const PayslipPage = () => {
                 <FaFileInvoiceDollar className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-black">Payslip Dashboard</h1>
-                <p className="text-blue-100 mt-1">View and download your monthly salary details</p>
+                <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-white'}`}>Payslip Dashboard</h1>
+                <p className={`${theme === 'dark' ? 'text-blue-200' : 'text-blue-100'} mt-1`}>View and download your monthly salary details</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -309,15 +309,15 @@ const PayslipPage = () => {
                 />
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-black">M/s Exozen Private Limited.,</h2>
-                <p className="text-sm text-gray-900 mt-1">
+                <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-black'}`}>M/s Exozen Private Limited.,</h2>
+                <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>
                   No.25/1, 4th Floor, Shantala Nagar, Brigade Road, Museum Road,<br />
                   Ashok Nagar, Bengaluru, Karnataka - 560025
                 </p>
               </div>
             </div>
             <div className="text-center mt-4">
-              <h3 className="text-lg font-semibold text-black">Pay Slip for the month of {new Date(payslip.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
+              <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-black'}`}>Pay Slip for the month of {new Date(payslip.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
             </div>
           </div>
 
