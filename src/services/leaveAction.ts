@@ -5,7 +5,7 @@ export const updateLeaveStatus = async (
   status: "Approved" | "Rejected",
   rejectionReason?: string
 ) => {
-  const payload: any = { status };
+  const payload: { status: "Approved" | "Rejected"; rejectionReason?: string } = { status };
   if (status === "Rejected" && rejectionReason) {
     payload.rejectionReason = rejectionReason;
   }

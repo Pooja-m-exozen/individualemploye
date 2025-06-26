@@ -2,12 +2,25 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { FaSearch, FaPlaneDeparture, FaFileExport } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory } from "@/services/leave";
+import { getAllEmployeesLeaveHistory,} from "@/services/leave";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const statusOptions = ["All Statuses", "Approved", "Pending", "Rejected"];
+
+interface LeaveRecord {
+	employeeId: string;
+	fullName: string;
+	project: string;
+	designation: string;
+	status: string;
+	leaveType: string;
+	startDate: string;
+	endDate: string;
+	numberOfDays: number;
+	appliedOn: string;
+}
 
 export default function LeaveReportPage() {
 	const { theme } = useTheme();
@@ -16,7 +29,7 @@ export default function LeaveReportPage() {
 	const [designationFilter, setDesignationFilter] = useState("All Designations");
 	const [statusFilter, setStatusFilter] = useState("All Statuses");
 
-	const [leaveRecords, setLeaveRecords] = useState<any[]>([]);
+	const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +58,7 @@ export default function LeaveReportPage() {
 		setLoading(true);
 		getAllEmployeesLeaveHistory()
 			.then((data) => {
-				const records: any[] = [];
+				const records: LeaveRecord[] = [];
 				data.forEach((emp) => {
 					if (emp.leaveHistory && emp.leaveHistory.leaveHistory) {
 						emp.leaveHistory.leaveHistory.forEach((leave) => {
@@ -70,7 +83,7 @@ export default function LeaveReportPage() {
 				setLoading(false);
 				setError(null);
 			})
-			.catch((e) => {
+			.catch(() => {
 				setError("Failed to load leave records");
 				setLoading(false);
 			});

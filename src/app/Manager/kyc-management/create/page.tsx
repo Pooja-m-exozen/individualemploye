@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { useTheme } from "@/context/ThemeContext";
-import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaExclamationCircle, FaSpinner, FaInfoCircle } from "react-icons/fa";
+import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle } from "react-icons/fa";
 
 const sections = [
   { id: "personal", title: "Personal Details", icon: FaUser },
@@ -115,8 +115,12 @@ export default function CreateKYCPage() {
       } else {
         setError(data.message || "Submission failed.");
       }
-    } catch (err: any) {
-      setError("Submission failed. " + err.message);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError("Submission failed. " + err.message);
+      } else {
+        setError("An unexpected error occurred during submission.");
+      }
     } finally {
       setLoading(false);
     }
@@ -141,7 +145,7 @@ export default function CreateKYCPage() {
           <aside className="md:w-64 flex-shrink-0 flex flex-col gap-6 h-full overflow-y-auto">
             <div className={`rounded-2xl p-4 sticky top-8 border shadow ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
               <nav className="space-y-1">
-                {sections.map((section, idx) => {
+                {sections.map((section) => {
                   const isActive = activeSection === section.id;
                   const isCompleted = completedSections.includes(section.id);
                   return (
@@ -245,11 +249,11 @@ export default function CreateKYCPage() {
                       <input name="fullName" value={personalDetails.fullName} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required />
                     </div>
                     <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Father's Name</label>
+                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Father&apos;s Name</label>
                       <input name="fathersName" value={personalDetails.fathersName} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
                     </div>
                     <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Mother's Name</label>
+                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Mother&apos;s Name</label>
                       <input name="mothersName" value={personalDetails.mothersName} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
                     </div>
                     <div>

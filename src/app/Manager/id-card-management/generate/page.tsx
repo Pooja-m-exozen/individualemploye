@@ -3,16 +3,18 @@
 import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import IDCardModal from "@/components/dashboard/IDCardModal";
-import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaEye, FaCheck, FaTimes, FaFilter, FaCalendarAlt, FaSort, FaChevronDown, FaChevronUp, FaInfoCircle, FaArrowLeft } from "react-icons/fa";
+import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaCheck, FaTimes, FaFilter, FaCalendarAlt,  FaChevronDown, FaChevronUp, FaInfoCircle, } from "react-icons/fa";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/context/ThemeContext';
-import html2canvas from 'html2canvas';
+import Image from "next/image";
 
 interface Employee {
   employeeId: string;
   fullName: string;
   designation: string;
   projectName: string;
+  gender?: 'male' | 'female' | 'other';
+  bloodGroup?: string;
   phoneNumber?: string;
   kycApprovalDate?: string;
   status: string;
@@ -21,13 +23,41 @@ interface Employee {
   employeeImage?: string;
 }
 
+interface KycForm {
+  personalDetails: {
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    projectName: string;
+    employeeImage: string;
+    bloodGroup: string;
+    phoneNumber: string;
+    email: string;
+    kycApprovalDate: string;
+    status: string;
+  };
+}
+
+interface ReadyToIssueItem {
+  idCardId: string;
+  employeeId: string;
+  fullName: string;
+  designation: string;
+  projectName: string;
+  requestDate: string;
+  approvedBy: string;
+  approvalDate: string;
+  employeeImage?: string;
+  bloodGroup?: string;
+}
+
 interface IDCardRequest {
   _id: string;
   employeeId: string;
   fullName: string;
   designation: string;
   projectName: string;
-  gender?: string;
+  gender?: 'male' | 'female' | 'other';
   bloodGroup?: string;
   employeeImage?: string;
   status: 'Requested' | 'Approved' | 'Rejected' | 'Issued';
@@ -156,7 +186,7 @@ export default function GenerateIDCardPage() {
       const data = await response.json();
       
       if (data.kycForms) {
-        const employee = data.kycForms.find((form: any) => 
+        const employee = data.kycForms.find((form: KycForm) => 
           form.personalDetails.employeeId === employeeId
         );
         
@@ -219,7 +249,7 @@ export default function GenerateIDCardPage() {
       
       // Add ready to issue requests (convert to IDCardRequest format)
       if (readyToIssueData.data && Array.isArray(readyToIssueData.data)) {
-        const readyToIssueRequests = readyToIssueData.data.map((item: any) => ({
+        const readyToIssueRequests = readyToIssueData.data.map((item: ReadyToIssueItem) => ({
           _id: item.idCardId,
           employeeId: item.employeeId,
           fullName: item.fullName,
@@ -279,37 +309,6 @@ export default function GenerateIDCardPage() {
     }
   };
 
-  const fetchReadyToIssue = async () => {
-    try {
-      const response = await fetch("https://cafm.zenapi.co.in/api/id-cards/ready-to-issue");
-      if (!response.ok) {
-        throw new Error('Failed to fetch ready to issue requests');
-      }
-      const data = await response.json();
-      console.log('Ready to Issue API Response:', data);
-      
-      // Convert to IDCardRequest format
-      if (data.data && Array.isArray(data.data)) {
-        return data.data.map((item: any) => ({
-          _id: item.idCardId,
-          employeeId: item.employeeId,
-          fullName: item.fullName,
-          designation: item.designation,
-          projectName: item.projectName,
-          status: 'Approved' as const,
-          requestDate: item.requestDate,
-          approvedBy: item.approvedBy,
-          approvedDate: item.approvalDate,
-          validUntil: new Date(new Date(item.requestDate).getTime() + 365 * 24 * 60 * 60 * 1000).toISOString()
-        }));
-      }
-      return [];
-    } catch (err) {
-      console.error("Failed to fetch ready to issue requests:", err);
-      return [];
-    }
-  };
-
   const handleGenerateRequest = async () => {
     if (!selectedEmployee) {
       setError("Please select an employee.");
@@ -343,8 +342,8 @@ export default function GenerateIDCardPage() {
         fetchAllRequests();
         fetchWorkflowStatus();
       }, 1000);
-    } catch (err: any) {
-      setError(err.message || "An error occurred while generating the request.");
+    } catch (err: unknown) {
+      setError((err as Error).message || "An error occurred while generating the request.");
     } finally {
       setLoading(false);
     }
@@ -375,8 +374,8 @@ export default function GenerateIDCardPage() {
       setSuccess(`Request ${status.toLowerCase()} successfully`);
       fetchAllRequests();
       fetchWorkflowStatus();
-    } catch (err: any) {
-      setError(err.message || "An error occurred while updating the request.");
+    } catch (err: unknown) {
+      setError((err as Error).message || "An error occurred while updating the request.");
     }
   };
 
@@ -427,8 +426,8 @@ export default function GenerateIDCardPage() {
       setSuccess('ID Card issued successfully');
       fetchAllRequests();
       fetchWorkflowStatus();
-    } catch (err: any) {
-      setError(err.message || "An error occurred while issuing the card.");
+    } catch (err: unknown) {
+      setError((err as Error).message || "An error occurred while issuing the card.");
     }
   };
 
@@ -466,8 +465,8 @@ export default function GenerateIDCardPage() {
       setSelectedRequests([]);
       fetchAllRequests();
       fetchWorkflowStatus();
-    } catch (err: any) {
-      setError(err.message || "An error occurred while bulk approving requests.");
+    } catch (err: unknown) {
+      setError((err as Error).message || "An error occurred while bulk approving requests.");
     } finally {
       setBulkLoading(false);
     }
@@ -507,19 +506,21 @@ export default function GenerateIDCardPage() {
       setSelectedRequests([]);
       fetchAllRequests();
       fetchWorkflowStatus();
-    } catch (err: any) {
-      setError(err.message || "An error occurred while bulk issuing cards.");
+    } catch (err: unknown) {
+      setError((err as Error).message || "An error occurred while bulk issuing cards.");
     } finally {
       setBulkLoading(false);
     }
   };
 
   const handleSelectRequest = (requestId: string) => {
-    setSelectedRequests(prev => 
-      prev.includes(requestId) 
-        ? prev.filter(id => id !== requestId)
-        : [...prev, requestId]
-    );
+    setSelectedRequests(prevSelectedRequests => {
+      if (prevSelectedRequests.includes(requestId)) {
+        return prevSelectedRequests.filter(id => id !== requestId);
+      } else {
+        return [...prevSelectedRequests, requestId];
+      }
+    });
   };
 
   const handleSelectAllRequests = (requests: IDCardRequest[]) => {
@@ -527,26 +528,6 @@ export default function GenerateIDCardPage() {
       setSelectedRequests([]);
     } else {
       setSelectedRequests(requests.map(req => req._id));
-    }
-  };
-
-  const generateQRCode = async (employeeId: string) => {
-    try {
-      const response = await fetch(`https://cafm.zenapi.co.in/api/qr-code/generate/${employeeId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate QR code');
-      }
-
-      return await response.json();
-    } catch (err) {
-      console.error("Failed to generate QR code:", err);
-      return null;
     }
   };
 
@@ -574,7 +555,7 @@ export default function GenerateIDCardPage() {
       return matchesSearch && matchesStatus && matchesProject && matchesDesignation && matchesDateRange;
     })
     .sort((a, b) => {
-      let aValue: any, bValue: any;
+      let aValue: string | Date, bValue: string | Date;
       
       switch (filters.sortBy) {
         case 'fullName':
@@ -1286,7 +1267,7 @@ export default function GenerateIDCardPage() {
                         <p>Total Requests: {allRequests.length}</p>
                         <p>Pending Requests: {pendingRequests.length}</p>
                         <p>Filtered Requests: {getTabRequests().length}</p>
-                        <p>Search Term: "{searchTerm}"</p>
+                        <p>Search Term: &quot;{searchTerm}&quot;</p>
                         <p>Active Filters: {activeFiltersCount}</p>
                       </div>
                     </div>
@@ -1354,9 +1335,13 @@ export default function GenerateIDCardPage() {
                                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                                       theme === 'dark' ? 'bg-gray-600' : 'bg-gray-100'
                                     }`}>
-                                      <FaUser className={`w-6 h-6 ${
-                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                                      }`} />
+                                      {request.employeeImage ? (
+                                        <Image src={request.employeeImage} alt={request.fullName} width={48} height={48} className="rounded-full" />
+                                      ) : (
+                                        <FaUser className={`w-6 h-6 ${
+                                          theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                        }`} />
+                                      )}
                                     </div>
                                     <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 ${
                                       theme === 'dark' ? 'border-gray-800' : 'border-white'

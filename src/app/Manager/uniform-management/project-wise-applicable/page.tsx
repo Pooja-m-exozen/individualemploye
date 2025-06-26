@@ -4,6 +4,58 @@ import ManagerDashboardLayout from '@/components/dashboard/ManagerDashboardLayou
 import { FaIdCard, FaInfoCircle } from 'react-icons/fa';
 import { useTheme } from "@/context/ThemeContext";
 
+interface Project {
+  _id: string;
+  projectName: string;
+}
+
+interface ProjectEmployee {
+  employeeId: string;
+  fullName: string;
+  designation: string;
+}
+
+interface UniformApiEmployee {
+  projectName: string;
+  employeeId: string;
+  fullName: string;
+  designation: string;
+}
+
+interface UniformOptionItem {
+  type: string;
+  sizes?: string[];
+  set?: string[];
+}
+
+interface UniformOptions {
+  employeeDetails: {
+    fullName: string;
+    employeeId: string;
+    designation: string;
+    projectName: string;
+  };
+  uniformOptions: UniformOptionItem[];
+  maxQuantity: number;
+}
+
+interface Mapping {
+  id: number;
+  project: string;
+  designation: string;
+  employeeId: string;
+  payable: boolean;
+  type: 'designation-employee' | 'designation';
+}
+
+interface UniformType {
+  id: number;
+  project: string;
+  designation: string;
+  name: string;
+  description: string;
+}
+
 const MOCK_DESIGNATIONS = ['Security Guard', 'Supervisor', 'Technician', 'Driver'];
 const MOCK_EMPLOYEES = [
   { employeeId: 'EMP001', fullName: 'John Doe', designation: 'Security Guard' },
@@ -16,16 +68,16 @@ const MOCK_EMPLOYEES = [
 const UniformProjectWiseApplicablePage = () => {
   const { theme } = useTheme();
   // Projects
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [projectLoading, setProjectLoading] = useState(true);
   const [projectError, setProjectError] = useState('');
   // Employees for selected project
-  const [projectEmployees, setProjectEmployees] = useState<any[]>([]);
+  const [projectEmployees, setProjectEmployees] = useState<ProjectEmployee[]>([]);
   const [employeeLoading, setEmployeeLoading] = useState(false);
   const [employeeError, setEmployeeError] = useState('');
   // Uniform options for selected employee
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
-  const [uniformOptions, setUniformOptions] = useState<any | null>(null);
+  const [uniformOptions, setUniformOptions] = useState<UniformOptions | null>(null);
   const [uniformOptionsLoading, setUniformOptionsLoading] = useState(false);
   const [uniformOptionsError, setUniformOptionsError] = useState('');
 
@@ -33,21 +85,16 @@ const UniformProjectWiseApplicablePage = () => {
   const [activeTab, setActiveTab] = useState<'designation' | 'uniformType'>('designation');
 
   // Uniform Types state
-  const [uniformTypes, setUniformTypes] = useState<any[]>([]);
+  const [uniformTypes, setUniformTypes] = useState<UniformType[]>([]);
   const [uniformTypeForm, setUniformTypeForm] = useState({ project: '', designation: '', name: '', description: '' });
   const [uniformTypeError, setUniformTypeError] = useState('');
 
   // Mappings and form state (move above filteredEmployees)
-  const [mappings, setMappings] = useState<any[]>([]); // Remove dummy data
+  const [mappings, setMappings] = useState<Mapping[]>([]); // Remove dummy data
   const [form, setForm] = useState({ project: '', designation: '', employeeId: '', payable: true });
   const [error, setError] = useState('');
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({ project: '', designation: '', employeeId: '', payable: true });
-
-  // Filter employees by selected designation (after form is declared)
-  const filteredEmployees = form.designation
-    ? MOCK_EMPLOYEES.filter(emp => emp.designation === form.designation)
-    : [];
 
   // Fetch all projects on mount
   useEffect(() => {
@@ -76,8 +123,8 @@ const UniformProjectWiseApplicablePage = () => {
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.uniforms)) {
-          const emps = data.uniforms.filter((u: any) => u.projectName === form.project)
-            .map((u: any) => ({ employeeId: u.employeeId, fullName: u.fullName, designation: u.designation }));
+          const emps = data.uniforms.filter((u: UniformApiEmployee) => u.projectName === form.project)
+            .map((u: UniformApiEmployee) => ({ employeeId: u.employeeId, fullName: u.fullName, designation: u.designation }));
           setProjectEmployees(emps);
         } else {
           setProjectEmployees([]);
@@ -138,7 +185,7 @@ const UniformProjectWiseApplicablePage = () => {
   };
 
   // Edit logic
-  const startEdit = (m: any) => {
+  const startEdit = (m: Mapping) => {
     setEditId(m.id);
     setEditForm({
       project: m.project,
@@ -251,7 +298,7 @@ const UniformProjectWiseApplicablePage = () => {
                           required
                         >
                           <option value="">{projectLoading ? 'Loading projects...' : 'Select project...'}</option>
-                          {projects.map((p: any) => <option key={p._id} value={p.projectName}>{p.projectName}</option>)}
+                          {projects.map((p: Project) => <option key={p._id} value={p.projectName}>{p.projectName}</option>)}
                         </select>
                         {projectError && <div className="text-red-500 text-xs mt-1">{projectError}</div>}
                       </div>
@@ -328,7 +375,7 @@ const UniformProjectWiseApplicablePage = () => {
                           <h3 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Uniform Options for {uniformOptions.employeeDetails.fullName} ({uniformOptions.employeeDetails.employeeId})</h3>
                           <div className="mb-2 text-sm font-semibold">Designation: {uniformOptions.employeeDetails.designation} | Project: {uniformOptions.employeeDetails.projectName}</div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {uniformOptions.uniformOptions.map((opt: any) => (
+                            {uniformOptions.uniformOptions.map((opt: UniformOptionItem) => (
                               <div key={opt.type} className={`rounded-xl p-4 border ${theme === 'dark' ? 'bg-gray-800 border-blue-900' : 'bg-white border-blue-200'} shadow`}>
                                 <div className="font-bold mb-1">{opt.type}</div>
                                 {opt.sizes && (
@@ -374,7 +421,7 @@ const UniformProjectWiseApplicablePage = () => {
                                     required
                                   >
                                     <option value="">Select project...</option>
-                                    {projects.map((p: any) => <option key={p._id} value={p.projectName}>{p.projectName}</option>)}
+                                    {projects.map((p: Project) => <option key={p._id} value={p.projectName}>{p.projectName}</option>)}
                                   </select>
                                 </td>
                                 <td className="px-4 py-3">
@@ -432,7 +479,7 @@ const UniformProjectWiseApplicablePage = () => {
                                 <td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>{m.project}</td>
                                 <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>
                                   {m.employeeId
-                                    ? MOCK_EMPLOYEES.find(emp => emp.employeeId === m.employeeId)?.fullName + ` (${m.employeeId}) [${m.designation}]`
+                                    ? (MOCK_EMPLOYEES.find(emp => emp.employeeId === m.employeeId)?.fullName || m.employeeId) + ` (${m.employeeId}) [${m.designation}]`
                                     : m.designation}
                                 </td>
                                 <td className="px-4 py-3">
@@ -473,7 +520,7 @@ const UniformProjectWiseApplicablePage = () => {
                         required
                       >
                         <option value="">{projectLoading ? 'Loading projects...' : 'Select project...'}</option>
-                        {projects.map((p: any) => <option key={p._id} value={p.projectName}>{p.projectName}</option>)}
+                        {projects.map((p: Project) => <option key={p._id} value={p.projectName}>{p.projectName}</option>)}
                       </select>
                     </div>
                     <div className="flex-1">

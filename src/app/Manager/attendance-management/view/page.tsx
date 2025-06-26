@@ -15,11 +15,11 @@ interface AttendanceRecord {
 }
 
 // Add new types for project-wise API
-interface ProjectEmployee {
-  employeeId: string;
-  name: string;
-  designation: string;
-}
+// interface ProjectEmployee {
+//   employeeId: string;
+//   name: string;
+//   designation: string;
+// }
 interface ProjectAttendanceRecord {
   _id: { employeeId: string; date: string };
   status: string;
@@ -27,6 +27,14 @@ interface ProjectAttendanceRecord {
   date: string;
   name: string;
   designation: string;
+}
+
+// API response types
+interface AttendanceApiResponse {
+  attendance: AttendanceRecord[];
+}
+interface ProjectAttendanceApiResponse {
+  attendance: ProjectAttendanceRecord[];
 }
 
 export default function AttendanceViewPage() {
@@ -37,25 +45,24 @@ export default function AttendanceViewPage() {
   const [toDate, setToDate] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
-  const [projectEmployees, setProjectEmployees] = useState<ProjectEmployee[]>([]);
   const [projectAttendance, setProjectAttendance] = useState<ProjectAttendanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
 
   // Fetch attendance data from API
-  const fetchAttendance = async () => {
+  const fetchAttendance = async (): Promise<void> => {
     setLoading(true);
     setError("");
     try {
       const res = await fetch("https://cafm.zenapi.co.in/api/attendance/all");
-      const data = await res.json();
+      const data: AttendanceApiResponse = await res.json();
       if (data && data.attendance) {
-        setAttendanceData(data.attendance as AttendanceRecord[]);
+        setAttendanceData(data.attendance);
       } else {
         setAttendanceData([]);
       }
-    } catch (err) {
+    } catch  {
       setError("Failed to fetch attendance data");
       setAttendanceData([]);
     } finally {
@@ -64,23 +71,20 @@ export default function AttendanceViewPage() {
   };
 
   // Fetch project-wise attendance data
-  const fetchProjectAttendance = async (project: string, from: string, to: string) => {
+  const fetchProjectAttendance = async (project: string, from: string, to: string): Promise<void> => {
     setLoading(true);
     setError("");
     try {
       const url = `https://cafm.zenapi.co.in/api/attendance/project/attendance?projectName=${encodeURIComponent(project)}&fromDate=${from || "2025-01-01"}&toDate=${to || new Date().toISOString().slice(0,10)}`;
       const res = await fetch(url);
-      const data = await res.json();
-      if (data && data.employees && data.attendance) {
-        setProjectEmployees(data.employees);
+      const data: ProjectAttendanceApiResponse = await res.json();
+      if (data && data.attendance) {
         setProjectAttendance(data.attendance);
       } else {
-        setProjectEmployees([]);
         setProjectAttendance([]);
       }
-    } catch (err) {
+    } catch {
       setError("Failed to fetch project attendance data");
-      setProjectEmployees([]);
       setProjectAttendance([]);
     } finally {
       setLoading(false);
@@ -110,11 +114,11 @@ export default function AttendanceViewPage() {
     if (activeTab === "Project Wise Attendance" && projectFilter) {
       fetchProjectAttendance(projectFilter, fromDate, toDate);
     }
-    // eslint-disable-next-line
+    
   }, [activeTab, projectFilter, fromDate, toDate]);
 
   // Helper to get YYYY-MM-DD from a date string
-  const getDateOnly = (dateStr: string) => {
+  const getDateOnly = (dateStr: string): string => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
     if (Number.isNaN(d.getTime())) return "";
@@ -122,7 +126,7 @@ export default function AttendanceViewPage() {
   };
 
   // Filtering logic
-  const filterAttendance = () => {
+  const filterAttendance = (): AttendanceRecord[] => {
     return attendanceData.filter((record: AttendanceRecord) => {
       // Search filter
       const searchLower = searchQuery.toLowerCase();
@@ -146,67 +150,67 @@ export default function AttendanceViewPage() {
       }
       return matchesSearch && matchesFrom && matchesTo && matchesProject;
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date desc
+    .sort((a: AttendanceRecord, b: AttendanceRecord) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date desc
   };
 
-  const filteredAttendance = filterAttendance();
+  const filteredAttendance: AttendanceRecord[] = filterAttendance();
 
   // Filtered rows for Project Wise Attendance tab
-  const filteredRows = attendanceData
-    .filter((record: AttendanceRecord) => {
-      // Project filter
-      if (projectFilter && record.projectName !== projectFilter) return false;
-      // Date filter
-      let matchesFrom = true, matchesTo = true;
-      const recordDate = getDateOnly(record.date);
-      if (fromDate) {
-        matchesFrom = recordDate >= fromDate;
-      }
-      if (toDate) {
-        matchesTo = recordDate <= toDate;
-      }
-      return matchesFrom && matchesTo;
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // Sort by date desc
-    .map(record => ({
-      employeeId: record.employeeId,
-      projectName: record.projectName,
-      date: record.date ? new Date(record.date).toLocaleDateString() : "N/A",
-      status: record.status || "N/A"
-    }));
+  // const filteredRows = attendanceData
+  //   .filter((record: AttendanceRecord) => {
+  //     // Project filter
+  //     if (projectFilter && record.projectName !== projectFilter) return false;
+  //     // Date filter
+  //     let matchesFrom = true, matchesTo = true;
+  //     const recordDate = getDateOnly(record.date);
+  //     if (fromDate) {
+  //       matchesFrom = recordDate >= fromDate;
+  //     }
+  //     if (toDate) {
+  //       matchesTo = recordDate <= toDate;
+  //     }
+  //     return matchesFrom && matchesTo;
+  //   })
+  //   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // Sort by date desc
+  //   .map(record => ({
+  //     employeeId: record.employeeId,
+  //     projectName: record.projectName,
+  //     date: record.date ? new Date(record.date).toLocaleDateString() : "N/A",
+  //     status: record.status || "N/A"
+  //   }));
 
   // Unique projects for filter dropdown
-  const uniqueProjects = Array.from(new Set(attendanceData.map((row: AttendanceRecord) => row.projectName)));
+  const uniqueProjects: string[] = Array.from(new Set(attendanceData.map((row: AttendanceRecord) => row.projectName)));
 
   // Calculate hours worked
-  const calculateHours = (punchIn?: string, punchOut?: string) => {
-    if (!punchIn || !punchOut) return "N/A";
-    const inTime = new Date(punchIn);
-    const outTime = new Date(punchOut);
-    if (Number.isNaN(inTime.getTime()) || Number.isNaN(outTime.getTime())) return "N/A";
-    const diffMs = outTime.getTime() - inTime.getTime();
-    if (diffMs < 0) return "N/A";
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${mins}m`;
-  };
+  // const calculateHours = (punchIn?: string, punchOut?: string) => {
+  //   if (!punchIn || !punchOut) return "N/A";
+  //   const inTime = new Date(punchIn);
+  //   const outTime = new Date(punchOut);
+  //   if (Number.isNaN(inTime.getTime()) || Number.isNaN(outTime.getTime())) return "N/A";
+  //   const diffMs = outTime.getTime() - inTime.getTime();
+  //   if (diffMs < 0) return "N/A";
+  //   const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  //   const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  //   return `${hours}h ${mins}m`;
+  // };
 
   // Helper: filter projectAttendance by search, fromDate, toDate
-  const filterProjectAttendance = () => {
-    const searchLower = searchQuery.toLowerCase();
-    return projectAttendance.filter((row) => {
-      const matchesSearch =
-        row.employeeId.toLowerCase().includes(searchLower) ||
-        (row.name && row.name.toLowerCase().includes(searchLower)) ||
-        (row.designation && row.designation.toLowerCase().includes(searchLower)) ||
-        (row.date && new Date(row.date).toLocaleDateString().includes(searchLower));
-      let matchesFrom = true, matchesTo = true;
-      const recordDate = row.date ? row.date.slice(0, 10) : "";
-      if (fromDate) matchesFrom = recordDate >= fromDate;
-      if (toDate) matchesTo = recordDate <= toDate;
-      return matchesSearch && matchesFrom && matchesTo;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  };
+  // const filterProjectAttendance = () => {
+  //   const searchLower = searchQuery.toLowerCase();
+  //   return projectAttendance.filter((row) => {
+  //     const matchesSearch =
+  //       row.employeeId.toLowerCase().includes(searchLower) ||
+  //       (row.name && row.name.toLowerCase().includes(searchLower)) ||
+  //       (row.designation && row.designation.toLowerCase().includes(searchLower)) ||
+  //       (row.date && new Date(row.date).toLocaleDateString().includes(searchLower));
+  //     let matchesFrom = true, matchesTo = true;
+  //     const recordDate = row.date ? row.date.slice(0, 10) : "";
+  //     if (fromDate) matchesFrom = recordDate >= fromDate;
+  //     if (toDate) matchesTo = recordDate <= toDate;
+  //     return matchesSearch && matchesFrom && matchesTo;
+  //   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  // };
 
   return (
     <ManagerDashboardLayout>

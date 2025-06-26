@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaTshirt, FaUser, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
+import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import Image from "next/image";
 
 interface UniformRequest {
   _id: string;
@@ -53,7 +54,7 @@ export default function UniformRequestsPage() {
       // TODO: Replace with real API call when available
       setRequests([]); // No dummy data, empty by default
       setLoading(false);
-    } catch (err: any) {
+    } catch  {
       setError("Failed to fetch uniform requests.");
       setLoading(false);
     }
@@ -65,9 +66,10 @@ export default function UniformRequestsPage() {
     try {
       setRequests((prev) => prev.filter((req) => req._id !== id));
       setToast({ type: "success", message: `Uniform request ${action}d successfully.` });
-    } catch (err: any) {
-      setError(err.message || "Failed to update uniform request status.");
-      setToast({ type: "error", message: err.message || "Failed to update uniform request status." });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update uniform request status.";
+      setError(message);
+      setToast({ type: "error", message });
     } finally {
       setActionLoading(null);
       setTimeout(() => setToast(null), 3500);
@@ -105,9 +107,10 @@ export default function UniformRequestsPage() {
       setTimeout(() => setToast(null), 3500);
       // Optionally refresh requests from API if you have a GET endpoint
       // fetchRequests();
-    } catch (err: any) {
+    } catch (err) {
       setCreateLoading(false);
-      setToast({ type: "error", message: err.message || "Failed to create uniform request." });
+      const message = err instanceof Error ? err.message : "Failed to create uniform request.";
+      setToast({ type: "error", message });
       setTimeout(() => setToast(null), 3500);
     }
   };
@@ -238,10 +241,10 @@ export default function UniformRequestsPage() {
                           onChange={e => {
                             setNewRequest(r => {
                               const checked = e.target.checked;
-                              let requestedItems = checked
+                              const requestedItems = checked
                                 ? [...r.requestedItems, item]
                                 : r.requestedItems.filter(i => i !== item);
-                              let sizes = { ...r.sizes };
+                              const sizes = { ...r.sizes };
                               if (!checked) delete sizes[item];
                               return { ...r, requestedItems, sizes };
                             });
@@ -283,7 +286,7 @@ export default function UniformRequestsPage() {
                             className="ml-1 text-red-500 hover:text-red-700 font-bold"
                             onClick={() => setNewRequest(r => {
                               const requestedItems = r.requestedItems.filter(i => i !== item);
-                              let sizes = { ...r.sizes };
+                              const sizes = { ...r.sizes };
                               delete sizes[item];
                               return { ...r, requestedItems, sizes };
                             })}
@@ -367,7 +370,7 @@ export default function UniformRequestsPage() {
                 <div key={request._id} className={`p-5 rounded-2xl shadow-lg transition-all duration-300 ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
                   <div className="flex items-center gap-4 mb-4">
                     <div className="w-16 h-16 rounded-full overflow-hidden">
-                      <img src={request.employee.employeeImage} alt={request.employee.fullName} className="w-full h-full object-cover" />
+                      <Image src={request.employee.employeeImage} alt={request.employee.fullName} width={64} height={64} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1">
                       <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{request.employee.fullName}</h3>

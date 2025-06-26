@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
 
 interface KYCData {
+  _id: string;
   personalDetails: {
     employeeId: string;
     projectName: string;
@@ -71,8 +72,8 @@ interface KYCData {
 interface EditKYCModalProps {
   open: boolean;
   onClose: () => void;
-  kycData: any;
-  onSave: (data: any) => void;
+  kycData: KYCData;
+  onSave: (data: KYCData) => void;
 }
 
 const EditKYCModal: React.FC<EditKYCModalProps> = ({ open, onClose, kycData, onSave }) => {
@@ -141,7 +142,7 @@ const EditKYCModal: React.FC<EditKYCModalProps> = ({ open, onClose, kycData, onS
   };
 
   // Helper to check if a string is non-empty
-  const isFilled = (val: any) => val !== undefined && val !== null && val !== '';
+  const isFilled = (val: unknown) => val !== undefined && val !== null && val !== '';
 
   // Validate all fields in all sections
   const isAllFieldsValid = () => {

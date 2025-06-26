@@ -71,12 +71,11 @@ export default function ProjectManagementPage() {
     idx: number | null = null
   ) => {
     const { name, value } = e.target;
-    if (name.startsWith("designation-") || name.startsWith("count-")) {
-      const field = name.split("-")[0];
-      const index = parseInt(name.split("-")[1], 10);
+    if (idx !== null) {
+      const field = name.split("-")[0] as keyof DesignationCount;
       setForm((prev) => {
         const updated = [...prev.designationWiseCount];
-        (updated[index] as any)[field] = value;
+        updated[idx] = { ...updated[idx], [field]: value };
         return { ...prev, designationWiseCount: updated };
       });
     } else {
@@ -129,8 +128,9 @@ export default function ProjectManagementPage() {
       });
       setToast(data.message || "Project created successfully");
       await fetchProjects();
-    } catch (err: any) {
-      setToast(err.message || "Failed to create project");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create project";
+      setToast(message);
     }
   };
 
@@ -143,8 +143,12 @@ export default function ProjectManagementPage() {
       if (!res.ok) throw new Error("Failed to fetch projects");
       const data = await res.json();
       setProjects(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -208,12 +212,11 @@ export default function ProjectManagementPage() {
     idx: number | null = null
   ) => {
     const { name, value } = e.target;
-    if (name.startsWith("designation-") || name.startsWith("count-")) {
-      const field = name.split("-")[0];
-      const index = parseInt(name.split("-")[1], 10);
+    if (idx !== null) {
+      const field = name.split("-")[0] as keyof DesignationCount;
       setEditForm((prev) => {
         const updated = [...prev.designationWiseCount];
-        (updated[index] as any)[field] = value;
+        updated[idx] = { ...updated[idx], [field]: value };
         return { ...prev, designationWiseCount: updated };
       });
     } else {
@@ -259,8 +262,9 @@ export default function ProjectManagementPage() {
       setProjects((prev) => prev.map((p) => (p._id === editId ? { ...p, ...data } : p)));
       setToast("Project updated successfully");
       closeEditModal();
-    } catch (err: any) {
-      setToast(err.message || "Failed to update project");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update project";
+      setToast(message);
     }
   };
 
@@ -275,8 +279,9 @@ export default function ProjectManagementPage() {
       const data = await res.json();
       setProjects((prev) => prev.filter((p) => p._id !== deleteProject._id));
       setToast(data.message || "Project deleted successfully");
-    } catch (err: any) {
-      setToast(err.message || "Failed to delete project");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to delete project";
+      setToast(message);
     } finally {
       setDeleteProject(null);
     }
@@ -297,7 +302,7 @@ export default function ProjectManagementPage() {
               &times;
             </button>
             <h2 className={`text-2xl font-bold mb-4 ${theme === "dark" ? "text-red-400" : "text-red-700"}`}>Delete Project</h2>
-            <p className="mb-6 text-lg">Are you sure you want to delete the project <span className="font-semibold">"{deleteProject.projectName}"</span>? This action cannot be undone.</p>
+            <p className="mb-6 text-lg">Are you sure you want to delete the project <span className="font-semibold">&quot;{deleteProject.projectName}&quot;</span>? This action cannot be undone.</p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setDeleteProject(null)}

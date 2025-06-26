@@ -68,7 +68,7 @@ export default function AttendanceReportPage() {
 					});
 					setDesignationMap(map);
 				}
-			} catch (err) {
+			} catch {
 				setError("Error fetching data.");
 			}
 			setLoading(false);

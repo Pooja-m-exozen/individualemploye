@@ -13,7 +13,7 @@ export interface LeaveHistoryItem {
   status: string;
   reason: string;
   emergencyContact: string;
-  attachments: any[];
+  attachments: string[];
   appliedOn: string;
   lastUpdated: string;
 }
@@ -50,7 +50,7 @@ export const getAllEmployeesLeaveHistory = async (): Promise<EmployeeWithLeaveHi
     try {
       const leaveHistory = await getLeaveHistory(emp.personalDetails.employeeId);
       results.push({ kyc: emp, leaveHistory });
-    } catch (e) {
+    } catch {
       results.push({ kyc: emp, leaveHistory: null });
     }
   }

@@ -4,6 +4,16 @@ import { FaTshirt, FaSearch, FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaUs
 import ManagerDashboardLayout from '@/components/dashboard/ManagerDashboardLayout';
 import { useTheme } from "@/context/ThemeContext";
 
+interface UniformRequest {
+	_id: string;
+	employeeId: string;
+	fullName: string;
+	designation: string;
+	projectName: string;
+	approvalStatus: string;
+	uniformType: string[];
+}
+
 const statusBadge = (status: string) => {
 	switch (status) {
 		case 'Approved':
@@ -15,7 +25,7 @@ const statusBadge = (status: string) => {
 	}
 };
 
-const exportToCSV = (data: any[]) => {
+const exportToCSV = (data: UniformRequest[]) => {
 	const header = ['Employee ID', 'Name', 'Designation', 'Project', 'Status', 'Requested Items'];
 	const rows = data.map(req => [
 		req.employeeId,
@@ -40,7 +50,7 @@ const UniformViewPage = () => {
 	const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
 	const [statusFilter, setStatusFilter] = useState('All');
 	const { theme } = useTheme();
-	const [uniformRequests, setUniformRequests] = useState<any[]>([]);
+	const [uniformRequests, setUniformRequests] = useState<UniformRequest[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState(1);
@@ -58,7 +68,7 @@ const UniformViewPage = () => {
 				} else {
 					setError('Failed to fetch uniform requests.');
 				}
-			} catch (err) {
+			} catch  {
 				setError('Error fetching uniform requests.');
 			}
 			setLoading(false);

@@ -61,10 +61,10 @@ const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, th
     }
   }, [isOpen, cardData?.employeeImage]);
 
-  // Fix for TS error: 'content' does not exist in type 'UseReactToPrintOptions'
+
   const handlePrint = useReactToPrint({
-    content: () => cardRef.current,
-  } as any);
+    contentRef: cardRef,
+  });
 
   const handleDownloadPdf = async () => {
     if (!cardRef.current) return;
@@ -157,7 +157,7 @@ const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, th
           <div className="relative z-10 my-4 px-4">
             <div className="flex items-center gap-4">
               <div
-  className="w-24 h-24 flex-shrink-0 rounded-full border-4 bg-gray-100 shadow-lg overflow-hidden"
+  className="w-24 h-24 relative flex-shrink-0 rounded-full border-4 bg-gray-100 shadow-lg overflow-hidden"
   style={{ borderColor: "#d1d5db", background: "#f3f4f6" }}
 >
                 {isImageLoading ? (
@@ -165,7 +165,7 @@ const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, th
                     <FaSpinner className="animate-spin" style={{ color: "#6b7280" }} />
                   </div>
                 ) : imageToRender ? (
-                  <img src={imageToRender} alt="Employee" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <Image src={imageToRender} alt="Employee" layout="fill" objectFit="cover" unoptimized />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center" style={{ color: "#9ca3af" }}>Photo</div>
                 )}

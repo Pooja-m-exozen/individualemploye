@@ -134,7 +134,7 @@ const handleLogout = () => {
   };
 
   const getMenuItemsByRole = (): MenuItem[] => {
-    const role = getUserRole(); // Get the user's role
+    // const role = getUserRole(); // Get the user's role
 
     const menuItems: MenuItem[] = [
       {

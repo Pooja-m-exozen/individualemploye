@@ -6,7 +6,16 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 
-const dummyEmployees = [
+interface Employee {
+  employeeId: string;
+  fullName: string;
+  projectName: string;
+  designation: string;
+  employeeImage: string;
+  hasPayroll: boolean;
+}
+
+const dummyEmployees: Employee[] = [
   { employeeId: "EMP001", fullName: "John Doe", projectName: "Project Alpha", designation: "Security Guard", employeeImage: "", hasPayroll: true },
   { employeeId: "EMP002", fullName: "Jane Smith", projectName: "Project Beta", designation: "Supervisor", employeeImage: "", hasPayroll: false },
   { employeeId: "EMP003", fullName: "Alice Johnson", projectName: "Project Gamma", designation: "Technician", employeeImage: "", hasPayroll: true },
@@ -36,7 +45,7 @@ export default function PayrollCreatePage() {
   const { theme } = useTheme();
   const [activeStep, setActiveStep] = useState(1);
   const [search, setSearch] = useState("");
-  const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showCreateDetails, setShowCreateDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -62,7 +71,7 @@ export default function PayrollCreatePage() {
     (designationFilter ? emp.designation === designationFilter : true)
   );
 
-  const handleSelectEmployee = (emp: any) => {
+  const handleSelectEmployee = (emp: Employee) => {
     setSelectedEmployee(emp);
     if (emp.hasPayroll) {
       setPayrollForm(f => ({ ...f, month: monthFilter || f.month }));

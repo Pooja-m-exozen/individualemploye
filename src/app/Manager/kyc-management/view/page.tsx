@@ -2,12 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaTrash, FaFilter, FaBriefcase, FaListAlt, FaCalendarAlt, FaPhone, FaUsers, FaDownload, FaEye, FaSort, FaSortUp, FaSortDown, FaBuilding, FaChartLine, FaClock, FaStar, FaTimes } from "react-icons/fa";
-import { useRouter } from "next/navigation";
+import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaTrash, FaFilter, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaEye, FaSort, FaSortUp, FaSortDown, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
 import EditKYCModal from "@/components/dashboard/EditKYCModal";
 import ViewKYCModal from "@/components/dashboard/ViewKYCModal";
 import { useTheme } from "@/context/ThemeContext";
 import * as XLSX from 'xlsx';
+import Image from 'next/image';
 
 interface KYCForm {
   _id: string;
@@ -90,6 +90,9 @@ interface NewJoinersResponse {
   data: NewJoiner[];
 }
 
+// This represents the data structure coming from EditKYCModal, which lacks `_id`
+type KYCDataFromModal = Omit<KYCForm, '_id'>;
+
 export default function ViewAllKYCPage() {
   const { theme } = useTheme();
   const [kycForms, setKYCForms] = useState<KYCForm[]>([]);
@@ -100,7 +103,6 @@ export default function ViewAllKYCPage() {
   const rowsPerPage = 10;
   const [projectFilter, setProjectFilter] = useState("");
   const [employeeIdFilter, setEmployeeIdFilter] = useState("");
-  const router = useRouter();
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [designationFilter, setDesignationFilter] = useState("");
@@ -108,11 +110,10 @@ export default function ViewAllKYCPage() {
   const [newJoiners, setNewJoiners] = useState<NewJoiner[]>([]);
   const [newJoinersLoading, setNewJoinersLoading] = useState(false);
   const [newJoinersError, setNewJoinersError] = useState<string | null>(null);
-  const [showNewJoiners, setShowNewJoiners] = useState(false);
   const [timeFrame, setTimeFrame] = useState(30);
   const [sortField, setSortField] = useState<"name" | "employeeId" | "designation" | "project" | "status">("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [modal, setModal] = useState<null | { type: 'joiner' | 'view' | 'edit', data: any }>(null);
+  const [modal, setModal] = useState<null | { type: 'joiner' | 'view' | 'edit', data: KYCForm | null }>(null);
   const [newJoinersSearch, setNewJoinersSearch] = useState("");
 
   const projectNames = Array.from(new Set(kycForms.map(f => f.personalDetails.projectName))).filter(Boolean);
@@ -136,8 +137,12 @@ export default function ViewAllKYCPage() {
       const res = await fetch("https://cafm.zenapi.co.in/api/kyc");
       const data = await res.json();
       setKYCForms(data.kycForms || []);
-    } catch (err: any) {
-      setError("Failed to fetch KYC forms.");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(`Failed to fetch KYC forms: ${err.message}`);
+      } else {
+        setError("An unknown error occurred while fetching KYC forms.");
+      }
     } finally {
       setLoading(false);
     }
@@ -154,8 +159,12 @@ export default function ViewAllKYCPage() {
       } else {
         setNewJoinersError("Failed to fetch new joiners data.");
       }
-    } catch (err: any) {
-      setNewJoinersError("Failed to fetch new joiners data.");
+    } catch (err) {
+        if (err instanceof Error) {
+            setNewJoinersError(`Failed to fetch new joiners data: ${err.message}`);
+        } else {
+            setNewJoinersError("An unknown error occurred while fetching new joiners.");
+        }
     } finally {
       setNewJoinersLoading(false);
     }
@@ -555,12 +564,12 @@ export default function ViewAllKYCPage() {
                               key={col.title}
                               className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer transition-colors duration-200
                                 ${theme === 'dark' ? 'text-blue-200 hover:bg-blue-950' : 'text-gray-600 hover:bg-blue-50'}`}
-                              onClick={() => col.sortKey && handleSort(col.sortKey as any)}
+                              onClick={() => col.sortKey && handleSort(col.sortKey as "name" | "employeeId" | "designation" | "project" | "status")}
                             >
                               <div className="flex items-center gap-2">
                                 <col.icon className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
                                 {col.title}
-                                {col.sortKey && getSortIcon(col.sortKey as any)}
+                                {col.sortKey && getSortIcon(col.sortKey as "name" | "employeeId" | "designation" | "project" | "status")}
                               </div>
                             </th>
                           ))}
@@ -576,10 +585,12 @@ export default function ViewAllKYCPage() {
                               <div className="flex items-center gap-4">
                                 <div className="relative">
                                   {form.personalDetails.employeeImage ? (
-                                    <img
+                                    <Image
                                       src={form.personalDetails.employeeImage}
                                       alt={form.personalDetails.fullName}
-                                      className={`w-12 h-12 rounded-full object-cover border-2 shadow-sm group-hover:border-blue-300 transition-colors duration-200
+                                      width={48}
+                                      height={48}
+                                      className={`rounded-full object-cover border-2 shadow-sm group-hover:border-blue-300 transition-colors duration-200
                                         ${theme === 'dark' ? 'border-blue-900' : 'border-gray-200'}`}
                                     />
                                   ) : (
@@ -854,7 +865,7 @@ export default function ViewAllKYCPage() {
             )}
 
             {/* View KYC Modal */}
-            {modal.type === 'view' && (
+            {modal.type === 'view' && modal.data && (
               <ViewKYCModal
                 open={true}
                 kycData={modal.data}
@@ -863,14 +874,17 @@ export default function ViewAllKYCPage() {
             )}
 
             {/* Edit KYC Modal */}
-            {modal.type === 'edit' && (
+            {modal.type === 'edit' && modal.data && (
               <EditKYCModal
                 open={true}
                 kycData={modal.data}
                 onClose={() => setModal(null)}
-                onSave={(updatedData: KYCForm) => {
-                  setKYCForms(prev => prev.map(f => f._id === updatedData._id ? updatedData : f));
-                  setToast({ type: 'success', message: 'KYC record updated successfully.' });
+                onSave={(updatedData: KYCDataFromModal) => {
+                  if (modal.data?._id) {
+                    const fullData: KYCForm = { ...updatedData, _id: modal.data._id };
+                    setKYCForms(prev => prev.map(f => f._id === fullData._id ? fullData : f));
+                    setToast({ type: 'success', message: 'KYC record updated successfully.' });
+                  }
                   setModal(null);
                 }}
               />

@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaIdCard, FaUser, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaMoon, FaSun } from "react-icons/fa";
+import { FaIdCard, FaUser, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import Image from "next/image";
 
 interface KYCRequest {
   _id: string;
@@ -28,7 +29,7 @@ export default function KYCRequestsPage() {
   const [showInstructions, setShowInstructions] = useState(true);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('card');
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
 
   useEffect(() => {
     fetchRequests();
@@ -40,9 +41,13 @@ export default function KYCRequestsPage() {
     try {
       const res = await fetch("https://cafm.zenapi.co.in/api/kyc");
       const data = await res.json();
-      setRequests((data.kycForms || []).filter((k: any) => k.status === "Pending"));
-    } catch (err: any) {
-      setError("Failed to fetch KYC requests.");
+      setRequests((data.kycForms || []).filter((k: KYCRequest) => k.status === "Pending"));
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(`Failed to fetch KYC requests: ${err.message}`);
+      } else {
+        setError("An unknown error occurred while fetching KYC requests.");
+      }
     } finally {
       setLoading(false);
     }
@@ -57,9 +62,10 @@ export default function KYCRequestsPage() {
       if (!res.ok) throw new Error(data.reason || data.message || "Action failed");
       setRequests((prev) => prev.filter((req) => req._id !== id));
       setToast({ type: "success", message: data.message || `KYC ${action}d successfully.` });
-    } catch (err: any) {
-      setError(err.message || "Failed to update KYC status.");
-      setToast({ type: "error", message: err.message || "Failed to update KYC status." });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to update KYC status.";
+      setError(errorMessage);
+      setToast({ type: "error", message: errorMessage });
     } finally {
       setActionLoading(null);
       setTimeout(() => setToast(null), 3500);
@@ -186,10 +192,12 @@ export default function KYCRequestsPage() {
                       `}
                     >
                       <div className="flex items-center gap-6">
-                        <img
+                        <Image
                           src={req.personalDetails.employeeImage || "/placeholder-user.jpg"}
                           alt={req.personalDetails.fullName}
-                          className={`w-20 h-20 rounded-full object-cover border-2 shadow group-hover:scale-105 transition
+                          width={80}
+                          height={80}
+                          className={`rounded-full object-cover border-2 shadow group-hover:scale-105 transition
                             ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}
                           `}
                         />
@@ -248,7 +256,7 @@ export default function KYCRequestsPage() {
                       {filteredRequests.map((req) => (
                         <tr key={req._id} className={theme === 'dark' ? 'hover:bg-gray-700 transition' : 'hover:bg-blue-50 transition'}>
                           <td className="px-4 py-3">
-                            <img src={req.personalDetails.employeeImage || "/placeholder-user.jpg"} alt={req.personalDetails.fullName} className={`w-12 h-12 rounded-full object-cover border-2 shadow ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`} />
+                            <Image src={req.personalDetails.employeeImage || "/placeholder-user.jpg"} alt={req.personalDetails.fullName} width={48} height={48} className={`rounded-full object-cover border-2 shadow ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`} />
                           </td>
                           <td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-100' : 'text-blue-800'}`}>{req.personalDetails.fullName}</td>
                           <td className={`px-4 py-3 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>{req.personalDetails.designation}</td>

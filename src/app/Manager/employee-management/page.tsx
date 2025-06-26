@@ -12,6 +12,68 @@ interface Employee {
   workflow: Record<WorkflowKey, boolean>;
 }
 
+// Types for API data
+interface KycForm {
+  personalDetails?: {
+    employeeId?: string;
+    empId?: string;
+    fullName?: string;
+    name?: string;
+    designation?: string;
+  };
+}
+interface KycDocument {
+  url: string;
+  type: string;
+  uploadedAt: string;
+}
+interface KycSummary {
+  status?: string;
+  documents?: KycDocument[];
+}
+interface IdCardSummary {
+  status?: string;
+  issuedDate?: string;
+}
+interface UniformItem {
+  name?: string;
+}
+interface UniformSummary {
+  items?: UniformItem[];
+}
+interface AttendanceRecordSummary {
+  date: string;
+  status: string;
+  punchInTime?: string;
+}
+interface AttendanceSummary {
+  recent?: AttendanceRecordSummary[];
+}
+interface LeaveRecordSummary {
+  leaveType: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  reason?: string;
+}
+interface LeaveSummary {
+  recent?: LeaveRecordSummary[];
+}
+interface PayrollSummary {
+  month?: string;
+}
+interface EmployeeSummary {
+  kyc?: KycSummary;
+  idCard?: IdCardSummary;
+  uniform?: UniformSummary;
+  attendance?: AttendanceSummary;
+  leave?: LeaveSummary;
+  payroll?: PayrollSummary[];
+}
+interface EmployeeWithSummary extends Employee {
+  summary: EmployeeSummary | null;
+}
+
 const workflowSteps: { key: WorkflowKey; label: string; icon: React.ReactNode }[] = [
   { key: "kyc", label: "KYC", icon: <FaFileAlt className="w-5 h-5" /> },
   { key: "idCard", label: "ID Card", icon: <FaIdCard className="w-5 h-5" /> },
@@ -24,9 +86,9 @@ const workflowSteps: { key: WorkflowKey; label: string; icon: React.ReactNode }[
 export default function EmployeeManagementPage() {
   const { theme } = useTheme();
   const [search, setSearch] = useState("");
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeWithSummary | null>(null);
   const [selectedStep, setSelectedStep] = useState<WorkflowKey | null>(null);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<EmployeeWithSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,22 +101,22 @@ export default function EmployeeManagementPage() {
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch employees");
         const data = await res.json();
-        const kycForms = Array.isArray(data.kycForms) ? data.kycForms : [];
+        const kycForms: KycForm[] = Array.isArray(data.kycForms) ? data.kycForms : [];
         // Prepare employee base info
-        const baseEmployees = kycForms.map((form: any) => {
+        const baseEmployees = kycForms.map((form: KycForm) => {
           const pd = form.personalDetails || {};
           return {
             employeeId: pd.employeeId || pd.empId || "",
             fullName: pd.fullName || pd.name || "",
             designation: pd.designation || "",
           };
-        }).filter((emp: any) => emp.employeeId);
+        }).filter((emp: { employeeId: string }) => emp.employeeId);
         // Fetch summary for each employee
-        const summaryPromises = baseEmployees.map(async (emp: any) => {
+        const summaryPromises = baseEmployees.map(async (emp: { employeeId: string; fullName: string; designation: string }) => {
           try {
             const summaryRes = await fetch(`https://cafm.zenapi.co.in/api/employees/${emp.employeeId}/summary`);
             if (!summaryRes.ok) throw new Error();
-            const summary = await summaryRes.json();
+            const summary: EmployeeSummary = await summaryRes.json();
             return {
               ...emp,
               workflow: {
@@ -66,7 +128,7 @@ export default function EmployeeManagementPage() {
                 payslip: summary.payroll && Array.isArray(summary.payroll) && summary.payroll.length > 0,
               },
               summary, // Store the full summary for details modal
-            };
+            } as EmployeeWithSummary;
           } catch {
             return {
               ...emp,
@@ -79,13 +141,13 @@ export default function EmployeeManagementPage() {
                 payslip: false,
               },
               summary: null,
-            };
+            } as EmployeeWithSummary;
           }
         });
-        const employeesWithWorkflow = await Promise.all(summaryPromises);
+        const employeesWithWorkflow: EmployeeWithSummary[] = await Promise.all(summaryPromises);
         setEmployees(employeesWithWorkflow);
       })
-      .catch((err: any) => setError(err.message))
+      .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -107,7 +169,7 @@ export default function EmployeeManagementPage() {
   }, [search, employees]);
 
   // Dummy data for each step
-  const getStepDetails = (step: WorkflowKey, emp: any) => {
+  const getStepDetails = (step: WorkflowKey, emp: EmployeeWithSummary) => {
     const summary = emp.summary || {};
     switch (step) {
       case "kyc":
@@ -129,7 +191,7 @@ export default function EmployeeManagementPage() {
               <div className="mt-2">
                 <div className="font-semibold mb-1">Documents:</div>
                 <ul className="list-disc ml-6">
-                  {summary.kyc.documents.map((doc: any, i: number) => (
+                  {summary.kyc.documents.map((doc: KycDocument, i: number) => (
                     <li key={i} className="mb-1">
                       <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">{doc.type}</a> <span className="text-xs text-gray-500">({new Date(doc.uploadedAt).toLocaleDateString()})</span>
                     </li>
@@ -154,7 +216,7 @@ export default function EmployeeManagementPage() {
             <p className="text-gray-700">Uniform status: {summary.uniform && summary.uniform.items && summary.uniform.items.length > 0 ? "Issued" : "Not Issued"}</p>
             {summary.uniform?.items && summary.uniform.items.length > 0 && (
               <ul className="list-disc ml-6 mt-2">
-                {summary.uniform.items.map((item: any, i: number) => (
+                {summary.uniform.items.map((item: UniformItem, i: number) => (
                   <li key={i}>{item.name || "Uniform Item"}</li>
                 ))}
               </ul>
@@ -170,7 +232,7 @@ export default function EmployeeManagementPage() {
               <div className="mt-2">
                 <div className="font-semibold mb-1">Recent Attendance:</div>
                 <ul className="list-disc ml-6">
-                  {summary.attendance.recent.slice(0, 5).map((att: any, i: number) => (
+                  {summary.attendance.recent.slice(0, 5).map((att: AttendanceRecordSummary, i: number) => (
                     <li key={i}>
                       {att.date}: {att.status} {att.punchInTime && (<span className="text-xs text-gray-500">(In: {new Date(att.punchInTime).toLocaleTimeString()})</span>)}
                     </li>
@@ -189,7 +251,7 @@ export default function EmployeeManagementPage() {
               <div className="mt-2">
                 <div className="font-semibold mb-1">Recent Leaves:</div>
                 <ul className="list-disc ml-6">
-                  {summary.leave.recent.slice(0, 5).map((lv: any, i: number) => (
+                  {summary.leave.recent.slice(0, 5).map((lv: LeaveRecordSummary, i: number) => (
                     <li key={i}>
                       {lv.leaveType} ({lv.status}): {lv.startDate} to {lv.endDate} <span className="text-xs text-gray-500">{lv.reason}</span>
                     </li>
@@ -208,7 +270,7 @@ export default function EmployeeManagementPage() {
               <div className="mt-2">
                 <div className="font-semibold mb-1">Payslip(s):</div>
                 <ul className="list-disc ml-6">
-                  {summary.payroll.slice(0, 5).map((pay: any, i: number) => (
+                  {summary.payroll.slice(0, 5).map((pay: PayrollSummary, i: number) => (
                     <li key={i}>{pay.month || "Payslip"}</li>
                   ))}
                 </ul>
@@ -389,7 +451,7 @@ export default function EmployeeManagementPage() {
                 <div className={theme === "dark" ? "text-gray-400 text-sm" : "text-gray-600 text-sm"}>{selectedEmployee.designation}</div>
               </div>
               <div className="flex flex-col gap-6">
-                {workflowSteps.map((step, idx) => (
+                {workflowSteps.map((step,) => (
                   <div key={step.key} className="flex items-center gap-4">
                     <button
                       type="button"

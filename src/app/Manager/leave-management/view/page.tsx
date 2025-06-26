@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaSpinner, FaCheck, FaTimes, FaBan, FaUserAlt, FaTimesCircle } from "react-icons/fa";
+import { FaSpinner, FaUserAlt, FaTimesCircle } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory } from "@/services/leave";
 import { showToast, ToastStyles } from "@/components/Toast";
@@ -86,7 +86,7 @@ export default function LeaveManagementViewPage() {
     status: "Approved" | "Rejected",
     rejectionReason?: string
   ) => {
-    const payload: any = { status };
+    const payload: { status: "Approved" | "Rejected"; rejectionReason?: string } = { status };
     if (status === "Rejected" && rejectionReason) {
       payload.rejectionReason = rejectionReason;
     }
@@ -109,7 +109,7 @@ export default function LeaveManagementViewPage() {
       await updateLeaveStatus(leaveId, "Approved");
       showToast({ message: "Leave approved successfully!", type: "success" });
       await refreshLeaveData();
-    } catch (e) {
+    } catch {
       showToast({ message: "Failed to approve leave", type: "error" });
     }
   };
@@ -133,7 +133,7 @@ export default function LeaveManagementViewPage() {
       await updateLeaveStatus(rejectLeaveId, "Rejected", rejectionReason.trim());
       showToast({ message: "Leave rejected successfully!", type: "success" });
       await refreshLeaveData();
-    } catch (e) {
+    } catch {
       showToast({ message: "Failed to reject leave", type: "error" });
     } finally {
       setRejectLeaveId(null);
@@ -314,7 +314,7 @@ export default function LeaveManagementViewPage() {
                   </tr>
                 </thead>
                 <tbody className={theme === "dark" ? "divide-y divide-gray-700" : "divide-y divide-gray-200"}>
-                  {paginatedData.map((leave, index) => (
+                  {paginatedData.map((leave) => (
                     <tr
                       key={leave.leaveId}
                       className={`transition-colors duration-200 ${

@@ -93,7 +93,7 @@ export default function UniformReportPage() {
 				} else {
 					setError("Failed to load uniform records.");
 				}
-			} catch (err) {
+			} catch {
 				setError("Error fetching data.");
 			}
 			setLoading(false);

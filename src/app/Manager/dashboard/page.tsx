@@ -49,7 +49,7 @@ export default function ManagerDashboardPage() {
   // Pie chart calculations
   const totalProjects = projectDistribution.reduce((sum, p) => sum + p.value, 0);
   let acc = 0;
-  const pieSlices = projectDistribution.map((p, i) => {
+  const pieSlices = projectDistribution.map((p, ) => {
     const start = acc;
     const angle = (p.value / totalProjects) * 360;
     acc += angle;

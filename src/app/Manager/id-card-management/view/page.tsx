@@ -5,6 +5,7 @@ import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayou
 import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaEye, FaTimesCircle, FaCheckCircle, FaTimes } from "react-icons/fa";
 import { QRCodeSVG } from 'qrcode.react';
 import { useTheme } from '@/context/ThemeContext';
+import Image from 'next/image';
 
 interface IDCard {
   _id: string;
@@ -50,8 +51,12 @@ export default function ViewIDCardsPage() {
         }
         const data = await res.json();
         setIdCards(data.allIdCards || []);
-      } catch (err: any) {
-        setError(err.message || "An error occurred while fetching ID cards.");
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("An error occurred while fetching ID cards.");
+        }
       } finally {
         setLoading(false);
       }
@@ -156,7 +161,7 @@ export default function ViewIDCardsPage() {
                       <tr key={card._id} className={`transition ${theme === 'dark' ? `${idx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800'} hover:bg-gray-700` : `${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50'}`}`}> 
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-4">
-                            <img src={card.employeeImage || '/placeholder-user.jpg'} alt={card.fullName} className="w-10 h-10 rounded-full object-cover"/>
+                            <Image src={card.employeeImage || '/placeholder-user.jpg'} alt={card.fullName} width={40} height={40} className="rounded-full object-cover"/>
                             <div>
                                 <div className={`font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{card.fullName}</div>
                                 <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{card.employeeId}</div>
@@ -203,7 +208,7 @@ export default function ViewIDCardsPage() {
                     <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Left side: QR Code and basic info */}
                         <div className="flex flex-col items-center text-center">
-                             <img src={selectedCard.employeeImage || '/placeholder-user.jpg'} alt={selectedCard.fullName} className="w-32 h-32 rounded-full object-cover shadow-lg border-4 border-white"/>
+                             <Image src={selectedCard.employeeImage || '/placeholder-user.jpg'} alt={selectedCard.fullName} width={128} height={128} className="rounded-full object-cover shadow-lg border-4 border-white"/>
                             <h3 className="mt-4 text-xl font-bold text-gray-900">{selectedCard.fullName}</h3>
                             <p className="text-gray-600">{selectedCard.designation}</p>
                             <p className="mt-1 text-sm text-gray-500 font-mono">{selectedCard.employeeId}</p>

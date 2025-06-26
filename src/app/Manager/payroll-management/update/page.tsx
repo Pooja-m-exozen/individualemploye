@@ -2,13 +2,18 @@
 import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { FaMoneyBillWave, FaUser, FaCheckCircle, FaSpinner, FaInfoCircle } from "react-icons/fa";
-import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
 
 interface Employee {
   employeeId: string;
   fullName: string;
   designation: string;
+}
+
+interface Attendance {
+  date: string;
+  punchInTime: string | null;
+  punchOutTime: string | null;
 }
 
 const steps = [
@@ -24,7 +29,7 @@ export default function PayrollUpdatePage() {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const [payrollAmount, setPayrollAmount] = useState("");
-  const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const [attendanceData, setAttendanceData] = useState<Attendance[]>([]);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
 
   // Fetch employee details when selectedEmployee changes
@@ -149,7 +154,7 @@ export default function PayrollUpdatePage() {
   const renderUpdatePayroll = () => {
     // Prepare attendance for each day of the month
     const daysInMonth = new Date(year, month, 0).getDate();
-    const attendanceByDate: Record<string, any> = {};
+    const attendanceByDate: Record<string, Attendance> = {};
     attendanceData.forEach((att) => {
       attendanceByDate[att.date] = att;
     });

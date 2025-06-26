@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaCalendarAlt, FaProjectDiagram, FaUsers, FaUserTie, FaInfoCircle } from "react-icons/fa";
+import { FaCalendarAlt, FaProjectDiagram,  FaInfoCircle } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
 export default function CreateShiftsPage() {

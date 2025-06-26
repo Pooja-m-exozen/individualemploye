@@ -39,7 +39,7 @@ export default function StoreRequestsPage() {
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, ] = useState("");
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 5;
