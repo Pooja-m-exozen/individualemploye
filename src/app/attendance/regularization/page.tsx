@@ -16,7 +16,7 @@ import {
   FaSync,
   
   FaSearch,
-  FaChevronDown,
+  // FaChevronDown,
   FaInfo,
   FaChevronLeft,
   FaChevronRight
@@ -36,7 +36,7 @@ interface RegularizationRequest {
 
 interface RegularizationHistoryItem {
   regularizationReason: string | undefined;
-  regularizationDate: any;
+  regularizationDate: string; // changed from any to string
   date: string;
   status: string;
   punchInTime: string;
