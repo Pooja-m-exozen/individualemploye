@@ -35,6 +35,8 @@ interface RegularizationRequest {
 }
 
 interface RegularizationHistoryItem {
+  regularizationReason: string | undefined;
+  regularizationDate: any;
   date: string;
   status: string;
   punchInTime: string;
@@ -611,19 +613,6 @@ function RegularizationContent() {
                   className={`w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-700 text-gray-200 placeholder:text-gray-400' : 'text-black'}`}
                 />
               </div>
-              <div className="relative">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className={`w-full sm:w-40 appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-white text-black'}`}
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-                <FaChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
               <button
                 onClick={fetchRegularizationHistory}
                 className="p-2 text-gray-600 hover:text-blue-600 transition-all duration-200 rounded-lg hover:bg-gray-50"
@@ -679,16 +668,13 @@ function RegularizationContent() {
                       Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Time
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Reason
+                      Regularization Reason
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Applied On
+                      Regularization Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
@@ -704,24 +690,20 @@ function RegularizationContent() {
                         }</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.status || ''}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{
-                          // Extract only the time (HH:mm) from the string, removing date and GMT/UTC details
                           (item.punchInTime ? extractTime(item.punchInTime) : '') + ' - ' + (item.punchOutTime ? extractTime(item.punchOutTime) : '')
                         }</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className={`text-sm max-w-xs truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`} title={item.reason}>{item.reason}</div>
+                        <div className={`text-sm max-w-xs truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`} title={item.regularizationReason}>{item.regularizationReason || ''}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{
-                          item.appliedOn ? new Date(item.appliedOn).toLocaleDateString() : ''
+                          item.regularizationDate ? new Date(item.regularizationDate).toLocaleDateString() : ''
                         }</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(item.actionStatus)}`}>{item.actionStatus}</span>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(item.status)}`}>{item.status}</span>
                       </td>
                     </tr>
                   ))}
