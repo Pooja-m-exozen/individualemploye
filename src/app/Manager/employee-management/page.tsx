@@ -111,10 +111,20 @@ export default function EmployeeManagementPage() {
     const summary = emp.summary || {};
     switch (step) {
       case "kyc":
+        const kycStatus = summary.kyc?.status || "Pending";
+        const isKycApproved = kycStatus === "Approved";
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">KYC Details</h3>
-            <p className="text-gray-700">KYC status: {summary.kyc?.status || "Pending"}</p>
+            <p className={`flex items-center gap-2 ${theme === "dark" ? "text-white" : "text-gray-700"}`}>
+              KYC status: {isKycApproved ? (
+                <span className={`flex items-center gap-1 font-semibold ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
+                  <FaCheckCircle className={`inline-block ${theme === "dark" ? "text-green-300" : "text-green-500"}`} /> Approved
+                </span>
+              ) : (
+                <span className={`${theme === "dark" ? "text-white" : "text-gray-500"} font-medium`}>{kycStatus}</span>
+              )}
+            </p>
             {summary.kyc?.documents && summary.kyc.documents.length > 0 && (
               <div className="mt-2">
                 <div className="font-semibold mb-1">Documents:</div>
