@@ -357,7 +357,7 @@ function MarkAttendanceContent() {
               <FaCalendarAlt className="text-2xl text-blue-200" />
               <div>
                 <p className="font-medium text-white">{currentDate}</p>
-                <p className="text-sm text-blue-100">Today's Date</p>
+                <p className="text-sm text-blue-100">Todays Date</p>
               </div>
             </div>
           </div>
