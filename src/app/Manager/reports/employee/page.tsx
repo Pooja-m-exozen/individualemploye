@@ -1,75 +1,79 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { FaSearch, FaUsers, FaFileExport } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-
-const dummyEmployeeRecords = [
-	{
-		employeeId: "EMP001",
-		fullName: "John Doe",
-		project: "Project Alpha",
-		designation: "Manager",
-		status: "Active",
-	},
-	{
-		employeeId: "EMP002",
-		fullName: "Jane Smith",
-		project: "Project Beta",
-		designation: "Developer",
-		status: "Inactive",
-	},
-	{
-		employeeId: "EMP003",
-		fullName: "Alice Brown",
-		project: "Project Gamma",
-		designation: "Analyst",
-		status: "Active",
-	},
-	{
-		employeeId: "EMP004",
-		fullName: "Bob Lee",
-		project: "Project Alpha",
-		designation: "HR",
-		status: "Active",
-	},
-	// ...more records
-];
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const projectOptions = [
 	"All Projects",
-	"Project Alpha",
-	"Project Beta",
-	"Project Gamma",
+	// ...will be filled dynamically...
 ];
 const designationOptions = [
 	"All Designations",
-	"Manager",
-	"Developer",
-	"Analyst",
-	"HR",
+	// ...will be filled dynamically...
 ];
 const statusOptions = ["All Statuses", "Active", "Inactive"];
-
-function downloadExcel() {
-	alert("Excel export coming soon!");
-}
-function downloadPDF() {
-	alert("PDF export coming soon!");
-}
 
 export default function EmployeeReportPage() {
 	const [search, setSearch] = useState("");
 	const [projectFilter, setProjectFilter] = useState("All Projects");
 	const [designationFilter, setDesignationFilter] = useState("All Designations");
 	const [statusFilter, setStatusFilter] = useState("All Statuses");
+	const [employeeRecords, setEmployeeRecords] = useState<any[]>([]);
+	const [loading, setLoading] = useState(true);
+
+	// Sorting
+	const [sortBy, setSortBy] = useState<null | string>(null);
+	const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+	// Pagination
+	const [page, setPage] = useState(1);
+	const pageSize = 10;
+
 	const { theme } = useTheme();
 
+	// Fetch employee data from API
+	useEffect(() => {
+		const fetchEmployees = async () => {
+			setLoading(true);
+			try {
+				const res = await fetch("https://cafm.zenapi.co.in/api/kyc");
+				const data = await res.json();
+				const records = (data.kycForms || []).map((form: any) => ({
+					employeeId: form.personalDetails.employeeId,
+					fullName: form.personalDetails.fullName,
+					project: form.personalDetails.projectName,
+					designation: form.personalDetails.designation,
+					status: "Active", // No status in API, default to Active
+				}));
+				setEmployeeRecords(records);
+			} catch (e) {
+				setEmployeeRecords([]);
+			}
+			setLoading(false);
+		};
+		fetchEmployees();
+	}, []);
+
+	// Dynamically generate project/designation options
+	const dynamicProjectOptions = useMemo(() => {
+		const set = new Set(employeeRecords.map(e => e.project));
+		return ["All Projects", ...Array.from(set).filter(Boolean)];
+	}, [employeeRecords]);
+	const dynamicDesignationOptions = useMemo(() => {
+		const set = new Set(employeeRecords.map(e => e.designation));
+		return ["All Designations", ...Array.from(set).filter(Boolean)];
+	}, [employeeRecords]);
+
+	// Filtering
 	const filteredRecords = useMemo(() => {
-		return dummyEmployeeRecords.filter((rec) => {
+		return employeeRecords.filter((rec) => {
 			const matchesSearch =
 				search === "" ||
-				rec.fullName.toLowerCase().includes(search.toLowerCase()) ||
-				rec.employeeId.toLowerCase().includes(search.toLowerCase());
+				rec.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+				rec.employeeId?.toLowerCase().includes(search.toLowerCase());
 			const matchesProject =
 				projectFilter === "All Projects" || rec.project === projectFilter;
 			const matchesDesignation =
@@ -84,7 +88,27 @@ export default function EmployeeReportPage() {
 				matchesStatus
 			);
 		});
-	}, [search, projectFilter, designationFilter, statusFilter]);
+	}, [search, projectFilter, designationFilter, statusFilter, employeeRecords]);
+
+	// Sorting
+	const sortedRecords = useMemo(() => {
+		if (!sortBy) return filteredRecords;
+		const sorted = [...filteredRecords].sort((a, b) => {
+			const aVal = a[sortBy] || "";
+			const bVal = b[sortBy] || "";
+			if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+			if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+			return 0;
+		});
+		return sorted;
+	}, [filteredRecords, sortBy, sortOrder]);
+
+	// Pagination
+	const totalPages = Math.ceil(sortedRecords.length / pageSize);
+	const paginatedRecords = useMemo(() => {
+		const start = (page - 1) * pageSize;
+		return sortedRecords.slice(start, start + pageSize);
+	}, [sortedRecords, page, pageSize]);
 
 	// Theme-based classes
 	const bgMain =
@@ -114,6 +138,55 @@ export default function EmployeeReportPage() {
 		theme === "dark" ? "bg-red-900 text-red-200" : "bg-red-100 text-red-800";
 	const rowHover = theme === "dark" ? "hover:bg-gray-800" : "hover:bg-blue-50";
 
+	// Excel export
+	function downloadExcel() {
+		const ws = XLSX.utils.json_to_sheet(
+			sortedRecords.map((rec) => ({
+				"Employee ID": rec.employeeId,
+				"Name": rec.fullName,
+				"Project": rec.project,
+				"Designation": rec.designation,
+				"Status": rec.status,
+			}))
+		);
+		const wb = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(wb, ws, "Employees");
+		XLSX.writeFile(wb, "employee_report.xlsx");
+	}
+
+	// PDF export
+	function downloadPDF() {
+		const doc = new jsPDF();
+		doc.text("Employee Report", 14, 16);
+		autoTable(doc, {
+			startY: 22,
+			head: [["Employee ID", "Name", "Project", "Designation", "Status"]],
+			body: sortedRecords.map((rec) => [
+				rec.employeeId,
+				rec.fullName,
+				rec.project,
+				rec.designation,
+				rec.status,
+			]),
+		});
+		doc.save("employee_report.pdf");
+	}
+
+	// Table header click handler for sorting
+	const handleSort = (field: string) => {
+		if (sortBy === field) {
+			setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+		} else {
+			setSortBy(field);
+			setSortOrder("asc");
+		}
+	};
+
+	// Reset page on filter/sort change
+	useEffect(() => {
+		setPage(1);
+	}, [search, projectFilter, designationFilter, statusFilter, sortBy, sortOrder]);
+
 	return (
 		<div className={`min-h-screen font-sans ${bgMain}`}>
 			<div className="p-6">
@@ -142,7 +215,7 @@ export default function EmployeeReportPage() {
 								onChange={(e) => setProjectFilter(e.target.value)}
 								className={`w-full appearance-none pl-4 pr-10 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${selectBg}`}
 							>
-								{projectOptions.map((project) => (
+								{dynamicProjectOptions.map((project) => (
 									<option key={project} value={project}>
 										{project}
 									</option>
@@ -155,7 +228,7 @@ export default function EmployeeReportPage() {
 								onChange={(e) => setDesignationFilter(e.target.value)}
 								className={`w-full appearance-none pl-4 pr-10 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${selectBg}`}
 							>
-								{designationOptions.map((designation) => (
+								{dynamicDesignationOptions.map((designation) => (
 									<option key={designation} value={designation}>
 										{designation}
 									</option>
@@ -190,12 +263,14 @@ export default function EmployeeReportPage() {
 						<button
 							onClick={downloadExcel}
 							className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+							disabled={filteredRecords.length === 0}
 						>
 							<FaFileExport /> Export Excel
 						</button>
 						<button
 							onClick={downloadPDF}
 							className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+							disabled={filteredRecords.length === 0}
 						>
 							<FaFileExport /> Export PDF
 						</button>
@@ -207,24 +282,28 @@ export default function EmployeeReportPage() {
 						<thead className={`${tableHead} sticky top-0 z-10`}>
 							<tr>
 								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}
+									className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer ${tableHeaderText}`}
+									onClick={() => handleSort("employeeId")}
 								>
-									Employee ID
+									Employee ID {sortBy === "employeeId" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
 								</th>
 								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}
+									className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer ${tableHeaderText}`}
+									onClick={() => handleSort("fullName")}
 								>
-									Name
+									Name {sortBy === "fullName" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
 								</th>
 								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}
+									className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer ${tableHeaderText}`}
+									onClick={() => handleSort("project")}
 								>
-									Project
+									Project {sortBy === "project" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
 								</th>
 								<th
-									className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}
+									className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer ${tableHeaderText}`}
+									onClick={() => handleSort("designation")}
 								>
-									Designation
+									Designation {sortBy === "designation" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
 								</th>
 								<th
 									className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}
@@ -234,7 +313,13 @@ export default function EmployeeReportPage() {
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-blue-50">
-							{filteredRecords.length === 0 ? (
+							{loading ? (
+								<tr>
+									<td colSpan={5} className={`px-4 py-12 text-center ${noRecordsText}`}>
+										Loading...
+									</td>
+								</tr>
+							) : paginatedRecords.length === 0 ? (
 								<tr>
 									<td
 										colSpan={5}
@@ -244,7 +329,7 @@ export default function EmployeeReportPage() {
 									</td>
 								</tr>
 							) : (
-								filteredRecords.map((rec, idx) => (
+								paginatedRecords.map((rec, idx) => (
 									<tr
 										key={idx}
 										className={`${rowHover} transition`}
@@ -279,6 +364,28 @@ export default function EmployeeReportPage() {
 							)}
 						</tbody>
 					</table>
+					{/* Pagination Controls */}
+					{!loading && totalPages > 1 && (
+						<div className="flex justify-end items-center gap-2 px-4 py-3">
+							<button
+								onClick={() => setPage((p) => Math.max(1, p - 1))}
+								disabled={page === 1}
+								className="px-2 py-1 rounded bg-gray-200 disabled:opacity-50"
+							>
+								Prev
+							</button>
+							<span>
+								Page {page} of {totalPages}
+							</span>
+							<button
+								onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+								disabled={page === totalPages}
+								className="px-2 py-1 rounded bg-gray-200 disabled:opacity-50"
+							>
+								Next
+							</button>
+						</div>
+					)}
 				</div>
 			</div>
 		</div>

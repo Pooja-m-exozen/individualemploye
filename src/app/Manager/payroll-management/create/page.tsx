@@ -5,6 +5,10 @@ import { FaMoneyBillWave, FaUser, FaBuilding, FaBriefcase, FaCheckCircle, FaArro
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
+import { createPayroll } from "@/services/payroll";
+import { fetchEmployees } from "@/services/employee";
+import { getAllKYCRecords } from "@/services/kyc";
+import { KYCRecord } from "@/types/kyc";
 
 interface Employee {
   employeeId: string;
@@ -14,13 +18,6 @@ interface Employee {
   employeeImage: string;
   hasPayroll: boolean;
 }
-
-const dummyEmployees: Employee[] = [
-  { employeeId: "EMP001", fullName: "John Doe", projectName: "Project Alpha", designation: "Security Guard", employeeImage: "", hasPayroll: true },
-  { employeeId: "EMP002", fullName: "Jane Smith", projectName: "Project Beta", designation: "Supervisor", employeeImage: "", hasPayroll: false },
-  { employeeId: "EMP003", fullName: "Alice Johnson", projectName: "Project Gamma", designation: "Technician", employeeImage: "", hasPayroll: true },
-  { employeeId: "EMP004", fullName: "Bob Williams", projectName: "Project Alpha", designation: "Driver", employeeImage: "", hasPayroll: false },
-];
 
 const steps = [
   { id: 1, title: "Select Employee" },
@@ -33,12 +30,6 @@ const guidelines = [
   "If payroll/HR details are missing, add them before proceeding.",
   "Ensure all details are correct before submission.",
   "Review and confirm payroll before finishing.",
-];
-
-const dummyProjects = ["Project Alpha", "Project Beta", "Project Gamma"];
-const dummyDesignations = ["Security Guard", "Supervisor", "Technician", "Driver"];
-const dummyMonths = [
-  "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"
 ];
 
 export default function PayrollCreatePage() {
@@ -55,20 +46,60 @@ export default function PayrollCreatePage() {
   const [designationFilter, setDesignationFilter] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
+  const [payableDays, setPayableDays] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(true);
+  const [kycRecords, setKycRecords] = useState<KYCRecord[]>([]);
+  const [projectOptions, setProjectOptions] = useState<string[]>([]);
+  const [designationOptions, setDesignationOptions] = useState<string[]>([]);
+  const [employeeOptions, setEmployeeOptions] = useState<{ employeeId: string; fullName: string }[]>([]);
 
-  const filteredEmployees = dummyEmployees.filter(emp =>
-    (projectFilter ? emp.projectName === projectFilter : true) &&
-    (designationFilter ? emp.designation === designationFilter : true) &&
+  React.useEffect(() => {
+    setLoadingEmployees(true);
+    fetchEmployees()
+      .then(data => setEmployees(data))
+      .catch(() => setEmployees([]))
+      .finally(() => setLoadingEmployees(false));
+  }, []);
+
+  React.useEffect(() => {
+    getAllKYCRecords().then(res => {
+      setKycRecords(res.kycForms || []);
+      // Extract unique projects
+      const projects = Array.from(new Set((res.kycForms || []).map(k => k.personalDetails.projectName).filter(Boolean)));
+      setProjectOptions(projects);
+      // Extract unique designations
+      const designations = Array.from(new Set((res.kycForms || []).map(k => k.personalDetails.designation).filter(Boolean)));
+      setDesignationOptions(designations);
+      // Extract employee options
+      const employees = (res.kycForms || []).map(k => ({ employeeId: k.personalDetails.employeeId, fullName: k.personalDetails.fullName }));
+      // Remove duplicates by employeeId
+      const seen = new Set();
+      const uniqueEmployees = employees.filter(e => {
+        if (!e.employeeId || seen.has(e.employeeId)) return false;
+        seen.add(e.employeeId);
+        return true;
+      });
+      setEmployeeOptions(uniqueEmployees);
+    });
+  }, []);
+
+  const filteredEmployees = employeeOptions.filter(emp =>
+    (projectFilter ? kycRecords.find(k => k.personalDetails.employeeId === emp.employeeId && k.personalDetails.projectName === projectFilter) : true) &&
+    (designationFilter ? kycRecords.find(k => k.personalDetails.employeeId === emp.employeeId && k.personalDetails.designation === designationFilter) : true) &&
     (employeeFilter ? emp.employeeId === employeeFilter : true) &&
     (emp.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      emp.projectName.toLowerCase().includes(search.toLowerCase()) ||
-      emp.designation.toLowerCase().includes(search.toLowerCase()) ||
       emp.employeeId.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const filteredEmployeeOptions = dummyEmployees.filter(emp =>
-    (projectFilter ? emp.projectName === projectFilter : true) &&
-    (designationFilter ? emp.designation === designationFilter : true)
+  // Fix: Use KYCRecord for employee list rendering, not employeeOptions (which only has id and name)
+  const filteredKycEmployees = kycRecords.filter(k =>
+    (projectFilter ? k.personalDetails.projectName === projectFilter : true) &&
+    (designationFilter ? k.personalDetails.designation === designationFilter : true) &&
+    (employeeFilter ? k.personalDetails.employeeId === employeeFilter : true) &&
+    (k.personalDetails.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      k.personalDetails.employeeId.toLowerCase().includes(search.toLowerCase()))
   );
 
   const handleSelectEmployee = (emp: Employee) => {
@@ -89,12 +120,38 @@ export default function PayrollCreatePage() {
     setSuccess("Payroll/HR details created. You can now create payroll.");
   };
 
-  const handlePayrollSubmit = (e: React.FormEvent) => {
+  const handlePayrollSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setActiveStep(3);
+    setLoading(true);
     setError(null);
     setSuccess(null);
     setConfirmed(false);
+    if (!selectedEmployee) {
+      setError("No employee selected.");
+      setLoading(false);
+      return;
+    }
+    try {
+      // Convert month to YYYY-MM format
+      const monthIndex = projectOptions.findIndex(m => m === payrollForm.month) + 1;
+      const monthStr = monthIndex < 10 ? `0${monthIndex}` : `${monthIndex}`;
+      const monthValue = payrollForm.year && payrollForm.month ? `${payrollForm.year}-${monthStr}` : "";
+      const payload = {
+        employeeId: selectedEmployee.employeeId,
+        month: monthValue,
+        year: payrollForm.year,
+        amount: Number(payrollForm.amount),
+        payableDays: payableDays || 0,
+        status: "Pending",
+      };
+      await createPayroll(payload);
+      setActiveStep(3);
+      setSuccess("Payroll record created successfully.");
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Failed to create payroll record.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFinish = () => {
@@ -257,7 +314,7 @@ export default function PayrollCreatePage() {
                           className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                         >
                           <option value="">All Projects</option>
-                          {dummyProjects.map(p => <option key={p} value={p}>{p}</option>)}
+                          {projectOptions.map((p: string) => <option key={p} value={p}>{p}</option>)}
                         </select>
                       </div>
                       <div>
@@ -267,7 +324,7 @@ export default function PayrollCreatePage() {
                           className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                         >
                           <option value="">All Designations</option>
-                          {dummyDesignations.map(d => <option key={d} value={d}>{d}</option>)}
+                          {designationOptions.map((d: string) => <option key={d} value={d}>{d}</option>)}
                         </select>
                       </div>
                       <div>
@@ -277,7 +334,7 @@ export default function PayrollCreatePage() {
                           className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                         >
                           <option value="">All Employees</option>
-                          {filteredEmployeeOptions.map(emp => (
+                          {employeeOptions.map(emp => (
                             <option key={emp.employeeId} value={emp.employeeId}>{emp.fullName} ({emp.employeeId})</option>
                           ))}
                         </select>
@@ -289,38 +346,45 @@ export default function PayrollCreatePage() {
                           className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                         >
                           <option value="">All Months</option>
-                          {dummyMonths.map(m => <option key={m} value={m}>{m}</option>)}
+                          {projectOptions.map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
                       </div>
                       <div></div>
                     </div>
                     {/* Employee List */}
                     <div className="grid grid-cols-1 gap-6">
-                      {filteredEmployees.length === 0 ? (
+                      {filteredKycEmployees.length === 0 ? (
                         <div className={`text-center py-12 ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>No employees found.</div>
                       ) : (
-                        filteredEmployees.map(emp => (
-                          <div key={emp.employeeId} className={`flex items-center gap-6 rounded-xl p-6 border shadow-sm hover:shadow-md transition ${theme === "dark" ? "bg-blue-950 border-blue-900" : "bg-blue-50 border-blue-100"}`}>
+                        filteredKycEmployees.map(k => (
+                          <div key={k.personalDetails.employeeId} className={`flex items-center gap-6 rounded-xl p-6 border shadow-sm hover:shadow-md transition ${theme === "dark" ? "bg-blue-950 border-blue-900" : "bg-blue-50 border-blue-100"}`}>
                             <div className={`w-16 h-16 rounded-full flex items-center justify-center overflow-hidden ${theme === "dark" ? "bg-blue-900" : "bg-blue-100"}`}>
-                              {emp.employeeImage ? (
-                                <Image src={emp.employeeImage} alt={emp.fullName} width={64} height={64} className="object-cover w-full h-full" />
+                              {k.personalDetails.employeeImage ? (
+                                <Image src={k.personalDetails.employeeImage} alt={k.personalDetails.fullName} width={64} height={64} className="object-cover w-full h-full" />
                               ) : (
                                 <FaUser className="w-8 h-8 text-blue-500" />
                               )}
                             </div>
                             <div className="flex-1">
                               <div className="flex flex-wrap gap-2 items-center mb-1">
-                                <span className={`font-bold text-lg ${theme === "dark" ? "text-blue-200" : "text-blue-900"}`}>{emp.fullName}</span>
-                                <span className={`text-xs px-2 py-1 rounded-full font-semibold ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-200 text-blue-800"}`}>{emp.employeeId}</span>
+                                <span className={`font-bold text-lg ${theme === "dark" ? "text-blue-200" : "text-blue-900"}`}>{k.personalDetails.fullName}</span>
+                                <span className={`text-xs px-2 py-1 rounded-full font-semibold ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-200 text-blue-800"}`}>{k.personalDetails.employeeId}</span>
                               </div>
                               <div className={`flex flex-wrap gap-4 text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                                <span className="flex items-center gap-1"><FaBuilding className="w-4 h-4 text-blue-400" /> {emp.projectName}</span>
-                                <span className="flex items-center gap-1"><FaBriefcase className="w-4 h-4 text-blue-400" /> {emp.designation}</span>
+                                <span className="flex items-center gap-1"><FaBuilding className="w-4 h-4 text-blue-400" /> {k.personalDetails.projectName}</span>
+                                <span className="flex items-center gap-1"><FaBriefcase className="w-4 h-4 text-blue-400" /> {k.personalDetails.designation}</span>
                               </div>
                             </div>
                             <button
                               className={`px-5 py-2 rounded-lg font-semibold text-base transition flex items-center gap-2 ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`}
-                              onClick={() => handleSelectEmployee(emp)}
+                              onClick={() => handleSelectEmployee({
+                                employeeId: k.personalDetails.employeeId,
+                                fullName: k.personalDetails.fullName,
+                                projectName: k.personalDetails.projectName,
+                                designation: k.personalDetails.designation,
+                                employeeImage: k.personalDetails.employeeImage,
+                                hasPayroll: false // or determine from your business logic
+                              })}
                             >
                               <FaPlus className="w-4 h-4" /> Create Payroll
                             </button>
@@ -367,7 +431,7 @@ export default function PayrollCreatePage() {
                         <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Month</label>
                         <select className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100" : "border-gray-200"}`} value={payrollForm.month} onChange={e => setPayrollForm(f => ({ ...f, month: e.target.value }))} required>
                           <option value="">Select Month</option>
-                          {dummyMonths.map(m => <option key={m} value={m}>{m}</option>)}
+                          {projectOptions.map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
                       </div>
                       <div>
@@ -378,7 +442,11 @@ export default function PayrollCreatePage() {
                         <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Amount</label>
                         <input type="number" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100" : "border-gray-200"}`} placeholder="Amount" value={payrollForm.amount} onChange={e => setPayrollForm(f => ({ ...f, amount: e.target.value }))} required />
                       </div>
-                      <button type="submit" className={`w-full mt-4 px-4 py-2 rounded-lg font-semibold text-base transition ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`}>Continue</button>
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Payable Days</label>
+                        <input type="number" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100" : "border-gray-200"}`} placeholder="Payable Days" value={payableDays} onChange={e => setPayableDays(Number(e.target.value))} required />
+                      </div>
+                      <button type="submit" className={`w-full mt-4 px-4 py-2 rounded-lg font-semibold text-base transition ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`} disabled={loading}>{loading ? "Submitting..." : "Continue"}</button>
                     </form>
                   </motion.div>
                 )}

@@ -1,20 +1,13 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { FaStore, FaSearch, FaFilter, FaCheckCircle, FaTimesCircle, FaDownload, FaChevronLeft, FaChevronRight, FaClock } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
-const dummyRequests = [
-  { id: "REQ001", item: "Uniform Shirt", quantity: 50, requestedBy: "John Doe", date: "2025-06-10", status: "Pending" },
-  { id: "REQ002", item: "Safety Shoes", quantity: 30, requestedBy: "Jane Smith", date: "2025-06-11", status: "Approved" },
-  { id: "REQ003", item: "Helmet", quantity: 10, requestedBy: "Alice Brown", date: "2025-06-12", status: "Rejected" },
-  { id: "REQ004", item: "Gloves", quantity: 100, requestedBy: "Bob Lee", date: "2025-06-13", status: "Pending" },
-];
-
 const statusOptions = ["Approved", "Pending", "Rejected"];
 
 function getStatusColor(status: string, theme: string) {
-  switch (status.toLowerCase()) {
+  switch (status?.toLowerCase()) {
     case "approved":
       return theme === "dark"
         ? "bg-emerald-900 text-emerald-200 border-emerald-700"
@@ -39,26 +32,116 @@ export default function StoreRequestsPage() {
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
-  const [loading, ] = useState("");
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const modalRef = useRef<HTMLDialogElement | null>(null);
   const rowsPerPage = 5;
 
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetch("https://cafm.zenapi.co.in/api/uniforms/all")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to fetch uniform requests");
+        const data = await res.json();
+        setRequests(Array.isArray(data.uniforms) ? data.uniforms : []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || "Unknown error");
+        setLoading(false);
+      });
+  }, []);
+
   // Filtered and paginated data
-  const filtered = dummyRequests.filter(req => {
-    const matchesStatus = statusFilter ? req.status === statusFilter : true;
-    const matchesSearch = search ? (
-      req.id.toLowerCase().includes(search.toLowerCase()) ||
-      req.item.toLowerCase().includes(search.toLowerCase()) ||
-      req.requestedBy.toLowerCase().includes(search.toLowerCase())
-    ) : true;
+  const filtered = requests.filter((req) => {
+    const matchesStatus = statusFilter ? req.approvalStatus === statusFilter : true;
+    const matchesSearch = search
+      ? (
+          req.employeeId?.toLowerCase().includes(search.toLowerCase()) ||
+          req.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+          req.projectName?.toLowerCase().includes(search.toLowerCase()) ||
+          req.uniformType?.join(", ").toLowerCase().includes(search.toLowerCase())
+        )
+      : true;
     return matchesStatus && matchesSearch;
   });
   const totalPages = Math.ceil(filtered.length / rowsPerPage);
   const paginated = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
+  // CSV Export
+  function exportToCSV() {
+    if (!filtered.length) return;
+    const headers = [
+      "Employee ID",
+      "Name",
+      "Project",
+      "Uniform Type",
+      "Status",
+      "Request Date"
+    ];
+    const rows = filtered.map(req => [
+      req.employeeId,
+      req.fullName,
+      req.projectName,
+      Array.isArray(req.uniformType) ? req.uniformType.join("; ") : "",
+      req.approvalStatus,
+      req.requestDate ? new Date(req.requestDate).toLocaleDateString() : ""
+    ]);
+    const csvContent = [headers, ...rows].map(e => e.map(v => `"${(v ?? "").toString().replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `uniform-requests-${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <ManagerDashboardLayout>
+      {/* Modal for viewing details */}
+      {selectedRequest && (
+        <dialog ref={modalRef} open className="fixed z-50 left-0 top-0 w-full h-full flex items-center justify-center bg-black bg-opacity-40">
+          <div className={`rounded-xl shadow-lg max-w-lg w-full p-6 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+            <button
+              className={`absolute top-3 right-3 ${theme === "dark" ? "text-gray-400 hover:text-red-400" : "text-gray-500 hover:text-red-500"}`}
+              onClick={() => setSelectedRequest(null)}
+              aria-label="Close"
+            >
+              <FaTimesCircle className="w-6 h-6" />
+            </button>
+            <h2 className={`text-2xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Uniform Request Details</h2>
+            <div className="space-y-2 text-sm">
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Employee ID:</span> {selectedRequest.employeeId}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Name:</span> {selectedRequest.fullName}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Designation:</span> {selectedRequest.designation}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Gender:</span> {selectedRequest.gender}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Project:</span> {selectedRequest.projectName}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Uniform Type:</span> {Array.isArray(selectedRequest.uniformType) ? selectedRequest.uniformType.join(", ") : ""}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Size:</span> {selectedRequest.size ? Object.entries(selectedRequest.size).map(([k,v]) => `${k}: ${v}`).join(", ") : ""}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Quantity:</span> {selectedRequest.qty}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Status:</span> {selectedRequest.approvalStatus}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Issued Status:</span> {selectedRequest.issuedStatus}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Request Date:</span> {selectedRequest.requestDate ? new Date(selectedRequest.requestDate).toLocaleString() : ""}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Remarks:</span> {selectedRequest.remarks}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Approved By:</span> {selectedRequest.approvedBy}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Approved Date:</span> {selectedRequest.approvedDate ? new Date(selectedRequest.approvedDate).toLocaleString() : ""}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Issued By:</span> {selectedRequest.issuedBy}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Issued Date:</span> {selectedRequest.issuedDate ? new Date(selectedRequest.issuedDate).toLocaleString() : ""}</div>
+              <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">DC Number:</span> {selectedRequest.dcNumber}</div>
+              {selectedRequest.documentPath && (
+                <div className={theme === "dark" ? "text-gray-100" : "text-gray-800"}><span className="font-semibold">Document:</span> <a href={selectedRequest.documentPath} target="_blank" rel="noopener noreferrer" className={theme === "dark" ? "text-blue-300 underline" : "text-blue-700 underline"}>View Document</a></div>
+              )}
+            </div>
+          </div>
+        </dialog>
+      )}
       <div
         className={`min-h-screen flex flex-col py-8 transition-colors duration-300 ${
           theme === "dark"
@@ -91,6 +174,7 @@ export default function StoreRequestsPage() {
           </div>
           <div className="flex items-center gap-4">
             <button
+              onClick={exportToCSV}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md ${
                 theme === "dark"
                   ? "bg-gray-900 text-blue-200 hover:bg-blue-900"
@@ -129,7 +213,7 @@ export default function StoreRequestsPage() {
                   <h3 className={theme === "dark" ? "text-lg font-semibold text-gray-100 mb-2" : "text-lg font-semibold text-gray-900 mb-2"}>Error Loading Data</h3>
                   <p className={theme === "dark" ? "text-gray-300 text-center max-w-md" : "text-gray-600 text-center max-w-md"}>{error}</p>
                   <button 
-                    onClick={() => setError(null)}
+                    onClick={() => window.location.reload()}
                     className={`mt-4 px-6 py-2 rounded-lg transition-colors duration-200 ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                   >
                     Try Again
@@ -158,7 +242,7 @@ export default function StoreRequestsPage() {
                           <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
                           <input
                             type="text"
-                            placeholder="Search by request ID, item, or requester..."
+                            placeholder="Search by employee ID, name, project, or uniform type..."
                             value={search}
                             onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
                             className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
@@ -220,7 +304,7 @@ export default function StoreRequestsPage() {
                           </div>
                           <div className="text-right">
                             <div className={theme === "dark" ? "text-sm text-gray-300" : "text-sm text-gray-600"}>
-                              Showing <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>{filtered.length}</span> of <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>{dummyRequests.length}</span> requests
+                              Showing <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>{filtered.length}</span> of <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>{requests.length}</span> requests
                             </div>
                           </div>
                         </div>
@@ -232,33 +316,38 @@ export default function StoreRequestsPage() {
                     <table className={`min-w-full divide-y transition-colors duration-300 ${theme === "dark" ? "divide-gray-800" : "divide-gray-200"}`}>
                       <thead className={theme === "dark" ? "bg-gray-900" : "bg-gray-50"}>
                         <tr>
-                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Request ID</th>
-                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Item</th>
-                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Quantity</th>
-                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Requested By</th>
-                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Date</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Employee ID</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Name</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Project</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Uniform Type</th>
                           <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Status</th>
+                          <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Request Date</th>
                           <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Actions</th>
                         </tr>
                       </thead>
                       <tbody className={theme === "dark" ? "bg-gray-900 divide-y divide-gray-800" : "bg-white divide-y divide-gray-200"}>
                         {paginated.map((req, idx) => (
-                          <tr key={idx} className={`transition-all duration-200 group ${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-blue-50"}`}>
-                            <td className={`px-6 py-4 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{req.id}</td>
-                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.item}</td>
-                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.quantity}</td>
-                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.requestedBy}</td>
-                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.date}</td>
+                          <tr key={req._id || idx} className={`transition-all duration-200 group ${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-blue-50"}`}>
+                            <td className={`px-6 py-4 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{req.employeeId}</td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.fullName}</td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.projectName}</td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{Array.isArray(req.uniformType) ? req.uniformType.join(", ") : ""}</td>
                             <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${getStatusColor(req.status, theme)}`}>
-                                {req.status === "Approved" && <FaCheckCircle className="w-3 h-3 mr-1" />}
-                                {req.status === "Pending" && <FaClock className="w-3 h-3 mr-1" />}
-                                {req.status === "Rejected" && <FaTimesCircle className="w-3 h-3 mr-1" />}
-                                {req.status}
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${getStatusColor(req.approvalStatus, theme)}`}>
+                                {req.approvalStatus === "Approved" && <FaCheckCircle className="w-3 h-3 mr-1" />}
+                                {req.approvalStatus === "Pending" && <FaClock className="w-3 h-3 mr-1" />}
+                                {req.approvalStatus === "Rejected" && <FaTimesCircle className="w-3 h-3 mr-1" />}
+                                {req.approvalStatus}
                               </span>
                             </td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.requestDate ? new Date(req.requestDate).toLocaleDateString() : ""}</td>
                             <td className="px-6 py-4">
-                              <button className={`px-4 py-1 rounded-lg font-semibold text-sm transition ${theme === "dark" ? "bg-blue-900 text-blue-200 hover:bg-blue-800" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}>View</button>
+                              <button
+                                className={`px-4 py-1 rounded-lg font-semibold text-sm transition ${theme === "dark" ? "bg-blue-900 text-blue-200 hover:bg-blue-800" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}
+                                onClick={() => setSelectedRequest(req)}
+                              >
+                                View
+                              </button>
                             </td>
                           </tr>
                         ))}

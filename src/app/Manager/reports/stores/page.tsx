@@ -1,62 +1,66 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { FaSearch, FaStore, FaFileExport } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-
-const dummyStoresRecords = [
-	{
-		storeId: "STR001",
-		storeName: "Central Store",
-		manager: "John Doe",
-		status: "In Stock",
-	},
-	{
-		storeId: "STR002",
-		storeName: "West Store",
-		manager: "Jane Smith",
-		status: "Out of Stock",
-	},
-	{
-		storeId: "STR003",
-		storeName: "East Store",
-		manager: "Alice Brown",
-		status: "In Stock",
-	},
-	{
-		storeId: "STR004",
-		storeName: "North Store",
-		manager: "Bob Lee",
-		status: "In Stock",
-	},
-	// ...more records
-];
-
-const statusOptions = ["All Statuses", "In Stock", "Out of Stock"];
-
-function downloadExcel() {
-	alert("Excel export coming soon!");
-}
-function downloadPDF() {
-	alert("PDF export coming soon!");
-}
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable"; // updated import
 
 export default function StoresReportPage() {
 	const [search, setSearch] = useState("");
 	const [statusFilter, setStatusFilter] = useState("All Statuses");
 	const { theme } = useTheme();
 
+	const [records, setRecords] = useState<any[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+
+	useEffect(() => {
+		setLoading(true);
+		setError(null);
+		fetch("https://inventory.zenapi.co.in/api/inventory/items")
+			.then((res) => {
+				if (!res.ok) throw new Error("Failed to fetch data");
+				return res.json();
+			})
+			.then((data) => {
+				// Map API data to table format
+				const mapped = data.map((item: any) => {
+					const totalQty = Array.isArray(item.sizeInventory)
+						? item.sizeInventory.reduce(
+								(sum: number, s: any) => sum + (s.quantity || 0),
+								0
+						  )
+						: 0;
+					return {
+						itemCode: item.itemCode,
+						name: item.name,
+						category: item.category,
+						status: totalQty > 0 ? "In Stock" : "Out of Stock",
+						totalQty,
+					};
+				});
+				setRecords(mapped);
+				setLoading(false);
+			})
+			.catch((err) => {
+				setError("Error loading data");
+				setLoading(false);
+			});
+	}, []);
+
 	const filteredRecords = useMemo(() => {
-		return dummyStoresRecords.filter((rec) => {
+		return records.filter((rec) => {
 			const matchesSearch =
 				search === "" ||
-				rec.storeName.toLowerCase().includes(search.toLowerCase()) ||
-				rec.storeId.toLowerCase().includes(search.toLowerCase()) ||
-				rec.manager.toLowerCase().includes(search.toLowerCase());
+				rec.name.toLowerCase().includes(search.toLowerCase()) ||
+				rec.itemCode.toLowerCase().includes(search.toLowerCase()) ||
+				rec.category.toLowerCase().includes(search.toLowerCase());
 			const matchesStatus =
 				statusFilter === "All Statuses" || rec.status === statusFilter;
 			return matchesSearch && matchesStatus;
 		});
-	}, [search, statusFilter]);
+	}, [search, statusFilter, records]);
 
 	// Theme-based classes
 	const bgMain =
@@ -86,6 +90,43 @@ export default function StoresReportPage() {
 	const statusOutStock =
 		theme === "dark" ? "bg-red-900 text-red-200" : "bg-red-100 text-red-800";
 	const rowHover = theme === "dark" ? "hover:bg-gray-800" : "hover:bg-blue-50";
+
+	// Export Excel functionality
+	function downloadExcel() {
+		const exportData = filteredRecords.map((rec) => ({
+			"Item Code": rec.itemCode,
+			Name: rec.name,
+			Category: rec.category,
+			Status: rec.status,
+			"Total Qty": rec.totalQty,
+		}));
+		const worksheet = XLSX.utils.json_to_sheet(exportData);
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
+		XLSX.writeFile(workbook, "inventory_report.xlsx");
+	}
+
+	// Export PDF functionality
+	function downloadPDF() {
+		const doc = new jsPDF();
+		doc.text("Inventory Report", 14, 16);
+		const tableColumn = ["Item Code", "Name", "Category", "Status", "Total Qty"];
+		const tableRows = filteredRecords.map((rec) => [
+			rec.itemCode,
+			rec.name,
+			rec.category,
+			rec.status,
+			rec.totalQty,
+		]);
+		autoTable(doc, {
+			head: [tableColumn],
+			body: tableRows,
+			startY: 22,
+			styles: { fontSize: 9 },
+			headStyles: { fillColor: [41, 128, 185] },
+		});
+		doc.save("inventory_report.pdf");
+	}
 
 	return (
 		<div className={`min-h-screen font-sans ${bgMain}`}>
@@ -125,7 +166,7 @@ export default function StoresReportPage() {
 								onChange={(e) => setStatusFilter(e.target.value)}
 								className={`w-full appearance-none pl-4 pr-10 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${selectBg}`}
 							>
-								{statusOptions.map((status) => (
+								{["All Statuses", "In Stock", "Out of Stock"].map((status) => (
 									<option key={status} value={status}>
 										{status}
 									</option>
@@ -154,44 +195,47 @@ export default function StoresReportPage() {
 						<thead className={`${tableHead} sticky top-0 z-10`}>
 							<tr>
 								<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>
-									Store ID
+									Item Code
 								</th>
 								<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>
-									Store Name
+									Name
 								</th>
 								<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>
-									Manager
+									Category
 								</th>
 								<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>
 									Status
 								</th>
+								<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>
+									Total Qty
+								</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-blue-50">
-							{filteredRecords.length === 0 ? (
+							{loading ? (
 								<tr>
-									<td
-										colSpan={4}
-										className={`px-4 py-12 text-center ${noRecordsText}`}
-									>
+									<td colSpan={5} className={`px-4 py-12 text-center ${noRecordsText}`}>
+										Loading...
+									</td>
+								</tr>
+							) : error ? (
+								<tr>
+									<td colSpan={5} className={`px-4 py-12 text-center ${noRecordsText}`}>
+										{error}
+									</td>
+								</tr>
+							) : filteredRecords.length === 0 ? (
+								<tr>
+									<td colSpan={5} className={`px-4 py-12 text-center ${noRecordsText}`}>
 										No records found
 									</td>
 								</tr>
 							) : (
 								filteredRecords.map((rec, idx) => (
-									<tr
-										key={idx}
-										className={`${rowHover} transition`}
-									>
-										<td className={`px-4 py-3 font-bold ${tableText}`}>
-											{rec.storeId}
-										</td>
-										<td className={`px-4 py-3 ${tableText}`}>
-											{rec.storeName}
-										</td>
-										<td className={`px-4 py-3 ${tableText}`}>
-											{rec.manager}
-										</td>
+									<tr key={idx} className={`${rowHover} transition`}>
+										<td className={`px-4 py-3 font-bold ${tableText}`}>{rec.itemCode}</td>
+										<td className={`px-4 py-3 ${tableText}`}>{rec.name}</td>
+										<td className={`px-4 py-3 ${tableText}`}>{rec.category}</td>
 										<td className="px-4 py-3">
 											<span
 												className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
@@ -203,6 +247,7 @@ export default function StoresReportPage() {
 												{rec.status}
 											</span>
 										</td>
+										<td className={`px-4 py-3 ${tableText}`}>{rec.totalQty}</td>
 									</tr>
 								))
 							)}

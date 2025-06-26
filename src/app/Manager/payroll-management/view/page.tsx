@@ -1,23 +1,14 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { FaMoneyBillWave, FaSearch, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
-const dummyPayroll = [
-  { employee: "John Doe", month: "June", year: 2025, amount: 50000, status: "Paid", project: "Project Alpha", designation: "Manager" },
-  { employee: "Jane Smith", month: "June", year: 2025, amount: 48000, status: "Pending", project: "Project Beta", designation: "Developer" },
-  { employee: "Alice Brown", month: "May", year: 2025, amount: 47000, status: "Paid", project: "Project Gamma", designation: "Analyst" },
-  { employee: "Bob Lee", month: "May", year: 2025, amount: 46000, status: "Pending", project: "Project Alpha", designation: "HR" },
-  { employee: "Charlie Green", month: "April", year: 2025, amount: 45500, status: "Paid", project: "Project Beta", designation: "Manager" },
-  { employee: "Diana White", month: "April", year: 2025, amount: 44000, status: "Paid", project: "Project Gamma", designation: "Developer" },
-  // ...add more for pagination demo
-];
-
 const statusOptions = ["All", "Paid", "Pending"];
-const projectOptions = ["All Projects", "Project Alpha", "Project Beta", "Project Gamma"];
-const monthOptions = ["All Months", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const designationOptions = ["All Designations", "Manager", "Developer", "Analyst", "HR"];
+const monthOptions = [
+  "All Months", "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 
 export default function PayrollViewPage() {
   const { theme } = useTheme();
@@ -29,33 +20,90 @@ export default function PayrollViewPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 5;
 
-  // Filtered and searched payroll records
+  // API state
+  const [payrollData, setPayrollData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // For dynamic filter options
+  const [projectOptions, setProjectOptions] = useState<string[]>(["All Projects"]);
+  const [designationOptions, setDesignationOptions] = useState<string[]>(["All Designations"]);
+
+  // Fetch payroll data from API
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    // Build query params for pagination
+    const params = new URLSearchParams({
+      page: currentPage.toString(),
+      limit: recordsPerPage.toString(),
+    });
+    fetch(`https://cafm.zenapi.co.in/api/salary-disbursement/payrolls?${params}`)
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to fetch payroll records");
+        return res.json();
+      })
+      .then(res => {
+        const data = res.data || [];
+        setPayrollData(data);
+        setTotalRecords(res.pagination?.totalRecords || data.length);
+        setTotalPages(res.pagination?.totalPages || 1);
+
+        // Populate project and designation dropdowns from all fetched records
+        setProjectOptions([
+          "All Projects",
+          ...Array.from(new Set(data.map((p: any) => typeof p.project === "string" ? p.project : "").filter(Boolean))) as string[],
+        ]);
+        setDesignationOptions([
+          "All Designations",
+          ...Array.from(new Set(data.map((p: any) => typeof p.designation === "string" ? p.designation : "").filter(Boolean))) as string[],
+        ]);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Could not load payroll records.");
+        setLoading(false);
+      });
+    // eslint-disable-next-line
+  }, [currentPage, recordsPerPage]);
+
+  // Filtered and searched payroll records (client-side)
   const filteredPayroll = useMemo(() => {
-    return dummyPayroll.filter((pay) => {
+    return payrollData.filter((pay) => {
+      // Parse month index safely
+      let monthIdx = 0;
+      if (typeof pay.month === "string" && pay.month.includes("-")) {
+        const idx = parseInt(pay.month.split("-")[1], 10);
+        if (!isNaN(idx) && idx >= 1 && idx <= 12) monthIdx = idx;
+      }
+      const monthStr = monthOptions[monthIdx] || "";
+
       const matchesSearch =
         search === "" ||
-        pay.employee.toLowerCase().includes(search.toLowerCase()) ||
-        pay.month.toLowerCase().includes(search.toLowerCase()) ||
-        pay.year.toString().includes(search) ||
-        pay.amount.toString().includes(search);
+        (typeof pay.employeeName === "string" && pay.employeeName.toLowerCase().includes(search.toLowerCase())) ||
+        monthStr.toLowerCase().includes(search.toLowerCase()) ||
+        (typeof pay.year === "string" && pay.year.includes(search)) ||
+        (typeof pay.amount === "number" && pay.amount.toString().includes(search));
       const matchesStatus =
         statusFilter === "All" || pay.status === statusFilter;
       const matchesProject =
-        projectFilter === "All Projects" || (pay.project && pay.project === projectFilter);
+        projectFilter === "All Projects" || (typeof pay.project === "string" && pay.project === projectFilter);
       const matchesMonth =
-        monthFilter === "All Months" || pay.month === monthFilter;
+        monthFilter === "All Months" ||
+        monthStr === monthFilter;
       const matchesDesignation =
-        designationFilter === "All Designations" || (pay.designation && pay.designation === designationFilter);
+        designationFilter === "All Designations" || (typeof pay.designation === "string" && pay.designation === designationFilter);
       return matchesSearch && matchesStatus && matchesProject && matchesMonth && matchesDesignation;
     });
-  }, [search, statusFilter, projectFilter, monthFilter, designationFilter]);
+  }, [payrollData, search, statusFilter, projectFilter, monthFilter, designationFilter]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredPayroll.length / recordsPerPage);
+  // Pagination (client-side, since API returns only current page)
   const paginatedPayroll = useMemo(() => {
-    const start = (currentPage - 1) * recordsPerPage;
-    return filteredPayroll.slice(start, start + recordsPerPage);
-  }, [filteredPayroll, currentPage, recordsPerPage]);
+    // If API supports server-side pagination, just use filteredPayroll (should be <= recordsPerPage)
+    return filteredPayroll;
+  }, [filteredPayroll]);
 
   return (
     <ManagerDashboardLayout>
@@ -77,6 +125,7 @@ export default function PayrollViewPage() {
             <h2 className={`text-xl font-bold mb-6 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Payroll Records</h2>
             {/* Filters and Search */}
             <div className="flex flex-row flex-wrap gap-2 mb-6 items-center w-full">
+              {/* Project Dropdown */}
               <div className="relative w-40 min-w-[140px]">
                 <select
                   value={projectFilter}
@@ -88,6 +137,7 @@ export default function PayrollViewPage() {
                   ))}
                 </select>
               </div>
+              {/* Month Dropdown */}
               <div className="relative w-32 min-w-[110px]">
                 <select
                   value={monthFilter}
@@ -99,6 +149,7 @@ export default function PayrollViewPage() {
                   ))}
                 </select>
               </div>
+              {/* Designation Dropdown */}
               <div className="relative w-44 min-w-[130px]">
                 <select
                   value={designationFilter}
@@ -110,6 +161,7 @@ export default function PayrollViewPage() {
                   ))}
                 </select>
               </div>
+              {/* Status Dropdown */}
               <div className="relative w-48 min-w-[120px]">
                 <select
                   value={statusFilter}
@@ -121,6 +173,7 @@ export default function PayrollViewPage() {
                   ))}
                 </select>
               </div>
+              {/* Search Input */}
               <div className="relative flex-1 min-w-[180px] max-w-xs">
                 <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`} />
                 <input
@@ -145,21 +198,39 @@ export default function PayrollViewPage() {
                   </tr>
                 </thead>
                 <tbody className={theme === 'dark' ? 'divide-y divide-gray-800' : 'divide-y divide-blue-50'}>
-                  {paginatedPayroll.length === 0 ? (
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} className={`px-4 py-12 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Loading...</td>
+                    </tr>
+                  ) : error ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-12 text-center text-red-500">{error}</td>
+                    </tr>
+                  ) : paginatedPayroll.length === 0 ? (
                     <tr>
                       <td colSpan={5} className={`px-4 py-12 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>No records found</td>
                     </tr>
-                  ) : paginatedPayroll.map((pay, idx) => (
-                    <tr key={idx} className={theme === 'dark' ? 'hover:bg-blue-950 transition' : 'hover:bg-blue-50 transition'}>
-                      <td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>{pay.employee}</td>
-                      <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>{pay.month}</td>
-                      <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>{pay.year}</td>
-                      <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>₹{pay.amount.toLocaleString()}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${pay.status === "Paid" ? (theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800') : (theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800')}`}>{pay.status}</span>
-                      </td>
-                    </tr>
-                  ))}
+                  ) : paginatedPayroll.map((pay, idx) => {
+                      let monthIdx = 0;
+                      if (typeof pay.month === "string" && pay.month.includes("-")) {
+                        const idxVal = parseInt(pay.month.split("-")[1], 10);
+                        if (!isNaN(idxVal) && idxVal >= 1 && idxVal <= 12) monthIdx = idxVal;
+                      }
+                      const monthStr = monthOptions[monthIdx] || "";
+                      return (
+                        <tr key={pay._id || idx} className={theme === 'dark' ? 'hover:bg-blue-950 transition' : 'hover:bg-blue-50 transition'}>
+                          <td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>{pay.employeeName || ""}</td>
+                          <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>
+                            {monthStr}
+                          </td>
+                          <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>{pay.year || ""}</td>
+                          <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>₹{typeof pay.amount === "number" ? pay.amount.toLocaleString() : ""}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${pay.status === "Paid" ? (theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800') : (theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800')}`}>{pay.status}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
@@ -167,7 +238,7 @@ export default function PayrollViewPage() {
             {totalPages > 1 && (
               <div className={`flex items-center justify-between px-6 py-4 border-t mt-2 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
                 <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Showing {((currentPage - 1) * recordsPerPage) + 1} to {Math.min(currentPage * recordsPerPage, filteredPayroll.length)} of {filteredPayroll.length} records
+                  Showing {((currentPage - 1) * recordsPerPage) + 1} to {Math.min(currentPage * recordsPerPage, totalRecords)} of {totalRecords} records
                 </div>
                 <div className="flex items-center gap-2">
                   <button

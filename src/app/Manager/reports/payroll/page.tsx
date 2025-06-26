@@ -1,50 +1,10 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { FaSearch, FaMoneyBillWave, FaFileExport } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-
-const dummyPayrollRecords = [
-  {
-    employeeId: "EMP001",
-    fullName: "John Doe",
-    project: "Project Alpha",
-    designation: "Manager",
-    status: "Paid",
-  },
-  {
-    employeeId: "EMP002",
-    fullName: "Jane Smith",
-    project: "Project Beta",
-    designation: "Developer",
-    status: "Pending",
-  },
-  {
-    employeeId: "EMP003",
-    fullName: "Alice Brown",
-    project: "Project Gamma",
-    designation: "Analyst",
-    status: "Paid",
-  },
-  {
-    employeeId: "EMP004",
-    fullName: "Bob Lee",
-    project: "Project Alpha",
-    designation: "HR",
-    status: "Paid",
-  },
-  // ...more records
-];
-
-const projectOptions = ["All Projects", "Project Alpha", "Project Beta", "Project Gamma"];
-const designationOptions = ["All Designations", "Manager", "Developer", "Analyst", "HR"];
-const statusOptions = ["All Statuses", "Paid", "Pending"];
-
-function downloadExcel() {
-  alert("Excel export coming soon!");
-}
-function downloadPDF() {
-  alert("PDF export coming soon!");
-}
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function PayrollReportPage() {
   const [search, setSearch] = useState("");
@@ -53,12 +13,50 @@ export default function PayrollReportPage() {
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const { theme } = useTheme();
 
+  const [records, setRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch payroll data from API
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetch("https://cafm.zenapi.co.in/api/salary-disbursement/payrolls")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch data");
+        return res.json();
+      })
+      .then((data) => {
+        setRecords(data.data || []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Error loading data");
+        setLoading(false);
+      });
+  }, []);
+
+  // Generate dropdown options dynamically
+  const projectOptions = useMemo(() => [
+    "All Projects",
+    ...Array.from(new Set(records.map((r) => r.project))).filter(Boolean),
+  ], [records]);
+  const designationOptions = useMemo(() => [
+    "All Designations",
+    ...Array.from(new Set(records.map((r) => r.designation))).filter(Boolean),
+  ], [records]);
+  const statusOptions = useMemo(() => [
+    "All Statuses",
+    ...Array.from(new Set(records.map((r) => r.status))).filter(Boolean),
+  ], [records]);
+
+  // Filtering logic
   const filteredRecords = useMemo(() => {
-    return dummyPayrollRecords.filter((rec) => {
+    return records.filter((rec) => {
       const matchesSearch =
         search === "" ||
-        rec.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        rec.employeeId.toLowerCase().includes(search.toLowerCase());
+        (rec.employeeName && rec.employeeName.toLowerCase().includes(search.toLowerCase())) ||
+        (rec.employeeId && rec.employeeId.toLowerCase().includes(search.toLowerCase()));
       const matchesProject =
         projectFilter === "All Projects" || rec.project === projectFilter;
       const matchesDesignation =
@@ -67,7 +65,62 @@ export default function PayrollReportPage() {
         statusFilter === "All Statuses" || rec.status === statusFilter;
       return matchesSearch && matchesProject && matchesDesignation && matchesStatus;
     });
-  }, [search, projectFilter, designationFilter, statusFilter]);
+  }, [search, projectFilter, designationFilter, statusFilter, records]);
+
+  // Export Excel functionality
+  function downloadExcel() {
+    const exportData = filteredRecords.map((rec) => ({
+      "Employee ID": rec.employeeId,
+      "Name": rec.employeeName,
+      "Project": rec.project,
+      "Designation": rec.designation,
+      "Month": rec.month,
+      "Year": rec.year,
+      "Amount": rec.amount,
+      "Payable Days": rec.payableDays,
+      "Status": rec.status,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Payroll");
+    XLSX.writeFile(workbook, "payroll_report.xlsx");
+  }
+
+  // Export PDF functionality
+  function downloadPDF() {
+    const doc = new jsPDF();
+    doc.text("Payroll Report", 14, 16);
+    const tableColumn = [
+      "Employee ID",
+      "Name",
+      "Project",
+      "Designation",
+      "Month",
+      "Year",
+      "Amount",
+      "Payable Days",
+      "Status",
+    ];
+    const tableRows = filteredRecords.map((rec) => [
+      rec.employeeId,
+      rec.employeeName,
+      rec.project,
+      rec.designation,
+      rec.month,
+      rec.year,
+      rec.amount,
+      rec.payableDays,
+      rec.status,
+    ]);
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 22,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [41, 128, 185] },
+    });
+    doc.save("payroll_report.pdf");
+  }
 
   // Theme-based classes
   const bgMain = theme === "dark"
@@ -172,20 +225,36 @@ export default function PayrollReportPage() {
                 <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>Name</th>
                 <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>Project</th>
                 <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>Designation</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>Month</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>Year</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>Amount</th>
+                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>Payable Days</th>
                 <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-blue-50">
-              {filteredRecords.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={5} className={`px-4 py-12 text-center ${noRecordsText}`}>No records found</td>
+                  <td colSpan={9} className={`px-4 py-12 text-center ${noRecordsText}`}>Loading...</td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={9} className={`px-4 py-12 text-center ${noRecordsText}`}>{error}</td>
+                </tr>
+              ) : filteredRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className={`px-4 py-12 text-center ${noRecordsText}`}>No records found</td>
                 </tr>
               ) : filteredRecords.map((rec, idx) => (
                 <tr key={idx} className={`${rowHover} transition`}>
                   <td className={`px-4 py-3 font-bold ${tableText}`}>{rec.employeeId}</td>
-                  <td className={`px-4 py-3 ${tableText}`}>{rec.fullName}</td>
+                  <td className={`px-4 py-3 ${tableText}`}>{rec.employeeName}</td>
                   <td className={`px-4 py-3 ${tableText}`}>{rec.project}</td>
                   <td className={`px-4 py-3 ${tableText}`}>{rec.designation}</td>
+                  <td className={`px-4 py-3 ${tableText}`}>{rec.month}</td>
+                  <td className={`px-4 py-3 ${tableText}`}>{rec.year}</td>
+                  <td className={`px-4 py-3 ${tableText}`}>{rec.amount}</td>
+                  <td className={`px-4 py-3 ${tableText}`}>{rec.payableDays}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                       rec.status === "Paid"

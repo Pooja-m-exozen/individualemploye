@@ -1,62 +1,96 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { FaSearch, FaProjectDiagram, FaFileExport } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-
-const dummyProjectRecords = [
-	{
-		projectId: "PRJ001",
-		projectName: "Project Alpha",
-		manager: "John Doe",
-		status: "Active",
-	},
-	{
-		projectId: "PRJ002",
-		projectName: "Project Beta",
-		manager: "Jane Smith",
-		status: "Completed",
-	},
-	{
-		projectId: "PRJ003",
-		projectName: "Project Gamma",
-		manager: "Alice Brown",
-		status: "Active",
-	},
-	{
-		projectId: "PRJ004",
-		projectName: "Project Delta",
-		manager: "Bob Lee",
-		status: "On Hold",
-	},
-	// ...more records
-];
-
-const statusOptions = ["All Statuses", "Active", "Completed", "On Hold"];
-
-function downloadExcel() {
-	alert("Excel export coming soon!");
-}
-function downloadPDF() {
-	alert("PDF export coming soon!");
-}
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function ProjectReportPage() {
 	const [search, setSearch] = useState("");
-	const [statusFilter, setStatusFilter] = useState("All Statuses");
+	const [records, setRecords] = useState<any[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [currentPage, setCurrentPage] = useState(1);
+	const rowsPerPage = 6;
 	const { theme } = useTheme();
 
+	// Fetch project data from API
+	useEffect(() => {
+		setLoading(true);
+		setError(null);
+		fetch("https://cafm.zenapi.co.in/api/project/projects")
+			.then((res) => {
+				if (!res.ok) throw new Error("Failed to fetch data");
+				return res.json();
+			})
+			.then((data) => {
+				setRecords(Array.isArray(data) ? data : []);
+				setLoading(false);
+			})
+			.catch(() => {
+				setError("Error loading data");
+				setLoading(false);
+			});
+	}, []);
+
+	// Filtering logic
 	const filteredRecords = useMemo(() => {
-		return dummyProjectRecords.filter((rec) => {
+		return records.filter((rec) => {
 			const matchesSearch =
 				search === "" ||
-				rec.projectName.toLowerCase().includes(search.toLowerCase()) ||
-				rec.projectId.toLowerCase().includes(search.toLowerCase()) ||
-				rec.manager.toLowerCase().includes(search.toLowerCase());
-			const matchesStatus =
-				statusFilter === "All Statuses" || rec.status === statusFilter;
-			return matchesSearch && matchesStatus;
+				(rec.projectName && rec.projectName.toLowerCase().includes(search.toLowerCase())) ||
+				(rec.address && rec.address.toLowerCase().includes(search.toLowerCase()));
+			return matchesSearch;
 		});
-	}, [search, statusFilter]);
+	}, [search, records]);
+
+	// Pagination logic
+	const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);
+	const paginatedRecords = useMemo(() => {
+		const startIdx = (currentPage - 1) * rowsPerPage;
+		return filteredRecords.slice(startIdx, startIdx + rowsPerPage);
+	}, [filteredRecords, currentPage]);
+
+	// Export Excel functionality
+	function downloadExcel() {
+		const exportData = filteredRecords.map((rec) => ({
+			"Project Name": rec.projectName,
+			"Address": rec.address,
+			"Total Manpower": rec.totalManpower,
+			"Updated Date": rec.updatedDate ? new Date(rec.updatedDate).toLocaleString() : "",
+		}));
+		const worksheet = XLSX.utils.json_to_sheet(exportData);
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, "Projects");
+		XLSX.writeFile(workbook, "project_report.xlsx");
+	}
+
+	// Export PDF functionality
+	function downloadPDF() {
+		const doc = new jsPDF();
+		doc.text("Project Report", 14, 16);
+		const tableColumn = [
+			"Project Name",
+			"Address",
+			"Total Manpower",
+			"Updated Date",
+		];
+		const tableRows = filteredRecords.map((rec) => [
+			rec.projectName,
+			rec.address,
+			rec.totalManpower,
+			rec.updatedDate ? new Date(rec.updatedDate).toLocaleString() : "",
+		]);
+		autoTable(doc, {
+			head: [tableColumn],
+			body: tableRows,
+			startY: 22,
+			styles: { fontSize: 9 },
+			headStyles: { fillColor: [41, 128, 185] },
+		});
+		doc.save("project_report.pdf");
+	}
 
 	// Theme-based classes
 	const bgMain =
@@ -99,24 +133,11 @@ export default function ProjectReportPage() {
 							<FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
 							<input
 								type="text"
-								placeholder="Search project name, ID, or manager..."
+								placeholder="Search project name or address..."
 								value={search}
 								onChange={(e) => setSearch(e.target.value)}
 								className={`w-full pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${inputBg}`}
 							/>
-						</div>
-						<div className="relative w-40 min-w-[120px]">
-							<select
-								value={statusFilter}
-								onChange={(e) => setStatusFilter(e.target.value)}
-								className={`w-full appearance-none pl-4 pr-10 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${selectBg}`}
-							>
-								{statusOptions.map((status) => (
-									<option key={status} value={status}>
-										{status}
-									</option>
-								))}
-							</select>
 						</div>
 					</div>
 					<div className="flex gap-2 justify-end">
@@ -140,50 +161,66 @@ export default function ProjectReportPage() {
 						<thead className={`${tableHead} sticky top-0 z-10`}>
 							<tr>
 								<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>
-									Project ID
-								</th>
-								<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>
 									Project Name
 								</th>
 								<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>
-									Manager
+									Address
 								</th>
 								<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>
-									Status
+									Total Manpower
+								</th>
+								<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>
+									Updated Date
 								</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-blue-50">
-							{filteredRecords.length === 0 ? (
+							{loading ? (
 								<tr>
-									<td colSpan={4} className={`px-4 py-12 text-center ${noRecordsText}`}>
-										No records found
-									</td>
+									<td colSpan={4} className={`px-4 py-12 text-center ${noRecordsText}`}>Loading...</td>
+								</tr>
+							) : error ? (
+								<tr>
+									<td colSpan={4} className={`px-4 py-12 text-center ${noRecordsText}`}>{error}</td>
+								</tr>
+							) : paginatedRecords.length === 0 ? (
+								<tr>
+									<td colSpan={4} className={`px-4 py-12 text-center ${noRecordsText}`}>No records found</td>
 								</tr>
 							) : (
-								filteredRecords.map((rec, idx) => (
+								paginatedRecords.map((rec, idx) => (
 									<tr key={idx} className={`${rowHover} transition`}>
-										<td className={`px-4 py-3 font-bold ${tableText}`}>{rec.projectId}</td>
-										<td className={`px-4 py-3 ${tableText}`}>{rec.projectName}</td>
-										<td className={`px-4 py-3 ${tableText}`}>{rec.manager}</td>
-										<td className="px-4 py-3">
-											<span
-												className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-													rec.status === "Active"
-														? statusActive
-														: rec.status === "Completed"
-														? statusCompleted
-														: statusOnHold
-												}`}
-											>
-												{rec.status}
-											</span>
-										</td>
+										<td className={`px-4 py-3 font-bold ${tableText}`}>{rec.projectName}</td>
+										<td className={`px-4 py-3 ${tableText}`}>{rec.address}</td>
+										<td className={`px-4 py-3 ${tableText}`}>{rec.totalManpower}</td>
+										<td className={`px-4 py-3 ${tableText}`}>{rec.updatedDate ? new Date(rec.updatedDate).toLocaleString() : ""}</td>
 									</tr>
 								))
 							)}
 						</tbody>
 					</table>
+					{/* Pagination Controls */}
+					{totalPages > 1 && (
+						<div className="flex justify-center items-center gap-2 py-4">
+							<button
+								disabled={currentPage === 1}
+								onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+								className="px-3 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+							>
+								Prev
+							</button>
+							<span className="px-2 text-sm">
+								Page {currentPage} of {totalPages}
+							</span>
+							<button
+								disabled={currentPage === totalPages}
+								onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+								className="px-3 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+							>
+								Next
+							</button>
+						</div>
+					)}
 				</div>
 			</div>
 		</div>

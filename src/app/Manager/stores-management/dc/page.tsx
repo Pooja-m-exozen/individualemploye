@@ -1,15 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter, FaCheckCircle, FaClock, FaPlus, FaTimes } from "react-icons/fa";
 import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
-
-const dummyDC = [
-  { dcNumber: "DC001", date: "2025-06-10", item: "Uniform Shirt", quantity: 20, issuedTo: "John Doe", status: "Issued", image: "/v1/employee/logo-exo%20.png" },
-  { dcNumber: "DC002", date: "2025-06-11", item: "Safety Shoes", quantity: 10, issuedTo: "Jane Smith", status: "Pending", image: "/v1/employee/logo-exo%20.png" },
-  { dcNumber: "DC003", date: "2025-06-12", item: "Helmet", quantity: 5, issuedTo: "Alice Brown", status: "Issued", image: "/v1/employee/logo-exo%20.png" },
-];
 
 const guidelines = [
   "All DC records are updated in real-time as per store records.",
@@ -17,7 +11,29 @@ const guidelines = [
   "Contact the stores team for any discrepancies.",
 ];
 
-const statusOptions = Array.from(new Set(dummyDC.map(dc => dc.status)));
+// TypeScript types for API response
+interface DCItem {
+  itemId: string;
+  quantity: number;
+  size: string;
+  _id: string;
+}
+
+interface DC {
+  _id: string;
+  customer: string;
+  dcNumber: string;
+  dcDate: string;
+  remarks: string;
+  items: DCItem[];
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+interface ApiResponse {
+  dcs: DC[];
+}
 
 function getStatusColor(status: string, theme: string) {
   switch (status.toLowerCase()) {
@@ -41,8 +57,43 @@ export default function StoreDCPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [dcData, setDcData] = useState<DC[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredDC = dummyDC.filter(dc => {
+  useEffect(() => {
+    const fetchDCs = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("https://inventory.zenapi.co.in/api/inventory/outward-dc");
+        if (!res.ok) throw new Error("Failed to fetch DCs");
+        const data: ApiResponse = await res.json();
+        setDcData(data.dcs);
+      } catch (err: any) {
+        setError(err.message || "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDCs();
+  }, []);
+
+  // Map API data to table structure
+  const mappedDC = dcData.map(dc => ({
+    dcNumber: dc.dcNumber,
+    date: dc.dcDate.split("T")[0],
+    item: dc.items.map(i => `ID:${i.itemId} (Qty:${i.quantity}, Size:${i.size})`).join(", "),
+    quantity: dc.items.reduce((sum, i) => sum + i.quantity, 0),
+    issuedTo: dc.customer,
+    status: "Issued", // API does not provide status, default to Issued
+    image: "/v1/employee/logo-exo%20.png", // Placeholder image
+    remarks: dc.remarks,
+  }));
+
+  const statusOptions = Array.from(new Set(mappedDC.map(dc => dc.status)));
+
+  const filteredDC = mappedDC.filter(dc => {
     const matchesStatus = statusFilter ? dc.status === statusFilter : true;
     const matchesSearch = search ? (
       dc.dcNumber.toLowerCase().includes(search.toLowerCase()) ||
@@ -157,53 +208,59 @@ export default function StoreDCPage() {
               </div>
             </div>
             {/* DC Table */}
-            <div className={`overflow-x-auto rounded-2xl border shadow-xl transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-blue-900" : "bg-white border-blue-100"}`}>
-              <table className={`min-w-full divide-y ${theme === "dark" ? "divide-blue-900" : "divide-blue-100"}`}>
-                <thead className={theme === "dark" ? "bg-blue-950" : "bg-blue-50"}>
-                  <tr>
-                    <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Image</th>
-                    <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>DC Number</th>
-                    <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Date</th>
-                    <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Item</th>
-                    <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Quantity</th>
-                    <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Issued To</th>
-                    <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
-                    <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody className={theme === "dark" ? "divide-y divide-blue-950" : "divide-y divide-blue-50"}>
-                  {filteredDC.length === 0 ? (
+            <div className={`w-full overflow-x-auto rounded-2xl border shadow-xl transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-blue-900" : "bg-white border-blue-100"} max-h-[60vh] overflow-y-auto`}>
+              {loading ? (
+                <div className="py-12 text-center text-blue-600 font-semibold">Loading DC records...</div>
+              ) : error ? (
+                <div className="py-12 text-center text-red-600 font-semibold">{error}</div>
+              ) : (
+                <table className={`w-full min-w-[900px] divide-y ${theme === "dark" ? "divide-blue-900" : "divide-blue-100"}`}>
+                  <thead className={theme === "dark" ? "bg-blue-950" : "bg-blue-50"}>
                     <tr>
-                      <td colSpan={8} className={`text-center py-12 ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>No DC records found.</td>
+                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Image</th>
+                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>DC Number</th>
+                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Date</th>
+                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Item</th>
+                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Quantity</th>
+                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Issued To</th>
+                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
+                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Actions</th>
                     </tr>
-                  ) : (
-                    filteredDC.map((dc, idx) => (
-                      <tr key={idx} className={`transition ${theme === "dark" ? "hover:bg-blue-950" : "hover:bg-blue-50"}`}>
-                        <td className="px-4 py-3">
-                          <div className={`relative w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center ${theme === "dark" ? "bg-blue-950" : "bg-blue-50"}`}>
-                            <Image src={dc.image} alt={dc.item} fill style={{objectFit:'contain'}} sizes="64px" priority onError={(e) => { (e.target as HTMLImageElement).src = '/file.svg'; }} />
-                          </div>
-                        </td>
-                        <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{dc.dcNumber}</td>
-                        <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : ""}`}>{dc.date}</td>
-                        <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : ""}`}>{dc.item}</td>
-                        <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : ""}`}>{dc.quantity}</td>
-                        <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : ""}`}>{dc.issuedTo}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(dc.status, theme)}`}>
-                            {dc.status === "Issued" && <FaCheckCircle className="w-3 h-3 mr-1" />}
-                            {dc.status === "Pending" && <FaClock className="w-3 h-3 mr-1" />}
-                            {dc.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <button className={`px-4 py-1 rounded-lg font-semibold text-sm transition ${theme === "dark" ? "bg-blue-900 text-blue-200 hover:bg-blue-800" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}>View</button>
-                        </td>
+                  </thead>
+                  <tbody className={theme === "dark" ? "divide-y divide-blue-950" : "divide-y divide-blue-50"}>
+                    {filteredDC.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className={`text-center py-12 ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>No DC records found.</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      filteredDC.map((dc, idx) => (
+                        <tr key={idx} className={`transition ${theme === "dark" ? "hover:bg-blue-950" : "hover:bg-blue-50"}`}>
+                          <td className="px-4 py-3">
+                            <div className={`relative w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center ${theme === "dark" ? "bg-blue-950" : "bg-blue-50"}`}>
+                              <Image src={dc.image} alt={dc.item} fill style={{objectFit:'contain'}} sizes="64px" priority onError={(e) => { (e.target as HTMLImageElement).src = '/file.svg'; }} />
+                            </div>
+                          </td>
+                          <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{dc.dcNumber}</td>
+                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : ""}`}>{dc.date}</td>
+                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : ""}`}>{dc.item}</td>
+                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : ""}`}>{dc.quantity}</td>
+                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : ""}`}>{dc.issuedTo}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(dc.status, theme)}`}>
+                              {dc.status === "Issued" && <FaCheckCircle className="w-3 h-3 mr-1" />}
+                              {dc.status === "Pending" && <FaClock className="w-3 h-3 mr-1" />}
+                              {dc.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button className={`px-4 py-1 rounded-lg font-semibold text-sm transition ${theme === "dark" ? "bg-blue-900 text-blue-200 hover:bg-blue-800" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}>View</button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>

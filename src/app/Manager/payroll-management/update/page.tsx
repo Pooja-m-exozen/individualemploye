@@ -16,6 +16,21 @@ interface Attendance {
   punchOutTime: string | null;
 }
 
+interface PayrollDetails {
+  basicSalary: number;
+  hrAllowance: number;
+  conveyanceAllowance: number;
+  specialAllowance: number;
+  otherAllowance: number;
+  pf: number;
+  esi: number;
+  pt: number;
+  medicalInsurance: number;
+  uniformDeduction: number;
+  roomRent: number;
+  washingAllowance?: number;
+}
+
 const steps = [
   { id: 0, title: "Select Employee", icon: FaUser },
   { id: 1, title: "Update Payroll", icon: FaMoneyBillWave },
@@ -31,27 +46,109 @@ export default function PayrollUpdatePage() {
   const [payrollAmount, setPayrollAmount] = useState("");
   const [attendanceData, setAttendanceData] = useState<Attendance[]>([]);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const [payrollDetails, setPayrollDetails] = useState<PayrollDetails | null>(null);
+  const [payrollLoading, setPayrollLoading] = useState(false);
+  const [payrollError, setPayrollError] = useState<string | null>(null);
+  const [payrollSuccess, setPayrollSuccess] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState<string>("");
 
-  // Fetch employee details when selectedEmployee changes
+  // Fetch employee details when searchInput changes
+  useEffect(() => {
+    if (!searchInput) {
+      setEmployeeDetails(null);
+      setPayrollDetails(null);
+      setSelectedEmployee("");
+      return;
+    }
+    fetch(`https://cafm.zenapi.co.in/api/kyc`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.kycForms && data.kycForms.length > 0) {
+          // Find by employeeId or fullName (case-insensitive, partial match)
+          const input = searchInput.trim().toLowerCase();
+          const match = data.kycForms.find((k: any) => {
+            const pd = k.personalDetails;
+            return (
+              pd.employeeId?.toLowerCase().includes(input) ||
+              pd.fullName?.toLowerCase().includes(input)
+            );
+          });
+          if (match) {
+            const pd = match.personalDetails;
+            setEmployeeDetails({
+              employeeId: pd.employeeId,
+              fullName: pd.fullName,
+              designation: pd.designation,
+            });
+            setSelectedEmployee(pd.employeeId);
+          } else {
+            setEmployeeDetails(null);
+            setSelectedEmployee("");
+          }
+        } else {
+          setEmployeeDetails(null);
+          setSelectedEmployee("");
+        }
+      });
+  }, [searchInput]);
+
+  // Fetch employee details and payroll when selectedEmployee changes
   useEffect(() => {
     if (!selectedEmployee) {
       setEmployeeDetails(null);
+      setPayrollDetails(null);
       return;
     }
+    // Always fetch latest employee details for selectedEmployee
     fetch(`https://cafm.zenapi.co.in/api/kyc?employeeId=${selectedEmployee}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.kycForms && data.kycForms.length > 0) {
-          const emp = data.kycForms[0].personalDetails;
+          const pd = data.kycForms[0].personalDetails;
           setEmployeeDetails({
-            employeeId: emp.employeeId,
-            fullName: emp.fullName,
-            designation: emp.designation,
+            employeeId: pd.employeeId,
+            fullName: pd.fullName,
+            designation: pd.designation,
           });
         } else {
           setEmployeeDetails(null);
         }
       });
+    // Fetch payroll details for the selected employee (POST)
+    setPayrollLoading(true);
+    setPayrollError(null);
+    fetch(`https://cafm.zenapi.co.in/api/salary-disbursement/employees/${selectedEmployee}/payroll-details`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ employeeId: selectedEmployee }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to fetch payroll details of the selected employee");
+        return res.json();
+      })
+      .then((data) => {
+        if (data.data) {
+          setPayrollDetails({
+            basicSalary: data.data.basicSalary || 0,
+            hrAllowance: data.data.hrAllowance || 0,
+            conveyanceAllowance: data.data.conveyanceAllowance || 0,
+            specialAllowance: data.data.specialAllowance || 0,
+            otherAllowance: data.data.otherAllowance || 0,
+            pf: data.data.pf || 0,
+            esi: data.data.esi || 0,
+            pt: data.data.pt || 0,
+            medicalInsurance: data.data.medicalInsurance || 0,
+            uniformDeduction: data.data.uniformDeduction || 0,
+            roomRent: data.data.roomRent || 0,
+            washingAllowance: data.data.washingAllowance || 0,
+          });
+        } else {
+          setPayrollDetails(null);
+          setPayrollError("No payroll details found for the selected employee");
+        }
+      })
+      .catch(() => setPayrollError("Failed to fetch payroll details of the selected employee"))
+      .finally(() => setPayrollLoading(false));
   }, [selectedEmployee]);
 
   useEffect(() => {
@@ -93,8 +190,8 @@ export default function PayrollUpdatePage() {
               type="text"
               className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400' : 'border-gray-200 text-black placeholder-gray-400'}`}
               placeholder="Employee name or ID"
-              value={selectedEmployee}
-              onChange={e => setSelectedEmployee(e.target.value)}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
             />
           </div>
           <div className="flex-1">
@@ -140,8 +237,8 @@ export default function PayrollUpdatePage() {
       </div>
       <div className="flex justify-end">
         <button
-          className={`px-8 py-3 rounded-xl text-white font-medium transition-all ${selectedEmployee ? (theme === 'dark' ? 'bg-blue-700 hover:bg-blue-800' : 'bg-blue-600 hover:bg-blue-700') : (theme === 'dark' ? 'bg-blue-900 cursor-not-allowed' : 'bg-blue-300 cursor-not-allowed')}`}
-          disabled={!selectedEmployee}
+          className={`px-8 py-3 rounded-xl text-white font-medium transition-all ${employeeDetails ? (theme === 'dark' ? 'bg-blue-700 hover:bg-blue-800' : 'bg-blue-600 hover:bg-blue-700') : (theme === 'dark' ? 'bg-blue-900 cursor-not-allowed' : 'bg-blue-300 cursor-not-allowed')}`}
+          disabled={!employeeDetails}
           onClick={() => setActiveStep(1)}
         >
           Next
@@ -180,11 +277,42 @@ export default function PayrollUpdatePage() {
               <div className={`text-sm md:ml-4 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Designation: {employeeDetails.designation}</div>
             </div>
           )}
+          {payrollLoading && (
+            <div className="text-blue-500 flex items-center gap-2"><FaSpinner className="animate-spin" /> Loading payroll details...</div>
+          )}
+          {payrollError && (
+            <div className="text-red-500">{payrollError}</div>
+          )}
+          {payrollSuccess && (
+            <div className="text-green-600">{payrollSuccess}</div>
+          )}
           <form
             className="space-y-6"
-            onSubmit={e => {
+            onSubmit={async e => {
               e.preventDefault();
-              // handle submit
+              setPayrollError(null);
+              setPayrollSuccess(null);
+              setPayrollLoading(true);
+              try {
+                const res = await fetch(`https://cafm.zenapi.co.in/api/salary-disbursement/employees/${selectedEmployee}/payroll-details`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    employeeId: selectedEmployee,
+                    ...payrollDetails,
+                  }),
+                });
+                const data = await res.json();
+                if (res.ok && data.message) {
+                  setPayrollSuccess(data.message);
+                } else {
+                  setPayrollError(data.message || "Failed to update payroll");
+                }
+              } catch {
+                setPayrollError("Failed to update payroll");
+              } finally {
+                setPayrollLoading(false);
+              }
             }}
           >
             <div className="flex gap-4">
@@ -197,16 +325,127 @@ export default function PayrollUpdatePage() {
                 <input type="text" className={`w-full px-4 py-2 rounded-lg border bg-gray-100 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`} value={year} disabled />
               </div>
             </div>
-            <div>
-              <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Amount</label>
-              <input
-                type="number"
-                className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400' : 'border-gray-200 text-black placeholder-gray-400'}`}
-                placeholder="Amount"
-                value={payrollAmount}
-                onChange={e => setPayrollAmount(e.target.value)}
-                required
-              />
+            {/* Payroll Details Form */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Basic Salary</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.basicSalary ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, basicSalary: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>HR Allowance</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.hrAllowance ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, hrAllowance: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Conveyance Allowance</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.conveyanceAllowance ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, conveyanceAllowance: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Special Allowance</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.specialAllowance ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, specialAllowance: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Other Allowance</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.otherAllowance ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, otherAllowance: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>PF</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.pf ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, pf: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>ESI</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.esi ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, esi: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>PT</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.pt ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, pt: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Medical Insurance</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.medicalInsurance ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, medicalInsurance: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Uniform Deduction</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.uniformDeduction ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, uniformDeduction: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Room Rent</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.roomRent ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, roomRent: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Washing Allowance</label>
+                <input
+                  type="number"
+                  className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
+                  value={payrollDetails?.washingAllowance ?? ""}
+                  onChange={e => setPayrollDetails(d => ({ ...d!, washingAllowance: Number(e.target.value) }))}
+                />
+              </div>
             </div>
             {/* Attendance Row */}
             <div className="mt-6">
@@ -240,8 +479,12 @@ export default function PayrollUpdatePage() {
               <button type="button" className={`px-8 py-3 rounded-xl font-medium border ${theme === 'dark' ? 'text-blue-300 border-blue-900 bg-blue-950 hover:bg-blue-900' : 'text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100'}`} onClick={() => setActiveStep(0)}>
                 Previous
               </button>
-              <button type="submit" className={`px-8 py-3 rounded-xl text-white font-medium ${theme === 'dark' ? 'bg-blue-700 hover:bg-blue-800' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                Update Payroll
+              <button
+                type="submit"
+                className={`px-8 py-3 rounded-xl text-white font-medium ${theme === 'dark' ? 'bg-blue-700 hover:bg-blue-800' : 'bg-blue-600 hover:bg-blue-700'}`}
+                disabled={payrollLoading}
+              >
+                {payrollLoading ? <span className="flex items-center gap-2"><FaSpinner className="animate-spin" /> Updating...</span> : "Update Payroll"}
               </button>
             </div>
           </form>

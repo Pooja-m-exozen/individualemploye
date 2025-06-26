@@ -176,11 +176,11 @@ const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
                       <ul className="pl-8 space-y-1">
                         {item.subItems.map((sub) => (
                           <li key={sub.label}>
-                            <Link href={sub.href} legacyBehavior>
-                              <a className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 text-sm ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}>
+                            <Link href={sub.href}>
+                              <span className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 text-sm ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}>
                                 <FaChevronRight className="mr-2 text-xs" />
                                 {sub.label}
-                              </a>
+                              </span>
                             </Link>
                           </li>
                         ))}
@@ -188,11 +188,11 @@ const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
                     )}
                   </div>
                 ) : (
-                  <Link href={item.href || "#"} legacyBehavior>
-                    <a className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${isSidebarExpanded ? "justify-start" : "justify-center"} ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}>
+                  <Link href={item.href || "#"}>
+                    <span className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${isSidebarExpanded ? "justify-start" : "justify-center"} ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}>
                       <span className="text-xl">{item.icon}</span>
                       {isSidebarExpanded && <span className="ml-3 font-medium">{item.label}</span>}
-                    </a>
+                    </span>
                   </Link>
                 )}
               </li>

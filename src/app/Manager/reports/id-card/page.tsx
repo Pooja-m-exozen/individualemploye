@@ -45,25 +45,25 @@ export default function IDCardReportPage() {
 
 	useEffect(() => {
 		setLoading(true);
-		fetch("https://cafm.zenapi.co.in/api/id-cards/all")
+		fetch("https://cafm.zenapi.co.in/api/id-cards/report")
 			.then((res) => res.json())
 			.then((data) => {
-				if (data.allIdCards) {
-					setIdCardRecords(data.allIdCards);
+				if (data.idCards) {
+					setIdCardRecords(data.idCards);
 					// Populate filter options dynamically
 					const projects = Array.from(
 						new Set<string>(
-							data.allIdCards.map((f: IdCard) => f.projectName).filter(Boolean)
+							data.idCards.map((f: IdCard) => f.projectName).filter(Boolean)
 						)
 					);
 					const designations = Array.from(
 						new Set<string>(
-							data.allIdCards.map((f: IdCard) => f.designation).filter(Boolean)
+							data.idCards.map((f: IdCard) => f.designation).filter(Boolean)
 						)
 					);
 					const statuses = Array.from(
 						new Set<string>(
-							data.allIdCards.map((f: IdCard) => f.status).filter(Boolean)
+							data.idCards.map((f: IdCard) => f.status).filter(Boolean)
 						)
 					);
 					setProjectOptions(["All Projects", ...projects]);
@@ -309,45 +309,41 @@ export default function IDCardReportPage() {
 								}
 							>
 								<tr>
-									<th
-										className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-											theme === "dark" ? "text-blue-300" : "text-blue-700"
-										}`}
-									>
+									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
+										Image
+									</th>
+									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
 										Employee ID
 									</th>
-									<th
-										className={`px-4 py-3 text-left text-xs font-bold uppercase ${
-											theme === "dark" ? "text-blue-300" : "text-blue-700"
-										}`}
-									>
+									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
 										Name
 									</th>
-									<th
-										className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${
-											theme === "dark" ? "text-blue-300" : "text-blue-700"
-										}`}
+									<th className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}
 										onClick={() => handleSort("projectName")}
 									>
-										Project{" "}
-										{sortBy === "projectName" && (sortDir === "asc" ? "▲" : "▼")}
+										Project {sortBy === "projectName" && (sortDir === "asc" ? "▲" : "▼")}
 									</th>
-									<th
-										className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${
-											theme === "dark" ? "text-blue-300" : "text-blue-700"
-										}`}
+									<th className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}
 										onClick={() => handleSort("designation")}
 									>
-										Designation{" "}
-										{sortBy === "designation" && (sortDir === "asc" ? "▲" : "▼")}
+										Designation {sortBy === "designation" && (sortDir === "asc" ? "▲" : "▼")}
 									</th>
-									<th
-										className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${
-											theme === "dark" ? "text-blue-300" : "text-blue-700"
-										}`}
+									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
+										Gender
+									</th>
+									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
+										Blood Group
+									</th>
+									<th className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}
 										onClick={() => handleSort("status")}
 									>
 										Status {sortBy === "status" && (sortDir === "asc" ? "▲" : "▼")}
+									</th>
+									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
+										Request Date
+									</th>
+									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
+										Valid Until
 									</th>
 								</tr>
 							</thead>
@@ -361,7 +357,7 @@ export default function IDCardReportPage() {
 								{paginatedRecords.length === 0 ? (
 									<tr>
 										<td
-											colSpan={5}
+											colSpan={10}
 											className={`px-4 py-12 text-center ${
 												theme === "dark" ? "text-gray-400" : "text-gray-500"
 											}`}
@@ -379,39 +375,35 @@ export default function IDCardReportPage() {
 													: "hover:bg-blue-50 transition"
 											}
 										>
-											<td
-												className={`px-4 py-3 font-bold ${
-													theme === "dark" ? "text-blue-200" : "text-blue-800"
-												}`}
-											>
+											<td className="px-4 py-3">
+												{rec.employeeImage ? (
+													<img
+														src={rec.employeeImage}
+														alt={rec.fullName}
+														className="w-12 h-12 rounded-full object-cover border"
+														style={{ background: "#fff" }}
+													/>
+												) : (
+													<span className="text-gray-400">No Image</span>
+												)}
+											</td>
+											<td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
 												{rec.employeeId}
 											</td>
-											<td
-												className={
-													theme === "dark"
-														? "px-4 py-3 text-gray-100"
-														: "px-4 py-3 text-black"
-												}
-											>
+											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>
 												{rec.fullName}
 											</td>
-											<td
-												className={
-													theme === "dark"
-														? "px-4 py-3 text-gray-100"
-														: "px-4 py-3 text-black"
-												}
-											>
+											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>
 												{rec.projectName}
 											</td>
-											<td
-												className={
-													theme === "dark"
-														? "px-4 py-3 text-gray-100"
-														: "px-4 py-3 text-black"
-												}
-											>
+											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>
 												{rec.designation}
+											</td>
+											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>
+												{rec.gender || "-"}
+											</td>
+											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>
+												{rec.bloodGroup || "-"}
 											</td>
 											<td className="px-4 py-3">
 												<span
@@ -431,6 +423,12 @@ export default function IDCardReportPage() {
 												>
 													{rec.status}
 												</span>
+											</td>
+											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>
+												{rec.requestDate ? new Date(rec.requestDate).toLocaleDateString() : "-"}
+											</td>
+											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>
+												{rec.validUntil ? new Date(rec.validUntil).toLocaleDateString() : "-"}
 											</td>
 										</tr>
 									))
