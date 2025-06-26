@@ -205,7 +205,7 @@ const LeaveReport: React.FC<LeaveReportProps> = ({
               <FaCalendarAlt className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Leave Report</h1>
+              <h1 className="text-3xl font-bold text-white">Leave Report</h1>
               <p className="text-blue-100 mt-1">View and manage your leave records</p>
             </div>
           </div>
@@ -310,35 +310,35 @@ const LeaveReport: React.FC<LeaveReportProps> = ({
         }`}>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className={theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}>
+              <thead className={theme === 'dark' ? 'bg-gray-700' : 'bg-gradient-to-r from-blue-100 to-blue-200'}>
                 <tr>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-blue-200' : 'text-blue-800'
                   }`}>
                     Leave Type
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-blue-200' : 'text-blue-800'
                   }`}>
                     Duration
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-blue-200' : 'text-blue-800'
                   }`}>
                     Days
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-blue-200' : 'text-blue-800'
                   }`}>
                     Reason
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-blue-200' : 'text-blue-800'
                   }`}>
                     Applied On
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-blue-200' : 'text-blue-800'
                   }`}>
                     Status
                   </th>
