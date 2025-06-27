@@ -70,8 +70,12 @@ export default function StoreDCPage() {
         if (!res.ok) throw new Error("Failed to fetch DCs");
         const data: ApiResponse = await res.json();
         setDcData(data.dcs);
-      } catch (err: any) {
-        setError(err.message || "Unknown error");
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Unknown error");
+        }
       } finally {
         setLoading(false);
       }

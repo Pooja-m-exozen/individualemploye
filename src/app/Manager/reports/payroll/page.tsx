@@ -6,6 +6,19 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// Define a type for payroll records
+interface PayrollRecord {
+  employeeId: string;
+  employeeName: string;
+  project: string;
+  designation: string;
+  month: string;
+  year: string;
+  amount: number;
+  payableDays: number;
+  status: string;
+}
+
 export default function PayrollReportPage() {
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("All Projects");
@@ -13,7 +26,7 @@ export default function PayrollReportPage() {
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const { theme } = useTheme();
 
-  const [records, setRecords] = useState<any[]>([]);
+  const [records, setRecords] = useState<PayrollRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

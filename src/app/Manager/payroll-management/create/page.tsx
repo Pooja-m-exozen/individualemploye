@@ -6,7 +6,6 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { createPayroll } from "@/services/payroll";
-import { fetchEmployees } from "@/services/employee";
 import { getAllKYCRecords } from "@/services/kyc";
 import { KYCRecord } from "@/types/kyc";
 
@@ -48,20 +47,10 @@ export default function PayrollCreatePage() {
   const [monthFilter, setMonthFilter] = useState("");
   const [payableDays, setPayableDays] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [kycRecords, setKycRecords] = useState<KYCRecord[]>([]);
   const [projectOptions, setProjectOptions] = useState<string[]>([]);
   const [designationOptions, setDesignationOptions] = useState<string[]>([]);
   const [employeeOptions, setEmployeeOptions] = useState<{ employeeId: string; fullName: string }[]>([]);
-
-  React.useEffect(() => {
-    setLoadingEmployees(true);
-    fetchEmployees()
-      .then(data => setEmployees(data))
-      .catch(() => setEmployees([]))
-      .finally(() => setLoadingEmployees(false));
-  }, []);
 
   React.useEffect(() => {
     getAllKYCRecords().then(res => {
@@ -85,15 +74,6 @@ export default function PayrollCreatePage() {
     });
   }, []);
 
-  const filteredEmployees = employeeOptions.filter(emp =>
-    (projectFilter ? kycRecords.find(k => k.personalDetails.employeeId === emp.employeeId && k.personalDetails.projectName === projectFilter) : true) &&
-    (designationFilter ? kycRecords.find(k => k.personalDetails.employeeId === emp.employeeId && k.personalDetails.designation === designationFilter) : true) &&
-    (employeeFilter ? emp.employeeId === employeeFilter : true) &&
-    (emp.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      emp.employeeId.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  // Fix: Use KYCRecord for employee list rendering, not employeeOptions (which only has id and name)
   const filteredKycEmployees = kycRecords.filter(k =>
     (projectFilter ? k.personalDetails.projectName === projectFilter : true) &&
     (designationFilter ? k.personalDetails.designation === designationFilter : true) &&
@@ -147,8 +127,22 @@ export default function PayrollCreatePage() {
       await createPayroll(payload);
       setActiveStep(3);
       setSuccess("Payroll record created successfully.");
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to create payroll record.");
+    } catch (err: unknown) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err &&
+        typeof (err as { response?: { data?: { message?: string } } }).response === "object" &&
+        (err as { response?: { data?: { message?: string } } }).response !== null &&
+        "data" in ((err as { response?: { data?: { message?: string } } }).response ?? {})
+      ) {
+        setError(
+          ((err as { response?: { data?: { message?: string } } }).response?.data?.message) ||
+            "Failed to create payroll record."
+        );
+      } else {
+        setError("Failed to create payroll record.");
+      }
     } finally {
       setLoading(false);
     }

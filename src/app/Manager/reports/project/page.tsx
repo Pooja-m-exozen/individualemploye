@@ -8,7 +8,7 @@ import autoTable from "jspdf-autotable";
 
 export default function ProjectReportPage() {
 	const [search, setSearch] = useState("");
-	const [records, setRecords] = useState<any[]>([]);
+	const [records, setRecords] = useState<Record<string, unknown>[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState(1);
@@ -37,10 +37,12 @@ export default function ProjectReportPage() {
 	// Filtering logic
 	const filteredRecords = useMemo(() => {
 		return records.filter((rec) => {
+			const projectName = typeof rec.projectName === "string" ? rec.projectName : "";
+			const address = typeof rec.address === "string" ? rec.address : "";
 			const matchesSearch =
 				search === "" ||
-				(rec.projectName && rec.projectName.toLowerCase().includes(search.toLowerCase())) ||
-				(rec.address && rec.address.toLowerCase().includes(search.toLowerCase()));
+				projectName.toLowerCase().includes(search.toLowerCase()) ||
+				address.toLowerCase().includes(search.toLowerCase());
 			return matchesSearch;
 		});
 	}, [search, records]);
@@ -55,10 +57,12 @@ export default function ProjectReportPage() {
 	// Export Excel functionality
 	function downloadExcel() {
 		const exportData = filteredRecords.map((rec) => ({
-			"Project Name": rec.projectName,
-			"Address": rec.address,
+			"Project Name": typeof rec.projectName === "string" ? rec.projectName : "",
+			"Address": typeof rec.address === "string" ? rec.address : "",
 			"Total Manpower": rec.totalManpower,
-			"Updated Date": rec.updatedDate ? new Date(rec.updatedDate).toLocaleString() : "",
+			"Updated Date": rec.updatedDate && (typeof rec.updatedDate === "string" || typeof rec.updatedDate === "number" || rec.updatedDate instanceof Date)
+				? new Date(rec.updatedDate).toLocaleString()
+				: "",
 		}));
 		const worksheet = XLSX.utils.json_to_sheet(exportData);
 		const workbook = XLSX.utils.book_new();
@@ -76,12 +80,15 @@ export default function ProjectReportPage() {
 			"Total Manpower",
 			"Updated Date",
 		];
-		const tableRows = filteredRecords.map((rec) => [
-			rec.projectName,
-			rec.address,
-			rec.totalManpower,
-			rec.updatedDate ? new Date(rec.updatedDate).toLocaleString() : "",
+		const tableRows: (string | number)[][] = filteredRecords.map((rec) => [
+			typeof rec.projectName === "string" ? rec.projectName : "",
+			typeof rec.address === "string" ? rec.address : "",
+			typeof rec.totalManpower === "number" || typeof rec.totalManpower === "string" ? rec.totalManpower : "",
+			rec.updatedDate && (typeof rec.updatedDate === "string" || typeof rec.updatedDate === "number" || rec.updatedDate instanceof Date)
+				? new Date(rec.updatedDate).toLocaleString()
+				: "",
 		]);
+
 		autoTable(doc, {
 			head: [tableColumn],
 			body: tableRows,
@@ -106,11 +113,7 @@ export default function ProjectReportPage() {
 	const tableText = theme === "dark" ? "text-white" : "text-black";
 	const tableHeaderText = theme === "dark" ? "text-blue-200" : "text-blue-700";
 	const inputBg = theme === "dark" ? "bg-gray-800 border-gray-700 text-white placeholder:text-gray-400" : "bg-white border-gray-200 text-black placeholder:text-gray-400";
-	const selectBg = theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-200 text-black";
 	const noRecordsText = theme === "dark" ? "text-gray-400" : "text-gray-500";
-	const statusActive = theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-800";
-	const statusCompleted = theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800";
-	const statusOnHold = theme === "dark" ? "bg-yellow-900 text-yellow-200" : "bg-yellow-100 text-yellow-800";
 	const rowHover = theme === "dark" ? "hover:bg-gray-800" : "hover:bg-blue-50";
 
 	return (
@@ -188,14 +191,22 @@ export default function ProjectReportPage() {
 									<td colSpan={4} className={`px-4 py-12 text-center ${noRecordsText}`}>No records found</td>
 								</tr>
 							) : (
-								paginatedRecords.map((rec, idx) => (
-									<tr key={idx} className={`${rowHover} transition`}>
-										<td className={`px-4 py-3 font-bold ${tableText}`}>{rec.projectName}</td>
-										<td className={`px-4 py-3 ${tableText}`}>{rec.address}</td>
-										<td className={`px-4 py-3 ${tableText}`}>{rec.totalManpower}</td>
-										<td className={`px-4 py-3 ${tableText}`}>{rec.updatedDate ? new Date(rec.updatedDate).toLocaleString() : ""}</td>
-									</tr>
-								))
+								paginatedRecords.map((rec, idx) => {
+									const projectName = typeof rec.projectName === "string" ? rec.projectName : "";
+									const address = typeof rec.address === "string" ? rec.address : "";
+									const totalManpower = typeof rec.totalManpower === "number" || typeof rec.totalManpower === "string" ? rec.totalManpower : "";
+									const updatedDate = rec.updatedDate && (typeof rec.updatedDate === "string" || typeof rec.updatedDate === "number" || rec.updatedDate instanceof Date)
+										? new Date(rec.updatedDate).toLocaleString()
+										: "";
+									return (
+										<tr key={idx} className={`${rowHover} transition`}>
+											<td className={`px-4 py-3 font-bold ${tableText}`}>{projectName}</td>
+											<td className={`px-4 py-3 ${tableText}`}>{address}</td>
+											<td className={`px-4 py-3 ${tableText}`}>{totalManpower}</td>
+											<td className={`px-4 py-3 ${tableText}`}>{updatedDate}</td>
+										</tr>
+									);
+								})
 							)}
 						</tbody>
 					</table>

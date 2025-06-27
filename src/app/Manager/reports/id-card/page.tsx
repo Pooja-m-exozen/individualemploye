@@ -5,6 +5,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { FaSearch, FaIdCard, FaFileExport } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import Image from "next/image";
 
 // API response type
 interface IdCard {
@@ -377,11 +378,14 @@ export default function IDCardReportPage() {
 										>
 											<td className="px-4 py-3">
 												{rec.employeeImage ? (
-													<img
+													<Image
 														src={rec.employeeImage}
 														alt={rec.fullName}
+														width={48}
+														height={48}
 														className="w-12 h-12 rounded-full object-cover border"
 														style={{ background: "#fff" }}
+														unoptimized
 													/>
 												) : (
 													<span className="text-gray-400">No Image</span>

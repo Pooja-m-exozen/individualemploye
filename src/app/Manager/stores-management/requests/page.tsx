@@ -27,6 +27,28 @@ function getStatusColor(status: string, theme: string) {
   }
 }
 
+export interface UniformRequest {
+  _id?: string;
+  employeeId: string;
+  fullName: string;
+  projectName: string;
+  uniformType: string[];
+  approvalStatus: string;
+  requestDate?: string;
+  designation?: string;
+  gender?: string;
+  size?: Record<string, string>;
+  qty?: number;
+  issuedStatus?: string;
+  remarks?: string;
+  approvedBy?: string;
+  approvedDate?: string;
+  issuedBy?: string;
+  issuedDate?: string;
+  dcNumber?: string;
+  documentPath?: string;
+}
+
 export default function StoreRequestsPage() {
   const { theme } = useTheme();
   const [search, setSearch] = useState("");
@@ -35,8 +57,8 @@ export default function StoreRequestsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [requests, setRequests] = useState<any[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [requests, setRequests] = useState<UniformRequest[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<UniformRequest | null>(null);
   const modalRef = useRef<HTMLDialogElement | null>(null);
   const rowsPerPage = 5;
 

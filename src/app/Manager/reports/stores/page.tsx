@@ -6,12 +6,22 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable"; // updated import
 
+// Define a type for inventory item
+interface InventoryItem {
+	itemCode: string;
+	name: string;
+	category: string;
+	status: string;
+	totalQty: number;
+	sizeInventory?: { quantity?: number }[];
+}
+
 export default function StoresReportPage() {
 	const [search, setSearch] = useState("");
 	const [statusFilter, setStatusFilter] = useState("All Statuses");
 	const { theme } = useTheme();
 
-	const [records, setRecords] = useState<any[]>([]);
+	const [records, setRecords] = useState<InventoryItem[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
@@ -23,12 +33,12 @@ export default function StoresReportPage() {
 				if (!res.ok) throw new Error("Failed to fetch data");
 				return res.json();
 			})
-			.then((data) => {
+			.then((data: InventoryItem[]) => {
 				// Map API data to table format
-				const mapped = data.map((item: any) => {
+				const mapped = data.map((item) => {
 					const totalQty = Array.isArray(item.sizeInventory)
 						? item.sizeInventory.reduce(
-								(sum: number, s: any) => sum + (s.quantity || 0),
+								(sum: number, s) => sum + (s.quantity || 0),
 								0
 						  )
 						: 0;
@@ -43,7 +53,7 @@ export default function StoresReportPage() {
 				setRecords(mapped);
 				setLoading(false);
 			})
-			.catch((err) => {
+			.catch(() => {
 				setError("Error loading data");
 				setLoading(false);
 			});

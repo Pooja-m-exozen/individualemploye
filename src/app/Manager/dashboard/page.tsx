@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { FaUsers, FaProjectDiagram, FaFileAlt, FaCheckCircle, FaChartBar, FaBell, FaUserPlus, FaPlusCircle } from "react-icons/fa";
+import { FaUsers, FaProjectDiagram, FaFileAlt, FaCheckCircle, FaChartBar, FaBell } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
 // Add type for summary and attendance trend
@@ -17,8 +17,8 @@ type AttendanceTrendItem = {
   total: number;
   present: number;
   absent: number;
-  presentBreakdown: Record<string, any>;
-  absentBreakdown: Record<string, any>;
+  presentBreakdown: Record<string, unknown>;
+  absentBreakdown: Record<string, unknown>;
 };
 
 type LeaveTrendItem = {
@@ -63,7 +63,7 @@ type RecentLeaveItem = {
   status: string;
   reason: string;
   emergencyContact: string;
-  attachments: any[];
+  attachments: unknown[];
   createdAt: string;
   updatedAt: string;
   approvalDate?: string;
@@ -71,7 +71,7 @@ type RecentLeaveItem = {
 
 type RecentKYCItem = {
   _id: string;
-  personalDetails: Record<string, any>;
+  personalDetails: Record<string, unknown>;
 };
 
 type OnLeaveTodayItem = {
@@ -103,9 +103,7 @@ export default function ManagerDashboardPage() {
   const [attendanceTrend, setAttendanceTrend] = useState<AttendanceTrendItem[]>([]);
   const [attendanceLoading, setAttendanceLoading] = useState(true);
   const [leaveTrend, setLeaveTrend] = useState<LeaveTrendItem[]>([]);
-  const [leaveTrendLoading, setLeaveTrendLoading] = useState(true);
   const [projectDistribution, setProjectDistribution] = useState<ProjectDistributionItem[]>([]);
-  const [projectDistributionLoading, setProjectDistributionLoading] = useState(true);
   const [recentAttendance, setRecentAttendance] = useState<RecentAttendanceItem[]>([]);
   const [recentLeaves, setRecentLeaves] = useState<RecentLeaveItem[]>([]);
   const [recentKYC, setRecentKYC] = useState<RecentKYCItem[]>([]);
@@ -134,7 +132,7 @@ export default function ManagerDashboardPage() {
           { label: "Pending KYC", value: kycData.pending, icon: <FaFileAlt className="w-7 h-7" /> },
           { label: "Approved Leaves", value: leaveData.approved, icon: <FaCheckCircle className="w-7 h-7" /> },
         ]);
-      } catch (err) {
+      } catch {
         setSummary([
           { label: "Total Employees", value: null, icon: <FaUsers className="w-7 h-7" /> },
           { label: "Active Projects", value: null, icon: <FaProjectDiagram className="w-7 h-7" /> },
@@ -154,7 +152,7 @@ export default function ManagerDashboardPage() {
         const res = await fetch("https://cafm.zenapi.co.in/api/dashboard/attendance-trend");
         const data = await res.json();
         setAttendanceTrend((data.trend || []) as AttendanceTrendItem[]);
-      } catch (err) {
+      } catch {
         setAttendanceTrend([] as AttendanceTrendItem[]);
       }
       setAttendanceLoading(false);
@@ -165,15 +163,13 @@ export default function ManagerDashboardPage() {
   // Fetch leave trend
   useEffect(() => {
     async function fetchLeaveTrend() {
-      setLeaveTrendLoading(true);
       try {
         const res = await fetch("https://cafm.zenapi.co.in/api/dashboard/leave-trend");
         const data = await res.json();
         setLeaveTrend((data.trend || []) as LeaveTrendItem[]);
-      } catch (err) {
+      } catch {
         setLeaveTrend([] as LeaveTrendItem[]);
       }
-      setLeaveTrendLoading(false);
     }
     fetchLeaveTrend();
   }, []);
@@ -181,15 +177,13 @@ export default function ManagerDashboardPage() {
   // Fetch project distribution
   useEffect(() => {
     async function fetchProjectDistribution() {
-      setProjectDistributionLoading(true);
       try {
         const res = await fetch("https://cafm.zenapi.co.in/api/dashboard/project-distribution");
         const data = await res.json();
         setProjectDistribution((data.distribution || []) as ProjectDistributionItem[]);
-      } catch (err) {
+      } catch {
         setProjectDistribution([] as ProjectDistributionItem[]);
       }
-      setProjectDistributionLoading(false);
     }
     fetchProjectDistribution();
   }, []);
@@ -204,7 +198,7 @@ export default function ManagerDashboardPage() {
         setRecentAttendance((data.recentAttendance || []) as RecentAttendanceItem[]);
         setRecentLeaves((data.recentLeaves || []) as RecentLeaveItem[]);
         setRecentKYC((data.recentKYC || []) as RecentKYCItem[]);
-      } catch (err) {
+      } catch {
         setRecentAttendance([] as RecentAttendanceItem[]);
         setRecentLeaves([] as RecentLeaveItem[]);
         setRecentKYC([] as RecentKYCItem[]);
@@ -221,7 +215,7 @@ export default function ManagerDashboardPage() {
         const res = await fetch("https://cafm.zenapi.co.in/api/dashboard/on-leave-today");
         const data = await res.json();
         setOnLeaveToday((data.onLeave || []) as OnLeaveTodayItem[]);
-      } catch (err) {
+      } catch {
         setOnLeaveToday([] as OnLeaveTodayItem[]);
       }
       setOnLeaveTodayLoading(false);
@@ -231,31 +225,86 @@ export default function ManagerDashboardPage() {
 
   // Pie chart calculations
   const totalProjects = projectDistribution.reduce((sum, p) => sum + p.count, 0);
-  let acc = 0;
-  const pieSlices = projectDistribution.map((p, i) => {
-    const start = acc;
-    const angle = (p.count / totalProjects) * 360;
-    acc += angle;
-    const largeArc = angle > 180 ? 1 : 0;
-    const r = 40;
-    const x1 = 50 + r * Math.cos((Math.PI * (start - 90)) / 180);
-    const y1 = 50 + r * Math.sin((Math.PI * (start - 90)) / 180);
-    const x2 = 50 + r * Math.cos((Math.PI * (start + angle - 90)) / 180);
-    const y2 = 50 + r * Math.sin((Math.PI * (start + angle - 90)) / 180);
-    return (
-      <path
-        key={p._id}
-        d={`M50,50 L${x1},${y1} A${r},${r} 0 ${largeArc} 1 ${x2},${y2} Z`}
-        fill={PIE_COLORS[i % PIE_COLORS.length]}
-        stroke="#fff"
-        strokeWidth={2}
-      />
-    );
-  });
 
   // Line chart points
-  const maxLeave = Math.max(...leaveTrend.map(l => l.count));
-  const leavePoints = leaveTrend.map((l, i) => `${20 + (i * 100) / (leaveTrend.length - 1)},${120 - (l.count / maxLeave) * 100}`).join(' ');
+  const maxLeave = leaveTrend.length > 0 ? Math.max(...leaveTrend.map(l => l.count)) : 1;
+
+  // Leave Trend SVG rendering
+  let leaveTrendSVG: React.ReactNode = null;
+  if (leaveTrend && leaveTrend.length > 0) {
+    const svgWidth = Math.max(leaveTrend.length * 80, 480);
+    const svgHeight = 300; // Increased from 180
+    const barWidth = 40;
+    const chartHeight = 220; // Increased from 120
+    leaveTrendSVG = (
+      <svg width={svgWidth} height={svgHeight} className="mb-4">
+        {/* Y axis grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+          <line
+            key={t}
+            x1={40}
+            x2={svgWidth - 40}
+            y1={30 + chartHeight * t}
+            y2={30 + chartHeight * t}
+            stroke="#334155"
+            strokeDasharray="4 4"
+          />
+        ))}
+        {/* X axis line */}
+        <line x1={40} x2={svgWidth - 40} y1={30 + chartHeight} y2={30 + chartHeight} stroke="#64748b" strokeWidth={1} />
+        {/* Bars for leave trend */}
+        {leaveTrend.map((l, i) => {
+          const x = 40 + i * 80;
+          const barHeight = (l.count / maxLeave) * chartHeight;
+          return (
+            <g key={l._id}>
+              <rect
+                x={x - barWidth / 2}
+                y={30 + chartHeight - barHeight}
+                width={barWidth}
+                height={barHeight}
+                fill="#6366f1"
+                rx={6}
+              />
+              {/* Value label above bar */}
+              <text
+                x={x}
+                y={30 + chartHeight - barHeight - 8}
+                textAnchor="middle"
+                fontSize={"1rem"}
+                className={theme === "dark" ? "fill-blue-300" : "fill-blue-700"}
+              >
+                {l.count}
+              </text>
+              {/* Date label below bar */}
+              <text
+                x={x}
+                y={30 + chartHeight + 20}
+                textAnchor="middle"
+                fontSize={"1rem"}
+                className={theme === "dark" ? "fill-gray-300" : "fill-gray-700"}
+              >
+                {l._id ? new Date(l._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+              </text>
+            </g>
+          );
+        })}
+        {/* Y axis labels */}
+        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+          <text
+            key={t}
+            x={20}
+            y={30 + chartHeight - chartHeight * t + 5}
+            textAnchor="end"
+            fontSize={"0.9rem"}
+            className={theme === "dark" ? "fill-gray-400" : "fill-gray-500"}
+          >
+            {Math.round(maxLeave * t)}
+          </text>
+        ))}
+      </svg>
+    );
+  }
 
   return (
     <div>
@@ -278,27 +327,6 @@ export default function ManagerDashboardPage() {
           <h1 className="text-3xl font-bold text-white mb-1">Manager Dashboard</h1>
           <p className="text-white text-base opacity-90">Overview of employees, projects, and activities.</p>
         </div>
-      </div>
-      {/* Quick Actions */}
-      <div className="flex flex-wrap gap-4 mb-8 justify-end">
-        <button
-          className={`flex items-center gap-2 font-semibold px-5 py-2 rounded-lg shadow transition-colors ${
-            theme === "dark"
-              ? "bg-blue-700 hover:bg-blue-800 text-white"
-              : "bg-blue-600 hover:bg-blue-700 text-white"
-          }`}
-        >
-          <FaUserPlus /> Add Employee
-        </button>
-        <button
-          className={`flex items-center gap-2 font-semibold px-5 py-2 rounded-lg shadow transition-colors ${
-            theme === "dark"
-              ? "bg-green-700 hover:bg-green-800 text-white"
-              : "bg-green-500 hover:bg-green-600 text-white"
-          }`}
-        >
-          <FaPlusCircle /> Create Project
-        </button>
       </div>
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
@@ -460,81 +488,7 @@ export default function ManagerDashboardPage() {
         >
           <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Leave Trend (Last 6 Months)</div>
           <div className="w-full overflow-x-auto flex justify-center">
-            {(() => {
-              // Increase SVG and chart height for better visibility
-              const svgWidth = Math.max(leaveTrend.length * 80, 480);
-              const svgHeight = 300; // Increased from 180
-              const barWidth = 40;
-              const chartHeight = 220; // Increased from 120
-              return (
-                <svg width={svgWidth} height={svgHeight} className="mb-4">
-                  {/* Y axis grid lines */}
-                  {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-                    <line
-                      key={t}
-                      x1={40}
-                      x2={svgWidth - 40}
-                      y1={30 + chartHeight * t}
-                      y2={30 + chartHeight * t}
-                      stroke="#334155"
-                      strokeDasharray="4 4"
-                    />
-                  ))}
-                  {/* X axis line */}
-                  <line x1={40} x2={svgWidth - 40} y1={30 + chartHeight} y2={30 + chartHeight} stroke="#64748b" strokeWidth={1} />
-                  {/* Bars for leave trend */}
-                  {leaveTrend.map((l, i) => {
-                    const x = 40 + i * 80;
-                    const barHeight = (l.count / maxLeave) * chartHeight;
-                    return (
-                      <g key={l._id}>
-                        <rect
-                          x={x - barWidth / 2}
-                          y={30 + chartHeight - barHeight}
-                          width={barWidth}
-                          height={barHeight}
-                          fill="#6366f1"
-                          rx={6}
-                        />
-                        {/* Value label above bar */}
-                        <text
-                          x={x}
-                          y={30 + chartHeight - barHeight - 8}
-                          textAnchor="middle"
-                          fontSize={"1rem"}
-                          className={theme === "dark" ? "fill-blue-300" : "fill-blue-700"}
-                        >
-                          {l.count}
-                        </text>
-                        {/* Date label below bar */}
-                        <text
-                          x={x}
-                          y={30 + chartHeight + 20}
-                          textAnchor="middle"
-                          fontSize={"1rem"}
-                          className={theme === "dark" ? "fill-gray-300" : "fill-gray-700"}
-                        >
-                          {l._id ? new Date(l._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
-                        </text>
-                      </g>
-                    );
-                  })}
-                  {/* Y axis labels */}
-                  {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-                    <text
-                      key={t}
-                      x={20}
-                      y={30 + chartHeight - chartHeight * t + 5}
-                      textAnchor="end"
-                      fontSize={"0.9rem"}
-                      className={theme === "dark" ? "fill-gray-400" : "fill-gray-500"}
-                    >
-                      {Math.round(maxLeave * t)}
-                    </text>
-                  ))}
-                </svg>
-              );
-            })()}
+            {leaveTrendSVG}
           </div>
         </div>
         {/* Recent Activities */}
@@ -549,7 +503,7 @@ export default function ManagerDashboardPage() {
               <li className="text-center text-gray-400">Loading...</li>
             ) : (
               <>
-                {recentAttendance.slice(0, 3).map((act, idx) => (
+                {recentAttendance.slice(0, 3).map((act) => (
                   <li key={act._id} className="flex items-center gap-3">
                     <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-blue-900" : "bg-blue-50"}`}>
                       <FaBell className="text-blue-500" />
@@ -562,7 +516,7 @@ export default function ManagerDashboardPage() {
                     </div>
                   </li>
                 ))}
-                {recentLeaves.slice(0, 2).map((leave, idx) => (
+                {recentLeaves.slice(0, 2).map((leave) => (
                   <li key={leave._id} className="flex items-center gap-3">
                     <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-green-900" : "bg-green-50"}`}>
                       <FaCheckCircle className="text-green-500" />
@@ -575,14 +529,18 @@ export default function ManagerDashboardPage() {
                     </div>
                   </li>
                 ))}
-                {recentKYC.slice(0, 1).map((kyc, idx) => (
+                {recentKYC.slice(0, 1).map((kyc) => (
                   <li key={kyc._id} className="flex items-center gap-3">
                     <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-yellow-900" : "bg-yellow-50"}`}>
                       <FaFileAlt className="text-yellow-500" />
                     </span>
                     <div className="flex-1">
                       <div className={theme === "dark" ? "text-gray-200 text-sm" : "text-gray-700 text-sm"}>
-                        KYC update for <b>{kyc.personalDetails?.employeeId || 'Unknown'}</b>
+                        KYC update for <b>{
+                          typeof kyc.personalDetails?.employeeId === 'string' || typeof kyc.personalDetails?.employeeId === 'number'
+                            ? kyc.personalDetails.employeeId
+                            : 'Unknown'
+                        }</b>
                       </div>
                     </div>
                   </li>

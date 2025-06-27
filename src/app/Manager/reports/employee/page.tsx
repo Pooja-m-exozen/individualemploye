@@ -6,26 +6,36 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const projectOptions = [
-	"All Projects",
-	// ...will be filled dynamically...
-];
-const designationOptions = [
-	"All Designations",
-	// ...will be filled dynamically...
-];
 const statusOptions = ["All Statuses", "Active", "Inactive"];
+
+interface EmployeeRecord {
+	employeeId: string;
+	fullName: string;
+	project: string;
+	designation: string;
+	status: string;
+}
+
+// Define the type for the API response item
+interface KycForm {
+	personalDetails: {
+		employeeId: string;
+		fullName: string;
+		projectName: string;
+		designation: string;
+	};
+}
 
 export default function EmployeeReportPage() {
 	const [search, setSearch] = useState("");
 	const [projectFilter, setProjectFilter] = useState("All Projects");
 	const [designationFilter, setDesignationFilter] = useState("All Designations");
 	const [statusFilter, setStatusFilter] = useState("All Statuses");
-	const [employeeRecords, setEmployeeRecords] = useState<any[]>([]);
+	const [employeeRecords, setEmployeeRecords] = useState<EmployeeRecord[]>([]);
 	const [loading, setLoading] = useState(true);
 
 	// Sorting
-	const [sortBy, setSortBy] = useState<null | string>(null);
+	const [sortBy, setSortBy] = useState<null | keyof EmployeeRecord>(null);
 	const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
 	// Pagination
@@ -41,7 +51,7 @@ export default function EmployeeReportPage() {
 			try {
 				const res = await fetch("https://cafm.zenapi.co.in/api/kyc");
 				const data = await res.json();
-				const records = (data.kycForms || []).map((form: any) => ({
+				const records: EmployeeRecord[] = (data.kycForms || []).map((form: KycForm) => ({
 					employeeId: form.personalDetails.employeeId,
 					fullName: form.personalDetails.fullName,
 					project: form.personalDetails.projectName,
@@ -49,7 +59,7 @@ export default function EmployeeReportPage() {
 					status: "Active", // No status in API, default to Active
 				}));
 				setEmployeeRecords(records);
-			} catch (e) {
+			} catch {
 				setEmployeeRecords([]);
 			}
 			setLoading(false);
@@ -173,7 +183,7 @@ export default function EmployeeReportPage() {
 	}
 
 	// Table header click handler for sorting
-	const handleSort = (field: string) => {
+	const handleSort = (field: keyof EmployeeRecord) => {
 		if (sortBy === field) {
 			setSortOrder(sortOrder === "asc" ? "desc" : "asc");
 		} else {

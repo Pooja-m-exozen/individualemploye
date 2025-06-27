@@ -4,6 +4,26 @@ import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayou
 import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter } from "react-icons/fa";
 import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
+// import type { MouseEvent } from "react";
+
+interface SizeInventory {
+  _id: string;
+  size: string;
+  quantity: number;
+  unit: string;
+}
+
+interface StockItem {
+  _id: string;
+  name: string;
+  category: string;
+  subCategory?: string;
+  description?: string;
+  notes?: string;
+  instructions?: string;
+  updatedAt?: string;
+  sizeInventory?: SizeInventory[];
+}
 
 const guidelines = [
   "All items are updated in real-time as per store records.",
@@ -15,11 +35,11 @@ export default function StoreInStockPage() {
   const { theme } = useTheme();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [stock, setStock] = useState<any[]>([]);
+  const [stock, setStock] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
 
   // Fetch inventory data
   useEffect(() => {
@@ -29,11 +49,11 @@ export default function StoreInStockPage() {
         if (!res.ok) throw new Error("Failed to fetch inventory");
         return res.json();
       })
-      .then(data => {
+      .then((data: StockItem[]) => {
         setStock(data);
         setLoading(false);
       })
-      .catch(err => {
+      .catch(() => {
         setError("Could not load inventory.");
         setLoading(false);
       });
@@ -159,7 +179,7 @@ export default function StoreInStockPage() {
               ) : (
                 filteredStock.map((item, idx) => {
                   // Calculate total quantity
-                  const totalQty = item.sizeInventory?.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0);
+                  const totalQty = item.sizeInventory?.reduce((sum: number, s: SizeInventory) => sum + (s.quantity || 0), 0);
                   return (
                     <div
                       key={item._id || idx}
@@ -193,7 +213,7 @@ export default function StoreInStockPage() {
                             <div className="mb-2">
                               <div className={`text-xs font-semibold mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Sizes:</div>
                               <div className="flex flex-wrap gap-2">
-                                {item.sizeInventory.map((sz: any) => (
+                                {item.sizeInventory.map((sz: SizeInventory) => (
                                   <span
                                     key={sz._id}
                                     className={`px-2 py-1 rounded text-xs border ${theme === "dark" ? "border-blue-900 text-blue-200" : "border-blue-200 text-blue-700"}`}
@@ -264,13 +284,13 @@ export default function StoreInStockPage() {
                   <div className="mb-2">
                     <span className="font-semibold">Total Quantity:</span>{" "}
                     <span>
-                      {selectedItem.sizeInventory?.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0)}
+                      {selectedItem.sizeInventory?.reduce((sum: number, s: SizeInventory) => sum + (s.quantity || 0), 0)}
                     </span>
                   </div>
                   <div className="mb-2">
                     <span className="font-semibold">Sizes:</span>
                     <div className="flex flex-wrap gap-2 mt-1">
-                      {selectedItem.sizeInventory?.map((sz: any) => (
+                      {selectedItem.sizeInventory?.map((sz: SizeInventory) => (
                         <span
                           key={sz._id}
                           className="px-2 py-1 rounded text-xs border border-blue-200 dark:border-blue-900 dark:text-blue-200"

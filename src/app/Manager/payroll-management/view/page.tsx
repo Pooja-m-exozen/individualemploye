@@ -10,6 +10,19 @@ const monthOptions = [
   "July", "August", "September", "October", "November", "December"
 ];
 
+// Define a type for payroll records
+interface PayrollRecord {
+  _id?: string;
+  employeeName?: string;
+  month?: string;
+  year?: string;
+  amount?: number;
+  status?: string;
+  project?: string;
+  designation?: string;
+  // Add other fields as needed
+}
+
 export default function PayrollViewPage() {
   const { theme } = useTheme();
   const [search, setSearch] = useState("");
@@ -21,7 +34,7 @@ export default function PayrollViewPage() {
   const recordsPerPage = 5;
 
   // API state
-  const [payrollData, setPayrollData] = useState<any[]>([]);
+  const [payrollData, setPayrollData] = useState<PayrollRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -47,18 +60,18 @@ export default function PayrollViewPage() {
       })
       .then(res => {
         const data = res.data || [];
-        setPayrollData(data);
+        setPayrollData(data as PayrollRecord[]);
         setTotalRecords(res.pagination?.totalRecords || data.length);
         setTotalPages(res.pagination?.totalPages || 1);
 
         // Populate project and designation dropdowns from all fetched records
         setProjectOptions([
           "All Projects",
-          ...Array.from(new Set(data.map((p: any) => typeof p.project === "string" ? p.project : "").filter(Boolean))) as string[],
+          ...Array.from(new Set((data as PayrollRecord[]).map((p) => typeof p.project === "string" ? p.project : "").filter(Boolean))) as string[],
         ]);
         setDesignationOptions([
           "All Designations",
-          ...Array.from(new Set(data.map((p: any) => typeof p.designation === "string" ? p.designation : "").filter(Boolean))) as string[],
+          ...Array.from(new Set((data as PayrollRecord[]).map((p) => typeof p.designation === "string" ? p.designation : "").filter(Boolean))) as string[],
         ]);
         setLoading(false);
       })
@@ -66,7 +79,6 @@ export default function PayrollViewPage() {
         setError("Could not load payroll records.");
         setLoading(false);
       });
-    // eslint-disable-next-line
   }, [currentPage, recordsPerPage]);
 
   // Filtered and searched payroll records (client-side)

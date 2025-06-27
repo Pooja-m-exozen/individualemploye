@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaMoneyBillWave, FaUser, FaCheckCircle, FaSpinner, FaInfoCircle } from "react-icons/fa";
+import { FaMoneyBillWave, FaUser, FaCheckCircle, FaSpinner, FaInfoCircle, FaSearch } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
 interface Employee {
@@ -14,6 +14,7 @@ interface Attendance {
   date: string;
   punchInTime: string | null;
   punchOutTime: string | null;
+  status: string;
 }
 
 interface PayrollDetails {
@@ -31,6 +32,22 @@ interface PayrollDetails {
   washingAllowance?: number;
 }
 
+type KYCEmployee = {
+  _id: string;
+  personalDetails: {
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    projectName: string;
+    phoneNumber: string;
+    dateOfJoining: string;
+    employeeImage?: string;
+  };
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const steps = [
   { id: 0, title: "Select Employee", icon: FaUser },
   { id: 1, title: "Update Payroll", icon: FaMoneyBillWave },
@@ -43,14 +60,41 @@ export default function PayrollUpdatePage() {
   const [employeeDetails, setEmployeeDetails] = useState<Employee | null>(null);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
-  const [payrollAmount, setPayrollAmount] = useState("");
   const [attendanceData, setAttendanceData] = useState<Attendance[]>([]);
-  const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [payrollDetails, setPayrollDetails] = useState<PayrollDetails | null>(null);
   const [payrollLoading, setPayrollLoading] = useState(false);
   const [payrollError, setPayrollError] = useState<string | null>(null);
   const [payrollSuccess, setPayrollSuccess] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState<string>("");
+  const [employee, setEmployee] = useState<KYCEmployee | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  // const [payrollData, setPayrollData] = useState({
+  //   basicSalary: "",
+  //   allowances: "",
+  //   deductions: "",
+  //   netSalary: "",
+  //   month: "",
+  //   year: new Date().getFullYear().toString(),
+  // });
+  const [leaveData, setLeaveData] = useState<unknown[]>([]);
+
+  // Add month/year dropdown in Select Employee section
+  const monthOptions = [
+    { value: 1, label: "January" },
+    { value: 2, label: "February" },
+    { value: 3, label: "March" },
+    { value: 4, label: "April" },
+    { value: 5, label: "May" },
+    { value: 6, label: "June" },
+    { value: 7, label: "July" },
+    { value: 8, label: "August" },
+    { value: 9, label: "September" },
+    { value: 10, label: "October" },
+    { value: 11, label: "November" },
+    { value: 12, label: "December" },
+  ];
+  const yearOptions = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
   // Fetch employee details when searchInput changes
   useEffect(() => {
@@ -66,7 +110,7 @@ export default function PayrollUpdatePage() {
         if (data.kycForms && data.kycForms.length > 0) {
           // Find by employeeId or fullName (case-insensitive, partial match)
           const input = searchInput.trim().toLowerCase();
-          const match = data.kycForms.find((k: any) => {
+          const match = data.kycForms.find((k: KYCEmployee) => {
             const pd = k.personalDetails;
             return (
               pd.employeeId?.toLowerCase().includes(input) ||
@@ -153,96 +197,312 @@ export default function PayrollUpdatePage() {
 
   useEffect(() => {
     if (!selectedEmployee || activeStep !== 1) return;
-    setLoadingAttendance(true);
-    fetch(
-      `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${selectedEmployee}&month=${month}&year=${year}`
-    )
+    setLoading(true);
+
+    // Fetch all attendance records and filter for the selected employee and month/year
+    fetch("https://cafm.zenapi.co.in/api/attendance/all")
       .then((res) => res.json())
-      .then((data) => setAttendanceData(data.attendance || []))
-      .finally(() => setLoadingAttendance(false));
+      .then((data) => {
+        const allAttendance = data.attendance || [];
+        // Filter for selected employee and month/year
+        const filtered = allAttendance.filter((att: unknown) => {
+          const a = att as { employeeId?: string; date?: string };
+          return (
+            a.employeeId === selectedEmployee &&
+            new Date(a.date ?? '').getMonth() + 1 === month &&
+            new Date(a.date ?? '').getFullYear() === year
+          );
+        });
+        // Map by date for quick lookup
+        const attendanceByDate: Record<string, unknown> = {};
+        filtered.forEach((att: unknown) => {
+          const a = att as { date?: string };
+          const dateStr = new Date(a.date ?? '').toISOString().split("T")[0];
+          attendanceByDate[dateStr] = att;
+        });
+        // Build attendance for each day of the month
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const attendanceArr: Attendance[] = [];
+        for (let i = 1; i <= daysInMonth; i++) {
+          const dateObj = new Date(year, month - 1, i);
+          const dateStr = dateObj.toISOString().split("T")[0];
+          const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 6 = Saturday
+          // 4th Saturday logic
+          let isFourthSaturday = false;
+          if (dayOfWeek === 6) {
+            // Count which Saturday it is
+            let saturdayCount = 0;
+            for (let d = 1; d <= i; d++) {
+              const tempDate = new Date(year, month - 1, d);
+              if (tempDate.getDay() === 6) saturdayCount++;
+            }
+            if (saturdayCount === 4) isFourthSaturday = true;
+          }
+          if (dayOfWeek === 0) {
+            // Sunday
+            attendanceArr.push({ date: dateStr, punchInTime: null, punchOutTime: null, status: "H" });
+          } else if (dayOfWeek === 6 && isFourthSaturday) {
+            // 4th Saturday
+            attendanceArr.push({ date: dateStr, punchInTime: null, punchOutTime: null, status: "H" });
+          } else if (attendanceByDate[dateStr] && (attendanceByDate[dateStr] as Attendance).status === "Present") {
+            attendanceArr.push({ date: dateStr, punchInTime: (attendanceByDate[dateStr] as Attendance).punchInTime, punchOutTime: (attendanceByDate[dateStr] as Attendance).punchOutTime, status: "P" });
+          } else {
+            attendanceArr.push({ date: dateStr, punchInTime: null, punchOutTime: null, status: "A" });
+          }
+        }
+        setAttendanceData(attendanceArr);
+      })
+      .finally(() => setLoading(false));
   }, [selectedEmployee, month, year, activeStep]);
 
-  const calculateStatus = (punchInTime: string | null, punchOutTime: string | null): string => {
-    if (!punchInTime || !punchOutTime) return "A";
-    const hoursWorked = (new Date(punchOutTime).getTime() - new Date(punchInTime).getTime()) / (1000 * 60 * 60);
-    if (hoursWorked >= 8) return "P";
-    return "A";
-  };
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case "P": return "bg-green-100 text-green-700";
-      case "A": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-700";
+  // Fetch leave data when employee, month, or year changes
+  useEffect(() => {
+    if (!selectedEmployee) return;
+    fetch("https://cafm.zenapi.co.in/api/leave/all")
+      .then(res => res.json())
+      .then(data => {
+        const leaves = (data.leaves || []).filter((leave: unknown) => {
+          const l = leave as { employeeId?: string; startDate?: string; status?: string };
+          const leaveMonth = new Date(l.startDate ?? '').getMonth() + 1;
+          const leaveYear = new Date(l.startDate ?? '').getFullYear();
+          return l.employeeId === selectedEmployee && leaveMonth === month && leaveYear === year && l.status === 'Approved';
+        });
+        setLeaveData(leaves);
+      });
+  }, [selectedEmployee, month, year]);
+
+  const searchEmployee = async () => {
+    if (!searchInput.trim()) {
+      setError("Please enter an Employee ID or Name");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setEmployee(null);
+    setEmployeeDetails(null);
+
+    try {
+      // Fetch KYC data for the employee
+      const kycRes = await fetch("https://cafm.zenapi.co.in/api/kyc");
+      const kycData = await kycRes.json();
+      
+      if (!kycData.kycForms || kycData.kycForms.length === 0) {
+        setError("No employee data found");
+        setLoading(false);
+        return;
+      }
+
+      // Find employee by ID or name (case-insensitive)
+      const input = searchInput.trim().toLowerCase();
+      const foundEmployee = kycData.kycForms.find((emp: KYCEmployee) => {
+        const pd = emp.personalDetails;
+        return (
+          pd.employeeId?.toLowerCase() === input ||
+          pd.employeeId?.toLowerCase().includes(input) ||
+          pd.fullName?.toLowerCase().includes(input)
+        );
+      });
+
+      if (!foundEmployee) {
+        setError("Employee not found. Please check the Employee ID or Name.");
+        setLoading(false);
+        return;
+      }
+
+      setEmployee(foundEmployee);
+      setSelectedEmployee(foundEmployee.personalDetails.employeeId);
+      
+      // Set employee details for the existing payroll system
+      setEmployeeDetails({
+        employeeId: foundEmployee.personalDetails.employeeId,
+        fullName: foundEmployee.personalDetails.fullName,
+        designation: foundEmployee.personalDetails.designation,
+      });
+
+      // Fetch attendance data for the employee
+      try {
+        const attendanceRes = await fetch(
+          `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${foundEmployee.personalDetails.employeeId}&month=${month}&year=${year}`
+        );
+        const attendanceData = await attendanceRes.json();
+        
+        if (attendanceData.attendance && attendanceData.attendance.length > 0) {
+          const formattedAttendance: Attendance[] = attendanceData.attendance.map((att: unknown) => ({
+            date: (att as { date: string }).date,
+            punchInTime: (att as { punchInTime?: string }).punchInTime !== undefined ? (att as { punchInTime?: string }).punchInTime : null,
+            punchOutTime: (att as { punchOutTime?: string }).punchOutTime !== undefined ? (att as { punchOutTime?: string }).punchOutTime : null,
+            status: (att as { status?: string }).status || 'Present',
+          }));
+          setAttendanceData(formattedAttendance);
+        } else {
+          // Fallback to mock data if no attendance found
+          const mockAttendance: Attendance[] = [
+            {
+              date: "2025-06-01",
+              punchInTime: "09:00:00",
+              punchOutTime: "18:00:00",
+              status: "Present",
+            },
+            {
+              date: "2025-06-02",
+              punchInTime: "08:45:00",
+              punchOutTime: "17:45:00",
+              status: "Present",
+            },
+            {
+              date: "2025-06-03",
+              punchInTime: null,
+              punchOutTime: null,
+              status: "Absent",
+            },
+            {
+              date: "2025-06-04",
+              punchInTime: "09:15:00",
+              punchOutTime: "18:15:00",
+              status: "Present",
+            },
+          ];
+          setAttendanceData(mockAttendance);
+        }
+      } catch {
+        console.log("Attendance fetch failed, using mock data");
+        // Use mock attendance data if API fails
+        const mockAttendance: Attendance[] = [
+          {
+            date: "2025-06-01",
+            punchInTime: "09:00:00",
+            punchOutTime: "18:00:00",
+            status: "Present",
+          },
+          {
+            date: "2025-06-02",
+            punchInTime: "08:45:00",
+            punchOutTime: "17:45:00",
+            status: "Present",
+          },
+          {
+            date: "2025-06-03",
+            punchInTime: null,
+            punchOutTime: null,
+            status: "Absent",
+          },
+          {
+            date: "2025-06-04",
+            punchInTime: "09:15:00",
+            punchOutTime: "18:15:00",
+            status: "Present",
+          },
+        ];
+        setAttendanceData(mockAttendance);
+      }
+
+    } catch {
+      setError("Failed to fetch employee data. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   // Step 1: Select Employee (with instructions/notes)
   const renderSelectEmployee = () => (
-    <div className="space-y-8">
-      <div className={`rounded-xl p-6 border shadow flex flex-col gap-4 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'}`}>
-        <h2 className={`text-xl font-bold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>
-          <FaUser className={theme === 'dark' ? 'text-blue-400' : 'text-blue-500'} /> Select Employee
-        </h2>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Employee</label>
-            <input
-              type="text"
-              className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400' : 'border-gray-200 text-black placeholder-gray-400'}`}
-              placeholder="Employee name or ID"
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-            />
+    <div className="space-y-6">
+      <div
+        className={`rounded-2xl shadow p-6 border flex flex-col gap-6 ${
+          theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
+        }`}
+        style={{ maxWidth: 700, margin: '0 auto' }}
+      >
+        <div className="font-bold text-lg mb-2 flex items-center gap-2">
+          <FaUser className="text-blue-500 w-6 h-6" />
+          <span className={theme === "dark" ? "text-blue-300" : "text-blue-700"}>Employee Details</span>
+        </div>
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          <input
+            type="text"
+            placeholder="Enter Employee ID or Name (e.g., EFMS3233 or John Doe)"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className={`w-full md:w-1/2 px-4 py-3 rounded-lg border ${
+              theme === "dark"
+                ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+            } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+          />
+          <select
+            value={month}
+            onChange={e => setMonth(Number(e.target.value))}
+            className={`px-4 py-3 rounded-lg border ${theme === "dark" ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+          >
+            {monthOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </select>
+          <select
+            value={year}
+            onChange={e => setYear(Number(e.target.value))}
+            className={`px-4 py-3 rounded-lg border ${theme === "dark" ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+          >
+            {yearOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
+          <button
+            onClick={searchEmployee}
+            disabled={loading}
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-colors ${
+              theme === "dark"
+                ? "bg-blue-700 hover:bg-blue-800 text-white disabled:bg-gray-600"
+                : "bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
+            }`}
+          >
+            <FaSearch />
+            {loading ? "Searching..." : "Search"}
+          </button>
+        </div>
+        {error && (
+          <div className="mt-4 p-3 rounded-lg bg-red-100 text-red-700 border border-red-300">{error}</div>
+        )}
+        {employee && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400">Name</span>
+              <span className="font-semibold text-lg">{employee.personalDetails.fullName}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400">Employee ID</span>
+              <span className="font-semibold text-lg">{employee.personalDetails.employeeId}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400">Designation</span>
+              <span className="font-semibold text-lg">{employee.personalDetails.designation}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400">Project</span>
+              <span className="font-semibold text-lg">{employee.personalDetails.projectName}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400">Phone Number</span>
+              <span className="font-semibold text-lg">{employee.personalDetails.phoneNumber}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400">Date of Joining</span>
+              <span className="font-semibold text-lg">{new Date(employee.personalDetails.dateOfJoining).toLocaleDateString()}</span>
+            </div>
           </div>
-          <div className="flex-1">
-            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Month</label>
-            <select
-              className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
-              value={month}
-              onChange={e => setMonth(Number(e.target.value))}
+        )}
+        {employee && (
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={() => setActiveStep(1)}
+              disabled={!employee}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                theme === "dark"
+                  ? "bg-green-700 hover:bg-green-800 text-white disabled:bg-gray-600"
+                  : "bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400"
+              }`}
             >
-              {Array.from({ length: 12 }, (_, i) => (
-                <option key={i + 1} value={i + 1}>{new Date(0, i).toLocaleString("default", { month: "long" })}</option>
-              ))}
-            </select>
+              <FaCheckCircle />
+              Continue to Payroll Update
+            </button>
           </div>
-          <div className="flex-1">
-            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>Year</label>
-            <select
-              className={`w-full px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'border-gray-200 text-black'}`}
-              value={year}
-              onChange={e => setYear(Number(e.target.value))}
-            >
-              {[2025, 2024, 2023].map(yr => (
-                <option key={yr} value={yr}>{yr}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-      {/* Instructions/Notes Card */}
-      <div className={`rounded-xl p-5 flex items-start gap-4 border ${theme === 'dark' ? 'bg-blue-950 border-blue-900' : 'bg-blue-50 border-blue-100'}`}>
-        <div className={`p-3 rounded-xl flex items-center justify-center ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>
-          <FaInfoCircle className={`w-6 h-6 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`} />
-        </div>
-        <div>
-          <h3 className={`font-semibold mb-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Instructions</h3>
-          <ul className={`list-disc ml-5 text-sm space-y-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
-            <li>Select the employee, month, and year to update payroll and view attendance.</li>
-            <li>Ensure the employee details are correct before proceeding.</li>
-            <li>Attendance for the selected month will be shown in the next step.</li>
-            <li>Contact HR if you do not find the employee in the list.</li>
-          </ul>
-        </div>
-      </div>
-      <div className="flex justify-end">
-        <button
-          className={`px-8 py-3 rounded-xl text-white font-medium transition-all ${employeeDetails ? (theme === 'dark' ? 'bg-blue-700 hover:bg-blue-800' : 'bg-blue-600 hover:bg-blue-700') : (theme === 'dark' ? 'bg-blue-900 cursor-not-allowed' : 'bg-blue-300 cursor-not-allowed')}`}
-          disabled={!employeeDetails}
-          onClick={() => setActiveStep(1)}
-        >
-          Next
-        </button>
+        )}
       </div>
     </div>
   );
@@ -255,13 +515,47 @@ export default function PayrollUpdatePage() {
     attendanceData.forEach((att) => {
       attendanceByDate[att.date] = att;
     });
+    // Map leave days for quick lookup
+    const leaveDays: Record<string, unknown> = {};
+    leaveData.forEach(leave => {
+      const start = new Date((leave as { startDate?: string }).startDate ?? '');
+      const end = new Date((leave as { endDate?: string }).endDate ?? '');
+      for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split("T")[0];
+        leaveDays[dateStr] = leave;
+      }
+    });
     let totalPayable = 0;
     const attendanceRow = Array.from({ length: daysInMonth }, (_, i) => {
-      const date = new Date(year, month - 1, i + 1).toISOString().split("T")[0];
-      const att = attendanceByDate[date];
-      const status = att ? calculateStatus(att.punchInTime, att.punchOutTime) : "A";
-      if (status === "P") totalPayable++;
-      return { status, date };
+      const dateObj = new Date(year, month - 1, i + 1);
+      const date = dateObj.toISOString().split("T")[0];
+      const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 6 = Saturday
+      // 2nd and 4th Saturday logic
+      let isSecondOrFourthSaturday = false;
+      if (dayOfWeek === 6) {
+        let saturdayCount = 0;
+        for (let d = 1; d <= i + 1; d++) {
+          const tempDate = new Date(year, month - 1, d);
+          if (tempDate.getDay() === 6) saturdayCount++;
+        }
+        if (saturdayCount === 2 || saturdayCount === 4) isSecondOrFourthSaturday = true;
+      }
+      if (dayOfWeek === 0) {
+        // Sunday
+        return { status: "H", date };
+      } else if (dayOfWeek === 6 && isSecondOrFourthSaturday) {
+        // 2nd or 4th Saturday
+        return { status: "H", date };
+      } else if (leaveDays[date]) {
+        // Approved leave
+        totalPayable++;
+        return { status: "L", date };
+      } else if (attendanceByDate[date] && (attendanceByDate[date].status === "P" || attendanceByDate[date].status === "Present")) {
+        totalPayable++;
+        return { status: "P", date };
+      } else {
+        return { status: "A", date };
+      }
     });
     return (
       <div className="space-y-8">
@@ -451,28 +745,40 @@ export default function PayrollUpdatePage() {
             <div className="mt-6">
               <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Attendance for {new Date(0, month - 1).toLocaleString("default", { month: "long" })} {year}</label>
               <div className="overflow-x-auto">
-                {loadingAttendance ? (
-                  <div className={`flex items-center gap-2 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><FaSpinner className="animate-spin" /> Loading attendance...</div>
-                ) : (
-                  <table className={`w-full rounded-lg shadow-md overflow-hidden ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
-                    <thead>
-                      <tr>
-                        {attendanceRow.map((_, i) => (
-                          <th key={i} className={`p-2 text-xs font-semibold text-center border-b ${theme === 'dark' ? 'text-gray-400 border-gray-700' : 'text-gray-500 border-b'}`}>{i + 1}</th>
-                        ))}
-                        <th className={`p-2 text-xs font-semibold text-center border-b ${theme === 'dark' ? 'text-blue-300 border-gray-700' : 'text-blue-700 border-b'}`}>Total Payable</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        {attendanceRow.map((cell, i) => (
-                          <td key={i} className={`p-2 text-center font-bold ${getStatusColor(cell.status)} ${theme === 'dark' ? 'bg-gray-800' : ''}`}>{cell.status}</td>
-                        ))}
-                        <td className={`p-2 text-center font-bold ${theme === 'dark' ? 'text-blue-200 bg-blue-950' : 'text-blue-700 bg-blue-50'}`}>{totalPayable}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                )}
+                <table className={`w-full rounded-lg shadow-md overflow-hidden ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
+                  <thead>
+                    <tr>
+                      {attendanceRow.map((_, i) => (
+                        <th key={i} className={`p-2 text-xs font-semibold text-center border-b ${theme === 'dark' ? 'text-gray-400 border-gray-700' : 'text-gray-500 border-b'}`}>{i + 1}</th>
+                      ))}
+                      <th className={`p-2 text-xs font-semibold text-center border-b ${theme === 'dark' ? 'text-blue-300 border-gray-700' : 'text-blue-700 border-b'}`}>Total Payable</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      {attendanceRow.map((cell, i) => {
+                        const cellClass = (() => {
+                          if (cell.status === 'P') return theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800';
+                          if (cell.status === 'A') return theme === 'dark' ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800';
+                          if (cell.status === 'L') return theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-700';
+                          if (cell.status === 'H') return theme === 'dark' ? 'bg-yellow-400 text-gray-900 font-bold' : 'bg-yellow-200 text-yellow-900 font-bold';
+                          return '';
+                        })();
+                        return (
+                          <td key={i} className={`p-2 text-center font-bold ${cellClass} ${theme === 'dark' ? 'bg-opacity-80' : ''}`}>{cell.status}</td>
+                        );
+                      })}
+                      <td className={`p-2 text-center font-bold ${theme === 'dark' ? 'text-blue-200 bg-blue-950' : 'text-blue-700 bg-blue-50'}`}>{totalPayable}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                {/* Legend */}
+                <div className="flex flex-wrap gap-4 mt-4 items-center">
+                  <span className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-green-500 inline-block"></span> Present (P)</span>
+                  <span className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-red-500 inline-block"></span> Absent (A)</span>
+                  <span className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-blue-500 inline-block"></span> Leave (L)</span>
+                  <span className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-yellow-400 border border-yellow-600 inline-block"></span> Holiday (H)</span>
+                </div>
               </div>
             </div>
             <div className="flex justify-between">
