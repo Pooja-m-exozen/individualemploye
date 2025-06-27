@@ -205,8 +205,8 @@ const LeaveReport: React.FC<LeaveReportProps> = ({
               <FaCalendarAlt className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Leave Report</h1>
-              <p className="text-blue-100 mt-1">View and manage your leave records</p>
+              <h1 className="text-3xl font-bold text-white">Leave Report</h1>
+              <p className="text-white mt-1">View and manage your leave records</p>
             </div>
           </div>
           <button

@@ -12,7 +12,7 @@ interface Employee {
   workflow: Record<WorkflowKey, boolean>;
 }
 
-// Types for API data
+// Extend KycForm and Employee types to include projectName and employeeImage
 interface KycForm {
   personalDetails?: {
     employeeId?: string;
@@ -20,7 +20,11 @@ interface KycForm {
     fullName?: string;
     name?: string;
     designation?: string;
+    projectName?: string;
+    employeeImage?: string;
+    // ...other fields
   };
+  // ...other fields
 }
 interface KycDocument {
   url: string;
@@ -30,6 +34,7 @@ interface KycDocument {
 interface KycSummary {
   status?: string;
   documents?: KycDocument[];
+  projectName?: string;
 }
 interface IdCardSummary {
   status?: string;
@@ -72,6 +77,12 @@ interface EmployeeSummary {
 }
 interface EmployeeWithSummary extends Employee {
   summary: EmployeeSummary | null;
+  projectName?: string;
+  personalDetails?: {
+    employeeImage?: string;
+    projectName?: string;
+    // ...other fields
+  };
 }
 
 const workflowSteps: { key: WorkflowKey; label: string; icon: React.ReactNode }[] = [
@@ -92,6 +103,9 @@ export default function EmployeeManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [designationFilter, setDesignationFilter] = useState("All Designations");
+  const [projectFilter, setProjectFilter] = useState("All Projects");
+  const [projectOptions, setProjectOptions] = useState<string[]>(["All Projects"]);
   const pageSize = 6;
 
   useEffect(() => {
@@ -102,6 +116,9 @@ export default function EmployeeManagementPage() {
         if (!res.ok) throw new Error("Failed to fetch employees");
         const data = await res.json();
         const kycForms: KycForm[] = Array.isArray(data.kycForms) ? data.kycForms : [];
+        // Collect unique project names
+        const projects = Array.from(new Set(kycForms.map(f => f.personalDetails?.projectName).filter((p): p is string => Boolean(p))));
+        setProjectOptions(["All Projects", ...projects]);
         // Prepare employee base info
         const baseEmployees = kycForms.map((form: KycForm) => {
           const pd = form.personalDetails || {};
@@ -109,10 +126,12 @@ export default function EmployeeManagementPage() {
             employeeId: pd.employeeId || pd.empId || "",
             fullName: pd.fullName || pd.name || "",
             designation: pd.designation || "",
+            projectName: pd.projectName || "",
+            personalDetails: pd, // for image
           };
         }).filter((emp: { employeeId: string }) => emp.employeeId);
         // Fetch summary for each employee
-        const summaryPromises = baseEmployees.map(async (emp: { employeeId: string; fullName: string; designation: string }) => {
+        const summaryPromises = baseEmployees.map(async (emp: any) => {
           try {
             const summaryRes = await fetch(`https://cafm.zenapi.co.in/api/employees/${emp.employeeId}/summary`);
             if (!summaryRes.ok) throw new Error();
@@ -127,8 +146,10 @@ export default function EmployeeManagementPage() {
                 leave: summary.leave && Array.isArray(summary.leave.recent) && summary.leave.recent.length > 0,
                 payslip: summary.payroll && Array.isArray(summary.payroll) && summary.payroll.length > 0,
               },
-              summary, // Store the full summary for details modal
-            } as EmployeeWithSummary;
+              summary,
+              personalDetails: emp.personalDetails,
+              projectName: emp.projectName,
+            } as EmployeeWithSummary & { personalDetails: any, projectName: string };
           } catch {
             return {
               ...emp,
@@ -141,22 +162,38 @@ export default function EmployeeManagementPage() {
                 payslip: false,
               },
               summary: null,
-            } as EmployeeWithSummary;
+              personalDetails: emp.personalDetails,
+              projectName: emp.projectName,
+            } as EmployeeWithSummary & { personalDetails: any, projectName: string };
           }
         });
-        const employeesWithWorkflow: EmployeeWithSummary[] = await Promise.all(summaryPromises);
+        const employeesWithWorkflow: any[] = await Promise.all(summaryPromises);
         setEmployees(employeesWithWorkflow);
       })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
 
+  // Get unique designations for dropdowns
+  const designationOptions = useMemo(() => [
+    "All Designations",
+    ...Array.from(new Set(employees.map(e => e.designation).filter(Boolean)))
+  ], [employees]);
+
   const filteredEmployees = useMemo(() => {
-    return employees.filter((emp) =>
-      emp.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      emp.employeeId.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [search, employees]);
+    return employees.filter((emp: any) => {
+      const matchesSearch =
+        emp.fullName.toLowerCase().includes(search.toLowerCase()) ||
+        emp.employeeId.toLowerCase().includes(search.toLowerCase());
+      const matchesDesignation =
+        designationFilter === "All Designations" ||
+        emp.designation === designationFilter;
+      const matchesProject =
+        projectFilter === "All Projects" ||
+        emp.projectName === projectFilter;
+      return matchesSearch && matchesDesignation && matchesProject;
+    });
+  }, [search, employees, designationFilter, projectFilter]);
 
   const totalPages = Math.ceil(filteredEmployees.length / pageSize);
   const paginatedEmployees = useMemo(() => {
@@ -169,22 +206,52 @@ export default function EmployeeManagementPage() {
   }, [search, employees]);
 
   // Dummy data for each step
-  const getStepDetails = (step: WorkflowKey, emp: EmployeeWithSummary) => {
+  const getStepDetails = (step: WorkflowKey, emp: any) => {
     const summary = emp.summary || {};
+    // Get image, name, employeeId, designation, projectName
+    const empName = emp.fullName;
+    const empId = emp.employeeId;
+    const empDesignation = emp.designation;
+    const projectName = emp.projectName || summary.kyc?.projectName;
+    // Always use profile image from personalDetails for KYC
+    let empImageUrl = emp.personalDetails?.employeeImage;
+    // fallback for idCard/uniform if not present
+    if (!empImageUrl && summary.kyc?.documents && summary.kyc.documents.length > 0) {
+      const imgDoc = summary.kyc.documents.find((doc: any) => doc.type.toLowerCase().includes("image") || doc.url.match(/\.(jpg|jpeg|png|gif)$/i));
+      if (imgDoc) empImageUrl = imgDoc.url;
+    }
+    if (!empImageUrl && summary.kyc && (summary.kyc as any).personalDetails?.employeeImage) {
+      empImageUrl = (summary.kyc as any).personalDetails.employeeImage;
+    }
+    if (!empImageUrl && (emp as any).personalDetails?.employeeImage) {
+      empImageUrl = (emp as any).personalDetails.employeeImage;
+    }
+    // fallback: use empImageUrl from KYC summary or emp object
     switch (step) {
-      case "kyc":
+      case "kyc": {
         const kycStatus = summary.kyc?.status || "Pending";
         const isKycApproved = kycStatus === "Approved";
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">KYC Details</h3>
+            <div className="flex items-center gap-4 mb-4">
+              {empImageUrl && (
+                <img src={empImageUrl} alt="Employee" className="w-20 h-20 rounded-full object-cover border border-gray-300" />
+              )}
+              <div>
+                <div className="font-semibold text-lg">{empName}</div>
+                <div className="text-gray-500 text-sm">Employee ID: {empId}</div>
+                <div className="text-gray-500 text-sm">Designation: {empDesignation}</div>
+                {projectName && <div className="text-gray-500 text-sm">Project: {projectName}</div>}
+              </div>
+            </div>
             <p className={`flex items-center gap-2 ${theme === "dark" ? "text-white" : "text-gray-700"}`}>
               KYC status: {isKycApproved ? (
                 <span className={`flex items-center gap-1 font-semibold ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
                   <FaCheckCircle className={`inline-block ${theme === "dark" ? "text-green-300" : "text-green-500"}`} /> Approved
                 </span>
               ) : (
-                <span className={`${theme === "dark" ? "text-white" : "text-gray-500"} font-medium`}>{kycStatus}</span>
+                <span className={`${kycStatus === "Pending" ? (theme === "dark" ? "text-yellow-400" : "text-yellow-600") : (theme === "dark" ? "text-red-400" : "text-red-600") } font-medium`}>{kycStatus}</span>
               )}
             </p>
             {summary.kyc?.documents && summary.kyc.documents.length > 0 && (
@@ -201,19 +268,51 @@ export default function EmployeeManagementPage() {
             )}
           </div>
         );
-      case "idCard":
+      }
+      case "idCard": {
+        const idStatus = summary.idCard?.status || "Pending";
+        let statusColor = idStatus === "Issued" ? (theme === "dark" ? "text-green-400" : "text-green-600") : idStatus === "Pending" ? (theme === "dark" ? "text-yellow-400" : "text-yellow-600") : (theme === "dark" ? "text-red-400" : "text-red-600");
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">ID Card</h3>
-            <p className="text-gray-700">ID Card status: {summary.idCard?.status || "Pending"}</p>
+            <div className="flex items-center gap-4 mb-4">
+              {empImageUrl && (
+                <img src={empImageUrl} alt="Employee" className="w-20 h-20 rounded-full object-cover border border-gray-300" />
+              )}
+              <div>
+                <div className="font-semibold text-lg">{empName}</div>
+                <div className="text-gray-500 text-sm">Employee ID: {empId}</div>
+                <div className="text-gray-500 text-sm">Designation: {empDesignation}</div>
+                {projectName && <div className="text-gray-500 text-sm">Project: {projectName}</div>}
+              </div>
+            </div>
+            <p className={`flex items-center gap-2 ${theme === "dark" ? "text-white" : "text-gray-700"}`}>
+              ID Card status: <span className={`font-semibold ${statusColor}`}>{idStatus}</span>
+            </p>
             {summary.idCard?.issuedDate && <p className="text-gray-500 text-sm mt-2">Issued on: {new Date(summary.idCard.issuedDate).toLocaleDateString()}</p>}
           </div>
         );
-      case "uniform":
+      }
+      case "uniform": {
+        const issued = summary.uniform && summary.uniform.items && summary.uniform.items.length > 0;
+        let statusColor = issued ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600");
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">Uniform</h3>
-            <p className="text-gray-700">Uniform status: {summary.uniform && summary.uniform.items && summary.uniform.items.length > 0 ? "Issued" : "Not Issued"}</p>
+            <div className="flex items-center gap-4 mb-4">
+              {empImageUrl && (
+                <img src={empImageUrl} alt="Employee" className="w-20 h-20 rounded-full object-cover border border-gray-300" />
+              )}
+              <div>
+                <div className="font-semibold text-lg">{empName}</div>
+                <div className="text-gray-500 text-sm">Employee ID: {empId}</div>
+                <div className="text-gray-500 text-sm">Designation: {empDesignation}</div>
+                {projectName && <div className="text-gray-500 text-sm">Project: {projectName}</div>}
+              </div>
+            </div>
+            <p className={`flex items-center gap-2 ${theme === "dark" ? "text-white" : "text-gray-700"}`}>
+              Uniform status: <span className={`font-semibold ${statusColor}`}>{issued ? "Issued" : "Not Issued"}</span>
+            </p>
             {summary.uniform?.items && summary.uniform.items.length > 0 && (
               <ul className="list-disc ml-6 mt-2">
                 {summary.uniform.items.map((item: UniformItem, i: number) => (
@@ -223,6 +322,7 @@ export default function EmployeeManagementPage() {
             )}
           </div>
         );
+      }
       case "attendance":
         return (
           <div>
@@ -312,8 +412,41 @@ export default function EmployeeManagementPage() {
             <p className="text-white text-base opacity-90">Search and manage individual employee workflows.</p>
           </div>
         </div>
-        {/* Search Bar */}
+        {/* Search, Designation Filters */}
         <div className="flex flex-row flex-wrap gap-2 mb-6 items-center w-full">
+          {/* Project Dropdown */}
+          <div className="flex-1 min-w-[180px] max-w-xs">
+            <select
+              value={projectFilter}
+              onChange={e => setProjectFilter(e.target.value)}
+              className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                theme === "dark"
+                  ? "bg-gray-800 border-blue-900 text-white"
+                  : "bg-white border-gray-200 text-black"
+              }`}
+            >
+              {projectOptions.map((project) => (
+                <option key={project} value={project}>{project}</option>
+              ))}
+            </select>
+          </div>
+          {/* Designation Dropdown */}
+          <div className="relative w-44 min-w-[130px]">
+            <select
+              value={designationFilter}
+              onChange={e => setDesignationFilter(e.target.value)}
+              className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                theme === "dark"
+                  ? "bg-gray-800 border-blue-900 text-white"
+                  : "bg-white border-gray-200 text-black"
+              }`}
+            >
+              {designationOptions.map((designation) => (
+                <option key={designation} value={designation}>{designation}</option>
+              ))}
+            </select>
+          </div>
+          {/* Search Bar */}
           <div className="relative flex-1 min-w-[180px] max-w-xs">
             <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
             <input
@@ -435,7 +568,7 @@ export default function EmployeeManagementPage() {
           )}
         </div>
         {/* Workflow Modal */}
-        {selectedEmployee && (
+        {selectedEmployee && !selectedStep && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
             <div className={`rounded-2xl shadow-xl p-8 w-full max-w-xl relative ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white"}`}>
               <button
@@ -463,7 +596,9 @@ export default function EmployeeManagementPage() {
                           ? 'bg-gray-800 text-gray-500'
                           : 'bg-gray-100 text-gray-400'
                       } hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
-                      onClick={() => setSelectedStep(step.key)}
+                      onClick={() => {
+                        setSelectedStep(step.key);
+                      }}
                       title={`View ${step.label} details`}
                       tabIndex={0}
                     >
@@ -495,24 +630,34 @@ export default function EmployeeManagementPage() {
             <div className={`rounded-2xl shadow-xl p-8 w-full max-w-md relative ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white"}`}>
               <button
                 className={`absolute top-4 right-4 text-2xl ${theme === "dark" ? "text-gray-400 hover:text-gray-200" : "text-gray-400 hover:text-gray-700"}`}
-                onClick={() => setSelectedStep(null)}
+                onClick={() => {
+                  setSelectedStep(null);
+                  setSelectedEmployee(null); // Ensure both are cleared so table is shown
+                }}
                 aria-label="Close"
               >
                 &times;
               </button>
-              {selectedEmployee ? (
-                <>
-                  {getStepDetails(selectedStep, selectedEmployee)}
-                  <div className="flex justify-end mt-8">
-                    <button
-                      onClick={() => setSelectedStep(null)}
-                      className={`px-6 py-2 rounded-lg font-semibold shadow ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
-                    >
-                      Close
-                    </button>
-                  </div>
-                </>
-              ) : null}
+              {/* Basic Info at top of step details modal */}
+              <div className="mb-4">
+                <div className={`font-semibold text-lg ${theme === "dark" ? "text-gray-100" : "text-gray-800"}`}>{selectedEmployee.fullName} <span className={theme === "dark" ? "text-gray-400 text-base" : "text-gray-500 text-base"}>({selectedEmployee.employeeId})</span></div>
+                <div className={theme === "dark" ? "text-gray-400 text-sm" : "text-gray-600 text-sm"}>{selectedEmployee.designation}</div>
+                {selectedEmployee.summary?.kyc?.projectName && (
+                  <div className={theme === "dark" ? "text-gray-400 text-sm" : "text-gray-600 text-sm"}>Project: {selectedEmployee.summary.kyc.projectName}</div>
+                )}
+              </div>
+              {getStepDetails(selectedStep, selectedEmployee)}
+              <div className="flex justify-end mt-8">
+                <button
+                  onClick={() => {
+                    setSelectedStep(null);
+                    setSelectedEmployee(null); // Ensure both are cleared so table is shown
+                  }}
+                  className={`px-6 py-2 rounded-lg font-semibold shadow ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

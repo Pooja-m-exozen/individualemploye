@@ -35,6 +35,7 @@ export default function ProjectManagementPage() {
   const { theme } = useTheme();
   const [search, setSearch] = useState("");
   const [designationFilter, setDesignationFilter] = useState("All Designations");
+  const [projectFilter, setProjectFilter] = useState("All Projects");
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +169,12 @@ export default function ProjectManagementPage() {
     ),
   ], [projects]);
 
+  // Project options for dropdown
+  const projectOptions = useMemo(() => [
+    "All Projects",
+    ...Array.from(new Set(projects.map((p) => p.projectName)))
+  ], [projects]);
+
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
       const matchesSearch =
@@ -177,9 +184,12 @@ export default function ProjectManagementPage() {
       const matchesDesignation =
         designationFilter === "All Designations" ||
         Object.keys(project.designationWiseCount || {}).includes(designationFilter);
-      return matchesSearch && matchesDesignation;
+      const matchesProject =
+        projectFilter === "All Projects" ||
+        project.projectName === projectFilter;
+      return matchesSearch && matchesDesignation && matchesProject;
     });
-  }, [search, designationFilter, projects]);
+  }, [search, designationFilter, projectFilter, projects]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredProjects.length / pageSize);
@@ -351,6 +361,23 @@ export default function ProjectManagementPage() {
           {/* Filters and Search */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
+              {/* Project Dropdown */}
+              <div className="relative w-44 min-w-[130px]">
+                <select
+                  value={projectFilter}
+                  onChange={e => setProjectFilter(e.target.value)}
+                  className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    theme === "dark"
+                      ? "bg-gray-800 border-blue-900 text-white"
+                      : "bg-white border-gray-200 text-black"
+                  }`}
+                >
+                  {projectOptions.map((project) => (
+                    <option key={project} value={project}>{project}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Designation Dropdown */}
               <div className="relative w-44 min-w-[130px]">
                 <select
                   value={designationFilter}

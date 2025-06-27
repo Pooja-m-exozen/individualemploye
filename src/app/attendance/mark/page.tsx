@@ -341,24 +341,24 @@ function MarkAttendanceContent() {
               <FaUserCheck className="text-3xl text-white" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold">Mark Attendance</h2>
-              <p className="text-blue-100 mt-1">Welcome to the official attendance management system</p>
+              <h2 className="text-3xl font-bold text-white">Mark Attendance</h2>
+              <p className="text-white mt-1">Welcome to the official attendance management system</p>
             </div>
           </div>
           <div className="flex items-center gap-6 bg-white/10 backdrop-blur-md px-6 py-4 rounded-xl">
             <div className="flex items-center gap-3">
-              <FaClock className="text-2xl text-blue-200" />
+              <FaClock className="text-2xl text-white" />
               <div>
-                <p className="text-2xl font-bold">{currentTime}</p>
-                <p className="text-sm text-blue-200">Current Time</p>
+                <p className="text-2xl font-bold text-white">{currentTime}</p>
+                <p className="text-sm text-white">Current Time</p>
               </div>
             </div>
             <div className="w-px h-12 bg-white/20"></div>
             <div className="flex items-center gap-3">
-              <FaCalendarAlt className="text-2xl text-blue-200" />
+              <FaCalendarAlt className="text-2xl text-white" />
               <div>
-                <p className="font-medium">{currentDate}</p>
-                <p className="text-sm text-blue-200">Today&apos;s Date</p>
+                <p className="font-medium text-white">{currentDate}</p>
+                <p className="text-sm text-white">Today&apos;s Date</p>
               </div>
             </div>
           </div>

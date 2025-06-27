@@ -197,8 +197,8 @@ function RequestLeaveContent() {
               <FaPlus className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Request Leave</h1>
-              <p className="text-blue-100 mt-1">Submit and track your leave applications</p>
+              <h1 className="text-3xl font-bold text-white">Request Leave</h1>
+              <p className="text-white mt-1">Submit and track your leave applications</p>
             </div>
           </div>
         </div>
@@ -350,7 +350,7 @@ function RequestLeaveContent() {
                     className={`w-full border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       theme === 'dark'
                         ? 'bg-gray-700 border-gray-600 text-gray-200'
-                        : 'bg-white border-gray-200 text-gray-900'
+                        : 'bg-white border-gray-200 text-black'
                     }`}
                     placeholder="Please provide a detailed reason for your leave request..."
                   />

@@ -115,6 +115,10 @@ export default function ViewAllKYCPage() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [modal, setModal] = useState<null | { type: 'joiner' | 'view' | 'edit', data: KYCForm | null }>(null);
   const [newJoinersSearch, setNewJoinersSearch] = useState("");
+  const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
+  const [projectFilterDropdown, setProjectFilterDropdown] = useState<string>("All Projects");
+  const [projectLoading, setProjectLoading] = useState(false);
+  const [projectError, setProjectError] = useState<string | null>(null);
 
   const projectNames = Array.from(new Set(kycForms.map(f => f.personalDetails.projectName))).filter(Boolean);
   const statusOptions = Array.from(new Set(kycForms.map(f => f.status))).filter(Boolean);
@@ -129,6 +133,20 @@ export default function ViewAllKYCPage() {
       fetchNewJoiners(timeFrame);
     }
   }, [modal?.type, timeFrame]);
+
+  useEffect(() => {
+    setProjectLoading(true);
+    fetch("https://cafm.zenapi.co.in/api/project/projects")
+      .then(res => res.json())
+      .then(data => {
+        setProjectList(Array.isArray(data) ? data : []);
+        setProjectLoading(false);
+      })
+      .catch(() => {
+        setProjectError("Failed to load projects");
+        setProjectLoading(false);
+      });
+  }, []);
 
   const fetchKYCForms = async () => {
     setLoading(true);
@@ -187,6 +205,7 @@ export default function ViewAllKYCPage() {
   // Calculate filtered and paginated data
   const filtered = kycForms
     .filter(form => {
+      const matchesProjectDropdown = projectFilterDropdown === "All Projects" || form.personalDetails.projectName === projectFilterDropdown;
       const matchesProject = projectFilter ? form.personalDetails.projectName === projectFilter : true;
       const matchesEmployeeId = employeeIdFilter ? form.personalDetails.employeeId.toLowerCase().includes(employeeIdFilter.toLowerCase()) : true;
       const matchesDesignation = designationFilter ? form.personalDetails.designation === designationFilter : true;
@@ -195,7 +214,7 @@ export default function ViewAllKYCPage() {
         form.personalDetails.fullName.toLowerCase().includes(search.toLowerCase()) ||
         form.personalDetails.employeeId.toLowerCase().includes(search.toLowerCase())
       ) : true;
-      return matchesProject && matchesEmployeeId && matchesDesignation && matchesStatus && matchesSearch;
+      return matchesProjectDropdown && matchesProject && matchesEmployeeId && matchesDesignation && matchesStatus && matchesSearch;
     })
     .sort((a, b) => {
       let aValue: string, bValue: string;
@@ -281,6 +300,42 @@ export default function ViewAllKYCPage() {
     XLSX.writeFile(workbook, 'kyc_records.xlsx');
   };
 
+  const handleExportToPDF = async () => {
+    const jsPDF = (await import('jspdf')).default;
+    const autoTable = (await import('jspdf-autotable')).default;
+    const doc = new jsPDF();
+
+    const exportData = filtered.map(form => ([
+      form.personalDetails.employeeId,
+      form.personalDetails.fullName,
+      form.personalDetails.designation,
+      form.personalDetails.projectName,
+      form.status,
+      form.personalDetails.phoneNumber,
+      form.personalDetails.email,
+      form.personalDetails.dateOfJoining
+    ]));
+
+    doc.text('KYC Records', 14, 16);
+    autoTable(doc, {
+      head: [[
+        'EmployeeID',
+        'Name',
+        'Designation',
+        'Project',
+        'Status',
+        'Phone',
+        'Email',
+        'DateOfJoining',
+      ]],
+      body: exportData,
+      startY: 22,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [41, 128, 185] },
+    });
+    doc.save('kyc_records.pdf');
+  };
+
   return (
     <ManagerDashboardLayout>
       <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'} flex flex-col py-8`}>
@@ -306,6 +361,13 @@ export default function ViewAllKYCPage() {
             >
               <FaDownload className="w-4 h-4" />
               Export Data
+            </button>
+            <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md
+              ${theme === 'dark' ? 'bg-gray-800 text-blue-200 hover:bg-gray-700' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+              onClick={handleExportToPDF}
+            >
+              <FaDownload className="w-4 h-4" />
+              Export PDF
             </button>
           </div>
         </div>
@@ -378,6 +440,22 @@ export default function ViewAllKYCPage() {
                   <div className={`px-6 py-4 border-b flex flex-col lg:flex-row gap-4 items-start lg:items-center
                     ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
                   >
+                    {/* Project Filter Dropdown */}
+                    <div className="flex items-center gap-2 w-full lg:w-auto">
+                      <select
+                        value={projectFilterDropdown}
+                        onChange={e => { setProjectFilterDropdown(e.target.value); setCurrentPage(1); }}
+                        className={`rounded-xl px-4 py-2 border text-sm font-semibold transition
+                          ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-200' : 'bg-white border-blue-100 text-blue-700'}`}
+                      >
+                        <option value="All Projects">All Projects</option>
+                        {projectList.map(p => (
+                          <option key={p._id} value={p.projectName}>{p.projectName}</option>
+                        ))}
+                      </select>
+                      {projectLoading && <span className="ml-2 text-xs text-blue-400">Loading...</span>}
+                      {projectError && <span className="ml-2 text-xs text-red-500">{projectError}</span>}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="relative">
                         <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4
@@ -550,7 +628,7 @@ export default function ViewAllKYCPage() {
                     <table className={`min-w-full divide-y
                       ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}
                     >
-                      <thead className={theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}>
+                      <thead className={theme === 'dark' ? 'bg-gray-900 sticky top-0 z-10' : 'bg-gray-50 sticky top-0 z-10'}>
                         <tr>
                           {/* Column Headers */}
                           {[
@@ -583,7 +661,7 @@ export default function ViewAllKYCPage() {
                             {/* Employee Cell */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center gap-4">
-                                <div className="relative">
+                                <div className="z-0">
                                   {form.personalDetails.employeeImage ? (
                                     <Image
                                       src={form.personalDetails.employeeImage}

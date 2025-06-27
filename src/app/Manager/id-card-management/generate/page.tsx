@@ -184,12 +184,12 @@ export default function GenerateIDCardPage() {
         throw new Error('Failed to fetch employee details');
       }
       const data = await response.json();
-      
+     
       if (data.kycForms) {
-        const employee = data.kycForms.find((form: KycForm) => 
+        const employee = data.kycForms.find((form: KycForm) =>
           form.personalDetails.employeeId === employeeId
         );
-        
+       
         if (employee) {
           return {
             employeeId: employee.personalDetails.employeeId,
@@ -222,7 +222,7 @@ export default function GenerateIDCardPage() {
       }
       const pendingData = await pendingResponse.json();
       console.log('Pending Requests API Response:', pendingData);
-      
+     
       // Fetch ready to issue requests
       const readyToIssueResponse = await fetch("https://cafm.zenapi.co.in/api/id-cards/ready-to-issue");
       if (!readyToIssueResponse.ok) {
@@ -230,7 +230,7 @@ export default function GenerateIDCardPage() {
       }
       const readyToIssueData = await readyToIssueResponse.json();
       console.log('Ready to Issue API Response:', readyToIssueData);
-      
+     
       // Fetch all requests (for other statuses)
       const allResponse = await fetch("https://cafm.zenapi.co.in/api/id-cards/all");
       if (!allResponse.ok) {
@@ -238,15 +238,15 @@ export default function GenerateIDCardPage() {
       }
       const allData = await allResponse.json();
       console.log('All Requests API Response:', allData);
-      
+     
       // Combine all requests
       let allRequests: IDCardRequest[] = [];
-      
+     
       // Add pending requests
       if (pendingData.data && pendingData.data.pendingRequests) {
         allRequests = [...(pendingData.data.pendingRequests as IDCardRequest[])];
       }
-      
+     
       // Add ready to issue requests (convert to IDCardRequest format)
       if (readyToIssueData.data && Array.isArray(readyToIssueData.data)) {
         const readyToIssueRequests = readyToIssueData.data.map((item: ReadyToIssueItem) => ({
@@ -265,25 +265,25 @@ export default function GenerateIDCardPage() {
         }));
         allRequests = [...allRequests, ...readyToIssueRequests];
       }
-      
+     
       // Add other requests (issued, rejected) from all endpoint
       if (allData.idCards) {
-        const otherRequests = (allData.idCards as IDCardRequest[]).filter((req: IDCardRequest) => 
+        const otherRequests = (allData.idCards as IDCardRequest[]).filter((req: IDCardRequest) =>
           req.status !== 'Requested' && req.status !== 'Approved'
         );
         allRequests = [...allRequests, ...otherRequests];
       } else if (allData.data) {
-        const otherRequests = (allData.data as IDCardRequest[]).filter((req: IDCardRequest) => 
+        const otherRequests = (allData.data as IDCardRequest[]).filter((req: IDCardRequest) =>
           req.status !== 'Requested' && req.status !== 'Approved'
         );
         allRequests = [...allRequests, ...otherRequests];
       } else if (Array.isArray(allData)) {
-        const otherRequests = (allData as IDCardRequest[]).filter((req: IDCardRequest) => 
+        const otherRequests = (allData as IDCardRequest[]).filter((req: IDCardRequest) =>
           req.status !== 'Requested' && req.status !== 'Approved'
         );
         allRequests = [...allRequests, ...otherRequests];
       }
-      
+     
       setAllRequests(allRequests);
       setPendingRequests(allRequests.filter((req: IDCardRequest) => req.status === 'Requested'));
     } catch (err) {
@@ -314,11 +314,11 @@ export default function GenerateIDCardPage() {
       setError("Please select an employee.");
       return;
     }
-    
+   
     setLoading(true);
     setError(null);
     setSuccess(null);
-    
+   
     try {
       const response = await fetch(`https://cafm.zenapi.co.in/api/id-cards/${selectedEmployee}/generate`, {
         method: 'POST',
@@ -336,7 +336,7 @@ export default function GenerateIDCardPage() {
       setSuccess('ID Card request generated successfully and pending approval');
       setGeneratedCard(data.idCard);
       setSelectedEmployee("");
-      
+     
       // Refresh the requests list and workflow status with a small delay
       setTimeout(() => {
         fetchAllRequests();
@@ -539,16 +539,16 @@ export default function GenerateIDCardPage() {
   // Apply filters and search
   const filteredRequests = allRequests
     .filter((req) => {
-      const matchesSearch = 
+      const matchesSearch =
         req.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         req.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
-      
+     
       const matchesStatus = !filters.status || req.status === filters.status;
       const matchesProject = !filters.project || req.projectName === filters.project;
       const matchesDesignation = !filters.designation || req.designation === filters.designation;
-      
-      const matchesDateRange = !filters.dateRange.start || !filters.dateRange.end || 
-        (req.requestDate && 
+     
+      const matchesDateRange = !filters.dateRange.start || !filters.dateRange.end ||
+        (req.requestDate &&
          new Date(req.requestDate) >= new Date(filters.dateRange.start) &&
          new Date(req.requestDate) <= new Date(filters.dateRange.end));
 
@@ -556,7 +556,7 @@ export default function GenerateIDCardPage() {
     })
     .sort((a, b) => {
       let aValue: string | Date, bValue: string | Date;
-      
+     
       switch (filters.sortBy) {
         case 'fullName':
           aValue = a.fullName;
@@ -711,14 +711,14 @@ export default function GenerateIDCardPage() {
               >
                 {/* Instructions Panel */}
                 <div className={`mb-8 p-6 rounded-2xl border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-700 border-gray-600' 
+                  theme === 'dark'
+                    ? 'bg-gray-700 border-gray-600'
                     : 'bg-blue-50 border-blue-200'
                 }`}>
                   <div className="flex items-start gap-4">
                     <div className={`p-2 rounded-lg ${
-                      theme === 'dark' 
-                        ? 'bg-blue-900/20' 
+                      theme === 'dark'
+                        ? 'bg-blue-900/20'
                         : 'bg-blue-600 bg-opacity-10'
                     }`}>
                       <FaInfoCircle className={`w-6 h-6 ${
@@ -807,7 +807,7 @@ export default function GenerateIDCardPage() {
                         {(() => {
                           const selectedEmp = employees.find(emp => emp.employeeId === selectedEmployee);
                           if (!selectedEmp) return null;
-                          
+                         
                           return (
                             <div className="space-y-2">
                               <h4 className={`font-semibold ${
@@ -896,7 +896,7 @@ export default function GenerateIDCardPage() {
                           }`}>Pending approval from HR/Admin</p>
                         </div>
                       </div>
-                      <button 
+                      <button
                         onClick={() => setGeneratedCard(null)}
                         className={`p-2 rounded-lg ${
                           theme === 'dark'
@@ -1032,7 +1032,7 @@ export default function GenerateIDCardPage() {
                       <button
                         onClick={() => setShowFilters(!showFilters)}
                         className={`flex items-center gap-2 px-6 py-4 rounded-xl border transition-all duration-200 ${
-                          showFilters 
+                          showFilters
                             ? theme === 'dark'
                               ? 'bg-blue-600 text-white border-blue-600'
                               : 'bg-blue-600 text-white border-blue-600'
@@ -1049,7 +1049,7 @@ export default function GenerateIDCardPage() {
                           </span>
                         )}
                       </button>
-                      
+                     
                       {activeFiltersCount > 0 && (
                         <button
                           onClick={clearFilters}
@@ -1253,23 +1253,13 @@ export default function GenerateIDCardPage() {
                         No {activeTab === 'pending' ? 'pending requests' : 'approved cards'} found
                       </h3>
                       <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        {searchTerm || activeFiltersCount > 0 
-                          ? "Try adjusting your search or filter criteria" 
-                          : activeTab === 'pending' 
+                        {searchTerm || activeFiltersCount > 0
+                          ? "Try adjusting your search or filter criteria"
+                          : activeTab === 'pending'
                             ? "No pending ID card requests at the moment"
                             : "No approved ID cards found"}
                       </p>
-                      {/* Debug Information */}
-                      <div className={`mt-4 p-4 rounded-lg text-sm ${
-                        theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        <p>Debug Info:</p>
-                        <p>Total Requests: {allRequests.length}</p>
-                        <p>Pending Requests: {pendingRequests.length}</p>
-                        <p>Filtered Requests: {getTabRequests().length}</p>
-                        <p>Search Term: &quot;{searchTerm}&quot;</p>
-                        <p>Active Filters: {activeFiltersCount}</p>
-                      </div>
+                   
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -1315,7 +1305,7 @@ export default function GenerateIDCardPage() {
                         }`}>
                           {getTabRequests().map((request, index) => (
                             <tr key={request._id} className={`hover:bg-blue-50 transition-all duration-200 ${
-                              index % 2 === 0 
+                              index % 2 === 0
                                 ? theme === 'dark' ? 'bg-gray-800' : 'bg-white'
                                 : theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
                             }`}>
@@ -1346,7 +1336,7 @@ export default function GenerateIDCardPage() {
                                     <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 ${
                                       theme === 'dark' ? 'border-gray-800' : 'border-white'
                                     } ${
-                                      request.status === 'Issued' ? 'bg-green-500' : 
+                                      request.status === 'Issued' ? 'bg-green-500' :
                                       request.status === 'Approved' ? 'bg-blue-500' :
                                       request.status === 'Requested' ? 'bg-yellow-500' : 'bg-red-500'
                                     }`}></div>
@@ -1386,13 +1376,13 @@ export default function GenerateIDCardPage() {
                                 <div className="flex items-center gap-3">
                                   {request.status === 'Requested' && (
                                     <>
-                                      <button 
+                                      <button
                                         onClick={() => handleApproveRequest(request._id, 'Approved')}
                                         className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 shadow-sm"
                                       >
                                         <FaCheck className="w-4 h-4" /> Approve
                                       </button>
-                                      <button 
+                                      <button
                                         onClick={() => handleApproveRequest(request._id, 'Rejected', 'Incomplete documentation')}
                                         className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 shadow-sm"
                                       >
@@ -1401,7 +1391,7 @@ export default function GenerateIDCardPage() {
                                     </>
                                   )}
                                   {request.status === 'Approved' && (
-                                    <button 
+                                    <button
                                       onClick={() => handleIssueCard(request)}
                                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm"
                                     >
@@ -1433,416 +1423,160 @@ export default function GenerateIDCardPage() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-6"
               >
-                {/* Workflow Status Dashboard */}
-                <div className={`rounded-3xl p-8 border ${
-                  theme === 'dark'
-                    ? 'bg-gray-800 border-gray-700'
-                    : 'bg-white border-gray-200'
-                } shadow-lg`}>
-                  <h2 className={`text-2xl font-bold mb-6 ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>Workflow Status Overview</h2>
-                  
-                  {workflowStatus ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {/* Total Employees */}
-                      <div className={`p-6 rounded-2xl border ${
-                        theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-blue-50 border-blue-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-sm font-medium ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-blue-600'
-                            }`}>Total Employees</p>
-                            <p className={`text-3xl font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{workflowStatus.totalEmployees}</p>
-                          </div>
-                          <div className={`p-3 rounded-xl ${
-                            theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'
-                          }`}>
-                            <FaUser className={`w-6 h-6 ${
-                              theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                            }`} />
-                          </div>
+                {/* Two-column Workflow Status and Recent Activities */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Workflow Status Cards Section */}
+                  <div>
+                    <div className={`rounded-3xl p-8 border shadow-lg mb-8 ${
+                      theme === 'dark'
+                        ? 'bg-gray-800 border-gray-700'
+                        : 'bg-white border-gray-200'
+                    }`}
+                    >
+                      <h2 className={`text-2xl font-bold mb-8 ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>Workflow Status Overview</h2>
+                      {workflowStatus ? (
+                        <div className="overflow-x-auto mb-8">
+                          <table className={`min-w-full rounded-xl overflow-hidden border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+                            <thead>
+                              <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-50'}>
+                                <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">Count</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr className={theme === 'dark' ? 'bg-gray-900' : 'bg-white'}>
+                                <td className="px-6 py-4 flex items-center gap-3 font-medium">
+                                  <FaIdCard className="w-5 h-5 text-indigo-600 dark:text-indigo-300" /> Ready for ID Card
+                                </td>
+                                <td className="px-6 py-4 text-indigo-900 dark:text-indigo-100 font-bold">{workflowStatus.canRequestIdCard}</td>
+                              </tr>
+                              <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-50'}>
+                                <td className="px-6 py-4 flex items-center gap-3 font-medium">
+                                  <FaClock className="w-5 h-5 text-orange-600 dark:text-orange-300" /> ID Card Requested
+                                </td>
+                                <td className="px-6 py-4 text-orange-900 dark:text-orange-100 font-bold">{workflowStatus.idCardRequested}</td>
+                              </tr>
+                              <tr className={theme === 'dark' ? 'bg-gray-900' : 'bg-white'}>
+                                <td className="px-6 py-4 flex items-center gap-3 font-medium">
+                                  <FaCheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-300" /> ID Card Approved
+                                </td>
+                                <td className="px-6 py-4 text-blue-900 dark:text-blue-100 font-bold">{workflowStatus.idCardApproved}</td>
+                              </tr>
+                              <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-purple-50'}>
+                                <td className="px-6 py-4 flex items-center gap-3 font-medium">
+                                  <FaDownload className="w-5 h-5 text-purple-600 dark:text-purple-300" /> Ready to Issue
+                                </td>
+                                <td className="px-6 py-4 text-purple-900 dark:text-purple-100 font-bold">{workflowStatus.readyToIssue}</td>
+                              </tr>
+                              <tr className={theme === 'dark' ? 'bg-gray-900' : 'bg-white'}>
+                                <td className="px-6 py-4 flex items-center gap-3 font-medium">
+                                  <FaDownload className="w-5 h-5 text-green-600 dark:text-green-300" /> ID Cards Issued
+                                </td>
+                                <td className="px-6 py-4 text-green-900 dark:text-green-100 font-bold">{workflowStatus.idCardIssued}</td>
+                              </tr>
+                              <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-red-50'}>
+                                <td className="px-6 py-4 flex items-center gap-3 font-medium">
+                                  <FaTimesCircle className="w-5 h-5 text-red-600 dark:text-red-300" /> ID Card Rejected
+                                </td>
+                                <td className="px-6 py-4 text-red-900 dark:text-red-100 font-bold">{workflowStatus.idCardRejected}</td>
+                              </tr>
+                            </tbody>
+                          </table>
                         </div>
-                      </div>
-
-                      {/* KYC Pending */}
-                      <div className={`p-6 rounded-2xl border ${
-                        theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-yellow-50 border-yellow-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-sm font-medium ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-yellow-600'
-                            }`}>KYC Pending</p>
-                            <p className={`text-3xl font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{workflowStatus.kycPending}</p>
-                          </div>
-                          <div className={`p-3 rounded-xl ${
-                            theme === 'dark' ? 'bg-yellow-900/20' : 'bg-yellow-100'
-                          }`}>
-                            <FaClock className={`w-6 h-6 ${
-                              theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
-                            }`} />
-                          </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <FaSpinner className="animate-spin text-blue-600 w-12 h-12 mx-auto mb-4" />
+                          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                            Loading workflow status...
+                          </p>
                         </div>
-                      </div>
-
-                      {/* KYC Approved */}
-                      <div className={`p-6 rounded-2xl border ${
-                        theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-green-50 border-green-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-sm font-medium ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-green-600'
-                            }`}>KYC Approved</p>
-                            <p className={`text-3xl font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{workflowStatus.kycApproved}</p>
-                          </div>
-                          <div className={`p-3 rounded-xl ${
-                            theme === 'dark' ? 'bg-green-900/20' : 'bg-green-100'
-                          }`}>
-                            <FaCheckCircle className={`w-6 h-6 ${
-                              theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                            }`} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* KYC Rejected */}
-                      <div className={`p-6 rounded-2xl border ${
-                        theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-red-50 border-red-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-sm font-medium ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-red-600'
-                            }`}>KYC Rejected</p>
-                            <p className={`text-3xl font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{workflowStatus.kycRejected}</p>
-                          </div>
-                          <div className={`p-3 rounded-xl ${
-                            theme === 'dark' ? 'bg-red-900/20' : 'bg-red-100'
-                          }`}>
-                            <FaTimesCircle className={`w-6 h-6 ${
-                              theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                            }`} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Ready for ID Card */}
-                      <div className={`p-6 rounded-2xl border ${
-                        theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-indigo-50 border-indigo-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-sm font-medium ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-indigo-600'
-                            }`}>Ready for ID Card</p>
-                            <p className={`text-3xl font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{workflowStatus.canRequestIdCard}</p>
-                          </div>
-                          <div className={`p-3 rounded-xl ${
-                            theme === 'dark' ? 'bg-indigo-900/20' : 'bg-indigo-100'
-                          }`}>
-                            <FaIdCard className={`w-6 h-6 ${
-                              theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'
-                            }`} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ID Card Requested */}
-                      <div className={`p-6 rounded-2xl border ${
-                        theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-orange-50 border-orange-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-sm font-medium ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-orange-600'
-                            }`}>ID Card Requested</p>
-                            <p className={`text-3xl font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{workflowStatus.idCardRequested}</p>
-                          </div>
-                          <div className={`p-3 rounded-xl ${
-                            theme === 'dark' ? 'bg-orange-900/20' : 'bg-orange-100'
-                          }`}>
-                            <FaClock className={`w-6 h-6 ${
-                              theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                            }`} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ID Card Approved */}
-                      <div className={`p-6 rounded-2xl border ${
-                        theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-blue-50 border-blue-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-sm font-medium ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-blue-600'
-                            }`}>ID Card Approved</p>
-                            <p className={`text-3xl font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{workflowStatus.idCardApproved}</p>
-                          </div>
-                          <div className={`p-3 rounded-xl ${
-                            theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'
-                          }`}>
-                            <FaCheckCircle className={`w-6 h-6 ${
-                              theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                            }`} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Ready to Issue */}
-                      <div className={`p-6 rounded-2xl border ${
-                        theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-purple-50 border-purple-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-sm font-medium ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-purple-600'
-                            }`}>Ready to Issue</p>
-                            <p className={`text-3xl font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{workflowStatus.readyToIssue}</p>
-                          </div>
-                          <div className={`p-3 rounded-xl ${
-                            theme === 'dark' ? 'bg-purple-900/20' : 'bg-purple-100'
-                          }`}>
-                            <FaDownload className={`w-6 h-6 ${
-                              theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
-                            }`} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ID Card Issued */}
-                      <div className={`p-6 rounded-2xl border ${
-                        theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-green-50 border-green-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-sm font-medium ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-green-600'
-                            }`}>ID Cards Issued</p>
-                            <p className={`text-3xl font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{workflowStatus.idCardIssued}</p>
-                          </div>
-                          <div className={`p-3 rounded-xl ${
-                            theme === 'dark' ? 'bg-green-900/20' : 'bg-green-100'
-                          }`}>
-                            <FaDownload className={`w-6 h-6 ${
-                              theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                            }`} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ID Card Rejected */}
-                      <div className={`p-6 rounded-2xl border ${
-                        theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-red-50 border-red-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-sm font-medium ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-red-600'
-                            }`}>ID Card Rejected</p>
-                            <p className={`text-3xl font-bold ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{workflowStatus.idCardRejected}</p>
-                          </div>
-                          <div className={`p-3 rounded-xl ${
-                            theme === 'dark' ? 'bg-red-900/20' : 'bg-red-100'
-                          }`}>
-                            <FaTimesCircle className={`w-6 h-6 ${
-                              theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                            }`} />
-                          </div>
-                        </div>
-                      </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <FaSpinner className="animate-spin text-blue-600 w-12 h-12 mx-auto mb-4" />
-                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        Loading workflow status...
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Recent Activities */}
-                <div className={`rounded-3xl p-8 border ${
-                  theme === 'dark'
-                    ? 'bg-gray-800 border-gray-700'
-                    : 'bg-white border-gray-200'
-                } shadow-lg`}>
-                  <h3 className={`text-xl font-bold mb-6 ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>Recent Activities</h3>
-                  
-                  {recentActivities.length > 0 ? (
-                    <div className="space-y-4">
-                      {recentActivities.map((activity, index) => (
-                        <div key={index} className={`flex items-center justify-between p-4 rounded-xl border ${
-                          theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
-                        }`}>
-                          <div className="flex items-center gap-4">
-                            <div className={`p-2 rounded-lg ${
-                              activity.type.includes('Issued') 
-                                ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-100'
-                                : activity.type.includes('Approved')
-                                ? theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'
-                                : activity.type.includes('Requested')
-                                ? theme === 'dark' ? 'bg-orange-900/20' : 'bg-orange-100'
-                                : theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
-                            }`}>
-                              {activity.type.includes('Issued') && <FaDownload className={`w-4 h-4 ${
-                                theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                              }`} />}
-                              {activity.type.includes('Approved') && <FaCheckCircle className={`w-4 h-4 ${
-                                theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                              }`} />}
-                              {activity.type.includes('Requested') && <FaClock className={`w-4 h-4 ${
-                                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                              }`} />}
-                            </div>
-                            <div>
-                              <p className={`font-semibold ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                              }`}>{activity.type}</p>
-                              <p className={`text-sm ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  </div>
+                  {/* Recent Activities Section */}
+                  <div>
+                    <div className={`rounded-3xl p-8 border shadow-lg h-full flex flex-col ${
+                      theme === 'dark'
+                        ? 'bg-gray-800 border-gray-700'
+                        : 'bg-white border-gray-200'
+                    }`}
+                    >
+                      <h3 className={`text-xl font-bold mb-6 ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>Recent Activities</h3>
+                      {recentActivities.length > 0 ? (
+                        <div className="space-y-4 overflow-y-auto max-h-[400px] pr-2">
+                          {recentActivities
+                            .filter(activity =>
+                              [
+                                'ID Card Requested',
+                                'ID Card Approved',
+                                'ID Card Issued',
+                                'ID Card Rejected',
+                                'Ready to Issue'
+                              ].some(type => activity.type.toLowerCase().includes(type.toLowerCase()))
+                            )
+                            .map((activity, index) => (
+                              <div key={index} className={`flex items-center justify-between p-4 rounded-xl border ${
+                                theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                               }`}>
-                                {activity.fullName} ({activity.employeeId})
-                              </p>
-                            </div>
-                          </div>
-                          <div className={`text-sm ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                          }`}>
-                            {new Date(activity.date).toLocaleDateString()} {new Date(activity.date).toLocaleTimeString()}
-                          </div>
+                                <div className="flex items-center gap-4">
+                                  <div className={`p-2 rounded-lg ${
+                                    activity.type.toLowerCase().includes('issued')
+                                      ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-100'
+                                      : activity.type.toLowerCase().includes('approved')
+                                      ? theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'
+                                      : activity.type.toLowerCase().includes('requested')
+                                      ? theme === 'dark' ? 'bg-orange-900/20' : 'bg-orange-100'
+                                      : activity.type.toLowerCase().includes('rejected')
+                                      ? theme === 'dark' ? 'bg-red-900/20' : 'bg-red-100'
+                                      : theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                                  }`}>
+                                    {activity.type.toLowerCase().includes('issued') && <FaDownload className={`w-4 h-4 ${
+                                      theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                                    }`} />}
+                                    {activity.type.toLowerCase().includes('approved') && <FaCheckCircle className={`w-4 h-4 ${
+                                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                                    }`} />}
+                                    {activity.type.toLowerCase().includes('requested') && <FaClock className={`w-4 h-4 ${
+                                      theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                                    }`} />}
+                                    {activity.type.toLowerCase().includes('rejected') && <FaTimesCircle className={`w-4 h-4 ${
+                                      theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                                    }`} />}
+                                  </div>
+                                  <div>
+                                    <p className={`font-semibold ${
+                                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                    }`}>{activity.type}</p>
+                                    <p className={`text-sm ${
+                                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                    }`}>
+                                      {activity.fullName} ({activity.employeeId})
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className={`text-sm ${
+                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                }`}>
+                                  {new Date(activity.date).toLocaleDateString()} {new Date(activity.date).toLocaleTimeString()}
+                                </div>
+                              </div>
+                            ))}
                         </div>
-                      ))}
+                      ) : (
+                        <div className="text-center py-8">
+                          <FaInfoCircle className={`mx-auto w-12 h-12 mb-4 ${
+                            theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                          }`} />
+                          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                            No recent activities found
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <FaInfoCircle className={`mx-auto w-12 h-12 mb-4 ${
-                        theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                      }`} />
-                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        No recent activities found
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Quick Actions */}
-                <div className={`rounded-3xl p-8 border ${
-                  theme === 'dark'
-                    ? 'bg-gray-800 border-gray-700'
-                    : 'bg-white border-gray-200'
-                } shadow-lg`}>
-                  <h3 className={`text-xl font-bold mb-6 ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>Quick Actions</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <button
-                      onClick={() => setActiveTab('generate')}
-                      className={`p-6 rounded-2xl border transition-all duration-200 ${
-                        theme === 'dark'
-                          ? 'bg-gray-700 border-gray-600 hover:border-blue-500 hover:bg-gray-600'
-                          : 'bg-blue-50 border-blue-200 hover:border-blue-300 hover:bg-blue-100'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-xl ${
-                          theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'
-                        }`}>
-                          <FaIdCard className={`w-6 h-6 ${
-                            theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                          }`} />
-                        </div>
-                        <div className="text-left">
-                          <h4 className={`font-semibold ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>Generate ID Card</h4>
-                          <p className={`text-sm ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Create new ID card requests</p>
-                        </div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab('pending')}
-                      className={`p-6 rounded-2xl border transition-all duration-200 ${
-                        theme === 'dark'
-                          ? 'bg-gray-700 border-gray-600 hover:border-orange-500 hover:bg-gray-600'
-                          : 'bg-orange-50 border-orange-200 hover:border-orange-300 hover:bg-orange-100'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-xl ${
-                          theme === 'dark' ? 'bg-orange-900/20' : 'bg-orange-100'
-                        }`}>
-                          <FaClock className={`w-6 h-6 ${
-                            theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                          }`} />
-                        </div>
-                        <div className="text-left">
-                          <h4 className={`font-semibold ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>Review Pending</h4>
-                          <p className={`text-sm ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Approve or reject requests</p>
-                        </div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab('approved')}
-                      className={`p-6 rounded-2xl border transition-all duration-200 ${
-                        theme === 'dark'
-                          ? 'bg-gray-700 border-gray-600 hover:border-green-500 hover:bg-gray-600'
-                          : 'bg-green-50 border-green-200 hover:border-green-300 hover:bg-green-100'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-xl ${
-                          theme === 'dark' ? 'bg-green-900/20' : 'bg-green-100'
-                        }`}>
-                          <FaDownload className={`w-6 h-6 ${
-                            theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                          }`} />
-                        </div>
-                        <div className="text-left">
-                          <h4 className={`font-semibold ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>Issue Cards</h4>
-                          <p className={`text-sm ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Issue approved ID cards</p>
-                        </div>
-                      </div>
-                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -1873,7 +1607,7 @@ export default function GenerateIDCardPage() {
           >
             <FaTimesCircle className="w-5 h-5 flex-shrink-0" />
             <p className="text-sm font-medium">{error}</p>
-            <button 
+            <button
               onClick={() => setError(null)}
               className="ml-2 hover:opacity-70"
             >
@@ -1895,7 +1629,7 @@ export default function GenerateIDCardPage() {
           >
             <FaCheckCircle className="w-5 h-5 flex-shrink-0" />
             <p className="text-sm font-medium">{success}</p>
-            <button 
+            <button
               onClick={() => setSuccess(null)}
               className="ml-2 hover:opacity-70"
             >

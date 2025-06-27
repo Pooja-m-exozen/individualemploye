@@ -5,6 +5,7 @@ import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayou
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
+import Select from "react-select";
 
 interface UniformRequest {
   _id: string;
@@ -17,6 +18,20 @@ interface UniformRequest {
   };
   status: string;
   requestedItems: string[];
+}
+
+interface InventorySize {
+  _id: string;
+  size: string;
+  quantity: number;
+  unit: string;
+}
+
+interface InventoryItem {
+  _id: string;
+  name: string;
+  category: string;
+  sizeInventory: InventorySize[];
 }
 
 // Define available uniform items (if you want to keep them fixed, otherwise make this dynamic)
@@ -36,12 +51,14 @@ export default function UniformRequestsPage() {
   const [newRequest, setNewRequest] = useState<{
     employeeId: string;
     requestedItems: string[];
-    sizes: { [key: string]: string };
+    sizes: { [key: string]: string[] };
     qty: number;
     remarks: string;
   }>({ employeeId: "", requestedItems: [], sizes: {}, qty: 1, remarks: "" });
   const [createLoading, setCreateLoading] = useState(false);
-  const [customItem, setCustomItem] = useState("");
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [inventoryError, setInventoryError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRequests();
@@ -114,6 +131,24 @@ export default function UniformRequestsPage() {
       setTimeout(() => setToast(null), 3500);
     }
   };
+
+  // Fetch inventory items when modal opens
+  useEffect(() => {
+    if (showCreateModal) {
+      setInventoryLoading(true);
+      setInventoryError(null);
+      fetch("https://inventory.zenapi.co.in/api/inventory/items")
+        .then(res => res.json())
+        .then(data => {
+          setInventoryItems(Array.isArray(data) ? data : data.items || []);
+          setInventoryLoading(false);
+        })
+        .catch(err => {
+          setInventoryError("Failed to fetch inventory items.");
+          setInventoryLoading(false);
+        });
+    }
+  }, [showCreateModal]);
 
   const filteredRequests = requests.filter(req =>
     req.employee.fullName.toLowerCase().includes(search.toLowerCase()) ||
@@ -228,96 +263,81 @@ export default function UniformRequestsPage() {
                 </div>
                 <div>
                   <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Requested Items</label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {UNIFORM_ITEMS.map(item => (
-                      <label
-                        key={item}
-                        className={`flex items-center gap-1 px-3 py-1 rounded-lg cursor-pointer border ${theme === 'dark' ? 'bg-blue-900/20 border-blue-900 text-blue-100' : 'bg-blue-50 border-blue-100 text-blue-700'}`}
-                      >
-                        <input
-                          type="checkbox"
-                          className={theme === 'dark' ? 'accent-blue-400' : 'accent-blue-600'}
-                          checked={newRequest.requestedItems.includes(item)}
-                          onChange={e => {
-                            setNewRequest(r => {
-                              const checked = e.target.checked;
-                              const requestedItems = checked
-                                ? [...r.requestedItems, item]
-                                : r.requestedItems.filter(i => i !== item);
-                              const sizes = { ...r.sizes };
-                              if (!checked) delete sizes[item];
-                              return { ...r, requestedItems, sizes };
+                  {inventoryLoading ? (
+                    <div className="text-blue-500">Loading items...</div>
+                  ) : inventoryError ? (
+                    <div className="text-red-500">{inventoryError}</div>
+                  ) : (
+                    <>
+                      <Select
+                        isMulti
+                        options={inventoryItems.map(item => ({
+                          value: item._id,
+                          label: `${item.name} (${item.category})`,
+                        }))}
+                        value={inventoryItems
+                          .filter(item => newRequest.requestedItems.includes(item._id))
+                          .map(item => ({ value: item._id, label: `${item.name} (${item.category})` }))}
+                        onChange={selectedOptions => {
+                          const selected = selectedOptions.map(opt => opt.value);
+                          setNewRequest(r => {
+                            // Remove sizes for unselected items
+                            const newSizes = { ...r.sizes };
+                            Object.keys(newSizes).forEach(key => {
+                              if (!selected.includes(key)) delete newSizes[key];
                             });
-                          }}
-                        />
-                        <span>{item}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      className={`flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
-                      placeholder="Add custom item..."
-                      value={customItem}
-                      onChange={e => setCustomItem(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className={`px-4 py-2 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-60`}
-                      disabled={!customItem.trim() || newRequest.requestedItems.includes(customItem.trim())}
-                      onClick={() => {
-                        const item = customItem.trim();
-                        if (item && !newRequest.requestedItems.includes(item)) {
-                          setNewRequest(r => ({ ...r, requestedItems: [...r.requestedItems, item] }));
-                          setCustomItem("");
-                        }
-                      }}
-                    >Add</button>
-                  </div>
-                  {/* Show all requested items with remove option */}
-                  {newRequest.requestedItems.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {newRequest.requestedItems.map(item => (
-                        <span key={item} className={`flex items-center gap-1 px-3 py-1 rounded-lg border ${theme === 'dark' ? 'bg-blue-900/20 border-blue-900 text-blue-100' : 'bg-blue-50 border-blue-100 text-blue-700'}`}>
-                          {item}
-                          <button
-                            type="button"
-                            className="ml-1 text-red-500 hover:text-red-700 font-bold"
-                            onClick={() => setNewRequest(r => {
-                              const requestedItems = r.requestedItems.filter(i => i !== item);
-                              const sizes = { ...r.sizes };
-                              delete sizes[item];
-                              return { ...r, requestedItems, sizes };
-                            })}
-                            title="Remove"
-                          >×</button>
-                        </span>
-                      ))}
-                    </div>
+                            return { ...r, requestedItems: selected, sizes: newSizes };
+                          });
+                        }}
+                        classNamePrefix="react-select"
+                        placeholder="Select requested items..."
+                        styles={{
+                          control: (base) => ({ ...base, backgroundColor: theme === 'dark' ? '#1a202c' : '#fff', color: theme === 'dark' ? '#fff' : '#222' }),
+                          menu: (base) => ({ ...base, backgroundColor: theme === 'dark' ? '#2d3748' : '#fff' }),
+                          option: (base, state) => ({ ...base, backgroundColor: state.isFocused ? (theme === 'dark' ? '#2b6cb0' : '#bee3f8') : undefined, color: theme === 'dark' ? '#fff' : '#222' }),
+                          multiValue: (base) => ({ ...base, backgroundColor: theme === 'dark' ? '#2b6cb0' : '#bee3f8', color: theme === 'dark' ? '#fff' : '#222' }),
+                        }}
+                      />
+                      {/* Show sizes for each selected item */}
+                      {newRequest.requestedItems.map(itemId => {
+                        const item = inventoryItems.find(i => i._id === itemId);
+                        if (!item || !Array.isArray(item.sizeInventory)) return null;
+                        const availableSizes = item.sizeInventory.filter((sz: InventorySize) => sz.quantity > 0);
+                        return (
+                          <div key={itemId} className="mt-2 ml-2">
+                            <div className="font-semibold text-sm mb-1">Sizes for {item.name}:</div>
+                            <div className="flex flex-wrap gap-2">
+                              {availableSizes.map((sz: InventorySize) => (
+                                <label key={sz._id} className="flex items-center gap-1 text-sm">
+                                  <input
+                                    type="checkbox"
+                                    className={theme === 'dark' ? 'accent-blue-400' : 'accent-blue-600'}
+                                    checked={Array.isArray(newRequest.sizes[itemId]) && newRequest.sizes[itemId]?.includes(sz.size)}
+                                    onChange={e => {
+                                      setNewRequest(r => {
+                                        let itemSizes = Array.isArray(r.sizes[itemId]) ? [...r.sizes[itemId]] : [];
+                                        if (e.target.checked) {
+                                          itemSizes.push(sz.size);
+                                        } else {
+                                          itemSizes = itemSizes.filter((s) => s !== sz.size);
+                                        }
+                                        return {
+                                          ...r,
+                                          sizes: { ...r.sizes, [itemId]: itemSizes }
+                                        };
+                                      });
+                                    }}
+                                  />
+                                  <span>{sz.size} <span className="text-xs text-gray-400">({sz.quantity} {sz.unit})</span></span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
                   )}
                 </div>
-                {/* For each selected item, show a size input */}
-                {newRequest.requestedItems.length > 0 && (
-                  <div>
-                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Sizes</label>
-                    <div className="flex flex-wrap gap-2">
-                      {newRequest.requestedItems.map(item => (
-                        <div key={item} className="flex items-center gap-2">
-                          <span>{item}:</span>
-                          <input
-                            type="text"
-                            placeholder="Size"
-                            className={`w-20 border rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
-                            value={newRequest.sizes[item] || ""}
-                            onChange={e => setNewRequest(r => ({ ...r, sizes: { ...r.sizes, [item]: e.target.value } }))}
-                            required
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 <div>
                   <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Quantity</label>
                   <input

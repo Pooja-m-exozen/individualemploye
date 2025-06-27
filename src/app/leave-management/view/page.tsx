@@ -440,8 +440,8 @@ function LeaveViewContent() {
               <FaCalendarCheck className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Leave Balance</h1>
-              <p className="text-blue-100 mt-1">View your leave allocation and usage</p>
+              <h1 className="text-3xl font-bold text-white">Leave Balance</h1>
+              <p className="text-white mt-1">View your leave allocation and usage</p>
             </div>
           </div>
           <button

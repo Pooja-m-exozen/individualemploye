@@ -226,38 +226,24 @@ export default function ManagerDashboardPage() {
   // Pie chart calculations
   const totalProjects = projectDistribution.reduce((sum, p) => sum + p.count, 0);
 
-  // Line chart points
-  const maxLeave = leaveTrend.length > 0 ? Math.max(...leaveTrend.map(l => l.count)) : 1;
-
-  // Leave Trend SVG rendering
-  let leaveTrendSVG: React.ReactNode = null;
-  if (leaveTrend && leaveTrend.length > 0) {
-    const svgWidth = Math.max(leaveTrend.length * 80, 480);
-    const svgHeight = 300; // Increased from 180
+  // Attendance Trend Bar Chart rendering
+  let attendanceTrendBarSVG: React.ReactNode = null;
+  if (attendanceTrend && attendanceTrend.length > 0) {
+    const svgWidth = Math.max(attendanceTrend.length * 80, 480);
+    const svgHeight = 220;
     const barWidth = 40;
-    const chartHeight = 220; // Increased from 120
-    leaveTrendSVG = (
-      <svg width={svgWidth} height={svgHeight} className="mb-4">
-        {/* Y axis grid lines */}
-        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-          <line
-            key={t}
-            x1={40}
-            x2={svgWidth - 40}
-            y1={30 + chartHeight * t}
-            y2={30 + chartHeight * t}
-            stroke="#334155"
-            strokeDasharray="4 4"
-          />
-        ))}
+    const chartHeight = 150;
+    const maxTotal = Math.max(...attendanceTrend.map((d) => d.total || 1), 1);
+    attendanceTrendBarSVG = (
+      <svg width={svgWidth} height={svgHeight}>
         {/* X axis line */}
         <line x1={40} x2={svgWidth - 40} y1={30 + chartHeight} y2={30 + chartHeight} stroke="#64748b" strokeWidth={1} />
-        {/* Bars for leave trend */}
-        {leaveTrend.map((l, i) => {
+        {/* Bars for attendance trend */}
+        {attendanceTrend.map((d, i) => {
           const x = 40 + i * 80;
-          const barHeight = (l.count / maxLeave) * chartHeight;
+          const barHeight = (d.present / maxTotal) * chartHeight;
           return (
-            <g key={l._id}>
+            <g key={d.date}>
               <rect
                 x={x - barWidth / 2}
                 y={30 + chartHeight - barHeight}
@@ -274,7 +260,7 @@ export default function ManagerDashboardPage() {
                 fontSize={"1rem"}
                 className={theme === "dark" ? "fill-blue-300" : "fill-blue-700"}
               >
-                {l.count}
+                {d.present}/{d.total}
               </text>
               {/* Date label below bar */}
               <text
@@ -284,9 +270,87 @@ export default function ManagerDashboardPage() {
                 fontSize={"1rem"}
                 className={theme === "dark" ? "fill-gray-300" : "fill-gray-700"}
               >
-                {l._id ? new Date(l._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+                {d.date ? new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
               </text>
             </g>
+          );
+        })}
+        {/* Y axis labels */}
+        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+          <text
+            key={t}
+            x={20}
+            y={30 + chartHeight - chartHeight * t + 5}
+            textAnchor="end"
+            fontSize={"0.9rem"}
+            className={theme === "dark" ? "fill-gray-400" : "fill-gray-500"}
+          >
+            {Math.round(maxTotal * t)}
+          </text>
+        ))}
+      </svg>
+    );
+  }
+
+  // Leave Trend Line Chart rendering
+  let leaveTrendLineSVG: React.ReactNode = null;
+  if (leaveTrend && leaveTrend.length > 0) {
+    const svgWidth = Math.max(leaveTrend.length * 80, 480);
+    const svgHeight = 220;
+    const chartHeight = 150;
+    const maxLeave = Math.max(...leaveTrend.map((l) => l.count), 1);
+    leaveTrendLineSVG = (
+      <svg width={svgWidth} height={svgHeight}>
+        {/* X axis line */}
+        <line x1={40} x2={svgWidth - 40} y1={30 + chartHeight} y2={30 + chartHeight} stroke="#64748b" strokeWidth={1} />
+        {/* Polyline for leave trend */}
+        <polyline
+          fill="none"
+          stroke="#6366f1"
+          strokeWidth={4}
+          points={leaveTrend.map((l, i) => {
+            const x = 40 + i * 80;
+            const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
+            return `${x},${y}`;
+          }).join(" ")}
+        />
+        {/* Circles for each point */}
+        {leaveTrend.map((l, i) => {
+          const x = 40 + i * 80;
+          const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
+          return (
+            <circle key={l._id} cx={x} cy={y} r={8} fill="#6366f1" stroke="#fff" strokeWidth={2} />
+          );
+        })}
+        {/* Value label above point */}
+        {leaveTrend.map((l, i) => {
+          const x = 40 + i * 80;
+          const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
+          return (
+            <text
+              key={l._id + "-val"}
+              x={x}
+              y={y - 15}
+              textAnchor="middle"
+              className={theme === "dark" ? "text-xs fill-blue-300" : "text-xs fill-blue-700"}
+            >
+              {l.count}
+            </text>
+          );
+        })}
+        {/* Date label below point */}
+        {leaveTrend.map((l, i) => {
+          const x = 40 + i * 80;
+          return (
+            <text
+              key={l._id + "-label"}
+              x={x}
+              y={30 + chartHeight + 20}
+              textAnchor="middle"
+              className={theme === "dark" ? "text-xs fill-gray-400" : "text-xs fill-gray-400"}
+            >
+              {l._id ? new Date(l._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+            </text>
           );
         })}
         {/* Y axis labels */}
@@ -344,10 +408,14 @@ export default function ManagerDashboardPage() {
                 theme === "dark" ? "bg-blue-900" : "bg-blue-100"
               }`}
             >
-              {item.icon}
+              {/* Render icon with white color in dark theme, blue in light theme, and bold effect */}
+              {item.label === "Total Employees" && <FaUsers className="w-8 h-8 font-extrabold" color={theme === "dark" ? "#fff" : "#2563eb"} style={{ filter: 'drop-shadow(0 0 2px #0008)' }} />}
+              {item.label === "Active Projects" && <FaProjectDiagram className="w-8 h-8 font-extrabold" color={theme === "dark" ? "#fff" : "#2563eb"} style={{ filter: 'drop-shadow(0 0 2px #0008)' }} />}
+              {item.label === "Pending KYC" && <FaFileAlt className="w-8 h-8 font-extrabold" color={theme === "dark" ? "#fff" : "#2563eb"} style={{ filter: 'drop-shadow(0 0 2px #0008)' }} />}
+              {item.label === "Approved Leaves" && <FaCheckCircle className="w-8 h-8 font-extrabold" color={theme === "dark" ? "#fff" : "#2563eb"} style={{ filter: 'drop-shadow(0 0 2px #0008)' }} />}
             </div>
             <div>
-              <div className={`text-2xl font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
+              <div className={`text-2xl font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}> 
                 {loading || item.value === null ? <span className="animate-pulse">...</span> : item.value}
               </div>
               <div className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>{item.label}</div>
@@ -357,7 +425,7 @@ export default function ManagerDashboardPage() {
       </div>
       {/* Graphs + Recent Activities */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-        {/* Attendance Graph */}
+        {/* Attendance Bar Graph */}
         <div
           className={`rounded-2xl shadow p-6 border col-span-2 flex flex-col ${
             theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
@@ -371,62 +439,70 @@ export default function ManagerDashboardPage() {
               ) : attendanceTrend.length === 0 ? (
                 <div className="w-full text-center text-gray-400">No data</div>
               ) : (
-                <svg width={Math.max(attendanceTrend.length * 80, 480)} height={220}>
-                  {/* Polyline for line graph */}
-                  <polyline
-                    fill="none"
-                    stroke="#6366f1"
-                    strokeWidth={4}
-                    points={attendanceTrend.map((d, i) => {
-                      const x = 40 + i * 70;
-                      // Increase bar/point height for better visibility
-                      const percent = d.total ? d.present / d.total : 0;
-                      const y = 180 - percent * 150; // 150px max height
-                      return `${x},${y}`;
-                    }).join(" ")}
-                  />
-                  {/* Circles for each point */}
-                  {attendanceTrend.map((d, i) => {
-                    const x = 40 + i * 70;
-                    const percent = d.total ? d.present / d.total : 0;
-                    const y = 180 - percent * 150;
-                    return (
-                      <circle key={d.date} cx={x} cy={y} r={8} fill="#6366f1" stroke="#fff" strokeWidth={2} />
-                    );
-                  })}
-                  {/* X axis labels */}
-                  {attendanceTrend.map((d, i) => {
-                    const x = 40 + i * 70;
-                    return (
-                      <text
-                        key={d.date + "-label"}
-                        x={x}
-                        y={205}
-                        textAnchor="middle"
-                        className={theme === "dark" ? "text-xs fill-gray-400" : "text-xs fill-gray-400"}
-                      >
-                        {d.date ? new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
-                      </text>
-                    );
-                  })}
-                  {/* Value labels */}
-                  {attendanceTrend.map((d, i) => {
-                    const x = 40 + i * 70;
-                    const percent = d.total ? d.present / d.total : 0;
-                    const y = 180 - percent * 150;
-                    return (
-                      <text
-                        key={d.date + "-val"}
-                        x={x}
-                        y={y - 15}
-                        textAnchor="middle"
-                        className={theme === "dark" ? "text-xs fill-blue-300" : "text-xs fill-blue-700"}
-                      >
-                        {d.present}/{d.total}
-                      </text>
-                    );
-                  })}
-                </svg>
+                // Attendance Bar Graph without gridlines
+                (() => {
+                  const svgWidth = Math.max(attendanceTrend.length * 80, 480);
+                  const svgHeight = 220;
+                  const barWidth = 40;
+                  const chartHeight = 150;
+                  const maxTotal = Math.max(...attendanceTrend.map((d) => d.total || 1), 1);
+                  return (
+                    <svg width={svgWidth} height={svgHeight}>
+                      {/* X axis line */}
+                      <line x1={40} x2={svgWidth - 40} y1={30 + chartHeight} y2={30 + chartHeight} stroke="#64748b" strokeWidth={1} />
+                      {/* Bars for attendance trend */}
+                      {attendanceTrend.map((d, i) => {
+                        const x = 40 + i * 80;
+                        const barHeight = (d.present / maxTotal) * chartHeight;
+                        return (
+                          <g key={d.date}>
+                            <rect
+                              x={x - barWidth / 2}
+                              y={30 + chartHeight - barHeight}
+                              width={barWidth}
+                              height={barHeight}
+                              fill="#6366f1"
+                              rx={6}
+                            />
+                            {/* Value label above bar */}
+                            <text
+                              x={x}
+                              y={30 + chartHeight - barHeight - 8}
+                              textAnchor="middle"
+                              fontSize={"1rem"}
+                              className={theme === "dark" ? "fill-blue-300" : "fill-blue-700"}
+                            >
+                              {d.present}/{d.total}
+                            </text>
+                            {/* Date label below bar */}
+                            <text
+                              x={x}
+                              y={30 + chartHeight + 20}
+                              textAnchor="middle"
+                              fontSize={"1rem"}
+                              className={theme === "dark" ? "fill-gray-300" : "fill-gray-700"}
+                            >
+                              {d.date ? new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+                            </text>
+                          </g>
+                        );
+                      })}
+                      {/* Y axis labels */}
+                      {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+                        <text
+                          key={t}
+                          x={20}
+                          y={30 + chartHeight - chartHeight * t + 5}
+                          textAnchor="end"
+                          fontSize={"0.9rem"}
+                          className={theme === "dark" ? "fill-gray-400" : "fill-gray-500"}
+                        >
+                          {Math.round(maxTotal * t)}
+                        </text>
+                      ))}
+                    </svg>
+                  );
+                })()
               )}
             </div>
           </div>
@@ -480,7 +556,7 @@ export default function ManagerDashboardPage() {
       </div>
       {/* Leave Trend and Recent Activities in the same row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        {/* Leave Trend Bar Chart (Scrollable) */}
+        {/* Leave Trend Line Chart (Scrollable) */}
         <div
           className={`rounded-2xl shadow p-6 border flex flex-col items-center ${
             theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
@@ -488,7 +564,82 @@ export default function ManagerDashboardPage() {
         >
           <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Leave Trend (Last 6 Months)</div>
           <div className="w-full overflow-x-auto flex justify-center">
-            {leaveTrendSVG}
+            {/* Leave Trend Line Graph without gridlines */}
+            {(() => {
+              const svgWidth = Math.max(leaveTrend.length * 80, 480);
+              const svgHeight = 220;
+              const chartHeight = 150;
+              const maxLeave = Math.max(...leaveTrend.map((l) => l.count), 1);
+              return (
+                <svg width={svgWidth} height={svgHeight}>
+                  {/* X axis line */}
+                  <line x1={40} x2={svgWidth - 40} y1={30 + chartHeight} y2={30 + chartHeight} stroke="#64748b" strokeWidth={1} />
+                  {/* Polyline for leave trend */}
+                  <polyline
+                    fill="none"
+                    stroke="#6366f1"
+                    strokeWidth={4}
+                    points={leaveTrend.map((l, i) => {
+                      const x = 40 + i * 80;
+                      const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
+                      return `${x},${y}`;
+                    }).join(" ")}
+                  />
+                  {/* Circles for each point */}
+                  {leaveTrend.map((l, i) => {
+                    const x = 40 + i * 80;
+                    const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
+                    return (
+                      <circle key={l._id} cx={x} cy={y} r={8} fill="#6366f1" stroke="#fff" strokeWidth={2} />
+                    );
+                  })}
+                  {/* Value label above point */}
+                  {leaveTrend.map((l, i) => {
+                    const x = 40 + i * 80;
+                    const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
+                    return (
+                      <text
+                        key={l._id + "-val"}
+                        x={x}
+                        y={y - 15}
+                        textAnchor="middle"
+                        className={theme === "dark" ? "text-xs fill-blue-300" : "text-xs fill-blue-700"}
+                      >
+                        {l.count}
+                      </text>
+                    );
+                  })}
+                  {/* Date label below point */}
+                  {leaveTrend.map((l, i) => {
+                    const x = 40 + i * 80;
+                    return (
+                      <text
+                        key={l._id + "-label"}
+                        x={x}
+                        y={30 + chartHeight + 20}
+                        textAnchor="middle"
+                        className={theme === "dark" ? "text-xs fill-gray-400" : "text-xs fill-gray-400"}
+                      >
+                        {l._id ? new Date(l._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+                      </text>
+                    );
+                  })}
+                  {/* Y axis labels */}
+                  {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+                    <text
+                      key={t}
+                      x={20}
+                      y={30 + chartHeight - chartHeight * t + 5}
+                      textAnchor="end"
+                      fontSize={"0.9rem"}
+                      className={theme === "dark" ? "fill-gray-400" : "fill-gray-500"}
+                    >
+                      {Math.round(maxLeave * t)}
+                    </text>
+                  ))}
+                </svg>
+              );
+            })()}
           </div>
         </div>
         {/* Recent Activities */}

@@ -298,8 +298,8 @@ function RegularizationContent() {
               <FaClipboardCheck className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Attendance Regularization</h1>
-              <p className="text-blue-100 mt-1">Request attendance corrections and track their status</p>
+              <h1 className="text-3xl font-bold text-white">Attendance Regularization</h1>
+              <p className="text-white mt-1">Request attendance corrections and track their status</p>
             </div>
           </div>
         </div>
@@ -664,19 +664,19 @@ function RegularizationContent() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-muted">
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                       Date
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                       Time
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                       Regularization Reason
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                       Regularization Date
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                       Status
                     </th>
                   </tr>
