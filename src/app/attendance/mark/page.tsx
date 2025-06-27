@@ -330,34 +330,35 @@ function MarkAttendanceContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header Section */}
-      <div className="mb-8">
-        <div className={`flex items-center gap-6 rounded-2xl px-8 py-8 ${
-          theme === 'dark'
-            ? 'bg-gradient-to-r from-gray-800 to-gray-700'
-            : 'bg-gradient-to-r from-blue-600 to-blue-500'
-        }`}>
-          <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${
-            theme === 'dark' ? 'bg-gray-700/50' : 'bg-blue-500 bg-opacity-30'
-          }`}>
-            <FaUserCheck className="w-8 h-8 text-white" />
+      <div className={`rounded-2xl shadow-xl p-8 mb-8 ${
+        theme === 'dark'
+          ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+          : 'bg-gradient-to-r from-blue-600 to-blue-800'
+      }`}>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl">
+              <FaUserCheck className="text-3xl text-white" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold">Mark Attendance</h2>
+              <p className="text-blue-100 mt-1">Welcome to the official attendance management system</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white">Mark Attendance</h1>
-            <p className={`text-lg ${theme === 'dark' ? 'text-gray-300' : 'text-blue-100'}`}>Welcome to the official attendance management system</p>
-          </div>
-          <div className="flex-1 flex justify-end gap-8">
+          <div className="flex items-center gap-6 bg-white/10 backdrop-blur-md px-6 py-4 rounded-xl">
             <div className="flex items-center gap-3">
               <FaClock className="text-2xl text-blue-200" />
               <div>
-                <p className="text-2xl font-bold text-white">{currentTime}</p>
-                <p className="text-sm text-blue-100">Current Time</p>
+                <p className="text-2xl font-bold">{currentTime}</p>
+                <p className="text-sm text-blue-200">Current Time</p>
               </div>
             </div>
+            <div className="w-px h-12 bg-white/20"></div>
             <div className="flex items-center gap-3">
               <FaCalendarAlt className="text-2xl text-blue-200" />
               <div>
-                <p className="font-medium text-white">{currentDate}</p>
-                <p className="text-sm text-blue-100">Todays Date</p>
+                <p className="font-medium">{currentDate}</p>
+                <p className="text-sm text-blue-200">Today&apos;s Date</p>
               </div>
             </div>
           </div>

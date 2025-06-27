@@ -4,8 +4,8 @@ const nextConfig = {
   swcMinify: true,
   basePath: '/v1/employee',
   images: {
-    domains: ['cafm.zenapi.co.in'],
+    domains: ['cafm.zenapi.co.in', 'localhost'],
   },
 }
 
-module.exports = nextConfig 
+module.exports = nextConfig
