@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { FaSearch, FaUsers, FaChevronRight, FaCheckCircle, FaIdCard, FaTshirt, FaCalendarAlt, FaPlaneDeparture, FaMoneyBillWave, FaFileAlt } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import Image from "next/image";
 
 type WorkflowKey = 'kyc' | 'idCard' | 'uniform' | 'attendance' | 'leave' | 'payslip';
 
@@ -120,7 +121,7 @@ export default function EmployeeManagementPage() {
         const projects = Array.from(new Set(kycForms.map(f => f.personalDetails?.projectName).filter((p): p is string => Boolean(p))));
         setProjectOptions(["All Projects", ...projects]);
         // Prepare employee base info
-        const baseEmployees = kycForms.map((form: KycForm) => {
+        const baseEmployees: BaseEmployee[] = kycForms.map((form: KycForm) => {
           const pd = form.personalDetails || {};
           return {
             employeeId: pd.employeeId || pd.empId || "",
@@ -131,7 +132,7 @@ export default function EmployeeManagementPage() {
           };
         }).filter((emp: { employeeId: string }) => emp.employeeId);
         // Fetch summary for each employee
-        const summaryPromises = baseEmployees.map(async (emp: any) => {
+        const summaryPromises = baseEmployees.map(async (emp: BaseEmployee) => {
           try {
             const summaryRes = await fetch(`https://cafm.zenapi.co.in/api/employees/${emp.employeeId}/summary`);
             if (!summaryRes.ok) throw new Error();
@@ -149,7 +150,7 @@ export default function EmployeeManagementPage() {
               summary,
               personalDetails: emp.personalDetails,
               projectName: emp.projectName,
-            } as EmployeeWithSummary & { personalDetails: any, projectName: string };
+            } as EmployeeWithSummary;
           } catch {
             return {
               ...emp,
@@ -164,10 +165,10 @@ export default function EmployeeManagementPage() {
               summary: null,
               personalDetails: emp.personalDetails,
               projectName: emp.projectName,
-            } as EmployeeWithSummary & { personalDetails: any, projectName: string };
+            } as EmployeeWithSummary;
           }
         });
-        const employeesWithWorkflow: any[] = await Promise.all(summaryPromises);
+        const employeesWithWorkflow: EmployeeWithSummary[] = await Promise.all(summaryPromises);
         setEmployees(employeesWithWorkflow);
       })
       .catch((err: Error) => setError(err.message))
@@ -181,7 +182,7 @@ export default function EmployeeManagementPage() {
   ], [employees]);
 
   const filteredEmployees = useMemo(() => {
-    return employees.filter((emp: any) => {
+    return employees.filter((emp: EmployeeWithSummary) => {
       const matchesSearch =
         emp.fullName.toLowerCase().includes(search.toLowerCase()) ||
         emp.employeeId.toLowerCase().includes(search.toLowerCase());
@@ -206,7 +207,7 @@ export default function EmployeeManagementPage() {
   }, [search, employees]);
 
   // Dummy data for each step
-  const getStepDetails = (step: WorkflowKey, emp: any) => {
+  const getStepDetails = (step: WorkflowKey, emp: EmployeeWithSummary) => {
     const summary = emp.summary || {};
     // Get image, name, employeeId, designation, projectName
     const empName = emp.fullName;
@@ -217,14 +218,14 @@ export default function EmployeeManagementPage() {
     let empImageUrl = emp.personalDetails?.employeeImage;
     // fallback for idCard/uniform if not present
     if (!empImageUrl && summary.kyc?.documents && summary.kyc.documents.length > 0) {
-      const imgDoc = summary.kyc.documents.find((doc: any) => doc.type.toLowerCase().includes("image") || doc.url.match(/\.(jpg|jpeg|png|gif)$/i));
+      const imgDoc = summary.kyc.documents.find((doc: KycDocument) => doc.type.toLowerCase().includes("image") || doc.url.match(/\.(jpg|jpeg|png|gif)$/i));
       if (imgDoc) empImageUrl = imgDoc.url;
     }
-    if (!empImageUrl && summary.kyc && (summary.kyc as any).personalDetails?.employeeImage) {
-      empImageUrl = (summary.kyc as any).personalDetails.employeeImage;
+    if (!empImageUrl && summary.kyc && (summary.kyc as KycSummary & { personalDetails?: { employeeImage?: string } }).personalDetails?.employeeImage) {
+      empImageUrl = (summary.kyc as KycSummary & { personalDetails?: { employeeImage?: string } }).personalDetails?.employeeImage;
     }
-    if (!empImageUrl && (emp as any).personalDetails?.employeeImage) {
-      empImageUrl = (emp as any).personalDetails.employeeImage;
+    if (!empImageUrl && (emp as EmployeeWithSummary).personalDetails?.employeeImage) {
+      empImageUrl = (emp as EmployeeWithSummary).personalDetails?.employeeImage;
     }
     // fallback: use empImageUrl from KYC summary or emp object
     switch (step) {
@@ -236,7 +237,7 @@ export default function EmployeeManagementPage() {
             <h3 className="text-xl font-bold mb-2 text-blue-700">KYC Details</h3>
             <div className="flex items-center gap-4 mb-4">
               {empImageUrl && (
-                <img src={empImageUrl} alt="Employee" className="w-20 h-20 rounded-full object-cover border border-gray-300" />
+                <Image src={empImageUrl} alt="Employee" width={80} height={80} className="w-20 h-20 rounded-full object-cover border border-gray-300" />
               )}
               <div>
                 <div className="font-semibold text-lg">{empName}</div>
@@ -271,13 +272,13 @@ export default function EmployeeManagementPage() {
       }
       case "idCard": {
         const idStatus = summary.idCard?.status || "Pending";
-        let statusColor = idStatus === "Issued" ? (theme === "dark" ? "text-green-400" : "text-green-600") : idStatus === "Pending" ? (theme === "dark" ? "text-yellow-400" : "text-yellow-600") : (theme === "dark" ? "text-red-400" : "text-red-600");
+        const statusColor = idStatus === "Issued" ? (theme === "dark" ? "text-green-400" : "text-green-600") : idStatus === "Pending" ? (theme === "dark" ? "text-yellow-400" : "text-yellow-600") : (theme === "dark" ? "text-red-400" : "text-red-600");
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">ID Card</h3>
             <div className="flex items-center gap-4 mb-4">
               {empImageUrl && (
-                <img src={empImageUrl} alt="Employee" className="w-20 h-20 rounded-full object-cover border border-gray-300" />
+                <Image src={empImageUrl} alt="Employee" width={80} height={80} className="w-20 h-20 rounded-full object-cover border border-gray-300" />
               )}
               <div>
                 <div className="font-semibold text-lg">{empName}</div>
@@ -295,13 +296,13 @@ export default function EmployeeManagementPage() {
       }
       case "uniform": {
         const issued = summary.uniform && summary.uniform.items && summary.uniform.items.length > 0;
-        let statusColor = issued ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600");
+        const statusColor = issued ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600");
         return (
           <div>
             <h3 className="text-xl font-bold mb-2 text-blue-700">Uniform</h3>
             <div className="flex items-center gap-4 mb-4">
               {empImageUrl && (
-                <img src={empImageUrl} alt="Employee" className="w-20 h-20 rounded-full object-cover border border-gray-300" />
+                <Image src={empImageUrl} alt="Employee" width={80} height={80} className="w-20 h-20 rounded-full object-cover border border-gray-300" />
               )}
               <div>
                 <div className="font-semibold text-lg">{empName}</div>
@@ -665,3 +666,16 @@ export default function EmployeeManagementPage() {
     </div>
   );
 }
+
+// Add this interface above EmployeeWithSummary
+type BaseEmployee = {
+  employeeId: string;
+  fullName: string;
+  designation: string;
+  projectName?: string;
+  personalDetails?: {
+    employeeImage?: string;
+    projectName?: string;
+    // ...other fields
+  };
+};

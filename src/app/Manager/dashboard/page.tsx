@@ -408,14 +408,14 @@ export default function ManagerDashboardPage() {
                 theme === "dark" ? "bg-blue-900" : "bg-blue-100"
               }`}
             >
-              {/* Render icon with white color in dark theme, blue in light theme, and bold effect */}
-              {item.label === "Total Employees" && <FaUsers className="w-8 h-8 font-extrabold" color={theme === "dark" ? "#fff" : "#2563eb"} style={{ filter: 'drop-shadow(0 0 2px #0008)' }} />}
-              {item.label === "Active Projects" && <FaProjectDiagram className="w-8 h-8 font-extrabold" color={theme === "dark" ? "#fff" : "#2563eb"} style={{ filter: 'drop-shadow(0 0 2px #0008)' }} />}
-              {item.label === "Pending KYC" && <FaFileAlt className="w-8 h-8 font-extrabold" color={theme === "dark" ? "#fff" : "#2563eb"} style={{ filter: 'drop-shadow(0 0 2px #0008)' }} />}
-              {item.label === "Approved Leaves" && <FaCheckCircle className="w-8 h-8 font-extrabold" color={theme === "dark" ? "#fff" : "#2563eb"} style={{ filter: 'drop-shadow(0 0 2px #0008)' }} />}
+              {/* Render icon with blue color in light theme, white in dark theme */}
+              {item.label === "Total Employees" && <FaUsers className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
+              {item.label === "Active Projects" && <FaProjectDiagram className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
+              {item.label === "Pending KYC" && <FaFileAlt className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
+              {item.label === "Approved Leaves" && <FaCheckCircle className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
             </div>
             <div>
-              <div className={`text-2xl font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}> 
+              <div className={`text-2xl font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
                 {loading || item.value === null ? <span className="animate-pulse">...</span> : item.value}
               </div>
               <div className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>{item.label}</div>
@@ -439,70 +439,7 @@ export default function ManagerDashboardPage() {
               ) : attendanceTrend.length === 0 ? (
                 <div className="w-full text-center text-gray-400">No data</div>
               ) : (
-                // Attendance Bar Graph without gridlines
-                (() => {
-                  const svgWidth = Math.max(attendanceTrend.length * 80, 480);
-                  const svgHeight = 220;
-                  const barWidth = 40;
-                  const chartHeight = 150;
-                  const maxTotal = Math.max(...attendanceTrend.map((d) => d.total || 1), 1);
-                  return (
-                    <svg width={svgWidth} height={svgHeight}>
-                      {/* X axis line */}
-                      <line x1={40} x2={svgWidth - 40} y1={30 + chartHeight} y2={30 + chartHeight} stroke="#64748b" strokeWidth={1} />
-                      {/* Bars for attendance trend */}
-                      {attendanceTrend.map((d, i) => {
-                        const x = 40 + i * 80;
-                        const barHeight = (d.present / maxTotal) * chartHeight;
-                        return (
-                          <g key={d.date}>
-                            <rect
-                              x={x - barWidth / 2}
-                              y={30 + chartHeight - barHeight}
-                              width={barWidth}
-                              height={barHeight}
-                              fill="#6366f1"
-                              rx={6}
-                            />
-                            {/* Value label above bar */}
-                            <text
-                              x={x}
-                              y={30 + chartHeight - barHeight - 8}
-                              textAnchor="middle"
-                              fontSize={"1rem"}
-                              className={theme === "dark" ? "fill-blue-300" : "fill-blue-700"}
-                            >
-                              {d.present}/{d.total}
-                            </text>
-                            {/* Date label below bar */}
-                            <text
-                              x={x}
-                              y={30 + chartHeight + 20}
-                              textAnchor="middle"
-                              fontSize={"1rem"}
-                              className={theme === "dark" ? "fill-gray-300" : "fill-gray-700"}
-                            >
-                              {d.date ? new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
-                            </text>
-                          </g>
-                        );
-                      })}
-                      {/* Y axis labels */}
-                      {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-                        <text
-                          key={t}
-                          x={20}
-                          y={30 + chartHeight - chartHeight * t + 5}
-                          textAnchor="end"
-                          fontSize={"0.9rem"}
-                          className={theme === "dark" ? "fill-gray-400" : "fill-gray-500"}
-                        >
-                          {Math.round(maxTotal * t)}
-                        </text>
-                      ))}
-                    </svg>
-                  );
-                })()
+                attendanceTrendBarSVG
               )}
             </div>
           </div>
@@ -564,82 +501,7 @@ export default function ManagerDashboardPage() {
         >
           <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Leave Trend (Last 6 Months)</div>
           <div className="w-full overflow-x-auto flex justify-center">
-            {/* Leave Trend Line Graph without gridlines */}
-            {(() => {
-              const svgWidth = Math.max(leaveTrend.length * 80, 480);
-              const svgHeight = 220;
-              const chartHeight = 150;
-              const maxLeave = Math.max(...leaveTrend.map((l) => l.count), 1);
-              return (
-                <svg width={svgWidth} height={svgHeight}>
-                  {/* X axis line */}
-                  <line x1={40} x2={svgWidth - 40} y1={30 + chartHeight} y2={30 + chartHeight} stroke="#64748b" strokeWidth={1} />
-                  {/* Polyline for leave trend */}
-                  <polyline
-                    fill="none"
-                    stroke="#6366f1"
-                    strokeWidth={4}
-                    points={leaveTrend.map((l, i) => {
-                      const x = 40 + i * 80;
-                      const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
-                      return `${x},${y}`;
-                    }).join(" ")}
-                  />
-                  {/* Circles for each point */}
-                  {leaveTrend.map((l, i) => {
-                    const x = 40 + i * 80;
-                    const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
-                    return (
-                      <circle key={l._id} cx={x} cy={y} r={8} fill="#6366f1" stroke="#fff" strokeWidth={2} />
-                    );
-                  })}
-                  {/* Value label above point */}
-                  {leaveTrend.map((l, i) => {
-                    const x = 40 + i * 80;
-                    const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
-                    return (
-                      <text
-                        key={l._id + "-val"}
-                        x={x}
-                        y={y - 15}
-                        textAnchor="middle"
-                        className={theme === "dark" ? "text-xs fill-blue-300" : "text-xs fill-blue-700"}
-                      >
-                        {l.count}
-                      </text>
-                    );
-                  })}
-                  {/* Date label below point */}
-                  {leaveTrend.map((l, i) => {
-                    const x = 40 + i * 80;
-                    return (
-                      <text
-                        key={l._id + "-label"}
-                        x={x}
-                        y={30 + chartHeight + 20}
-                        textAnchor="middle"
-                        className={theme === "dark" ? "text-xs fill-gray-400" : "text-xs fill-gray-400"}
-                      >
-                        {l._id ? new Date(l._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
-                      </text>
-                    );
-                  })}
-                  {/* Y axis labels */}
-                  {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-                    <text
-                      key={t}
-                      x={20}
-                      y={30 + chartHeight - chartHeight * t + 5}
-                      textAnchor="end"
-                      fontSize={"0.9rem"}
-                      className={theme === "dark" ? "fill-gray-400" : "fill-gray-500"}
-                    >
-                      {Math.round(maxLeave * t)}
-                    </text>
-                  ))}
-                </svg>
-              );
-            })()}
+            {leaveTrendLineSVG}
           </div>
         </div>
         {/* Recent Activities */}

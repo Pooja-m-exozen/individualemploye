@@ -35,7 +35,7 @@ interface InventoryItem {
 }
 
 // Define available uniform items (if you want to keep them fixed, otherwise make this dynamic)
-const UNIFORM_ITEMS = ["Shirt", "Trousers", "Cap", "Jacket", "Shoes", "Belt"];
+// const UNIFORM_ITEMS = ["Shirt", "Trousers", "Cap", "Jacket", "Shoes", "Belt"];
 
 export default function UniformRequestsPage() {
   const { theme } = useTheme();
@@ -143,10 +143,7 @@ export default function UniformRequestsPage() {
           setInventoryItems(Array.isArray(data) ? data : data.items || []);
           setInventoryLoading(false);
         })
-        .catch(err => {
-          setInventoryError("Failed to fetch inventory items.");
-          setInventoryLoading(false);
-        });
+        .catch ()
     }
   }, [showCreateModal]);
 

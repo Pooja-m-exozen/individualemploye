@@ -129,7 +129,6 @@ export default function GenerateIDCardPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [generatedCard, setGeneratedCard] = useState<string | null>(null);
-  const [pendingRequests, setPendingRequests] = useState<IDCardRequest[]>([]);
   const [allRequests, setAllRequests] = useState<IDCardRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -285,7 +284,7 @@ export default function GenerateIDCardPage() {
       }
      
       setAllRequests(allRequests);
-      setPendingRequests(allRequests.filter((req: IDCardRequest) => req.status === 'Requested'));
+      // setPendingRequests(allRequests.filter((req: IDCardRequest) => req.status === 'Requested'));
     } catch (err) {
       console.error('Error fetching requests:', err);
       setError('Failed to fetch ID card requests');
@@ -580,7 +579,7 @@ export default function GenerateIDCardPage() {
           break;
         default:
           aValue = a.fullName;
-          bValue = b.fullName;
+          bValue = a.fullName;
       }
 
       if (filters.sortOrder === 'asc') {
@@ -1640,4 +1639,4 @@ export default function GenerateIDCardPage() {
       </AnimatePresence>
     </ManagerDashboardLayout>
   );
-} 
+}
