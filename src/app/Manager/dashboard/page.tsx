@@ -241,7 +241,13 @@ export default function ManagerDashboardPage() {
         {/* Bars for attendance trend */}
         {attendanceTrend.map((d, i) => {
           const x = 40 + i * 80;
-          const barHeight = (d.present / maxTotal) * chartHeight;
+          // Increase bar height for the first and third bars by 20%
+          let barHeight = (d.present / maxTotal) * chartHeight;
+          if (i === 0 || i === 2) {
+            barHeight *= 1.2;
+            // Ensure barHeight does not exceed chartHeight
+            barHeight = Math.min(barHeight, chartHeight);
+          }
           return (
             <g key={d.date}>
               <rect
