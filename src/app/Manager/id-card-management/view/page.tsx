@@ -185,12 +185,14 @@ export default function ViewIDCardsPage() {
 
       // Employee Photo (left)
       const idPhotoX = 24, idPhotoY = 60, idPhotoW = 70, idPhotoH = 90;
+      let imageDataUrl = '';
       const imageUrl = card.employeeImage || '/placeholder-user.jpg';
       try {
-        const img = await fetch(imageUrl);
+        const img = await fetch(imageUrl, { mode: 'cors' });
+        if (!img.ok) throw new Error(`Image fetch failed: ${img.status}`);
         const blob = await img.blob();
-        const reader = new FileReader();
-        const imageDataPromise = new Promise<string>((resolve, reject) => {
+        imageDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
           reader.onloadend = () => {
             if (typeof reader.result === "string") {
               resolve(reader.result);
@@ -199,12 +201,41 @@ export default function ViewIDCardsPage() {
             }
           };
           reader.onerror = reject;
+          reader.readAsDataURL(blob);
         });
-        reader.readAsDataURL(blob);
-        const imageDataUrl = await imageDataPromise;
+        // Check format
+        if (!imageDataUrl.startsWith('data:image/jpeg') && !imageDataUrl.startsWith('data:image/png')) {
+          throw new Error('Image is not JPEG or PNG');
+        }
+      } catch (err) {
+        console.error('Failed to fetch/convert employee image:', err);
+        // fallback to placeholder
+        try {
+          const placeholderImg = await fetch('/placeholder-user.jpg');
+          const placeholderBlob = await placeholderImg.blob();
+          imageDataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              if (typeof reader.result === "string") {
+                resolve(reader.result);
+              } else {
+                reject(new Error("Image data is not a string"));
+              }
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(placeholderBlob);
+          });
+        } catch (fallbackErr) {
+          console.error('Failed to load placeholder image:', fallbackErr);
+          imageDataUrl = '';
+        }
+      }
+      if (imageDataUrl) {
         doc.roundedRect(idPhotoX-4, idPhotoY-4, idPhotoW+8, idPhotoH+8, 10, 10, 'S');
-        doc.addImage(imageDataUrl, 'JPEG', idPhotoX, idPhotoY, idPhotoW, idPhotoH);
-      } catch {}
+        // Use correct format for addImage
+        const format = imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(imageDataUrl, format, idPhotoX, idPhotoY, idPhotoW, idPhotoH);
+      }
 
       // QR code (right)
       const idQrW = 60, idQrH = 60;
