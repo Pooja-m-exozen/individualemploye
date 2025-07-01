@@ -126,8 +126,9 @@ export default function CreateKYCPage() {
           console.warn('Employee data is not an array:', employeeData);
         }
         // Check ALL KYC forms (not just pending)
+        type KYCForm = { personalDetails?: { employeeId?: string } };
         if (kycData && Array.isArray(kycData.kycForms)) {
-          kycData.kycForms.forEach((form: any) => {
+          kycData.kycForms.forEach((form: KYCForm) => {
             if (form.personalDetails && typeof form.personalDetails.employeeId === 'string' && form.personalDetails.employeeId.startsWith('EFMS')) {
               const num = parseInt(form.personalDetails.employeeId.replace('EFMS', ''));
               if (!isNaN(num) && num > maxNum) maxNum = num;
