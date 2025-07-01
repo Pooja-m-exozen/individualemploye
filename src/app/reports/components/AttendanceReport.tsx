@@ -585,8 +585,9 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         if (summary) {
             const workingDays = summary.summary.totalDays - (summary.summary.weekOffs + summary.summary.holidays);
             const totalWeekoff = summary.summary.weekOffs ?? 0;
-            const totalPayableDays = summary.summary.presentDays + (summary.summary.halfDays / 2) + summary.summary.el + summary.summary.sl + summary.summary.cl + summary.summary.compOff;
-            const attendancePercentage = ((totalPayableDays / workingDays) * 100).toFixed(2);
+            const totalLop = summary.summary.lop ?? 0;
+            const totalPayableDays = workingDays - totalLop;
+            const attendancePercentage = workingDays > 0 ? ((totalPayableDays / workingDays) * 100).toFixed(2) : '0.00';
             doc.text([
                 `Total Working Days: ${workingDays} days`,
                 `Total Weekoff: ${totalWeekoff} days`,
