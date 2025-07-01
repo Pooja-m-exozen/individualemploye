@@ -101,12 +101,12 @@ const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string,
 const getPayableDays = (attendance: Attendance[]): number => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+  // Only count Present, EL, SL, CL as payable days
   return attendance.filter(a => {
     const attendanceDate = new Date(a.date);
     attendanceDate.setHours(0, 0, 0, 0);
     if (attendanceDate > today) return false;
-    return ['P', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff'].includes(a.status);
+    return ['P', 'EL', 'SL', 'CL'].includes(a.status);
   }).length;
 };
 
@@ -195,7 +195,7 @@ const OverallAttendancePage = (): JSX.Element => {
 
         if (kycData.kycForms) {
           const filteredEmployees = kycData.kycForms
-            .filter((form: KycForm) => form.personalDetails.projectName === "Exozen - Ops")
+            .filter((form: KycForm) => form.personalDetails.projectName === "Exozen - IT")
             .map((form: KycForm) => ({
               employeeId: form.personalDetails.employeeId,
               fullName: form.personalDetails.fullName,
@@ -243,7 +243,7 @@ const OverallAttendancePage = (): JSX.Element => {
         employees.forEach((employee) => {
           const employeeAttendance = data.attendance.filter((record: AttendanceRecord) => 
             record.employeeId === employee.employeeId && 
-            record.projectName === "Exozen - Ops"
+            record.projectName === "Exozen - IT"
           );
           const employeeLeaves = leaveData[employee.employeeId] || [];
 
