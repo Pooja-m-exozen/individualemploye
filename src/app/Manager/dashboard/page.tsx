@@ -428,7 +428,7 @@ export default function ManagerDashboardPage() {
       <div
         className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r ${
           theme === "dark"
-            ? "from-blue-900 to-blue-700"
+            ? "from-gray-900 to-gray-800"
             : "from-blue-500 to-blue-800"
         }`}
       >

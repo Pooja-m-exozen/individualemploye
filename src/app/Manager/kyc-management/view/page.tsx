@@ -326,7 +326,7 @@ export default function ViewAllKYCPage() {
 
   return (
     <ManagerDashboardLayout>
-      <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'} flex flex-col py-8`}>
+      <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'} flex flex-col py-8 pt-20`}>
         {/* Modern KYC Header */}
         <div className={`rounded-2xl mb-8 p-6 flex items-center justify-between shadow-lg w-full max-w-7xl mx-auto
           ${theme === 'dark' ? 'bg-gradient-to-r from-gray-800 to-gray-700' : 'bg-gradient-to-r from-blue-500 to-blue-800'}`}
@@ -504,8 +504,8 @@ export default function ViewAllKYCPage() {
               ) : (
                 <>
                   {/* KYC Records Table */}
-                  <div className="overflow-x-auto">
-                    <table className={`min-w-full divide-y
+                  <div className="w-full max-h-[500px] overflow-y-auto">
+                    <table className={`min-w-max w-full text-sm divide-y
                       ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}
                     >
                       <thead className={theme === 'dark' ? 'bg-gray-900 sticky top-0 z-10' : 'bg-gray-50 sticky top-0 z-10'}>

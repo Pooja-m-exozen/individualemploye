@@ -203,11 +203,11 @@ export default function LeaveManagementViewPage() {
       >
         {/* Header */}
         <div
-          className={`bg-gradient-to-r ${
+          className={`rounded-2xl mb-8 p-8 flex items-center gap-6 shadow-lg ${
             theme === "dark"
-              ? "from-blue-900 to-blue-700 text-white"
-              : "from-blue-600 to-blue-800 text-white"
-          } rounded-lg p-6 mb-6 flex items-center gap-6 shadow-lg`}
+              ? "bg-[#2d3748]"
+              : "bg-gradient-to-r from-blue-600 to-blue-800 text-white"
+          }`}
         >
           <div
             className={`$${
@@ -216,7 +216,7 @@ export default function LeaveManagementViewPage() {
                 : "bg-white text-blue-600"
             } p-6 rounded-full flex items-center justify-center shadow-md`}
           >
-            <FaUserAlt className="text-3xl" />
+            <FaUserAlt className="text-3xl text-white" />
           </div>
           <div>
             <h1 className="text-3xl font-bold">Employee Leave Report</h1>
@@ -411,32 +411,46 @@ export default function LeaveManagementViewPage() {
               </table>
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center mt-4 gap-2">
+              <div className="flex justify-center items-center mt-6 gap-2">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className={`px-3 py-1 rounded border font-medium transition-colors duration-200 ${
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
                     currentPage === 1
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
                       : theme === 'dark'
-                      ? 'bg-gray-700 text-white hover:bg-blue-800'
-                      : 'bg-white text-blue-700 hover:bg-blue-100'
+                        ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
+                        : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
                   }`}
                 >
                   Prev
                 </button>
-                <span className="mx-2 text-sm font-medium">
-                  Page {currentPage} of {totalPages}
-                </span>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-4 py-2 rounded-lg font-semibold border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                      currentPage === page
+                        ? theme === 'dark'
+                          ? 'bg-blue-700 text-white border-blue-700 shadow-lg'
+                          : 'bg-blue-600 text-white border-blue-600 shadow-lg'
+                        : theme === 'dark'
+                          ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-blue-800 hover:text-white'
+                          : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className={`px-3 py-1 rounded border font-medium transition-colors duration-200 ${
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
                     currentPage === totalPages
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
                       : theme === 'dark'
-                      ? 'bg-gray-700 text-white hover:bg-blue-800'
-                      : 'bg-white text-blue-700 hover:bg-blue-100'
+                        ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
+                        : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
                   }`}
                 >
                   Next

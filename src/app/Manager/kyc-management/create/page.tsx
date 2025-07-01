@@ -254,7 +254,7 @@ export default function CreateKYCPage() {
           </div>
         </div>
         {/* Only the content area below header is scrollable */}
-        <div className="w-full max-w-5xl mx-auto h-[calc(100vh-64px-48px)] flex flex-col md:flex-row gap-8">
+        <div className="w-full max-w-5xl mx-auto flex flex-col md:flex-row gap-8">
           {/* Side Navigation */}
           <aside className="md:w-64 flex-shrink-0 flex flex-col gap-6 h-full overflow-y-auto">
             <div className={`rounded-2xl p-4 sticky top-8 border shadow ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
@@ -316,381 +316,383 @@ export default function CreateKYCPage() {
             </div>
           </aside>
           {/* Main Content */}
-          <main className="flex-1 h-full overflow-y-auto">
-            {/* Instructions/Notes Card below timeline */}
+          <div className="flex-1" style={{ maxHeight: "calc(100vh - 220px)", overflowY: "auto" }}>
+            <main>
+              {/* Instructions/Notes Card below timeline */}
 
-            {/* Instructions Panel */}
-            {showInstructions && (
-              <div className={`rounded-2xl p-6 mb-8 relative border shadow ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
-                <button
-                  onClick={() => setShowInstructions(false)}
-                  className={`absolute top-4 right-4 ${theme === "dark" ? "text-gray-500 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"}`}
-                >
-                  <FaChevronRight className="w-5 h-5 rotate-180" />
-                </button>
-                <div className="flex items-start gap-4">
-                  <div className={`p-3 rounded-xl ${theme === "dark" ? "bg-gray-700" : "bg-blue-100"}`}>
-                    <FaInfoCircle className={`w-6 h-6 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`} />
-                  </div>
-                  <div>
-                    <h3 className={`text-lg font-semibold mb-2 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>KYC Instructions</h3>
-                    <ul className={`space-y-2 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
-                      <li className="flex items-center gap-2"><FaCheckCircle className="w-4 h-4 text-green-500" /> Fill in all required fields for each section.</li>
-                      <li className="flex items-center gap-2"><FaCheckCircle className="w-4 h-4 text-green-500" /> Upload clear and legible documents.</li>
-                      <li className="flex items-center gap-2"><FaCheckCircle className="w-4 h-4 text-green-500" /> Double-check your details before submitting.</li>
-                    </ul>
+              {/* Instructions Panel */}
+              {showInstructions && (
+                <div className={`rounded-2xl p-6 mb-8 relative border shadow ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
+                  <button
+                    onClick={() => setShowInstructions(false)}
+                    className={`absolute top-4 right-4 ${theme === "dark" ? "text-gray-500 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"}`}
+                  >
+                    <FaChevronRight className="w-5 h-5 rotate-180" />
+                  </button>
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-xl ${theme === "dark" ? "bg-gray-700" : "bg-blue-100"}`}>
+                      <FaInfoCircle className={`w-6 h-6 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`} />
+                    </div>
+                    <div>
+                      <h3 className={`text-lg font-semibold mb-2 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>KYC Instructions</h3>
+                      <ul className={`space-y-2 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                        <li className="flex items-center gap-2"><FaCheckCircle className="w-4 h-4 text-green-500" /> Fill in all required fields for each section.</li>
+                        <li className="flex items-center gap-2"><FaCheckCircle className="w-4 h-4 text-green-500" /> Upload clear and legible documents.</li>
+                        <li className="flex items-center gap-2"><FaCheckCircle className="w-4 h-4 text-green-500" /> Double-check your details before submitting.</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <form className="space-y-8" onSubmit={handleSubmit} encType="multipart/form-data">
-              {/* Section Cards */}
-              {activeSection === "personal" && (
-                <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
-                  <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Personal Details</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Employee ID</label>
-                      <input name="employeeId" value={personalDetails.employeeId} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Project Name</label>
-                      <select
-                        name="projectName"
-                        value={personalDetails.projectName}
-                        onChange={handlePersonalChange}
-                        className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`}
-                        required
-                      >
-                        <option value="">{projectLoading ? "Loading projects..." : "Select project..."}</option>
-                        {projectList.map(p => (
-                          <option key={p._id} value={p.projectName}>{p.projectName}</option>
-                        ))}
-                      </select>
-                      {projectError && <div className="text-red-500 text-xs mt-1">{projectError}</div>}
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Full Name</label>
-                      <input name="fullName" value={personalDetails.fullName} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Father&apos;s Name</label>
-                      <input name="fathersName" value={personalDetails.fathersName} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Mother&apos;s Name</label>
-                      <input name="mothersName" value={personalDetails.mothersName} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Gender</label>
-                      <select name="gender" value={personalDetails.gender} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`}>
-                        <option value="">Select</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Date of Birth</label>
-                      <input name="dob" type="date" value={personalDetails.dob} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Phone Number</label>
-                      <input name="phoneNumber" value={personalDetails.phoneNumber} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Designation</label>
-                      <input name="designation" value={personalDetails.designation} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Date of Joining</label>
-                      <input name="dateOfJoining" type="date" value={personalDetails.dateOfJoining} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Nationality</label>
-                      <input name="nationality" value={personalDetails.nationality} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Religion</label>
-                      <input name="religion" value={personalDetails.religion} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Marital Status</label>
-                      <input name="maritalStatus" value={personalDetails.maritalStatus} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Blood Group</label>
-                      <input name="bloodGroup" value={personalDetails.bloodGroup} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>UAN Number</label>
-                      <input name="uanNumber" value={personalDetails.uanNumber} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>ESIC Number</label>
-                      <input name="esicNumber" value={personalDetails.esicNumber} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Experience</label>
-                      <input name="experience" value={personalDetails.experience} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Educational Qualification</label>
-                      <input name="educationalQualification" value={personalDetails.educationalQualification} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Languages (comma separated)</label>
-                      <input name="languages" value={personalDetails.languages} onChange={handleLanguagesChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Work Type</label>
-                      <input name="workType" value={personalDetails.workType} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                  </div>
-                </section>
-              )}
-              {activeSection === "address" && (
-                <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
-                  <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Address Details</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - State</label>
-                      <input name="state" value={addressDetails.permanentAddress.state} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - City</label>
-                      <input name="city" value={addressDetails.permanentAddress.city} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - Street</label>
-                      <input name="street" value={addressDetails.permanentAddress.street} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - Postal Code</label>
-                      <input name="postalCode" value={addressDetails.permanentAddress.postalCode} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - State</label>
-                      <input name="state" value={addressDetails.currentAddress.state} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - City</label>
-                      <input name="city" value={addressDetails.currentAddress.city} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - Street</label>
-                      <input name="street" value={addressDetails.currentAddress.street} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - Postal Code</label>
-                      <input name="postalCode" value={addressDetails.currentAddress.postalCode} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                  </div>
-                </section>
-              )}
-              {activeSection === "bank" && (
-                <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
-                  <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Bank Details</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Bank Name</label>
-                      <input name="bankName" value={bankDetails.bankName} onChange={handleBankChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Branch Name</label>
-                      <input name="branchName" value={bankDetails.branchName} onChange={handleBankChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Account Number</label>
-                      <input name="accountNumber" value={bankDetails.accountNumber} onChange={handleBankChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>IFSC Code</label>
-                      <input name="ifscCode" value={bankDetails.ifscCode} onChange={handleBankChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                  </div>
-                </section>
-              )}
-              {activeSection === "id" && (
-                <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
-                  <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Identification Details</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Identification Type</label>
-                      <select name="identificationType" value={identificationDetails.identificationType} onChange={handleIdentificationChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`}>
-                        <option value="">Select</option>
-                        <option value="Pan Card">Pan Card</option>
-                        <option value="Aadhar Card">Aadhar Card</option>
-                        <option value="Voter ID">Voter ID</option>
-                        <option value="Driving License">Driving License</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Identification Number</label>
-                      <input name="identificationNumber" value={identificationDetails.identificationNumber} onChange={handleIdentificationChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                  </div>
-                </section>
-              )}
-              {activeSection === "emergency" && (
-                <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
-                  <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Emergency Contact</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Emergency Contact Name</label>
-                      <input name="name" value={emergencyContact.name} onChange={handleEmergencyChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Emergency Contact Phone</label>
-                      <input name="phone" value={emergencyContact.phone} onChange={handleEmergencyChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Relationship</label>
-                      <input name="relationship" value={emergencyContact.relationship} onChange={handleEmergencyChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Aadhar</label>
-                      <input name="aadhar" value={emergencyContact.aadhar} onChange={handleEmergencyChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                  </div>
-                </section>
-              )}
-              {activeSection === "image" && (
-                <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
-                  <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee Image</h2>
-                  <input type="file" accept="image/*" onChange={handleImageChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-
-                  {/* Document Upload Section - only in Uploads section, after employee image */}
-                  <div className="mt-8">
-                    <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}><FaPaperclip /> Upload Documents (Optional)</h2>
-                    {/* Single Document Upload */}
-                    <form className="mb-6" onSubmit={handleSingleDocUpload} encType="multipart/form-data">
-                      <div className="flex flex-col md:flex-row gap-4 items-end">
-                        <div className="flex-1">
-                          <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Document File</label>
-                          <input type="file" accept="*" onChange={e => setSingleDocFile(e.target.files ? e.target.files[0] : null)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
-                        </div>
-                        <div className="flex-1">
-                          <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Document Type</label>
-                          <input type="text" value={singleDocType} onChange={e => setSingleDocType(e.target.value)} placeholder="e.g. aadhar, pan, bankStatement" className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
-                        </div>
-                        <button type="submit" className="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold flex items-center gap-2 hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"><FaUpload /> Upload</button>
+              <form className="space-y-8" onSubmit={handleSubmit} encType="multipart/form-data">
+                {/* Section Cards */}
+                {activeSection === "personal" && (
+                  <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
+                    <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Personal Details</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Employee ID</label>
+                        <input name="employeeId" value={personalDetails.employeeId} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required />
                       </div>
-                      {singleDocStatus && <div className="text-green-600 mt-2">{singleDocStatus}</div>}
-                      {singleDocError && <div className="text-red-600 mt-2">{singleDocError}</div>}
-                    </form>
-                    {/* Multiple Documents Upload */}
-                    <form onSubmit={handleMultiDocUpload} encType="multipart/form-data">
-                      <div className="flex flex-col gap-4">
-                        <div>
-                          <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Select Multiple Documents</label>
-                          <input type="file" accept="*" multiple onChange={e => {
-                            setMultiDocFiles(e.target.files);
-                            setMultiDocTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
-                            setMultiDocCustomTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
-                          }} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Project Name</label>
+                        <select
+                          name="projectName"
+                          value={personalDetails.projectName}
+                          onChange={handlePersonalChange}
+                          className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`}
+                          required
+                        >
+                          <option value="">{projectLoading ? "Loading projects..." : "Select project..."}</option>
+                          {projectList.map(p => (
+                            <option key={p._id} value={p.projectName}>{p.projectName}</option>
+                          ))}
+                        </select>
+                        {projectError && <div className="text-red-500 text-xs mt-1">{projectError}</div>}
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Full Name</label>
+                        <input name="fullName" value={personalDetails.fullName} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Father&apos;s Name</label>
+                        <input name="fathersName" value={personalDetails.fathersName} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Mother&apos;s Name</label>
+                        <input name="mothersName" value={personalDetails.mothersName} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Gender</label>
+                        <select name="gender" value={personalDetails.gender} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`}>
+                          <option value="">Select</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Date of Birth</label>
+                        <input name="dob" type="date" value={personalDetails.dob} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Phone Number</label>
+                        <input name="phoneNumber" value={personalDetails.phoneNumber} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Designation</label>
+                        <input name="designation" value={personalDetails.designation} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Date of Joining</label>
+                        <input name="dateOfJoining" type="date" value={personalDetails.dateOfJoining} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Nationality</label>
+                        <input name="nationality" value={personalDetails.nationality} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Religion</label>
+                        <input name="religion" value={personalDetails.religion} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Marital Status</label>
+                        <input name="maritalStatus" value={personalDetails.maritalStatus} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Blood Group</label>
+                        <input name="bloodGroup" value={personalDetails.bloodGroup} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>UAN Number</label>
+                        <input name="uanNumber" value={personalDetails.uanNumber} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>ESIC Number</label>
+                        <input name="esicNumber" value={personalDetails.esicNumber} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Experience</label>
+                        <input name="experience" value={personalDetails.experience} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Educational Qualification</label>
+                        <input name="educationalQualification" value={personalDetails.educationalQualification} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Languages (comma separated)</label>
+                        <input name="languages" value={personalDetails.languages} onChange={handleLanguagesChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Work Type</label>
+                        <input name="workType" value={personalDetails.workType} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                    </div>
+                  </section>
+                )}
+                {activeSection === "address" && (
+                  <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
+                    <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Address Details</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - State</label>
+                        <input name="state" value={addressDetails.permanentAddress.state} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - City</label>
+                        <input name="city" value={addressDetails.permanentAddress.city} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - Street</label>
+                        <input name="street" value={addressDetails.permanentAddress.street} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - Postal Code</label>
+                        <input name="postalCode" value={addressDetails.permanentAddress.postalCode} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - State</label>
+                        <input name="state" value={addressDetails.currentAddress.state} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - City</label>
+                        <input name="city" value={addressDetails.currentAddress.city} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - Street</label>
+                        <input name="street" value={addressDetails.currentAddress.street} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - Postal Code</label>
+                        <input name="postalCode" value={addressDetails.currentAddress.postalCode} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                    </div>
+                  </section>
+                )}
+                {activeSection === "bank" && (
+                  <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
+                    <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Bank Details</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Bank Name</label>
+                        <input name="bankName" value={bankDetails.bankName} onChange={handleBankChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Branch Name</label>
+                        <input name="branchName" value={bankDetails.branchName} onChange={handleBankChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Account Number</label>
+                        <input name="accountNumber" value={bankDetails.accountNumber} onChange={handleBankChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>IFSC Code</label>
+                        <input name="ifscCode" value={bankDetails.ifscCode} onChange={handleBankChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                    </div>
+                  </section>
+                )}
+                {activeSection === "id" && (
+                  <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
+                    <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Identification Details</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Identification Type</label>
+                        <select name="identificationType" value={identificationDetails.identificationType} onChange={handleIdentificationChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`}>
+                          <option value="">Select</option>
+                          <option value="Pan Card">Pan Card</option>
+                          <option value="Aadhar Card">Aadhar Card</option>
+                          <option value="Voter ID">Voter ID</option>
+                          <option value="Driving License">Driving License</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Identification Number</label>
+                        <input name="identificationNumber" value={identificationDetails.identificationNumber} onChange={handleIdentificationChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                    </div>
+                  </section>
+                )}
+                {activeSection === "emergency" && (
+                  <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
+                    <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Emergency Contact</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Emergency Contact Name</label>
+                        <input name="name" value={emergencyContact.name} onChange={handleEmergencyChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Emergency Contact Phone</label>
+                        <input name="phone" value={emergencyContact.phone} onChange={handleEmergencyChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Relationship</label>
+                        <input name="relationship" value={emergencyContact.relationship} onChange={handleEmergencyChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Aadhar</label>
+                        <input name="aadhar" value={emergencyContact.aadhar} onChange={handleEmergencyChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      </div>
+                    </div>
+                  </section>
+                )}
+                {activeSection === "image" && (
+                  <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
+                    <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee Image</h2>
+                    <input type="file" accept="image/*" onChange={handleImageChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+
+                    {/* Document Upload Section - only in Uploads section, after employee image */}
+                    <div className="mt-8">
+                      <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}><FaPaperclip /> Upload Documents (Optional)</h2>
+                      {/* Single Document Upload */}
+                      <form className="mb-6" onSubmit={handleSingleDocUpload} encType="multipart/form-data">
+                        <div className="flex flex-col md:flex-row gap-4 items-end">
+                          <div className="flex-1">
+                            <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Document File</label>
+                            <input type="file" accept="*" onChange={e => setSingleDocFile(e.target.files ? e.target.files[0] : null)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
+                          </div>
+                          <div className="flex-1">
+                            <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Document Type</label>
+                            <input type="text" value={singleDocType} onChange={e => setSingleDocType(e.target.value)} placeholder="e.g. aadhar, pan, bankStatement" className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
+                          </div>
+                          <button type="submit" className="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold flex items-center gap-2 hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"><FaUpload /> Upload</button>
                         </div>
-                        {multiDocFiles && multiDocFiles.length > 0 && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {Array.from(multiDocFiles).map((file, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <span className="truncate flex-1">{file.name}</span>
-                                <select
-                                  value={multiDocTypes[idx] === undefined ? "" : (documentTypeOptions.includes(multiDocTypes[idx]) ? multiDocTypes[idx] : "other")}
-                                  onChange={e => {
-                                    const newTypes = [...multiDocTypes];
-                                    if (e.target.value === "other") {
-                                      newTypes[idx] = multiDocCustomTypes[idx] || "";
-                                    } else {
-                                      newTypes[idx] = e.target.value;
-                                    }
-                                    setMultiDocTypes(newTypes);
-                                    if (e.target.value !== "other") {
-                                      const newCustom = [...multiDocCustomTypes];
-                                      newCustom[idx] = "";
-                                      setMultiDocCustomTypes(newCustom);
-                                    }
-                                  }}
-                                  className={`rounded-lg px-2 py-1 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`}
-                                >
-                                  <option value="">Select Type</option>
-                                  {documentTypeOptions.map(opt => (
-                                    <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
-                                  ))}
-                                </select>
-                                {((multiDocTypes[idx] && !documentTypeOptions.includes(multiDocTypes[idx])) || (multiDocTypes[idx] === "" && multiDocCustomTypes[idx])) && (
-                                  <input
-                                    type="text"
-                                    placeholder="Custom Type"
-                                    value={multiDocCustomTypes[idx] || ""}
+                        {singleDocStatus && <div className="text-green-600 mt-2">{singleDocStatus}</div>}
+                        {singleDocError && <div className="text-red-600 mt-2">{singleDocError}</div>}
+                      </form>
+                      {/* Multiple Documents Upload */}
+                      <form onSubmit={handleMultiDocUpload} encType="multipart/form-data">
+                        <div className="flex flex-col gap-4">
+                          <div>
+                            <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Select Multiple Documents</label>
+                            <input type="file" accept="*" multiple onChange={e => {
+                              setMultiDocFiles(e.target.files);
+                              setMultiDocTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
+                              setMultiDocCustomTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
+                            }} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
+                          </div>
+                          {multiDocFiles && multiDocFiles.length > 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {Array.from(multiDocFiles).map((file, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <span className="truncate flex-1">{file.name}</span>
+                                  <select
+                                    value={multiDocTypes[idx] === undefined ? "" : (documentTypeOptions.includes(multiDocTypes[idx]) ? multiDocTypes[idx] : "other")}
                                     onChange={e => {
-                                      const newCustom = [...multiDocCustomTypes];
-                                      newCustom[idx] = e.target.value;
-                                      setMultiDocCustomTypes(newCustom);
-                                      // Also update multiDocTypes to use the custom value
                                       const newTypes = [...multiDocTypes];
-                                      newTypes[idx] = e.target.value;
+                                      if (e.target.value === "other") {
+                                        newTypes[idx] = multiDocCustomTypes[idx] || "";
+                                      } else {
+                                        newTypes[idx] = e.target.value;
+                                      }
                                       setMultiDocTypes(newTypes);
+                                      if (e.target.value !== "other") {
+                                        const newCustom = [...multiDocCustomTypes];
+                                        newCustom[idx] = "";
+                                        setMultiDocCustomTypes(newCustom);
+                                      }
                                     }}
                                     className={`rounded-lg px-2 py-1 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`}
-                                  />
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <button type="submit" className="px-6 py-3 rounded-xl bg-green-600 text-white font-bold flex items-center gap-2 hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed"><FaUpload /> Upload Multiple</button>
-                        {multiDocStatus && <div className="text-green-600 mt-2">{multiDocStatus}</div>}
-                        {multiDocError && <div className="text-red-600 mt-2">{multiDocError}</div>}
-                      </div>
-                    </form>
-                  </div>
-                </section>
-              )}
+                                  >
+                                    <option value="">Select Type</option>
+                                    {documentTypeOptions.map(opt => (
+                                      <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
+                                    ))}
+                                  </select>
+                                  {((multiDocTypes[idx] && !documentTypeOptions.includes(multiDocTypes[idx])) || (multiDocTypes[idx] === "" && multiDocCustomTypes[idx])) && (
+                                    <input
+                                      type="text"
+                                      placeholder="Custom Type"
+                                      value={multiDocCustomTypes[idx] || ""}
+                                      onChange={e => {
+                                        const newCustom = [...multiDocCustomTypes];
+                                        newCustom[idx] = e.target.value;
+                                        setMultiDocCustomTypes(newCustom);
+                                        // Also update multiDocTypes to use the custom value
+                                        const newTypes = [...multiDocTypes];
+                                        newTypes[idx] = e.target.value;
+                                        setMultiDocTypes(newTypes);
+                                      }}
+                                      className={`rounded-lg px-2 py-1 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`}
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <button type="submit" className="px-6 py-3 rounded-xl bg-green-600 text-white font-bold flex items-center gap-2 hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed"><FaUpload /> Upload Multiple</button>
+                          {multiDocStatus && <div className="text-green-600 mt-2">{multiDocStatus}</div>}
+                          {multiDocError && <div className="text-red-600 mt-2">{multiDocError}</div>}
+                        </div>
+                      </form>
+                    </div>
+                  </section>
+                )}
 
-              {/* Navigation and Submit */}
-              <div className="flex items-center justify-between pt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const idx = sections.findIndex(s => s.id === activeSection);
-                    if (idx > 0) setActiveSection(sections[idx - 1].id);
-                  }}
-                  className={`px-6 py-2 text-gray-600 hover:text-gray-900 transition-colors ${theme === "dark" ? "text-gray-400 hover:text-gray-200" : "text-gray-600 hover:text-gray-900"}`}
-                  disabled={activeSection === sections[0].id}
-                >
-                  Previous
-                </button>
-                <div className="flex items-center gap-4">
-                  {activeSection !== sections[sections.length - 1].id ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const idx = sections.findIndex(s => s.id === activeSection);
-                        if (idx < sections.length - 1) setActiveSection(sections[idx + 1].id);
-                        if (!completedSections.includes(activeSection)) setCompletedSections([...completedSections, activeSection]);
-                      }}
-                      className={`px-8 py-3 rounded-xl text-white font-medium bg-blue-600 hover:bg-blue-700 transition-all ${theme === "dark" ? "bg-gray-700 hover:bg-gray-600" : "bg-blue-600 hover:bg-blue-700"}`}
-                    >
-                      Next
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      className={`px-8 py-3 rounded-xl text-white font-medium bg-blue-600 hover:bg-blue-700 transition-all ${theme === "dark" ? "bg-gray-700 hover:bg-gray-600" : "bg-blue-600 hover:bg-blue-700"}`}
-                      disabled={loading}
-                    >
-                      {loading ? <span className="flex items-center gap-2"><FaSpinner className="animate-spin" /> Submitting...</span> : "Create KYC"}
-                    </button>
-                  )}
+                {/* Navigation and Submit */}
+                <div className="flex items-center justify-between pt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const idx = sections.findIndex(s => s.id === activeSection);
+                      if (idx > 0) setActiveSection(sections[idx - 1].id);
+                    }}
+                    className={`px-6 py-2 text-gray-600 hover:text-gray-900 transition-colors ${theme === "dark" ? "text-gray-400 hover:text-gray-200" : "text-gray-600 hover:text-gray-900"}`}
+                    disabled={activeSection === sections[0].id}
+                  >
+                    Previous
+                  </button>
+                  <div className="flex items-center gap-4">
+                    {activeSection !== sections[sections.length - 1].id ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const idx = sections.findIndex(s => s.id === activeSection);
+                          if (idx < sections.length - 1) setActiveSection(sections[idx + 1].id);
+                          if (!completedSections.includes(activeSection)) setCompletedSections([...completedSections, activeSection]);
+                        }}
+                        className={`px-8 py-3 rounded-xl text-white font-medium bg-blue-600 hover:bg-blue-700 transition-all ${theme === "dark" ? "bg-gray-700 hover:bg-gray-600" : "bg-blue-600 hover:bg-blue-700"}`}
+                      >
+                        Next
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        className={`px-8 py-3 rounded-xl text-white font-medium bg-blue-600 hover:bg-blue-700 transition-all ${theme === "dark" ? "bg-gray-700 hover:bg-gray-600" : "bg-blue-600 hover:bg-blue-700"}`}
+                        disabled={loading}
+                      >
+                        {loading ? <span className="flex items-center gap-2"><FaSpinner className="animate-spin" /> Submitting...</span> : "Create KYC"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-              {/* Message */}
-              {message && <div className={`text-blue-600 font-medium mt-2 text-center ${theme === "dark" ? "text-blue-300" : ""}`}>{message}</div>}
-              {error && <div className={`text-red-600 font-medium mt-2 text-center ${theme === "dark" ? "text-red-300" : ""}`}>{error}</div>}
-            </form>
-          </main>
+                {/* Message */}
+                {message && <div className={`text-blue-600 font-medium mt-2 text-center ${theme === "dark" ? "text-blue-300" : ""}`}>{message}</div>}
+                {error && <div className={`text-red-600 font-medium mt-2 text-center ${theme === "dark" ? "text-red-300" : ""}`}>{error}</div>}
+              </form>
+            </main>
+          </div>
         </div>
       </div>
     </ManagerDashboardLayout>

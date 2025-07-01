@@ -275,8 +275,14 @@ export default function ViewIDCardsPage() {
       <div className={`min-h-screen font-sans ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-200' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'}`}>
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r from-blue-500 to-blue-800">
-            <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
+          <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r ${
+            theme === "dark"
+              ? "from-gray-900 to-gray-800"
+              : "from-blue-500 to-blue-800"
+          }`}>
+            <div className={`rounded-xl p-4 flex items-center justify-center ${
+              theme === "dark" ? "bg-gray-800 bg-opacity-60" : "bg-blue-600 bg-opacity-30"
+            }`}>
               <FaIdCard className="w-10 h-10 text-white" />
             </div>
             <div>

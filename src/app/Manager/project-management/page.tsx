@@ -339,19 +339,9 @@ export default function ProjectManagementPage() {
       >
         <div className="p-6">
           {/* Header */}
-          <div
-            className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r ${
-              theme === "dark"
-                ? "from-blue-900 to-blue-700"
-                : "from-blue-500 to-blue-800"
-            }`}
-          >
-            <div
-              className={`rounded-xl p-4 flex items-center justify-center ${
-                theme === "dark" ? "bg-blue-900 bg-opacity-40" : "bg-blue-600 bg-opacity-30"
-              }`}
-            >
-              <FaProjectDiagram className="w-10 h-10 text-white" />
+          <div className={`rounded-2xl mb-8 p-8 flex items-center gap-6 shadow-lg ${theme === 'dark' ? 'bg-[#2d3748]' : 'bg-blue-100'}`}>
+            <div className={`rounded-xl p-5 flex items-center justify-center ${theme === 'dark' ? 'bg-gray-800 bg-opacity-60' : 'bg-blue-600 bg-opacity-30'}`}>
+              <FaProjectDiagram className="w-12 h-12 text-white" />
             </div>
             <div>
               <h1 className="text-3xl font-bold text-white mb-1">Project Management</h1>

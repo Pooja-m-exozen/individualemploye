@@ -102,8 +102,8 @@ const UniformViewPage = () => {
 			<div className={`min-h-screen flex flex-col items-center py-8 ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
 				{/* Header */}
 				<div className="mb-8 w-full max-w-7xl mx-auto">
-					<div className={`flex items-center gap-6 rounded-2xl px-8 py-8 ${theme === 'dark' ? 'bg-gradient-to-r from-blue-900 to-blue-700' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}>
-						<div className={`flex items-center justify-center w-16 h-16 rounded-xl ${theme === 'dark' ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-500 bg-opacity-30'}`}>
+					<div className={`flex items-center gap-6 rounded-2xl px-8 py-8 ${theme === 'dark' ? 'bg-gradient-to-r from-black to-gray-900' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}>
+						<div className={`flex items-center justify-center w-16 h-16 rounded-xl ${theme === 'dark' ? 'bg-black bg-opacity-60' : 'bg-blue-500 bg-opacity-30'}`}>
 							<FaTshirt className="w-8 h-8 text-white" />
 						</div>
 						<div>
@@ -113,75 +113,30 @@ const UniformViewPage = () => {
 					</div>
 				</div>
 				{/* Controls: View Toggle, Status Filter, Export, Search */}
-				<div className={`w-full max-w-7xl mx-auto mb-6 flex flex-col md:flex-row items-center gap-3 justify-between sticky top-0 z-30 py-2 px-2 rounded-2xl shadow ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
-					<div className="flex gap-2 mb-2 md:mb-0">
+				<div className={`w-full max-w-7xl mx-auto mb-8 flex flex-wrap items-center gap-3 justify-between px-4 py-4 rounded-2xl shadow`}>
+					<div className="flex flex-wrap gap-2 items-center">
 						<button onClick={() => setViewMode('card')} className={`px-4 py-2 rounded-l-xl font-semibold border ${viewMode === 'card'
 							? theme === 'dark'
 								? 'bg-blue-800 text-white border-blue-800'
 								: 'bg-blue-600 text-white border-blue-600'
 							: theme === 'dark'
 								? 'bg-gray-900 text-blue-200 border-gray-700'
-								: 'bg-white text-blue-700 border-blue-200'} transition flex items-center gap-2`}><FaThLarge /> Card View</button>
+								: 'bg-white text-blue-700 border-blue-200'} transition flex items-center gap-2`}> <FaThLarge /> Card View</button>
 						<button onClick={() => setViewMode('table')} className={`px-4 py-2 rounded-r-xl font-semibold border-l-0 border ${viewMode === 'table'
 							? theme === 'dark'
 								? 'bg-blue-800 text-white border-blue-800'
 								: 'bg-blue-600 text-white border-blue-600'
 							: theme === 'dark'
 								? 'bg-gray-900 text-blue-200 border-gray-700'
-								: 'bg-white text-blue-700 border-blue-200'} transition flex items-center gap-2`}><FaTable /> Table View</button>
+								: 'bg-white text-blue-700 border-blue-200'} transition flex items-center gap-2`}> <FaTable /> Table View</button>
+						<select value={projectFilter} onChange={e => { setProjectFilter(e.target.value); setCurrentPage(1); }} className={`ml-2 w-40 appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "bg-white border-gray-200 text-black"}`}> <option value="All Projects">All Projects</option> {projectOptions.map(project => (<option key={project} value={project}>{project}</option>))} </select>
+						<select value={designationFilter} onChange={e => { setDesignationFilter(e.target.value); setCurrentPage(1); }} className={`w-40 appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "bg-white border-gray-200 text-black"}`}> <option value="All Designations">All Designations</option> {designationOptions.map(designation => (<option key={designation} value={designation}>{designation}</option>))} </select>
+						<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`w-36 border rounded-xl px-3 py-2 font-semibold focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-700 border-blue-200 focus:ring-blue-400'}`}> <option value="All">All Statuses</option> <option value="Approved">Approved</option> <option value="Pending">Pending</option> <option value="Rejected">Rejected</option> </select>
+						<button onClick={() => exportToCSV(filteredRequests)} className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold shadow transition focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gradient-to-r from-green-700 to-green-800 text-white hover:from-green-800 hover:to-green-900 focus:ring-green-900' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 focus:ring-green-400'}`}> <FaDownload /> Export CSV</button>
 					</div>
-					{/* Project Dropdown */}
-					<div className="flex-1 min-w-[180px] max-w-xs">
-						<select
-							value={projectFilter}
-							onChange={e => { setProjectFilter(e.target.value); setCurrentPage(1); }}
-							className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-								theme === "dark"
-									? "bg-gray-800 border-blue-900 text-white"
-									: "bg-white border-gray-200 text-black"
-							}`}
-						>
-							<option value="All Projects">All Projects</option>
-							{projectOptions.map(project => (
-								<option key={project} value={project}>{project}</option>
-							))}
-						</select>
-					</div>
-					{/* Designation Dropdown */}
-					<div className="relative w-44 min-w-[130px]">
-						<select
-							value={designationFilter}
-							onChange={e => { setDesignationFilter(e.target.value); setCurrentPage(1); }}
-							className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-								theme === "dark"
-									? "bg-gray-800 border-blue-900 text-white"
-									: "bg-white border-gray-200 text-black"
-							}`}
-						>
-							<option value="All Designations">All Designations</option>
-							{designationOptions.map(designation => (
-								<option key={designation} value={designation}>{designation}</option>
-							))}
-						</select>
-					</div>
-					<div className="flex gap-2 items-center">
-						<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`border rounded-xl px-3 py-2 font-semibold focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-700 border-blue-200 focus:ring-blue-400'}`}>
-							<option value="All">All Statuses</option>
-							<option value="Approved">Approved</option>
-							<option value="Pending">Pending</option>
-							<option value="Rejected">Rejected</option>
-						</select>
-						<button onClick={() => exportToCSV(filteredRequests)} className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold shadow transition focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gradient-to-r from-green-700 to-green-800 text-white hover:from-green-800 hover:to-green-900 focus:ring-green-900' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 focus:ring-green-400'}`}><FaDownload /> Export CSV</button>
-					</div>
-					<div className={`flex items-center rounded-xl px-4 py-2 shadow w-full md:w-80 border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'}`}>
+					<div className="flex items-center rounded-xl px-4 py-2 shadow w-full md:w-80 mt-2 md:mt-0">
 						<FaSearch className={theme === 'dark' ? 'text-blue-300 mr-2' : 'text-blue-400 mr-2'} />
-						<input
-							type="text"
-							placeholder="Search by name or ID..."
-							value={search}
-							onChange={e => setSearch(e.target.value)}
-							className={`flex-1 bg-transparent outline-none ${theme === 'dark' ? 'text-blue-100 placeholder-blue-400' : 'text-blue-900 placeholder-blue-300'}`}
-						/>
+						<input type="text" placeholder="Search by name or ID..." value={search} onChange={e => setSearch(e.target.value)} className={`flex-1 bg-transparent outline-none ${theme === 'dark' ? 'text-blue-100 placeholder-blue-400' : 'text-blue-900 placeholder-blue-300'}`} />
 					</div>
 				</div>
 				{/* Requests List: Card or Table View */}
@@ -200,12 +155,12 @@ const UniformViewPage = () => {
 							<p className="text-sm text-yellow-700">Try adjusting your filters or search criteria.</p>
 						</div>
 					) : viewMode === 'card' ? (
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto" style={{ maxHeight: '520px', minHeight: '200px' }}>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto" style={{ maxHeight: '700px', minHeight: '200px' }}>
 							{filteredRequests.map((req) => (
 								<div
 									key={req._id}
 									className={`rounded-2xl shadow-xl p-7 flex flex-col gap-5 border-l-8 hover:shadow-2xl transition group relative 
-          ${theme === 'dark' ? 'bg-gray-900 border-blue-900' : 'bg-white border-blue-400'}`}
+          ${theme === 'dark' ? 'bg-gray-950 border-gray-800 hover:bg-gray-900' : 'bg-white border-blue-400 hover:bg-blue-50'}`}
 								>
 									<div className="flex flex-col gap-2">
 										<h2 className={`text-xl font-bold mb-1 truncate ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{req.fullName}</h2>
@@ -223,10 +178,10 @@ const UniformViewPage = () => {
 							))}
 						</div>
 					) : (
-						<div className={`overflow-x-auto rounded-2xl shadow-2xl ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} mx-auto border border-blue-100`} style={{ maxWidth: '900px', maxHeight: '520px', minHeight: '200px', overflowY: 'auto' }}>
-							<table className={`min-w-full table-fixed rounded-2xl overflow-hidden ${theme === 'dark' ? 'divide-y divide-gray-800' : 'divide-y divide-blue-100'}`}>
+						<div className={`overflow-x-auto rounded-2xl shadow-2xl ${theme === 'dark' ? 'bg-gray-950' : 'bg-white'} mx-auto`} style={{ maxWidth: '1200px', maxHeight: '520px', minHeight: '200px', overflowY: 'auto' }}>
+							<table className={`min-w-[1100px] table-fixed rounded-2xl overflow-hidden ${theme === 'dark' ? 'divide-y divide-gray-800' : 'divide-y divide-blue-100'}`}>
 								<thead
-									className={theme === 'dark' ? 'bg-gradient-to-r from-blue-900 to-blue-700' : 'bg-gradient-to-r from-blue-100 to-blue-300'}
+									className={theme === 'dark' ? 'bg-gradient-to-r from-black to-gray-900' : 'bg-gradient-to-r from-blue-100 to-blue-300'}
 									style={{ position: 'sticky', top: 0, zIndex: 2 }}
 								>
 									<tr>
@@ -239,14 +194,14 @@ const UniformViewPage = () => {
 										<th className={`px-3 py-2 text-center text-xs font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>View</th>
 									</tr>
 								</thead>
-								<tbody className={theme === 'dark' ? 'divide-y divide-gray-800' : 'divide-y divide-blue-50'}>
+								<tbody className={theme === 'dark' ? 'divide-y divide-gray-900' : 'divide-y divide-blue-50'}>
 									{paginatedRequests.map((req, idx) => (
 										<tr
 											key={req._id}
 											className={`transition-all duration-150 group ${theme === 'dark'
 												? idx % 2 === 0
-													? 'bg-gray-900'
-													: 'bg-gray-800'
+													? 'bg-gray-950'
+													: 'bg-gray-900'
 												: idx % 2 === 0
 													? 'bg-white'
 													: 'bg-blue-50'} hover:shadow-lg hover:z-10`}
@@ -334,12 +289,12 @@ const UniformViewPage = () => {
 						</button>
 						<h2 className={`text-2xl font-bold mb-4 text-center ${theme === 'dark' ? 'text-blue-100' : 'text-blue-900'}`}>Uniform Request Details</h2>
 						<div className="space-y-2 text-sm">
-							<div><span className="font-semibold">Name:</span> {viewModal.request.fullName}</div>
-							<div><span className="font-semibold">Employee ID:</span> {viewModal.request.employeeId}</div>
-							<div><span className="font-semibold">Designation:</span> {viewModal.request.designation}</div>
-							<div><span className="font-semibold">Project:</span> {viewModal.request.projectName}</div>
-							<div><span className="font-semibold">Status:</span> {statusBadge(viewModal.request.approvalStatus)}</div>
-							<div><span className="font-semibold">Requested Items:</span> {Array.isArray(viewModal.request.uniformType) ? viewModal.request.uniformType.join(', ') : ''}</div>
+							<div><span className="font-semibold">Name:</span> {viewModal.request?.fullName}</div>
+							<div><span className="font-semibold">Employee ID:</span> {viewModal.request?.employeeId}</div>
+							<div><span className="font-semibold">Designation:</span> {viewModal.request?.designation}</div>
+							<div><span className="font-semibold">Project:</span> {viewModal.request?.projectName}</div>
+							<div><span className="font-semibold">Status:</span> {statusBadge(viewModal.request?.approvalStatus ?? '')}</div>
+							<div><span className="font-semibold">Requested Items:</span> {Array.isArray(viewModal.request?.uniformType) ? viewModal.request?.uniformType.join(', ') : ''}</div>
 						</div>
 					</div>
 				</div>

@@ -218,8 +218,8 @@ export default function AttendanceViewPage() {
     <ManagerDashboardLayout>
       <div className={`p-4 md:p-8 min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gray-100'}`}>
         {/* Header */}
-        <div className={`${theme === 'dark' ? 'bg-gradient-to-r from-blue-900 to-blue-700 text-blue-100' : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white'} rounded-lg p-6 mb-6 flex items-center gap-6 shadow-lg`}>
-          <div className={`${theme === 'dark' ? 'bg-gray-900 text-blue-400' : 'bg-white text-blue-600'} p-6 rounded-full flex items-center justify-center shadow-md`}>
+        <div className={`${theme === 'dark' ? 'bg-[#2d3748] text-blue-100' : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white'} rounded-2xl p-8 mb-8 flex items-center gap-6 shadow-lg`}>
+          <div className={`${theme === 'dark' ? 'bg-gray-800 text-blue-400' : 'bg-white text-blue-600'} p-6 rounded-full flex items-center justify-center shadow-md`}>
             <FaClock className="text-3xl" />
           </div>
           <div>

@@ -162,80 +162,27 @@ export default function AttendanceReportPage() {
             <div className="p-6">
                 {/* Header */}
                 <div
-                    className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${
+                    className={`rounded-2xl mb-8 p-8 flex items-center gap-6 shadow-lg ${
                         theme === "dark"
-                            ? "bg-gradient-to-r from-blue-900 to-blue-800"
+                            ? "bg-[#2d3748]"
                             : "bg-gradient-to-r from-blue-500 to-blue-800"
                     }`}
                 >
                     <div
                         className={`${
-                            theme === "dark" ? "bg-blue-900" : "bg-blue-600 bg-opacity-30"
+                            theme === "dark" ? "bg-gray-800" : "bg-blue-600 bg-opacity-30"
                         } rounded-xl p-4 flex items-center justify-center`}
                     >
                         <FaCalendarAlt className="w-10 h-10 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-white mb-1">
-                            Attendance Regulization
-                        </h1>
-                       <p className="text-white text-base opacity-90">
-  Manage and regularize employee attendance records, including correction of missed punches and shift adjustments.
-</p>
-
+                        <h1 className="text-3xl font-bold mb-1 text-white">Attendance Regulization</h1>
+                        <p className="text-base opacity-90 text-white">Manage and regularize employee attendance records, including correction of missed punches and shift adjustments.</p>
                     </div>
                 </div>
                 {/* Filters, Search, Export */}
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                    <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
-                        <div className="relative w-40 min-w-[140px]">
-                            <select
-                                value={projectFilter}
-                                onChange={(e) => setProjectFilter(e.target.value)}
-                                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                                    theme === "dark"
-                                        ? "bg-gray-800 border-gray-700 text-gray-100"
-                                        : "bg-white border-gray-200 text-black"
-                                }`}
-                            >
-                                <option value="All Projects">All Projects</option>
-                                <option value="Project Alpha">Project Alpha</option>
-                                <option value="Project Beta">Project Beta</option>
-                                <option value="Project Gamma">Project Gamma</option>
-                            </select>
-                        </div>
-                        <div className="relative w-44 min-w-[130px]">
-                            <select
-                                value={designationFilter}
-                                onChange={(e) => setDesignationFilter(e.target.value)}
-                                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                                    theme === "dark"
-                                        ? "bg-gray-800 border-gray-700 text-gray-100"
-                                        : "bg-white border-gray-200 text-black"
-                                }`}
-                            >
-                                <option value="All Designations">All Designations</option>
-                                <option value="Manager">Manager</option>
-                                <option value="Developer">Developer</option>
-                                <option value="Analyst">Analyst</option>
-                                <option value="HR">HR</option>
-                            </select>
-                        </div>
-                        <div className="relative w-40 min-w-[120px]">
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                                    theme === "dark"
-                                        ? "bg-gray-800 border-gray-700 text-gray-100"
-                                        : "bg-white border-gray-200 text-black"
-                                }`}
-                            >
-                                <option value="All Statuses">All Statuses</option>
-                                <option value="Present">Present</option>
-                                <option value="Absent">Absent</option>
-                            </select>
-                        </div>
+                    <div className="flex flex-row flex-wrap gap-2 mb-6 items-center w-full">
                         <div className="relative flex-1 min-w-[180px] max-w-xs">
                             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                             <input
@@ -254,21 +201,13 @@ export default function AttendanceReportPage() {
                     <div className="flex gap-2 justify-end">
                         <button
                             onClick={downloadExcel}
-                            className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-                                theme === "dark"
-                                    ? "bg-green-700 text-white hover:bg-green-800"
-                                    : "bg-green-500 text-white hover:bg-green-600"
-                            }`}
+                            className={`px-4 py-2 min-w-[140px] rounded-lg flex items-center justify-center gap-2 transition-colors ${theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-500 text-white hover:bg-green-600"}`}
                         >
                             <FaFileExport /> Export Excel
                         </button>
                         <button
                             onClick={downloadPDF}
-                            className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-                                theme === "dark"
-                                    ? "bg-red-700 text-white hover:bg-red-800"
-                                    : "bg-red-500 text-white hover:bg-red-600"
-                            }`}
+                            className={`px-4 py-2 min-w-[140px] rounded-lg flex items-center justify-center gap-2 transition-colors ${theme === "dark" ? "bg-red-700 text-white hover:bg-red-800" : "bg-red-500 text-white hover:bg-red-600"}`}
                         >
                             <FaFileExport /> Export PDF
                         </button>
@@ -293,12 +232,12 @@ export default function AttendanceReportPage() {
                             }
                         >
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Date</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Status</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Reason</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Regularized By</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Regularization Status</th>
-                                <th className="px-4 py-3 text-center text-xs font-bold uppercase">Actions</th>
+                                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Date</th>
+                                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Status</th>
+                                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Reason</th>
+                                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Regularized By</th>
+                                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Regularization Status</th>
+                                <th className={`px-4 py-3 text-center text-xs font-bold uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Actions</th>
                             </tr>
                         </thead>
                         <tbody
@@ -326,12 +265,12 @@ export default function AttendanceReportPage() {
                             ) : (
                                 filteredRecords.map((rec, idx) => (
                                     <tr key={rec._id || idx}>
-                                        <td className="px-4 py-3 font-bold text-center">{formatDate(rec.date)}</td>
-                                        <td className="px-4 py-3">{rec.status}</td>
-                                        <td className="px-4 py-3">{rec.regularizationReason || "-"}</td>
-                                        <td className="px-4 py-3">{rec.regularizedBy || "-"}</td>
-                                        <td className="px-4 py-3">{rec.regularizationStatus}</td>
-                                        <td className="px-4 py-3 text-center">
+                                        <td className={`px-4 py-3 font-bold text-center ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{formatDate(rec.date)}</td>
+                                        <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{rec.status}</td>
+                                        <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{rec.regularizationReason || "-"}</td>
+                                        <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{rec.regularizedBy || "-"}</td>
+                                        <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{rec.regularizationStatus}</td>
+                                        <td className={`px-4 py-3 text-center ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                                             <div className="flex flex-col md:flex-row gap-2 justify-center items-center">
                                                 <button
                                                     className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"

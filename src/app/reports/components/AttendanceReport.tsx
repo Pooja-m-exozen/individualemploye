@@ -580,7 +580,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         if (summary) {
             const workingDays = summary.summary.totalDays - (summary.summary.weekOffs + summary.summary.holidays);
             const totalWeekoff = summary.summary.weekOffs ?? 0;
-            const totalPayableDays = summary.summary.presentDays + (summary.summary.halfDays / 2) + summary.summary.el + summary.summary.sl + summary.summary.cl + summary.summary.compOff;
+            // Total Payable Days: Present Days + Half Days + SL + CL + EL (as per table response, do not include compOff or others)
+            const totalPayableDays = summary.summary.presentDays + summary.summary.halfDays + summary.summary.sl + summary.summary.cl + summary.summary.el;
             const attendancePercentage = ((totalPayableDays / workingDays) * 100).toFixed(2);
             doc.text([
                 `Total Working Days: ${workingDays} days`,

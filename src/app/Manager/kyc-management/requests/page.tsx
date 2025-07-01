@@ -108,7 +108,7 @@ export default function KYCRequestsPage() {
           </div>
         </div>
         {/* Only the content area below header is scrollable */}
-        <div className="w-full max-w-5xl mx-auto h-[calc(100vh-64px-48px)] flex flex-col gap-8">
+        <div className="w-full max-w-5xl mx-auto flex flex-col gap-8">
           {/* Instructions Card (below header) */}
           {showInstructions && (
             <div className={`w-full max-w-5xl mx-auto mb-6 border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-blue-50 border-blue-200'} shadow-xl rounded-2xl p-5 flex gap-4`}>
@@ -234,7 +234,10 @@ export default function KYCRequestsPage() {
             </div>
           </div>
           {/* Requests List: Card or Table View */}
-          <div className="w-full max-w-5xl mx-auto">
+          <div
+            className="w-full max-w-5xl mx-auto flex-1 overflow-y-auto"
+            style={{ maxHeight: "calc(100vh - 270px)" }}
+          >
             {loading ? (
               <div className="flex flex-col justify-center items-center min-h-[200px] gap-3">
                 <FaSpinner className="animate-spin text-blue-600 w-10 h-10" />

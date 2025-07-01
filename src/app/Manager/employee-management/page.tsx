@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
-import { FaSearch, FaUsers, FaChevronRight, FaCheckCircle, FaIdCard, FaTshirt, FaCalendarAlt, FaPlaneDeparture, FaMoneyBillWave, FaFileAlt } from "react-icons/fa";
+import { FaSearch, FaUsers, FaChevronRight, FaCheckCircle, FaIdCard, FaTshirt, FaCalendarAlt, FaPlaneDeparture, FaMoneyBillWave, FaFileAlt, FaExclamationCircle } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 
@@ -397,7 +397,7 @@ export default function EmployeeManagementPage() {
         <div
           className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r ${
             theme === "dark"
-              ? "from-blue-900 to-blue-700"
+              ? "from-gray-900 to-gray-800"
               : "from-blue-500 to-blue-800"
           }`}
         >
@@ -515,8 +515,8 @@ export default function EmployeeManagementPage() {
                                   ? 'bg-green-900 text-green-300'
                                   : 'bg-green-100 text-green-700'
                                 : theme === "dark"
-                                  ? 'bg-gray-800 text-gray-500'
-                                  : 'bg-gray-100 text-gray-400'
+                                  ? 'bg-yellow-900 text-yellow-300'
+                                  : 'bg-yellow-100 text-yellow-700'
                               } hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
                               onClick={() => {
                                 setSelectedEmployee(emp);
@@ -607,8 +607,8 @@ export default function EmployeeManagementPage() {
                           ? 'bg-green-900 text-green-300'
                           : 'bg-green-100 text-green-700'
                         : theme === "dark"
-                          ? 'bg-gray-800 text-gray-500'
-                          : 'bg-gray-100 text-gray-400'
+                          ? 'bg-yellow-900 text-yellow-300'
+                          : 'bg-yellow-100 text-yellow-700'
                       } hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
                       onClick={() => {
                         setSelectedStep(step.key);
@@ -622,7 +622,7 @@ export default function EmployeeManagementPage() {
                     {selectedEmployee.workflow[step.key] ? (
                       <FaCheckCircle className="text-green-500 w-5 h-5" />
                     ) : (
-                      <span className={theme === "dark" ? "text-gray-500" : "text-gray-400"}>Pending</span>
+                      <span className={theme === "dark" ? "text-orange-400" : "text-orange-500"}>Pending</span>
                     )}
                   </div>
                 ))}
