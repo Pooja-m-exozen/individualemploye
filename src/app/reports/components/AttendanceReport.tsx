@@ -672,7 +672,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
         const pageHeight = doc.internal.pageSize.getHeight();
         // Calculate required space for note + signature
-        const requiredSpace = 60 + 40; // 60 for note, 40 for signature
         let noteY = finalY + 60;
         let signatureY = noteY + 40;
         // If not enough space, add a new page and reset Y positions
