@@ -179,22 +179,25 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         XLSX.writeFile(workbook, `attendance_report_${selectedMonth}_${selectedYear}.xlsx`);
     };
 
-    const getDayType = (date: string, year: number, month: number) => {
+    const getDayType = (date: string, year: number, month: number, projectName?: string) => {
         const dateStr = date.split('T')[0];
         const d = new Date(dateStr);
-        
-        // Check for government holidays first
+        // Special rule for 'Arvind Technical'
+        if (projectName && projectName.trim().toLowerCase() === 'arvind technical') {
+            if (d.getDay() === 0) {
+                return 'Sunday';
+            }
+            // For Arvind Technical, 2nd and 4th Saturdays are working days
+            return 'Working Day';
+        }
+        // Default logic for other projects
         if (governmentHolidays.includes(dateStr)) {
             return governmentHolidayMap[dateStr] || 'Holiday';
         }
-        
-        // Check for Sunday
         if (d.getDay() === 0) {
             return 'Sunday';
         }
-        
-        // Check for second and fourth Saturdays
-        if (d.getDay() === 6) { // If it's Saturday
+        if (d.getDay() === 6) { // Saturday
             const weekNumber = Math.ceil((d.getDate() + (new Date(year, month - 1, 1).getDay())) / 7);
             if (weekNumber === 2) {
                 return '2nd Saturday';
@@ -202,7 +205,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 return '4th Saturday';
             }
         }
-        
         return 'Working Day';
     };
 
@@ -398,21 +400,31 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     // Update the getAttendanceStatus function
     const getAttendanceStatus = (record: ExtendedRawAttendanceRecord, dayType: string) => {
         const leaveType = isLeaveDate(record.date);
-
         if (leaveType) {
-            return leaveType + ' Leave'; // e.g., "SL Leave"
+            return leaveType + ' Leave';
         }
-
-        // Check if there's any punch in/out on a holiday
-        if (dayType !== 'Working Day' && record.punchInTime && record.punchOutTime) {
-            const inTime = record.punchInUtc || record.punchInTime;
-            const outTime = record.punchOutUtc || record.punchOutTime;
-            const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
-            if (hoursWorked >= 4) {
-                return 'Comp Off';
+        // Special comp off logic for 'Arvind Technical'
+        const isArvind = record.projectName && record.projectName.trim().toLowerCase() === 'arvind technical';
+        if (isArvind) {
+            if (dayType === 'Sunday' && record.punchInTime && record.punchOutTime) {
+                const inTime = record.punchInUtc || record.punchInTime;
+                const outTime = record.punchOutUtc || record.punchOutTime;
+                const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
+                if (hoursWorked >= 4) {
+                    return 'Comp Off';
+                }
+            }
+        } else {
+            // For other projects, comp off for working on holidays/2nd/4th Sat/Sunday
+            if (dayType !== 'Working Day' && record.punchInTime && record.punchOutTime) {
+                const inTime = record.punchInUtc || record.punchInTime;
+                const outTime = record.punchOutUtc || record.punchOutTime;
+                const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
+                if (hoursWorked >= 4) {
+                    return 'Comp Off';
+                }
             }
         }
-
         // Regular day status calculation
         if (record.punchInTime && record.punchOutTime) {
             const inTime = record.punchInUtc || record.punchInTime;
@@ -424,7 +436,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 return 'Half Day';
             }
         }
-
         return dayType !== 'Working Day' ? 'Holiday' : 'Absent';
     };
 
@@ -459,7 +470,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         };
 
         const tableRows = filteredRecords.map((record: ExtendedRawAttendanceRecord) => {
-            const dayType = getDayType(record.date, selectedYear, selectedMonth);
+            const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName === null ? undefined : record.projectName);
             const status = getAttendanceStatus(record, dayType);
             let hoursWorked = 'Incomplete';
             
@@ -507,14 +518,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
         // Second page - Monthly Summary
         doc.addPage();
-        yPosition = 15;
-
-        // Add Monthly Summary header
-        doc.setFontSize(12);
-        doc.setTextColor(41, 128, 185);
-        doc.text('Monthly Summary Report', 15, yPosition);
-        yPosition += 20;
-
+        // Remove Attendance Location Report page from the main attendance report PDF
+        // Only include the monthly summary and other sections below
         // Monthly Summary Table
         autoTable(doc, {
             head: [[
@@ -745,6 +750,84 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         return '-';
     };
 
+    // Helper to batch fetch addresses for all records
+    const fetchAllAddresses = async (records: ExtendedRawAttendanceRecord[]) => {
+      const getAddress = async (lat?: number, lng?: number) => {
+        if (!lat || !lng) return 'N/A';
+        return await reverseGeocode(lat, lng);
+      };
+      const results = await Promise.all(records.map(async (record) => {
+        const punchInAddress = record.punchInLocation?.latitude && record.punchInLocation?.longitude
+          ? await getAddress(record.punchInLocation.latitude, record.punchInLocation.longitude)
+          : 'N/A';
+        const punchOutAddress = record.punchOutLocation?.latitude && record.punchOutLocation?.longitude
+          ? await getAddress(record.punchOutLocation.latitude, record.punchOutLocation.longitude)
+          : 'N/A';
+        return {
+          ...record,
+          punchInResolvedAddress: punchInAddress,
+          punchOutResolvedAddress: punchOutAddress,
+        };
+      }));
+      return results;
+    };
+
+    // Replace the XLSX location export with PDF export, now with batch address fetching
+    const downloadLocationPDF = async () => {
+      // Filter records for the selected month/year
+      const filteredRecords = processedData.filter(record => {
+        const dateObj = new Date(record.date);
+        return dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
+      });
+      // Fetch addresses for all records
+      const recordsWithAddresses = await fetchAllAddresses(filteredRecords);
+      // Now generate the PDF using recordsWithAddresses
+      const doc = new jsPDF();
+      let locYPosition = 15;
+      // Add Exozen logo (top left)
+      try {
+        doc.addImage('/v1/employee/exozen_logo1.png', 'PNG', 15, locYPosition, 25, 8);
+      } catch (e) {
+        // If image fails, continue without breaking
+      }
+      // Adjust text position to the right of the logo
+      doc.setFontSize(12);
+      doc.setTextColor(41, 128, 185);
+      doc.text(`Attendance Location Report - ${months[selectedMonth - 1]} ${selectedYear}`, 45, locYPosition + 4);
+      doc.setFontSize(10);
+      doc.setTextColor(41, 128, 185);
+      doc.text(`Employee ID: ${employeeId}`, 45, locYPosition + 8);
+      locYPosition += 15;
+      const locationTableHead = [
+        ['Date', 'Check-in Location', 'Check-out Location']
+      ];
+      const locationTableRows = recordsWithAddresses.map(record => [
+        formatDate(record.date),
+        record.punchInResolvedAddress,
+        record.punchOutResolvedAddress
+      ]);
+      autoTable(doc, {
+        head: locationTableHead,
+        body: locationTableRows,
+        startY: locYPosition,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 4 },
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
+          fontSize: 10,
+          fontStyle: 'bold'
+        },
+        columnStyles: {
+          0: { cellWidth: 30 },
+          1: { cellWidth: 70 },
+          2: { cellWidth: 70 }
+        },
+        margin: { left: 15 }
+      });
+      doc.save(`location_report_${selectedMonth}_${selectedYear}.pdf`);
+    };
+
     return (
         <div className={`space-y-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm p-6`}>
             {/* Header */}
@@ -830,6 +913,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     <FaFilePdf className="w-4 h-4" />
                     Export PDF
                   </button>
+                  <button
+                    onClick={downloadLocationPDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <FaFilePdf className="w-4 h-4" />
+                    Export Location Report (PDF)
+                  </button>
                 </div>
               </div>
 
@@ -884,7 +974,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
     {(() => {
-  const dayType = getDayType(record.date, selectedYear, selectedMonth);
+  const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName === null ? undefined : record.projectName);
   if (record.punchInTime && record.punchOutTime) {
     return formatHoursToHoursAndMinutes(
       calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime)
@@ -908,7 +998,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                             (() => {
-                                const dayType = getDayType(record.date, selectedYear, selectedMonth);
+                                const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName === null ? undefined : record.projectName);
                                 const status = getAttendanceStatus(record, dayType);
                                 switch (status) {
                                     case 'Present':
@@ -927,7 +1017,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             })()
                           }`}>
                             {(() => {
-                                const dayType = getDayType(record.date, selectedYear, selectedMonth);
+                                const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName === null ? undefined : record.projectName);
                                 return getAttendanceStatus(record, dayType);
                             })()}
                           </span>
