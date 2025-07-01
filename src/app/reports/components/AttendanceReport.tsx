@@ -670,9 +670,18 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
         // Get the final Y position after all tables
         const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
-        
+        const pageHeight = doc.internal.pageSize.getHeight();
+        // Calculate required space for note + signature
+        const requiredSpace = 60 + 40; // 60 for note, 40 for signature
+        let noteY = finalY + 60;
+        let signatureY = noteY + 40;
+        // If not enough space, add a new page and reset Y positions
+        if (signatureY + 20 > pageHeight) {
+            doc.addPage();
+            noteY = 40; // some top margin
+            signatureY = noteY + 40;
+        }
         // Add note below the leave history table with proper spacing
-        const noteY = finalY + 60; // Increased spacing from table
         doc.setFontSize(11);
         doc.setFont('bold');
         doc.setTextColor(200, 0, 0);
@@ -680,10 +689,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         doc.setTextColor(0, 0, 0);
         const noteText = 'Please ensure that the total working hours per day are at least 8 hours.';
         doc.text(`${noteLabel} ${noteText}`, 15, noteY);
-
-        // Calculate signature position with proper spacing after the note
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const signatureY = Math.min(pageHeight - 30, noteY + 40); // Ensure proper spacing after note
 
         // Signature lines
         doc.setDrawColor(100, 100, 100);
