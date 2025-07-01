@@ -43,6 +43,7 @@ export default function CreateKYCPage() {
     permanentAddress: { state: "", city: "", street: "", postalCode: "" },
     currentAddress: { state: "", city: "", street: "", postalCode: "" }
   });
+  const [isSameAddress, setIsSameAddress] = useState(false);
   const [bankDetails, setBankDetails] = useState({ bankName: "", branchName: "", accountNumber: "", ifscCode: "" });
   const [identificationDetails, setIdentificationDetails] = useState({ identificationType: "", identificationNumber: "" });
   const [emergencyContact, setEmergencyContact] = useState({ name: "", phone: "", relationship: "", aadhar: "" });
@@ -89,6 +90,21 @@ export default function CreateKYCPage() {
 
   // Seed to force re-fetch of next employee ID after each submission
   const [employeeIdSeed, setEmployeeIdSeed] = useState(0);
+
+  // Replace the languages input and handler
+  const languageOptions = [
+    "Hindi", "English", "Bengali", "Telugu", "Marathi", "Tamil", "Urdu", "Gujarati", "Kannada", "Odia", "Punjabi", "Malayalam", "Assamese", "Maithili", "Other"
+  ];
+
+  const handleLanguageCheckboxChange = (lang: string) => {
+    let langs = personalDetails.languages ? personalDetails.languages.split(",").map(l => l.trim()) : [];
+    if (langs.includes(lang)) {
+      langs = langs.filter(l => l !== lang);
+    } else {
+      langs.push(lang);
+    }
+    setPersonalDetails({ ...personalDetails, languages: langs.join(",") });
+  };
 
   useEffect(() => {
     setProjectLoading(true);
@@ -151,13 +167,16 @@ export default function CreateKYCPage() {
   const handlePersonalChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setPersonalDetails({ ...personalDetails, [e.target.name]: e.target.value });
   };
-  const handleLanguagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPersonalDetails({ ...personalDetails, languages: e.target.value });
-  };
   const handleAddressChange = (section: "permanentAddress" | "currentAddress", e: React.ChangeEvent<HTMLInputElement>) => {
-    setAddressDetails({
-      ...addressDetails,
-      [section]: { ...addressDetails[section], [e.target.name]: e.target.value }
+    setAddressDetails(prev => {
+      const updated = {
+        ...prev,
+        [section]: { ...prev[section], [e.target.name]: e.target.value }
+      };
+      if (section === "currentAddress" && isSameAddress) {
+        updated.permanentAddress = { ...updated.currentAddress };
+      }
+      return updated;
     });
   };
   const handleBankChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -574,8 +593,20 @@ export default function CreateKYCPage() {
                       </select>
                     </div>
                     <div className="md:col-span-2">
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Languages (comma separated)</label>
-                      <input name="languages" value={personalDetails.languages} onChange={handleLanguagesChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Languages</label>
+                      <div className="flex flex-wrap gap-4">
+                        {languageOptions.map(lang => (
+                          <label key={lang} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={personalDetails.languages.split(",").map(l => l.trim()).includes(lang)}
+                              onChange={() => handleLanguageCheckboxChange(lang)}
+                              className="form-checkbox"
+                            />
+                            <span>{lang}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                     <div className="md:col-span-2">
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Work Type</label>
@@ -592,37 +623,56 @@ export default function CreateKYCPage() {
                 <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
                   <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Address Details</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Current Address First */}
                     <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - State</label>
-                      <input name="state" value={addressDetails.permanentAddress.state} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - City</label>
-                      <input name="city" value={addressDetails.permanentAddress.city} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - Street</label>
-                      <input name="street" value={addressDetails.permanentAddress.street} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - Postal Code</label>
-                      <input name="postalCode" value={addressDetails.permanentAddress.postalCode} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-                    </div>
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - State</label>
-                      <input name="state" value={addressDetails.currentAddress.state} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - Street</label>
+                      <input name="street" value={addressDetails.currentAddress.street} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - City</label>
                       <input name="city" value={addressDetails.currentAddress.city} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
                     </div>
                     <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - Street</label>
-                      <input name="street" value={addressDetails.currentAddress.street} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - State</label>
+                      <input name="state" value={addressDetails.currentAddress.state} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Current Address - Postal Code</label>
                       <input name="postalCode" value={addressDetails.currentAddress.postalCode} onChange={e => handleAddressChange("currentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                    </div>
+                    {/* Checkbox for same address */}
+                    <div className="md:col-span-2 flex items-center gap-2 mt-2">
+                      <input
+                        type="checkbox"
+                        id="sameAddress"
+                        checked={isSameAddress}
+                        onChange={e => {
+                          setIsSameAddress(e.target.checked);
+                          setAddressDetails(prev => ({
+                            ...prev,
+                            permanentAddress: e.target.checked ? { ...prev.currentAddress } : { state: "", city: "", street: "", postalCode: "" }
+                          }));
+                        }}
+                        className="mr-2"
+                      />
+                      <label htmlFor="sameAddress" className={`font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Is Permanent Address same as Current Address?</label>
+                    </div>
+                    {/* Permanent Address Fields */}
+                    <div>
+                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - Street</label>
+                      <input name="street" value={addressDetails.permanentAddress.street} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} disabled={isSameAddress} />
+                    </div>
+                    <div>
+                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - City</label>
+                      <input name="city" value={addressDetails.permanentAddress.city} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} disabled={isSameAddress} />
+                    </div>
+                    <div>
+                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - State</label>
+                      <input name="state" value={addressDetails.permanentAddress.state} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} disabled={isSameAddress} />
+                    </div>
+                    <div>
+                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Permanent Address - Postal Code</label>
+                      <input name="postalCode" value={addressDetails.permanentAddress.postalCode} onChange={e => handleAddressChange("permanentAddress", e)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} disabled={isSameAddress} />
                     </div>
                   </div>
                 </section>
