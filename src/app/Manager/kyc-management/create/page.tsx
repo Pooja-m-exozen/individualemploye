@@ -101,6 +101,34 @@ export default function CreateKYCPage() {
       });
   }, []);
 
+  // Auto-generate next employee ID starting from EFMS3375
+  useEffect(() => {
+    // Only set if not already entered by user
+    if (personalDetails.employeeId) return;
+    // Fetch all employees and find the highest EFMS number
+    fetch('https://cafm.zenapi.co.in/api/employee/list')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          // Find max EFMS number >= 3375
+          let maxNum = 3374;
+          data.forEach((emp: any) => {
+            if (typeof emp.employeeId === 'string' && emp.employeeId.startsWith('EFMS')) {
+              const num = parseInt(emp.employeeId.replace('EFMS', ''));
+              if (!isNaN(num) && num > maxNum) maxNum = num;
+            }
+          });
+          const nextId = `EFMS${maxNum + 1}`;
+          setPersonalDetails(prev => ({ ...prev, employeeId: nextId }));
+        } else {
+          setPersonalDetails(prev => ({ ...prev, employeeId: 'EFMS3375' }));
+        }
+      })
+      .catch(() => {
+        setPersonalDetails(prev => ({ ...prev, employeeId: 'EFMS3375' }));
+      });
+  }, [personalDetails.employeeId]);
+
   // Handle input changes for each section
   const handlePersonalChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setPersonalDetails({ ...personalDetails, [e.target.name]: e.target.value });
@@ -352,7 +380,7 @@ export default function CreateKYCPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Employee ID</label>
-                      <input name="employeeId" value={personalDetails.employeeId} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required />
+                      <input name="employeeId" value={personalDetails.employeeId} readOnly className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required />
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Project Name</label>

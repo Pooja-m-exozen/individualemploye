@@ -52,7 +52,7 @@ const AttendancePage = () => {
       const data = await response.json();
       
       if (data.attendance) {
-        setAttendanceData(data.attendance.map((rec: any) => ({
+        setAttendanceData(data.attendance.map((rec: AttendanceRecord) => ({
           ...rec,
           punchInLatitude: rec.punchInLatitude,
           punchInLongitude: rec.punchInLongitude,

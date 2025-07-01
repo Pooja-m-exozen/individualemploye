@@ -787,7 +787,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
       // Add Exozen logo (top left)
       try {
         doc.addImage('/v1/employee/exozen_logo1.png', 'PNG', 15, locYPosition, 25, 8);
-      } catch (e) {
+      } catch {
         // If image fails, continue without breaking
       }
       // Adjust text position to the right of the logo
