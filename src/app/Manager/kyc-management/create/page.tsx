@@ -87,6 +87,9 @@ export default function CreateKYCPage() {
   const [projectLoading, setProjectLoading] = useState(false);
   const [projectError, setProjectError] = useState<string | null>(null);
 
+  // Seed to force re-fetch of next employee ID after each submission
+  const [employeeIdSeed, setEmployeeIdSeed] = useState(0);
+
   useEffect(() => {
     setProjectLoading(true);
     fetch("https://cafm.zenapi.co.in/api/project/projects")
@@ -101,34 +104,47 @@ export default function CreateKYCPage() {
       });
   }, []);
 
-  // Auto-generate next employee ID starting from EFMS3375
   useEffect(() => {
-    // Only set if not already entered by user
-    if (personalDetails.employeeId) return;
-    // Fetch all employees and find the highest EFMS number
-    fetch('https://cafm.zenapi.co.in/api/employee/list')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          // Find max EFMS number >= 3375
-          let maxNum = 3374;
-          type EmployeeListItem = { employeeId?: string };
-          (data as EmployeeListItem[]).forEach((emp) => {
+    // Always fetch both employees and ALL KYC forms to find the highest EFMS number
+    let maxNum = 3376 - 1;
+    let nextId = '';
+    Promise.all([
+      fetch('https://cafm.zenapi.co.in/api/employee/list').then(res => res.json()).catch(err => { console.error('Employee list fetch error:', err); return []; }),
+      fetch('https://cafm.zenapi.co.in/api/kyc').then(res => res.json()).catch(err => { console.error('KYC fetch error:', err); return {}; })
+    ])
+      .then(([employeeData, kycData]) => {
+        type EmployeeListItem = { employeeId?: string };
+        // Check employee list
+        if (Array.isArray(employeeData)) {
+          (employeeData as EmployeeListItem[]).forEach((emp) => {
             if (typeof emp.employeeId === 'string' && emp.employeeId.startsWith('EFMS')) {
               const num = parseInt(emp.employeeId.replace('EFMS', ''));
               if (!isNaN(num) && num > maxNum) maxNum = num;
             }
           });
-          const nextId = `EFMS${maxNum + 1}`;
-          setPersonalDetails(prev => ({ ...prev, employeeId: nextId }));
         } else {
-          setPersonalDetails(prev => ({ ...prev, employeeId: 'EFMS3375' }));
+          console.warn('Employee data is not an array:', employeeData);
         }
+        // Check ALL KYC forms (not just pending)
+        if (kycData && Array.isArray(kycData.kycForms)) {
+          kycData.kycForms.forEach((form: any) => {
+            if (form.personalDetails && typeof form.personalDetails.employeeId === 'string' && form.personalDetails.employeeId.startsWith('EFMS')) {
+              const num = parseInt(form.personalDetails.employeeId.replace('EFMS', ''));
+              if (!isNaN(num) && num > maxNum) maxNum = num;
+            }
+          });
+        } else {
+          console.warn('KYC data is not as expected:', kycData);
+        }
+        nextId = `EFMS${maxNum + 1}`;
+        setPersonalDetails(prev => ({ ...prev, employeeId: nextId }));
       })
-      .catch(() => {
-        setPersonalDetails(prev => ({ ...prev, employeeId: 'EFMS3375' }));
+      .catch((err) => {
+        console.error('Error fetching next Employee ID:', err);
+        nextId = `EFMS${maxNum + 1}`;
+        setPersonalDetails(prev => ({ ...prev, employeeId: nextId }));
       });
-  }, [personalDetails.employeeId]);
+  }, [employeeIdSeed]);
 
   // Handle input changes for each section
   const handlePersonalChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -181,6 +197,47 @@ export default function CreateKYCPage() {
       const data = await res.json();
       if (res.ok) {
         setMessage("KYC details submitted successfully.");
+        // After successful submission, always trigger backend fetch for next ID
+        setPersonalDetails({
+          employeeId: "", // This will trigger the useEffect to fetch the next ID
+          projectName: "",
+          fullName: "",
+          fathersName: "",
+          mothersName: "",
+          gender: "",
+          dob: "",
+          phoneNumber: "",
+          designation: "",
+          dateOfJoining: "",
+          nationality: "",
+          religion: "",
+          maritalStatus: "",
+          bloodGroup: "",
+          uanNumber: "",
+          esicNumber: "",
+          experience: "",
+          educationalQualification: "",
+          languages: "",
+          workType: ""
+        });
+        setAddressDetails({
+          permanentAddress: { state: "", city: "", street: "", postalCode: "" },
+          currentAddress: { state: "", city: "", street: "", postalCode: "" }
+        });
+        setBankDetails({ bankName: "", branchName: "", accountNumber: "", ifscCode: "" });
+        setIdentificationDetails({ identificationType: "", identificationNumber: "" });
+        setEmergencyContact({ name: "", phone: "", relationship: "", aadhar: "" });
+        setEmployeeImage(null);
+        setSingleDocFile(null);
+        setSingleDocType("");
+        setSingleDocStatus(null);
+        setSingleDocError(null);
+        setMultiDocFiles(null);
+        setMultiDocTypes([""]);
+        setMultiDocStatus(null);
+        setMultiDocError(null);
+        setMultiDocCustomTypes([""]);
+        setEmployeeIdSeed(seed => seed + 1); // Immediately increment to trigger next ID fetch
       } else {
         setError(data.message || "Submission failed.");
       }
@@ -196,8 +253,7 @@ export default function CreateKYCPage() {
   };
 
   // Handler for single document upload
-  const handleSingleDocUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSingleDocUpload = async () => {
     setSingleDocStatus(null);
     setSingleDocError(null);
     if (!personalDetails.employeeId) {
@@ -230,8 +286,7 @@ export default function CreateKYCPage() {
   };
 
   // Handler for multiple documents upload
-  const handleMultiDocUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleMultiDocUpload = async () => {
     setMultiDocStatus(null);
     setMultiDocError(null);
     if (!personalDetails.employeeId) {
@@ -413,7 +468,7 @@ export default function CreateKYCPage() {
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Gender</label>
-                      <select name="gender" value={personalDetails.gender} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`}>
+                      <select name="gender" value={personalDetails.gender} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required>
                         <option value="">Select</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
@@ -438,19 +493,52 @@ export default function CreateKYCPage() {
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Nationality</label>
-                      <input name="nationality" value={personalDetails.nationality} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <select name="nationality" value={personalDetails.nationality} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required>
+                        <option value="">Select</option>
+                        <option value="Indian">Indian</option>
+                        <option value="Nepalese">Nepalese</option>
+                        <option value="Bangladeshi">Bangladeshi</option>
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Religion</label>
-                      <input name="religion" value={personalDetails.religion} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <select name="religion" value={personalDetails.religion} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required>
+                        <option value="">Select</option>
+                        <option value="Hindu">Hindu</option>
+                        <option value="Muslim">Muslim</option>
+                        <option value="Christian">Christian</option>
+                        <option value="Sikh">Sikh</option>
+                        <option value="Buddhist">Buddhist</option>
+                        <option value="Jain">Jain</option>
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Marital Status</label>
-                      <input name="maritalStatus" value={personalDetails.maritalStatus} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <select name="maritalStatus" value={personalDetails.maritalStatus} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required>
+                        <option value="">Select</option>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Divorced">Divorced</option>
+                        <option value="Widowed">Widowed</option>
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Blood Group</label>
-                      <input name="bloodGroup" value={personalDetails.bloodGroup} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <select name="bloodGroup" value={personalDetails.bloodGroup} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required>
+                        <option value="">Select</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>UAN Number</label>
@@ -462,11 +550,27 @@ export default function CreateKYCPage() {
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Experience</label>
-                      <input name="experience" value={personalDetails.experience} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <select name="experience" value={personalDetails.experience} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required>
+                        <option value="">Select</option>
+                        <option value="Fresher">Fresher</option>
+                        <option value="0-1 years">0-1 years</option>
+                        <option value="1-3 years">1-3 years</option>
+                        <option value="3-5 years">3-5 years</option>
+                        <option value="5+ years">5+ years</option>
+                      </select>
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Educational Qualification</label>
-                      <input name="educationalQualification" value={personalDetails.educationalQualification} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <select name="educationalQualification" value={personalDetails.educationalQualification} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required>
+                        <option value="">Select</option>
+                        <option value="Below 10th">Below 10th</option>
+                        <option value="10th Pass">10th Pass</option>
+                        <option value="12th Pass">12th Pass</option>
+                        <option value="Diploma">Diploma</option>
+                        <option value="Graduate">Graduate</option>
+                        <option value="Post Graduate">Post Graduate</option>
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
                     <div className="md:col-span-2">
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Languages (comma separated)</label>
@@ -474,7 +578,11 @@ export default function CreateKYCPage() {
                     </div>
                     <div className="md:col-span-2">
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Work Type</label>
-                      <input name="workType" value={personalDetails.workType} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <select name="workType" value={personalDetails.workType} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required>
+                        <option value="">Select</option>
+                        <option value="remote">Remote</option>
+                        <option value="office">Office</option>
+                      </select>
                     </div>
                   </div>
                 </section>
@@ -594,7 +702,7 @@ export default function CreateKYCPage() {
                   <div className="mt-8">
                     <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}><FaPaperclip /> Upload Documents (Optional)</h2>
                     {/* Single Document Upload */}
-                    <form className="mb-6" onSubmit={handleSingleDocUpload} encType="multipart/form-data">
+                    <div className="mb-6">
                       <div className="flex flex-col md:flex-row gap-4 items-end">
                         <div className="flex-1">
                           <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Document File</label>
@@ -604,13 +712,13 @@ export default function CreateKYCPage() {
                           <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Document Type</label>
                           <input type="text" value={singleDocType} onChange={e => setSingleDocType(e.target.value)} placeholder="e.g. aadhar, pan, bankStatement" className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
                         </div>
-                        <button type="submit" className="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold flex items-center gap-2 hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"><FaUpload /> Upload</button>
+                        <button type="button" onClick={handleSingleDocUpload} className="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold flex items-center gap-2 hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"><FaUpload /> Upload</button>
                       </div>
                       {singleDocStatus && <div className="text-green-600 mt-2">{singleDocStatus}</div>}
                       {singleDocError && <div className="text-red-600 mt-2">{singleDocError}</div>}
-                    </form>
+                    </div>
                     {/* Multiple Documents Upload */}
-                    <form onSubmit={handleMultiDocUpload} encType="multipart/form-data">
+                    <div>
                       <div className="flex flex-col gap-4">
                         <div>
                           <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Select Multiple Documents</label>
@@ -669,11 +777,11 @@ export default function CreateKYCPage() {
                             ))}
                           </div>
                         )}
-                        <button type="submit" className="px-6 py-3 rounded-xl bg-green-600 text-white font-bold flex items-center gap-2 hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed"><FaUpload /> Upload Multiple</button>
+                        <button type="button" onClick={handleMultiDocUpload} className="px-6 py-3 rounded-xl bg-green-600 text-white font-bold flex items-center gap-2 hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed"><FaUpload /> Upload Multiple</button>
                         {multiDocStatus && <div className="text-green-600 mt-2">{multiDocStatus}</div>}
                         {multiDocError && <div className="text-red-600 mt-2">{multiDocError}</div>}
                       </div>
-                    </form>
+                    </div>
                   </div>
                 </section>
               )}
