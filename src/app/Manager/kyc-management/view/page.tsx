@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaTrash, FaFilter, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaEye, FaSort, FaSortUp, FaSortDown, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
+import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaTrash, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaEye, FaSort, FaSortUp, FaSortDown, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
 import EditKYCModal from "@/components/dashboard/EditKYCModal";
 import ViewKYCModal from "@/components/dashboard/ViewKYCModal";
 import { useTheme } from "@/context/ThemeContext";
@@ -103,7 +103,7 @@ export default function ViewAllKYCPage() {
   const rowsPerPage = 10;
   const [projectFilter, setProjectFilter] = useState("All Projects");
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [statusFilter] = useState("All Status");
   const [designationFilter, setDesignationFilter] = useState("All Designations");
   const [newJoiners, setNewJoiners] = useState<NewJoiner[]>([]);
   const [newJoinersLoading, setNewJoinersLoading] = useState(false);
@@ -114,11 +114,7 @@ export default function ViewAllKYCPage() {
   const [modal, setModal] = useState<null | { type: 'joiner' | 'view' | 'edit', data: KYCForm | null }>(null);
   const [newJoinersSearch, setNewJoinersSearch] = useState("");
   const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
-  const [projectLoading, setProjectLoading] = useState(false);
-  const [projectError, setProjectError] = useState<string | null>(null);
 
-  const projectNames = Array.from(new Set(kycForms.map(f => f.personalDetails.projectName))).filter(Boolean);
-  const statusOptions = Array.from(new Set(kycForms.map(f => f.status))).filter(Boolean);
   const designationOptions = Array.from(new Set(kycForms.map(f => f.personalDetails.designation))).filter(Boolean);
 
   useEffect(() => {
@@ -132,16 +128,13 @@ export default function ViewAllKYCPage() {
   }, [modal?.type, timeFrame]);
 
   useEffect(() => {
-    setProjectLoading(true);
     fetch("https://cafm.zenapi.co.in/api/project/projects")
       .then(res => res.json())
       .then(data => {
         setProjectList(Array.isArray(data) ? data : []);
-        setProjectLoading(false);
       })
       .catch(() => {
-        setProjectError("Failed to load projects");
-        setProjectLoading(false);
+        // Silently handle project loading error
       });
   }, []);
 

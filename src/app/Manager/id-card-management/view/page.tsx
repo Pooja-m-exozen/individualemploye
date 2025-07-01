@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaEye, FaTimesCircle, FaCheckCircle, FaTimes, FaUser, FaBuilding } from "react-icons/fa";
+import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaEye, FaTimesCircle, FaCheckCircle, FaTimes } from "react-icons/fa";
 import { QRCodeSVG } from 'qrcode.react';
 import { useTheme } from '@/context/ThemeContext';
 import jsPDF from "jspdf";

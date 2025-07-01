@@ -175,7 +175,7 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
       
       const tableStartY = 80; // Adjusted start Y for the first table
 
-      const createTable = (title: string, data: Record<string, any>, startY?: number) => {
+      const createTable = (title: string, data: Record<string, string | string[] | number>, startY?: number) => {
         const tableData = Object.entries(data).map(([key, value]) => {
           const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
           const valueText = Array.isArray(value) ? value.join(', ') : String(value);
@@ -183,7 +183,7 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
         });
 
         autoTable(doc, {
-          startY: startY || ((doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 10 : 80),
+          startY: startY || ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable ? (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10 : 80),
           head: [[{ content: title, colSpan: 2, styles: { halign: 'left', fillColor: [40, 140, 153], textColor: [255, 255, 255] } }]],
           body: tableData,
           theme: 'grid',
@@ -196,10 +196,6 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
       };
 
       const { 
-        employeeImage, 
-        fullName,
-        employeeId,
-        dateOfJoining,
         ...restOfPersonalDetails 
       } = personalDetails;
       createTable("Personal Details", restOfPersonalDetails, tableStartY);
@@ -209,7 +205,7 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
       createTable("Identification Details", identificationDetails);
       createTable("Emergency Contact", emergencyContact);
       
-      let finalY = (doc as any).lastAutoTable.finalY || tableStartY;
+      let finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || tableStartY;
 
       // Acknowledgement
       finalY += 10;

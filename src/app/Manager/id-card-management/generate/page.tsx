@@ -3,12 +3,10 @@
 import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import IDCardModal from "@/components/dashboard/IDCardModal";
-import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaCheck, FaTimes, FaFilter, FaCalendarAlt,  FaChevronDown, FaChevronUp, FaInfoCircle, } from "react-icons/fa";
+import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaClock, FaCheckCircle, FaTimesCircle, FaCheck, FaTimes, FaFilter, FaCalendarAlt,  FaChevronDown, FaChevronUp, FaInfoCircle, } from "react-icons/fa";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/context/ThemeContext';
-import Image from "next/image";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 interface Employee {
   employeeId: string;
@@ -722,7 +720,8 @@ export default function GenerateIDCardPage() {
         doc.text("No Photo", centerX, centerY, { align: "center" });
       }
       // Details (right)
-      let xDetails = 30, yDetails = 15, lineGap = 7;
+      const xDetails = 30, lineGap = 7;
+      let yDetails = 15;
       doc.setFontSize(10);
       doc.setTextColor(30, 41, 59); // slate-800
       doc.setFont("helvetica", "bold");
@@ -767,7 +766,7 @@ export default function GenerateIDCardPage() {
       doc.setFont("helvetica", "bold");
       doc.text("www.exozen.in", 43, 54-2, { align: "center" });
       doc.save(`IDCard-${request.employeeId}.pdf`);
-    } catch (err) {
+    } catch {
       alert("Failed to generate ID Card PDF. Please try again.");
     }
   };

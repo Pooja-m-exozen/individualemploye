@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { FaTachometerAlt, FaUsers, FaTasks,  FaSun, FaMoon, FaBell, FaBars, FaSignOutAlt, FaChevronRight, FaIdCard, FaTshirt, FaCalendarAlt, FaPlaneDeparture, FaStore, FaMoneyBillWave, FaProjectDiagram, FaIdBadge } from "react-icons/fa";
+import { FaTachometerAlt, FaUsers, FaTasks,  FaSun, FaMoon, FaBars, FaSignOutAlt, FaChevronRight, FaIdCard, FaTshirt, FaCalendarAlt, FaPlaneDeparture, FaStore, FaMoneyBillWave, FaProjectDiagram, FaIdBadge } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { getEmployeeId, logout } from "@/services/auth";
 import Link from "next/link";
