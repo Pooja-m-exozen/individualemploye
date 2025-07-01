@@ -604,59 +604,90 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
         }
       });
 
-      // Get the final Y position after the attendance table
-      const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+      // Add a new page for summary and leave details
+      doc.addPage();
+      let yCursor = 20;
 
-      // Monthly Summary on same page
+      // Monthly Summary on second page
       if (summary) {
-        doc.setFontSize(12);
+        doc.setFontSize(16);
         doc.setTextColor(41, 128, 185);
-        doc.text('Monthly Summary', 15, finalY + 10);
+        doc.text('Monthly Summary', 15, yCursor);
+        yCursor += 8;
+        doc.setDrawColor(41, 128, 185);
+        doc.setLineWidth(1);
+        doc.line(15, yCursor, 195, yCursor);
+        yCursor += 8;
 
         const summaryHeaders = [
-            'Total Days', 'Present', 'Half Days', 'Partially Absent', 'Week Offs', 
-            'Holidays', 'EL', 'SL', 'CL', 'Comp Off', 'LOP'
+          'Total Days', 'Present', 'Half Days', 'Partially Absent', 'Week Offs',
+          'Holidays', 'EL', 'SL', 'CL', 'Comp Off', 'LOP'
         ];
-        
         const summaryValues = [
-            summary.summary.totalDays.toString(),
-            summary.summary.presentDays.toString(),
-            summary.summary.halfDays.toString(),
-            summary.summary.partiallyAbsentDays.toString(),
-            summary.summary.weekOffs.toString(),
-            summary.summary.holidays.toString(),
-            summary.summary.el.toString(),
-            summary.summary.sl.toString(),
-            summary.summary.cl.toString(),
-            summary.summary.compOff.toString(),
-            summary.summary.lop.toString()
+          summary.summary.totalDays.toString(),
+          summary.summary.presentDays.toString(),
+          summary.summary.halfDays.toString(),
+          summary.summary.partiallyAbsentDays.toString(),
+          summary.summary.weekOffs.toString(),
+          summary.summary.holidays.toString(),
+          summary.summary.el.toString(),
+          summary.summary.sl.toString(),
+          summary.summary.cl.toString(),
+          summary.summary.compOff.toString(),
+          summary.summary.lop.toString()
         ];
 
         autoTable(doc, {
-            head: [summaryHeaders],
-            body: [summaryValues],
-            startY: finalY + 15,
-            theme: 'grid',
-            styles: { 
-                fontSize: 8,
-                cellPadding: 2,
-                halign: 'center'
-            },
-            headStyles: {
-                fillColor: [41, 128, 185],
-                textColor: 255,
-                fontSize: 9,
-                fontStyle: 'bold'
-            }
+          head: [summaryHeaders],
+          body: [summaryValues],
+          startY: yCursor + 5,
+          theme: 'grid',
+          styles: {
+            fontSize: 9,
+            cellPadding: 3,
+            halign: 'center',
+            valign: 'middle',
+          },
+          headStyles: {
+            fillColor: [41, 128, 185],
+            textColor: 255,
+            fontSize: 10,
+            fontStyle: 'bold',
+            halign: 'center',
+            valign: 'middle',
+          },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { left: 15, right: 15 }
         });
-    }
+        yCursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
 
-      // Add Leave Balance section
+        // Additional Summary Information
+        const workingDays = summary.summary.totalDays - (summary.summary.weekOffs + summary.summary.holidays);
+        const totalWeekoff = summary.summary.weekOffs ?? 0;
+        const totalPayableDays = summary.summary.presentDays + (summary.summary.halfDays / 2) + summary.summary.el + summary.summary.sl + summary.summary.cl + summary.summary.compOff;
+        const attendancePercentage = ((totalPayableDays / workingDays) * 100).toFixed(2);
+
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.text([
+          `Total Working Days: ${workingDays} days`,
+          `Total Weekoff: ${totalWeekoff} days`,
+          `Total Payable Days: ${totalPayableDays} days`,
+          `Attendance Percentage: ${attendancePercentage}%`
+        ], 20, yCursor, { lineHeightFactor: 1.5 });
+        yCursor += 32;
+      }
+
+      // Add Leave Balance section on second page
       if (leaveBalance) {
-        const leaveY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
-        doc.setFontSize(12);
+        doc.setFontSize(14);
         doc.setTextColor(41, 128, 185);
-        doc.text('Leave Balance', 15, leaveY + 10);
+        doc.text('Leave Balance', 15, yCursor);
+        yCursor += 8;
+        doc.setDrawColor(41, 128, 185);
+        doc.setLineWidth(1);
+        doc.line(15, yCursor, 195, yCursor);
+        yCursor += 8;
 
         const leaveHeaders = ['Leave Type', 'Allocated', 'Used', 'Remaining'];
         const leaveRows = Object.entries(leaveBalance.balances).map(([type, balance]) => [
@@ -669,29 +700,34 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
         autoTable(doc, {
           head: [leaveHeaders],
           body: leaveRows,
-          startY: leaveY + 15,
+          startY: yCursor + 5,
           theme: 'grid',
-          styles: { fontSize: 10, cellPadding: 4, valign: 'middle' },
+          styles: { fontSize: 10, cellPadding: 4, valign: 'middle', halign: 'center' },
           headStyles: {
             fillColor: [41, 128, 185],
             textColor: 255,
             fontSize: 11,
             fontStyle: 'bold',
-            halign: 'center'
+            halign: 'center',
+            valign: 'middle',
           },
-          bodyStyles: {
-            halign: 'center'
-          },
-          alternateRowStyles: { fillColor: [245, 245, 245] }
+          bodyStyles: { halign: 'center' },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { left: 15, right: 15 }
         });
+        yCursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
       }
 
-      // Add Leave History section
+      // Add Leave History section on second page
       if (leaveHistory.length > 0) {
-        const historyY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
-        doc.setFontSize(12);
+        doc.setFontSize(14);
         doc.setTextColor(41, 128, 185);
-        doc.text('Leave History', 15, historyY + 10);
+        doc.text('Leave History', 15, yCursor);
+        yCursor += 8;
+        doc.setDrawColor(41, 128, 185);
+        doc.setLineWidth(1);
+        doc.line(15, yCursor, 195, yCursor);
+        yCursor += 8;
 
         const leaveHistoryData = [
           ['Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason'],
@@ -708,20 +744,25 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
         autoTable(doc, {
           head: [leaveHistoryData[0]],
           body: leaveHistoryData.slice(1),
-          startY: historyY + 15,
+          startY: yCursor + 5,
           theme: 'grid',
-          styles: { fontSize: 8, cellPadding: 3 },
+          styles: { fontSize: 9, cellPadding: 3, halign: 'center', valign: 'middle' },
           headStyles: {
             fillColor: [41, 128, 185],
             textColor: 255,
-            fontSize: 9,
-            fontStyle: 'bold'
-          }
+            fontSize: 10,
+            fontStyle: 'bold',
+            halign: 'center',
+            valign: 'middle',
+          },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { left: 15, right: 15 }
         });
+        yCursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
       }
 
-      // Add note and signatures at the bottom
-      const finalPosition = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
+      // Add note and signatures at the bottom of the second page
+      const finalPosition = yCursor + 20;
       doc.setFontSize(11);
       doc.setTextColor(200, 0, 0);
       doc.text('Note:', 15, finalPosition);
