@@ -112,7 +112,8 @@ export default function CreateKYCPage() {
         if (Array.isArray(data)) {
           // Find max EFMS number >= 3375
           let maxNum = 3374;
-          data.forEach((emp: any) => {
+          type EmployeeListItem = { employeeId?: string };
+          (data as EmployeeListItem[]).forEach((emp) => {
             if (typeof emp.employeeId === 'string' && emp.employeeId.startsWith('EFMS')) {
               const num = parseInt(emp.employeeId.replace('EFMS', ''));
               if (!isNaN(num) && num > maxNum) maxNum = num;
