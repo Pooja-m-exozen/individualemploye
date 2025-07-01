@@ -220,11 +220,6 @@ const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
               </button>
               {/* Date and Time */}
               <div className={`font-medium text-sm px-4 py-1.5 rounded-full border ${theme === "dark" ? "bg-gray-700 text-gray-200 border-gray-600" : "bg-blue-50 text-blue-700 border-blue-100"}`}>{currentDateTime}</div>
-              {/* Notifications */}
-              <button className={`relative p-2 rounded-full ${theme === "dark" ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-800"} transition-all duration-200`} title="Notifications">
-                <FaBell className="w-5 h-5" />
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 rounded-full text-[11px] font-bold text-white flex items-center justify-center">3</span>
-              </button>
               {/* User Profile */}
               <div className="flex items-center relative">
                 <div className="relative cursor-pointer" onClick={() => setShowProfileDropdown(!showProfileDropdown)}>

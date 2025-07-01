@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { FaUser, FaMapMarkerAlt, FaIdCard,  FaTimes, FaFileAlt, FaPhone, FaUserCircle, FaBuilding, FaAddressCard, FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
+import { FaUser, FaMapMarkerAlt, FaIdCard,  FaTimes, FaFileAlt, FaPhone, FaUserCircle, FaBuilding, FaAddressCard, FaCheckCircle, FaExclamationCircle, FaDownload, FaSpinner } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
+import jsPDF from "jspdf";
+import autoTable from 'jspdf-autotable';
 
 interface KYCData {
   personalDetails: {
@@ -77,6 +79,7 @@ interface ViewKYCModalProps {
 const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) => {
   const { theme } = useTheme();
   const [selectedTab, setSelectedTab] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [completionStatus, setCompletionStatus] = useState({
     personal: false,
     address: false,
@@ -100,6 +103,147 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
       });
     }
   }, [kycData]);
+
+  const handleDownload = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+
+    try {
+      const doc = new jsPDF();
+      const { personalDetails, addressDetails, bankDetails, identificationDetails, emergencyContact } = kycData;
+
+      const getImageDataUri = (url: string): Promise<string | null> => {
+        return new Promise(async (resolve) => {
+          try {
+            // Use our new API route to fetch the image, which handles CORS.
+            const fetchUrl = url.startsWith('http') 
+              ? `/v1/employee/api/proxy-image?url=${encodeURIComponent(url)}` 
+              : url;
+            const response = await fetch(fetchUrl);
+            
+            if (!response.ok) {
+              console.error(`Failed to fetch image from proxy: ${response.statusText}`);
+              resolve(null);
+              return;
+            }
+            const blob = await response.blob();
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          } catch (error) {
+            console.error(`Error fetching image for PDF from ${url}:`, error);
+            resolve(null);
+          }
+        });
+      };
+
+      // Header
+      const logoDataUri = await getImageDataUri('/v1/employee/exozen_logo1.png');
+      if (logoDataUri) {
+        doc.addImage(logoDataUri, 'PNG', 15, 10, 30, 8);
+      }
+
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text("Employee KYC Document", 105, 20, { align: "center" });
+      doc.setLineWidth(0.5);
+      doc.line(15, 25, 195, 25);
+      
+      const employeeImageDataUri = await getImageDataUri(personalDetails.employeeImage);
+      if (employeeImageDataUri) {
+        doc.addImage(employeeImageDataUri, 'JPEG', 150, 30, 40, 40);
+        doc.rect(150, 30, 40, 40); // image border
+      }
+      
+      // Left-hand side summary
+      let yPos = 40;
+      doc.setFontSize(10);
+      const addSummaryField = (label: string, value: string) => {
+        doc.setFont('helvetica', 'bold');
+        doc.text(label, 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(value, 50, yPos);
+        yPos += 7;
+      };
+
+      addSummaryField("Full Name:", personalDetails.fullName);
+      addSummaryField("Employee ID:", personalDetails.employeeId);
+      addSummaryField("Project Name:", personalDetails.projectName);
+      addSummaryField("Designation:", personalDetails.designation);
+      addSummaryField("Date of Joining:", new Date(personalDetails.dateOfJoining).toLocaleDateString());
+      
+      const tableStartY = 80; // Adjusted start Y for the first table
+
+      const createTable = (title: string, data: Record<string, any>, startY?: number) => {
+        const tableData = Object.entries(data).map(([key, value]) => {
+          const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+          const valueText = Array.isArray(value) ? value.join(', ') : String(value);
+          return [formattedKey, valueText];
+        });
+
+        autoTable(doc, {
+          startY: startY || ((doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 10 : 80),
+          head: [[{ content: title, colSpan: 2, styles: { halign: 'left', fillColor: [40, 140, 153], textColor: [255, 255, 255] } }]],
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [22, 160, 133] },
+          columnStyles: { 
+            0: { fontStyle: 'bold', cellWidth: 50 },
+            1: { cellWidth: 'auto' }
+          },
+        });
+      };
+
+      const { 
+        employeeImage, 
+        fullName,
+        employeeId,
+        dateOfJoining,
+        ...restOfPersonalDetails 
+      } = personalDetails;
+      createTable("Personal Details", restOfPersonalDetails, tableStartY);
+      createTable("Address Details (Permanent)", addressDetails.permanentAddress);
+      createTable("Address Details (Current)", addressDetails.currentAddress);
+      createTable("Bank Details", bankDetails);
+      createTable("Identification Details", identificationDetails);
+      createTable("Emergency Contact", emergencyContact);
+      
+      let finalY = (doc as any).lastAutoTable.finalY || tableStartY;
+
+      // Acknowledgement
+      finalY += 10;
+      if (finalY > 240) { doc.addPage(); finalY = 20; }
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text("Acknowledgement", 15, finalY);
+      finalY += 5;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      const acknowledgementText = "I hereby declare that the information provided is true and correct to the best of my knowledge and belief. I understand that any false information may lead to disciplinary action, including termination of employment.";
+      const splitText = doc.splitTextToSize(acknowledgementText, 180);
+      doc.text(splitText, 15, finalY);
+      finalY += (splitText.length * 3) + 15;
+
+      // Signatures
+      if (finalY > 250) { doc.addPage(); finalY = 40; }
+      const signatureY = finalY;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.line(15, signatureY + 15, 75, signatureY + 15);
+      doc.text("Employee Signature", 25, signatureY + 20);
+      doc.line(130, signatureY + 15, 190, signatureY + 15);
+      doc.text("Authorized Signatory", 135, signatureY + 20);
+      doc.text("(Exozen Pvt. Ltd.)", 138, signatureY + 25);
+
+      doc.save(`KYC-Details-${personalDetails.employeeId}.pdf`);
+    } catch (err) {
+      console.error("Failed to generate PDF:", err);
+      alert("Failed to generate PDF. Please check the console for details.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   // Calculate completion percentage
   const calculateCompletion = () => {
@@ -140,9 +284,19 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
                 <p className={`text-sm ${theme === 'dark' ? 'text-blue-200' : 'text-blue-100'}`}>{kycData.personalDetails.fullName} - {kycData.personalDetails.employeeId}</p>
               </div>
             </div>
-            <button onClick={onClose} className="text-white hover:text-gray-200 text-xl font-bold focus:outline-none">
-              <FaTimes />
-            </button>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className="text-white hover:text-gray-200 text-xl font-bold focus:outline-none p-2 rounded-full hover:bg-black/20 disabled:opacity-50"
+                title="Download as PDF"
+              >
+                {isDownloading ? <FaSpinner className="animate-spin" /> : <FaDownload />}
+              </button>
+              <button onClick={onClose} className="text-white hover:text-gray-200 text-xl font-bold focus:outline-none">
+                <FaTimes />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -217,48 +371,80 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
                   exit={{ opacity: 0 }}
                   className="space-y-6"
                 >
-                  <div className="flex items-center gap-3 mb-6">
-                    <FaUser className="text-blue-600 w-5 h-5" />
-                    <div>
-                      <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-blue-100' : 'text-gray-900'}`}>Personal Information</h3>
-                      <p className={`text-sm ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}>Employee personal details</p>
+                  <div className="flex items-start justify-between gap-6 mb-6">
+                    {/* Left side details */}
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <FaUser className="text-blue-600 w-5 h-5" />
+                        <div>
+                          <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-blue-100' : 'text-gray-900'}`}>Personal Information</h3>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}>Employee personal details</p>
+                        </div>
+                      </div>
+                      <div className="space-y-3 pt-2">
+                          <div className="flex">
+                              <p className={`w-32 font-medium text-sm ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`}>Full Name</p>
+                              <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{kycData.personalDetails.fullName}</p>
+                          </div>
+                          <div className="flex">
+                              <p className={`w-32 font-medium text-sm ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`}>Employee ID</p>
+                              <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{kycData.personalDetails.employeeId}</p>
+                          </div>
+                          <div className="flex">
+                              <p className={`w-32 font-medium text-sm ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`}>Phone Number</p>
+                              <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{kycData.personalDetails.phoneNumber}</p>
+                          </div>
+                           <div className="flex">
+                              <p className={`w-32 font-medium text-sm ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`}>Project Name</p>
+                              <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{kycData.personalDetails.projectName}</p>
+                          </div>
+                          <div className="flex">
+                              <p className={`w-32 font-medium text-sm ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`}>Designation</p>
+                              <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{kycData.personalDetails.designation}</p>
+                          </div>
+                          <div className="flex">
+                              <p className={`w-32 font-medium text-sm ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`}>Date of Joining</p>
+                              <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{new Date(kycData.personalDetails.dateOfJoining).toLocaleDateString()}</p>
+                          </div>
+                      </div>
+                    </div>
+                    {/* Right side image */}
+                    <div className="flex-shrink-0">
+                        <div className={`relative w-32 h-32 rounded-lg overflow-hidden border-4 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-white shadow-md'}`}>
+                        {kycData.personalDetails.employeeImage ? (
+                            <Image
+                            src={kycData.personalDetails.employeeImage}
+                            alt="Profile"
+                            fill
+                            className="object-cover"
+                            />
+                        ) : (
+                            <FaUser className={`w-full h-full p-4 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-400'}`} />
+                        )}
+                        </div>
                     </div>
                   </div>
+                  <hr className={`${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`} />
 
-                  {/* Profile Image */}
-                  <div className="flex items-center gap-6 mb-6">
-                    <div className={`relative w-20 h-20 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                      {kycData.personalDetails.employeeImage ? (
-                        <Image
-                          src={kycData.personalDetails.employeeImage}
-                          alt="Profile"
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <FaUser className={`w-full h-full p-4 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-400'}`} />
+                  {/* Rest of the details */}
+                  <div className="pt-4">
+                    <h4 className={`text-md font-semibold mb-4 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-800'}`}>Additional Details</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {Object.entries(kycData.personalDetails).filter(([key]) => ![
+                          'employeeImage', 'fullName', 'employeeId', 'projectName', 'designation', 'dateOfJoining', 'phoneNumber'
+                      ].includes(key)).map(([key, value]) => 
+                        (
+                          <div key={key} className="space-y-1">
+                            <label className={`text-sm font-medium capitalize ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`}>
+                              {key.replace(/([A-Z])/g, ' $1').trim()}
+                            </label>
+                            <p className={`text-base font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                              {Array.isArray(value) ? value.join(', ') : value?.toString() || '-'}
+                            </p>
+                          </div>
+                        )
                       )}
                     </div>
-                    <div>
-                      <h4 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{kycData.personalDetails.fullName}</h4>
-                      <p className={`text-base ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}>{kycData.personalDetails.designation}</p>
-                      <p className={`text-sm ${theme === 'dark' ? 'text-blue-300' : 'text-gray-500'}`}>{kycData.personalDetails.employeeId}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {Object.entries(kycData.personalDetails).map(([key, value]) => 
-                      key !== 'employeeImage' && (
-                        <div key={key} className="space-y-2">
-                          <label className={`text-sm font-medium capitalize ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`}>
-                            {key.replace(/([A-Z])/g, ' $1').trim()}
-                          </label>
-                          <p className={`text-base font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            {Array.isArray(value) ? value.join(', ') : value?.toString() || '-'}
-                          </p>
-                        </div>
-                      )
-                    )}
                   </div>
                 </motion.div>
               )}
@@ -281,30 +467,30 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Permanent Address */}
-                    <div className="bg-gray-50 rounded-xl p-6">
+                    <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'} rounded-xl p-6`}>
                       <h4 className={`text-md font-semibold ${theme === 'dark' ? 'text-blue-200' : 'text-gray-800'} mb-4`}>Permanent Address</h4>
                       <div className="space-y-4">
                         {Object.entries(kycData.addressDetails.permanentAddress).map(([key, value]) => (
-                          <div key={key}>
+                          <div key={key} className="grid grid-cols-2 gap-2">
                             <label className={`text-sm font-medium ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'} capitalize`}>
                               {key.replace(/([A-Z])/g, ' $1').trim()}
                             </label>
-                            <p className={`text-base font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mt-1`}>{value}</p>
+                            <p className={`text-base font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{value}</p>
                           </div>
                         ))}
                       </div>
                     </div>
                     
                     {/* Current Address */}
-                    <div className="bg-gray-50 rounded-xl p-6">
+                    <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'} rounded-xl p-6`}>
                       <h4 className={`text-md font-semibold ${theme === 'dark' ? 'text-blue-200' : 'text-gray-800'} mb-4`}>Current Address</h4>
                       <div className="space-y-4">
                         {Object.entries(kycData.addressDetails.currentAddress).map(([key, value]) => (
-                          <div key={key}>
+                          <div key={key} className="grid grid-cols-2 gap-2">
                             <label className={`text-sm font-medium ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'} capitalize`}>
                               {key.replace(/([A-Z])/g, ' $1').trim()}
                             </label>
-                            <p className={`text-base font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mt-1`}>{value}</p>
+                            <p className={`text-base font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{value}</p>
                           </div>
                         ))}
                       </div>
@@ -329,7 +515,7 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-xl p-6">
+                  <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'} rounded-xl p-6`}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {Object.entries(kycData.bankDetails).map(([key, value]) => (
                         <div key={key}>

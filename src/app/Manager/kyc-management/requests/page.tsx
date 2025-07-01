@@ -26,13 +26,25 @@ export default function KYCRequestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [projectFilter, setProjectFilter] = useState("All Projects");
+  const [designationFilter, setDesignationFilter] = useState("All Designations");
+  const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
   const [showInstructions, setShowInstructions] = useState(true);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('card');
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const { theme } = useTheme();
 
   useEffect(() => {
     fetchRequests();
+    fetch("https://cafm.zenapi.co.in/api/project/projects")
+      .then(res => res.json())
+      .then(data => {
+        setProjectList(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        // Silently fail on project fetch error
+      });
   }, []);
 
   const fetchRequests = async () => {
@@ -53,6 +65,8 @@ export default function KYCRequestsPage() {
     }
   };
 
+  const designationOptions = Array.from(new Set(requests.map(f => f.personalDetails.designation))).filter(Boolean);
+
   const handleAction = async (id: string, action: "approve" | "reject", employeeId: string) => {
     setActionLoading(id + action);
     setError(null);
@@ -72,10 +86,13 @@ export default function KYCRequestsPage() {
     }
   };
 
-  const filteredRequests = requests.filter(req =>
-    req.personalDetails.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    req.personalDetails.employeeId.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredRequests = requests.filter(req => {
+    const matchesProject = projectFilter === "All Projects" || req.personalDetails.projectName === projectFilter;
+    const matchesDesignation = designationFilter === "All Designations" || req.personalDetails.designation === designationFilter;
+    const matchesSearch = req.personalDetails.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      req.personalDetails.employeeId.toLowerCase().includes(search.toLowerCase());
+    return matchesProject && matchesDesignation && matchesSearch;
+  });
 
   return (
     <ManagerDashboardLayout>
@@ -117,51 +134,103 @@ export default function KYCRequestsPage() {
             </div>
           )}
           {/* View Toggle and Search Bar */}
-          <div className={`w-full max-w-5xl mx-auto mb-6 flex flex-col md:flex-row items-center gap-3 justify-between sticky top-0 z-30 py-2
+          <div className={`w-full max-w-5xl mx-auto mb-6 flex flex-col md:flex-row items-center gap-4 justify-between sticky top-0 z-30 py-2
             ${theme === 'dark' ? 'bg-gray-900' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}
           >
-            <div className="flex gap-2 mb-2 md:mb-0">
-              <button
-                onClick={() => setViewMode('card')}
-                className={`px-4 py-2 rounded-l-xl font-semibold border transition
-                  ${viewMode === 'card'
-                    ? theme === 'dark'
-                      ? 'bg-blue-700 text-white border-blue-700'
-                      : 'bg-blue-600 text-white border-blue-600'
-                    : theme === 'dark'
-                      ? 'bg-gray-800 text-blue-200 border-gray-700'
-                      : 'bg-white text-blue-700 border-blue-200'}
-                `}
-              >
-                Card View
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={`px-4 py-2 rounded-r-xl font-semibold border-l-0 border transition
-                  ${viewMode === 'table'
-                    ? theme === 'dark'
-                      ? 'bg-blue-700 text-white border-blue-700'
-                      : 'bg-blue-600 text-white border-blue-600'
-                    : theme === 'dark'
-                      ? 'bg-gray-800 text-blue-200 border-gray-700'
-                      : 'bg-white text-blue-700 border-blue-200'}
-                `}
-              >
-                Table View
-              </button>
+            <div className="flex items-center gap-4">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setViewMode('card')}
+                  className={`px-4 py-2 rounded-l-xl font-semibold border transition
+                    ${viewMode === 'card'
+                      ? theme === 'dark'
+                        ? 'bg-blue-700 text-white border-blue-700'
+                        : 'bg-blue-600 text-white border-blue-600'
+                      : theme === 'dark'
+                        ? 'bg-gray-800 text-blue-200 border-gray-700'
+                        : 'bg-white text-blue-700 border-blue-200'}
+                  `}
+                >
+                  Card View
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`px-4 py-2 rounded-r-xl font-semibold border-l-0 border transition
+                    ${viewMode === 'table'
+                      ? theme === 'dark'
+                        ? 'bg-blue-700 text-white border-blue-700'
+                        : 'bg-blue-600 text-white border-blue-600'
+                      : theme === 'dark'
+                        ? 'bg-gray-800 text-blue-200 border-gray-700'
+                        : 'bg-white text-blue-700 border-blue-200'}
+                  `}
+                >
+                  Table View
+                </button>
+              </div>
             </div>
-            <div className={`flex items-center rounded-xl px-4 py-2 shadow w-full md:w-96 border transition
-              ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-blue-100'}`}
-            >
-              <FaSearch className={`mr-2 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-400'}`} />
-              <input
-                type="text"
-                placeholder="Search by name or ID..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className={`flex-1 bg-transparent outline-none placeholder-blue-300 transition
-                  ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}
-              />
+            <div className="flex-1 flex items-center gap-4">
+              {/* Project Dropdown */}
+              <select
+                value={projectFilter}
+                onChange={e => setProjectFilter(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              >
+                <option value="All Projects">All Projects</option>
+                {projectList.map(p => (
+                  <option key={p._id} value={p.projectName}>{p.projectName}</option>
+                ))}
+              </select>
+
+              {/* Designation Dropdown */}
+              <select
+                value={designationFilter}
+                onChange={e => setDesignationFilter(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              >
+                <option value="All Designations">All Designations</option>
+                {designationOptions.map(designation => (
+                  <option key={designation} value={designation}>{designation}</option>
+                ))}
+              </select>
+
+              {/* Search Bar */}
+              <div className={`relative flex items-center rounded-xl px-4 py-2 shadow w-full border transition
+                ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-blue-100'}`}
+              >
+                <FaSearch className={`mr-2 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-400'}`} />
+                <input
+                  type="text"
+                  placeholder="Search by name or ID..."
+                  value={search}
+                  onChange={e => {
+                    setSearch(e.target.value);
+                    setSelectedRequestId(null);
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && search) {
+                      const found = filteredRequests.find(req =>
+                        req.personalDetails.employeeId.toLowerCase() === search.toLowerCase() ||
+                        req.personalDetails.fullName.toLowerCase() === search.toLowerCase()
+                      );
+                      if (found) {
+                        setSelectedRequestId(found._id);
+                        document.getElementById(found._id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }
+                    }
+                  }}
+                  className={`flex-1 bg-transparent outline-none placeholder-blue-300 transition
+                    ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}
+                />
+              </div>
             </div>
           </div>
           {/* Requests List: Card or Table View */}
@@ -187,7 +256,9 @@ export default function KYCRequestsPage() {
                   {filteredRequests.map((req) => (
                     <div
                       key={req._id}
+                      id={req._id}
                       className={`rounded-2xl shadow-xl p-7 flex flex-col gap-5 border-l-8 transition group relative
+                        ${selectedRequestId === req._id ? 'ring-2 ring-blue-500' : ''}
                         ${theme === 'dark' ? 'bg-gray-800 border-blue-700 hover:shadow-blue-900' : 'bg-white border-blue-400 hover:shadow-2xl'}
                       `}
                     >
@@ -254,7 +325,10 @@ export default function KYCRequestsPage() {
                     </thead>
                     <tbody className={theme === 'dark' ? 'divide-gray-700' : 'divide-blue-50'}>
                       {filteredRequests.map((req) => (
-                        <tr key={req._id} className={theme === 'dark' ? 'hover:bg-gray-700 transition' : 'hover:bg-blue-50 transition'}>
+                        <tr
+                          key={req._id}
+                          id={req._id}
+                          className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-blue-50'} transition ${selectedRequestId === req._id ? (theme === 'dark' ? 'bg-blue-900/50' : 'bg-blue-100') : ''}`}>
                           <td className="px-4 py-3">
                             <Image src={req.personalDetails.employeeImage || "/placeholder-user.jpg"} alt={req.personalDetails.fullName} width={48} height={48} className={`rounded-full object-cover border-2 shadow ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`} />
                           </td>

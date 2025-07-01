@@ -101,12 +101,10 @@ export default function ViewAllKYCPage() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
-  const [projectFilter, setProjectFilter] = useState("");
-  const [employeeIdFilter, setEmployeeIdFilter] = useState("");
+  const [projectFilter, setProjectFilter] = useState("All Projects");
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [designationFilter, setDesignationFilter] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [designationFilter, setDesignationFilter] = useState("All Designations");
   const [newJoiners, setNewJoiners] = useState<NewJoiner[]>([]);
   const [newJoinersLoading, setNewJoinersLoading] = useState(false);
   const [newJoinersError, setNewJoinersError] = useState<string | null>(null);
@@ -116,7 +114,6 @@ export default function ViewAllKYCPage() {
   const [modal, setModal] = useState<null | { type: 'joiner' | 'view' | 'edit', data: KYCForm | null }>(null);
   const [newJoinersSearch, setNewJoinersSearch] = useState("");
   const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
-  const [projectFilterDropdown, setProjectFilterDropdown] = useState<string>("All Projects");
   const [projectLoading, setProjectLoading] = useState(false);
   const [projectError, setProjectError] = useState<string | null>(null);
 
@@ -205,16 +202,14 @@ export default function ViewAllKYCPage() {
   // Calculate filtered and paginated data
   const filtered = kycForms
     .filter(form => {
-      const matchesProjectDropdown = projectFilterDropdown === "All Projects" || form.personalDetails.projectName === projectFilterDropdown;
-      const matchesProject = projectFilter ? form.personalDetails.projectName === projectFilter : true;
-      const matchesEmployeeId = employeeIdFilter ? form.personalDetails.employeeId.toLowerCase().includes(employeeIdFilter.toLowerCase()) : true;
-      const matchesDesignation = designationFilter ? form.personalDetails.designation === designationFilter : true;
-      const matchesStatus = statusFilter ? form.status === statusFilter : true;
+      const matchesProject = projectFilter === "All Projects" || form.personalDetails.projectName === projectFilter;
+      const matchesDesignation = designationFilter === "All Designations" || form.personalDetails.designation === designationFilter;
+      const matchesStatus = statusFilter === "All Status" || form.status === statusFilter;
       const matchesSearch = search ? (
         form.personalDetails.fullName.toLowerCase().includes(search.toLowerCase()) ||
         form.personalDetails.employeeId.toLowerCase().includes(search.toLowerCase())
       ) : true;
-      return matchesProjectDropdown && matchesProject && matchesEmployeeId && matchesDesignation && matchesStatus && matchesSearch;
+      return matchesProject && matchesDesignation && matchesStatus && matchesSearch;
     })
     .sort((a, b) => {
       let aValue: string, bValue: string;
@@ -392,6 +387,85 @@ export default function ViewAllKYCPage() {
             <div className={`rounded-xl shadow-sm border overflow-hidden
               ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
             >
+              {/* Filter Row - Match Employee Management Page */}
+              <div className="flex flex-row flex-wrap gap-2 px-6 py-4 border-b items-center w-full
+                ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}">
+                {/* Project Dropdown */}
+                <div className="flex-1 min-w-[180px] max-w-xs">
+                  <select
+                    value={projectFilter}
+                    onChange={e => { setProjectFilter(e.target.value); setCurrentPage(1); }}
+                    className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-blue-900 text-white"
+                        : "bg-white border-gray-200 text-black"
+                    }`}
+                  >
+                    {["All Projects", ...projectList.map(p => p.projectName)].map(project => (
+                      <option key={project} value={project}>{project}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Designation Dropdown */}
+                <div className="relative w-44 min-w-[130px]">
+                  <select
+                    value={designationFilter}
+                    onChange={e => { setDesignationFilter(e.target.value); setCurrentPage(1); }}
+                    className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-blue-900 text-white"
+                        : "bg-white border-gray-200 text-black"
+                    }`}
+                  >
+                    {["All Designations", ...designationOptions].map(designation => (
+                      <option key={designation} value={designation}>{designation}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Search Bar */}
+                <div className="relative flex-1 min-w-[180px] max-w-xs">
+                  <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+                  <input
+                    type="text"
+                    placeholder="Search employee name or ID..."
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const found = filtered.find(form =>
+                          form.personalDetails.employeeId.toLowerCase() === search.toLowerCase() ||
+                          form.personalDetails.fullName.toLowerCase() === search.toLowerCase()
+                        );
+                        if (found) {
+                          setModal({ type: 'view', data: found });
+                          const idx = filtered.findIndex(form => form._id === found._id);
+                          setCurrentPage(Math.floor(idx / rowsPerPage) + 1);
+                        }
+                      }
+                    }}
+                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-blue-900 text-white"
+                        : "bg-white border-gray-200 text-black"
+                    }`}
+                  />
+                </div>
+                {/* New Joiners Button */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setModal({ type: 'joiner', data: null })}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                      ${modal?.type === 'joiner'
+                        ? theme === 'dark' ? 'bg-blue-900 text-blue-200 border border-blue-700' : 'bg-blue-100 text-blue-700 border border-blue-200'
+                        : theme === 'dark' ? 'bg-gray-800 text-blue-200 border border-gray-700 hover:bg-gray-700' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'}
+                    `}
+                  >
+                    <FaUsers className="w-4 h-4" />
+                    New Joiners
+                  </button>
+                </div>
+              </div>
+
               {loading ? (
                 <div className="flex flex-col justify-center items-center py-16">
                   <div className="relative">
@@ -428,7 +502,7 @@ export default function ViewAllKYCPage() {
                   </div>
                   <h3 className={`text-lg font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>No Records Found</h3>
                   <p className={`text-center max-w-md ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                    {search || projectFilter || statusFilter || designationFilter || employeeIdFilter 
+                    {search || projectFilter !== 'All Projects' || statusFilter !== 'All Status' || designationFilter !== 'All Designations'
                       ? "No KYC records match your current filters. Try adjusting your search criteria."
                       : "No KYC records available at the moment."
                     }
@@ -436,193 +510,6 @@ export default function ViewAllKYCPage() {
                 </div>
               ) : (
                 <>
-                  {/* Search and Filter Section - Integrated */}
-                  <div className={`px-6 py-4 border-b flex flex-col lg:flex-row gap-4 items-start lg:items-center
-                    ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
-                  >
-                    {/* Project Filter Dropdown */}
-                    <div className="flex items-center gap-2 w-full lg:w-auto">
-                      <select
-                        value={projectFilterDropdown}
-                        onChange={e => { setProjectFilterDropdown(e.target.value); setCurrentPage(1); }}
-                        className={`rounded-xl px-4 py-2 border text-sm font-semibold transition
-                          ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-200' : 'bg-white border-blue-100 text-blue-700'}`}
-                      >
-                        <option value="All Projects">All Projects</option>
-                        {projectList.map(p => (
-                          <option key={p._id} value={p.projectName}>{p.projectName}</option>
-                        ))}
-                      </select>
-                      {projectLoading && <span className="ml-2 text-xs text-blue-400">Loading...</span>}
-                      {projectError && <span className="ml-2 text-xs text-red-500">{projectError}</span>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="relative">
-                        <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4
-                          ${theme === 'dark' ? 'text-blue-300' : 'text-gray-400'}`}
-                        />
-                        <input
-                          type="text"
-                          placeholder="Search by employee name or ID..."
-                          value={search}
-                          onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
-                          className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200
-                            ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-100 placeholder-blue-300 focus:ring-blue-700' : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-blue-500'}`}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                          ${showFilters 
-                            ? theme === 'dark' ? 'bg-blue-900 text-blue-200 border border-blue-700' : 'bg-blue-100 text-blue-700 border border-blue-200'
-                            : theme === 'dark' ? 'bg-gray-800 text-blue-200 border border-gray-700 hover:bg-gray-700' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'}
-                        `}
-                      >
-                        <FaFilter className="w-4 h-4" />
-                        Filters
-                        <span className={`text-xs px-2 py-1 rounded-full ml-1
-                          ${theme === 'dark' ? 'bg-blue-800 text-blue-200' : 'bg-blue-100 text-blue-700'}`}
-                        >
-                          {[projectFilter, statusFilter, designationFilter, employeeIdFilter].filter(Boolean).length
-                          }
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => setModal({ type: 'joiner', data: null })}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                          ${modal?.type === 'joiner'
-                            ? theme === 'dark' ? 'bg-blue-900 text-blue-200 border border-blue-700' : 'bg-blue-100 text-blue-700 border border-blue-200'
-                            : theme === 'dark' ? 'bg-gray-800 text-blue-200 border border-gray-700 hover:bg-gray-700' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'}
-                        `}
-                      >
-                        <FaUsers className="w-4 h-4" />
-                        New Joiners
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Advanced Filters Panel */}
-                  {showFilters && (
-                    <div className={`mt-4 pt-4 border-t
-                      ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* Project Filter */}
-                        <div>
-                          <label className={`block text-xs font-semibold uppercase tracking-wide mb-2
-                            ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}
-                          >
-                            <FaBuilding className="w-3 h-3 inline mr-1" />
-                            Project
-                          </label>
-                          <select
-                            value={projectFilter}
-                            onChange={e => { setProjectFilter(e.target.value); setCurrentPage(1); }}
-                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 text-sm
-                              ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-100 focus:ring-blue-700' : 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'}`}
-                          >
-                            <option value="">All Projects</option>
-                            {projectNames.map(name => (
-                              <option key={name} value={name}>{name}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Status Filter */}
-                        <div>
-                          <label className={`block text-xs font-semibold uppercase tracking-wide mb-2
-                            ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}
-                          >
-                            <FaListAlt className="w-3 h-3 inline mr-1" />
-                            Status
-                          </label>
-                          <select
-                            value={statusFilter}
-                            onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 text-sm
-                              ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-100 focus:ring-blue-700' : 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'}`}
-                          >
-                            <option value="">All Status</option>
-                            {statusOptions.map(status => (
-                              <option key={status} value={status}>{status}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Designation Filter */}
-                        <div>
-                          <label className={`block text-xs font-semibold uppercase tracking-wide mb-2
-                            ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}
-                          >
-                            <FaBriefcase className="w-3 h-3 inline mr-1" />
-                            Designation
-                          </label>
-                          <select
-                            value={designationFilter}
-                            onChange={e => { setDesignationFilter(e.target.value); setCurrentPage(1); }}
-                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 text-sm
-                              ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-100 focus:ring-blue-700' : 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'}`}
-                          >
-                            <option value="">All Designations</option>
-                            {designationOptions.map(designation => (
-                              <option key={designation} value={designation}>{designation}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Employee ID Filter */}
-                        <div>
-                          <label className={`block text-xs font-semibold uppercase tracking-wide mb-2
-                            ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}
-                          >
-                            <FaUser className="w-3 h-3 inline mr-1" />
-                            Employee ID
-                          </label>
-                          <input
-                            type="text"
-                            value={employeeIdFilter}
-                            onChange={e => { setEmployeeIdFilter(e.target.value); setCurrentPage(1); }}
-                            placeholder="Enter employee ID..."
-                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 text-sm
-                              ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-100 placeholder-blue-300 focus:ring-blue-700' : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-blue-500'}`}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Clear Filters */}
-                      <div className={`flex items-center justify-between mt-4 pt-4 border-t
-                        ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {(projectFilter || employeeIdFilter || search || statusFilter || designationFilter) && (
-                            <button
-                              onClick={() => { 
-                                setProjectFilter(""); 
-                                setEmployeeIdFilter(""); 
-                                setSearch(""); 
-                                setStatusFilter(""); 
-                                setDesignationFilter(""); 
-                                setCurrentPage(1); 
-                              }}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200
-                                ${theme === 'dark' ? 'bg-red-900/30 text-red-200 hover:bg-red-900/50' : 'bg-red-50 text-red-700 hover:bg-red-100'}`}
-                            >
-                              <FaTimesCircle className="w-4 h-4" />
-                              Clear All Filters
-                            </button>
-                          )}
-                        </div>
-                        <div className={`text-right text-sm
-                          ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}
-                        >
-                          Showing <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{filtered.length}</span> of <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{kycForms.length}</span> records
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   {/* KYC Records Table */}
                   <div className="overflow-x-auto">
                     <table className={`min-w-full divide-y

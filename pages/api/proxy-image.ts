@@ -1,30 +1,33 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  let { url } = req.query;
+  const { url } = req.query;
 
-  if (!url || typeof url !== 'string') {
+  if (typeof url !== 'string' || !url) {
     return res.status(400).json({ error: 'Image URL is required' });
   }
 
-  // Resolve relative URLs to absolute URLs
-  if (url.startsWith('/')) {
-    const protocol = req.headers['x-forwarded-proto'] || 'http';
-    const host = req.headers.host;
-    url = `${protocol}://${host}${url}`;
-  }
-
   try {
-    const response = await fetch(url, { method: 'GET', headers: { 'Cache-Control': 'no-cache' } });
-    if (!response.ok) throw new Error('Failed to fetch image');
-    const buffer = await response.arrayBuffer();
-    const contentType = response.headers.get('content-type') || 'image/png';
-    // Set headers for download
+    const imageResponse = await fetch(url);
+
+    if (!imageResponse.ok) {
+      return res.status(imageResponse.status).json({ error: `Failed to fetch image from ${url}` });
+    }
+
+    const contentType = imageResponse.headers.get('content-type');
+    if (!contentType || !contentType.startsWith('image/')) {
+        return res.status(400).json({ error: 'URL does not point to a valid image' });
+    }
+
+    // Add CORS and cache headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', 'attachment; filename="image".' + (contentType.split('/')[1] || 'png'));
-    res.send(Buffer.from(buffer));
+    const imageBuffer = await imageResponse.arrayBuffer();
+    res.send(Buffer.from(imageBuffer));
+    
   } catch (error) {
     console.error('Proxy image error:', error);
-    res.status(500).json({ error: 'Failed to proxy image' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 }

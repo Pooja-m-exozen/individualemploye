@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaEye, FaTimesCircle, FaCheckCircle, FaTimes } from "react-icons/fa";
+import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaEye, FaTimesCircle, FaCheckCircle, FaTimes, FaUser, FaBuilding } from "react-icons/fa";
 import { QRCodeSVG } from 'qrcode.react';
 import { useTheme } from '@/context/ThemeContext';
 import jsPDF from "jspdf";
@@ -43,6 +43,7 @@ export default function ViewIDCardsPage() {
   const [qrLoading, setQrLoading] = useState(false);
   const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
   const [projectFilter, setProjectFilter] = useState<string>('All Projects');
+  const [designationFilter, setDesignationFilter] = useState<string>('All Designations');
   const projectFetchRef = useRef(false);
 
   // Pagination state
@@ -53,11 +54,15 @@ export default function ViewIDCardsPage() {
   // Reset to page 1 when filters/search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [projectFilter, searchTerm]);
+  }, [projectFilter, designationFilter, searchTerm]);
+
+  // Get unique designations for dropdown
+  const designationOptions = Array.from(new Set(idCards.map(card => card.designation))).filter(Boolean);
 
   const filteredCards = idCards.filter(
     (card) =>
       (projectFilter === 'All Projects' || card.projectName === projectFilter) &&
+      (designationFilter === 'All Designations' || card.designation === designationFilter) &&
       (card.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       card.employeeId.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -132,6 +137,25 @@ export default function ViewIDCardsPage() {
   const [downloading, setDownloading] = useState(false);
   const qrDownloadRef = useRef<HTMLDivElement>(null);
 
+  const getImageDataUri = async (url: string): Promise<string | null> => {
+    try {
+      const fetchUrl = url && url.startsWith('http')
+        ? `/v1/employee/api/proxy-image?url=${encodeURIComponent(url)}`
+        : url;
+      const response = await fetch(fetchUrl);
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
   const handleDownload = async (card: IDCard) => {
     if (!card) return;
     setDownloading(true);
@@ -185,50 +209,10 @@ export default function ViewIDCardsPage() {
 
       // Employee Photo (left)
       const idPhotoX = 24, idPhotoY = 60, idPhotoW = 70, idPhotoH = 90;
-      let imageDataUrl = '';
-      const imageUrl = card.employeeImage || '/placeholder-user.jpg';
-      try {
-        const img = await fetch(imageUrl, { mode: 'cors' });
-        if (!img.ok) throw new Error(`Image fetch failed: ${img.status}`);
-        const blob = await img.blob();
-        imageDataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            if (typeof reader.result === "string") {
-              resolve(reader.result);
-            } else {
-              reject(new Error("Image data is not a string"));
-            }
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        // Check format
-        if (!imageDataUrl.startsWith('data:image/jpeg') && !imageDataUrl.startsWith('data:image/png')) {
-          throw new Error('Image is not JPEG or PNG');
-        }
-      } catch (err) {
-        console.error('Failed to fetch/convert employee image:', err);
+      let imageDataUrl = await getImageDataUri(card.employeeImage || '/placeholder-user.jpg');
+      if (!imageDataUrl) {
         // fallback to placeholder
-        try {
-          const placeholderImg = await fetch('/placeholder-user.jpg');
-          const placeholderBlob = await placeholderImg.blob();
-          imageDataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              if (typeof reader.result === "string") {
-                resolve(reader.result);
-              } else {
-                reject(new Error("Image data is not a string"));
-              }
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(placeholderBlob);
-          });
-        } catch (fallbackErr) {
-          console.error('Failed to load placeholder image:', fallbackErr);
-          imageDataUrl = '';
-        }
+        imageDataUrl = await getImageDataUri('/placeholder-user.jpg');
       }
       if (imageDataUrl) {
         doc.roundedRect(idPhotoX-4, idPhotoY-4, idPhotoW+8, idPhotoH+8, 10, 10, 'S');
@@ -316,6 +300,17 @@ export default function ViewIDCardsPage() {
                 <option value="All Projects">All Projects</option>
                 {projectList.map(p => (
                   <option key={p._id} value={p.projectName}>{p.projectName}</option>
+                ))}
+              </select>
+              <select
+                value={designationFilter}
+                onChange={e => setDesignationFilter(e.target.value)}
+                className={`rounded-xl px-4 py-2 border text-sm font-semibold transition
+                  ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-200' : 'bg-white border-blue-100 text-blue-700'}`}
+              >
+                <option value="All Designations">All Designations</option>
+                {designationOptions.map(designation => (
+                  <option key={designation} value={designation}>{designation}</option>
                 ))}
               </select>
               <div className="flex-1 w-full">
@@ -466,87 +461,94 @@ export default function ViewIDCardsPage() {
       
       {selectedCard && (
         <div className={
-          `fixed inset-0 flex items-center justify-center z-50 p-4 transition-colors duration-200 ` +
-          (theme === 'dark' ? 'bg-gray-900 bg-opacity-80' : 'bg-white bg-opacity-70')
+          `fixed inset-0 flex items-center justify-center z-50 p-4 transition-colors duration-200 animate-fade-in ` +
+          (theme === 'dark' ? 'bg-gray-900 bg-opacity-90' : 'bg-blue-50 bg-opacity-80')
         }>
-          <div className={`bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto border ${theme === 'dark' ? 'border-blue-900 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-200' : 'border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-900'}`}>
-            {/* Modal Content */}
-            <div className="p-8">
-              {/* Close Button */}
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setSelectedCard(null)}
-                  className={`p-2 rounded-full transition-all duration-200 ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}
-                  aria-label="Close"
-                >
-                  <FaTimes className="w-5 h-5" />
-                </button>
-              </div>
-              {/* QR Code and Details */}
-              <div className="flex flex-col sm:flex-row gap-8">
-                {/* Employee Image */}
-                <div className="flex-shrink-0 flex flex-col items-center">
-                  <Image
-                    src={selectedCard.employeeImage || '/placeholder-user.jpg'}
-                    alt={selectedCard.fullName}
-                    width={128}
-                    height={128}
-                    className="rounded-lg object-cover border-4 border-blue-200 dark:border-blue-700 shadow-xl mb-4"
-                    loader={({ src }) => src.startsWith('http') ? src : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${src}`}
-                    unoptimized={selectedCard.employeeImage?.startsWith('http')}
-                  />
-                  {/* QR Code */}
+          <div className={`relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-md w-full max-h-[95vh] overflow-y-auto border-2 ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'} flex flex-col items-center px-0 sm:px-0`}
+            style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)' }}
+          >
+            {/* Floating Close Button */}
+            <button
+              onClick={() => setSelectedCard(null)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow hover:bg-red-100 dark:hover:bg-red-900 transition-all duration-200 z-10"
+              aria-label="Close"
+            >
+              <FaTimes className="w-5 h-5 text-red-500" />
+            </button>
+            {/* Card Header: Logo */}
+            <div className="w-full flex flex-col items-center pt-8 pb-2">
+              <Image src="/v1/employee/exozen_logo1.png" alt="Exozen Logo" width={90} height={36} className="object-contain mb-2" />
+              <div className={`text-xs font-semibold px-3 py-1 rounded-lg ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-blue-50 text-blue-700'} shadow`}>{new Date().toLocaleString()}</div>
+            </div>
+            {/* Card Body: Photo, QR, Details */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full px-6 py-4">
+              {/* Left: Photo & QR */}
+              <div className="flex flex-col items-center gap-4">
+                <Image
+                  src={selectedCard.employeeImage || '/placeholder-user.jpg'}
+                  alt={selectedCard.fullName}
+                  width={100}
+                  height={100}
+                  className="rounded-xl object-cover border-4 border-blue-200 dark:border-blue-700 shadow-lg"
+                  loader={({ src }) => src.startsWith('http') ? src : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${src}`}
+                  unoptimized={selectedCard.employeeImage?.startsWith('http')}
+                />
+                <div className="w-[90px] h-[90px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-inner">
                   {qrLoading ? (
-                    <div className="flex items-center justify-center w-32 h-32 bg-gray-100 rounded-lg animate-pulse">
-                      <FaSpinner className="text-blue-600 w-8 h-8" />
-                    </div>
+                    <FaSpinner className="animate-spin text-blue-600 w-8 h-8" />
                   ) : qrCodeData ? (
-                    <div className="w-32 h-32">
-                      <QRCodeSVG
-                        value={JSON.stringify(qrCodeData)}
-                        size={128}
-                        className="rounded-lg"
-                        bgColor={theme === 'dark' ? '#1f2937' : '#ffffff'}
-                        fgColor={theme === 'dark' ? '#ffffff' : '#000000'}
-                      />
-                    </div>
+                    <QRCodeSVG
+                      value={JSON.stringify(qrCodeData)}
+                      size={80}
+                      className="rounded-xl"
+                      bgColor={theme === 'dark' ? '#1f2937' : '#ffffff'}
+                      fgColor={theme === 'dark' ? '#ffffff' : '#000000'}
+                    />
                   ) : (
-                    <div className="flex items-center justify-center w-32 h-32 bg-gray-100 rounded-lg">
-                      <p className="text-gray-500 text-sm text-center">No QR code data available</p>
-                    </div>
+                    <p className="text-gray-400 text-xs text-center">No QR</p>
                   )}
                 </div>
-                {/* Details */}
-                <div className="flex-1">
-                  <h2 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>Employee ID Card Details</h2>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                    <div className="font-semibold">Name:</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{selectedCard.fullName}</div>
-                    <div className="font-semibold">Employee ID:</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{selectedCard.employeeId}</div>
-                    <div className="font-semibold">Designation:</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{selectedCard.designation}</div>
-                    <div className="font-semibold">Project:</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{selectedCard.projectName}</div>
-                    <div className="font-semibold">Gender:</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{selectedCard.gender}</div>
-                    <div className="font-semibold">Blood Group:</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{selectedCard.bloodGroup}</div>
-                    <div className="font-semibold">Issued Date:</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{selectedCard.issuedDate ? new Date(selectedCard.issuedDate).toLocaleDateString() : 'N/A'}</div>
-                    <div className="font-semibold">Valid Until:</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{new Date(selectedCard.validUntil).toLocaleDateString()}</div>
-                    <div className="font-semibold">Status:</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{selectedCard.status}</div>
-                  </div>
+                <div className={`text-xs font-mono ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'} flex items-center justify-center gap-1`}><FaIdCard className="inline-block mr-1" />{selectedCard.employeeId}</div>
+              </div>
+              {/* Right: Details */}
+              <div className="flex-1 flex flex-col gap-2 min-w-[180px]">
+                <div className={`text-xl font-extrabold tracking-tight mb-1 ${theme === 'dark' ? 'text-white' : 'text-blue-900'}`}>{selectedCard.fullName}</div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border-2 shadow transition-all duration-200 ${selectedCard.status === 'Issued' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-100 text-gray-800 border-gray-300'}`}>{selectedCard.status === 'Issued' && <FaCheckCircle className="w-3 h-3 mr-1" />}{selectedCard.status}</span>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${theme === 'dark' ? 'bg-blue-900 text-blue-200 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{selectedCard.designation}</span>
+                </div>
+                <div className="grid grid-cols-1 gap-y-1 text-sm">
+                  <div><span className="font-semibold">Project:</span> {selectedCard.projectName}</div>
+                  <div><span className="font-semibold">Gender:</span> {selectedCard.gender}</div>
+                  <div><span className="font-semibold">Blood Group:</span> {selectedCard.bloodGroup}</div>
+                  <div><span className="font-semibold">Issued:</span> {selectedCard.issuedDate ? new Date(selectedCard.issuedDate).toLocaleDateString() : 'N/A'}</div>
+                  <div><span className="font-semibold">Valid Until:</span> {new Date(selectedCard.validUntil).toLocaleDateString()}</div>
                 </div>
               </div>
             </div>
+            {/* Download Button */}
+            <button
+              className={`mt-4 mb-8 w-11/12 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition-all duration-200 ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+              onClick={() => handleDownload(selectedCard)}
+              disabled={downloading}
+            >
+              <FaDownload /> Download ID Card
+            </button>
           </div>
         </div>
       )}
       {/* Add hidden QR code SVG container for download */}
       <div style={{ display: 'none' }} ref={qrDownloadRef} />
+      {/* Add fade-in animation styles inside the component */}
+      <style jsx global>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: scale(0.98); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+      `}</style>
     </ManagerDashboardLayout>
   );
 }

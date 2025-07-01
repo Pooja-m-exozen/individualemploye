@@ -455,6 +455,19 @@ export default function EmployeeManagementPage() {
               placeholder="Search employee name or ID..."
               value={search}
               onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  const found = filteredEmployees.find(emp =>
+                    emp.employeeId.toLowerCase() === search.toLowerCase() ||
+                    emp.fullName.toLowerCase() === search.toLowerCase()
+                  );
+                  if (found) {
+                    setSelectedEmployee(found);
+                    const idx = filteredEmployees.findIndex(emp => emp.employeeId === found.employeeId);
+                    setCurrentPage(Math.floor(idx / pageSize) + 1);
+                  }
+                }
+              }}
               className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
                 theme === "dark"
                   ? "bg-gray-800 border-blue-900 text-white"

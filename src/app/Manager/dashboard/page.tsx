@@ -83,6 +83,24 @@ type OnLeaveTodayItem = {
   date?: string;
 };
 
+type KycPersonalDetails = {
+  employeeId: string;
+  fullName: string;
+};
+
+type KycForm = {
+  personalDetails: KycPersonalDetails;
+};
+
+type OnLeaveApiResponseItem = {
+  _id: string;
+  employeeId: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+};
+
 // PIE CHART COLORS
 const PIE_COLORS = [
   '#6366f1', '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6', '#fb7185', '#facc15', '#4ade80', '#2dd4bf', '#38bdf8', '#818cf8', '#f59e42', '#eab308', '#84cc16', '#14b8a6', '#0ea5e9', '#a3e635', '#f43f5e'
@@ -103,6 +121,7 @@ export default function ManagerDashboardPage() {
   const [attendanceTrend, setAttendanceTrend] = useState<AttendanceTrendItem[]>([]);
   const [attendanceLoading, setAttendanceLoading] = useState(true);
   const [leaveTrend, setLeaveTrend] = useState<LeaveTrendItem[]>([]);
+  const [leaveLoading, setLeaveLoading] = useState(true);
   const [projectDistribution, setProjectDistribution] = useState<ProjectDistributionItem[]>([]);
   const [recentAttendance, setRecentAttendance] = useState<RecentAttendanceItem[]>([]);
   const [recentLeaves, setRecentLeaves] = useState<RecentLeaveItem[]>([]);
@@ -163,6 +182,7 @@ export default function ManagerDashboardPage() {
   // Fetch leave trend
   useEffect(() => {
     async function fetchLeaveTrend() {
+      setLeaveLoading(true);
       try {
         const res = await fetch("https://cafm.zenapi.co.in/api/dashboard/leave-trend");
         const data = await res.json();
@@ -170,6 +190,7 @@ export default function ManagerDashboardPage() {
       } catch {
         setLeaveTrend([] as LeaveTrendItem[]);
       }
+      setLeaveLoading(false);
     }
     fetchLeaveTrend();
   }, []);
@@ -212,9 +233,31 @@ export default function ManagerDashboardPage() {
     async function fetchOnLeaveToday() {
       setOnLeaveTodayLoading(true);
       try {
-        const res = await fetch("https://cafm.zenapi.co.in/api/dashboard/on-leave-today");
-        const data = await res.json();
-        setOnLeaveToday((data.onLeave || []) as OnLeaveTodayItem[]);
+        const [leaveRes, kycRes] = await Promise.all([
+          fetch("https://cafm.zenapi.co.in/api/dashboard/on-leave-today"),
+          fetch("https://cafm.zenapi.co.in/api/kyc"),
+        ]);
+        
+        const leaveData = await leaveRes.json();
+        const kycData = await kycRes.json();
+        
+        const employees = (kycData.kycForms || []) as KycForm[];
+        const employeeNameMap = new Map<string, string>();
+        for (const kyc of employees) {
+            if (kyc.personalDetails && kyc.personalDetails.employeeId) {
+                employeeNameMap.set(kyc.personalDetails.employeeId, kyc.personalDetails.fullName);
+            }
+        }
+        
+        const onLeaveData = (leaveData.onLeave || []) as OnLeaveApiResponseItem[];
+        
+        const enrichedOnLeaveData = onLeaveData.map((leaveItem) => ({
+          ...leaveItem,
+          name: employeeNameMap.get(leaveItem.employeeId) || 'Unknown',
+          date: leaveItem.startDate,
+        }));
+        
+        setOnLeaveToday(enrichedOnLeaveData as OnLeaveTodayItem[]);
       } catch {
         setOnLeaveToday([] as OnLeaveTodayItem[]);
       }
@@ -309,69 +352,72 @@ export default function ManagerDashboardPage() {
       <svg width={svgWidth} height={svgHeight}>
         {/* X axis line */}
         <line x1={40} x2={svgWidth - 40} y1={30 + chartHeight} y2={30 + chartHeight} stroke="#64748b" strokeWidth={1} />
+
+        {/* Y axis labels */}
+        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+          <text
+            key={t}
+            x={35}
+            y={30 + chartHeight - chartHeight * t + 5}
+            textAnchor="end"
+            className={`text-xs ${theme === "dark" ? "fill-gray-400" : "fill-gray-500"}`}
+          >
+            {Math.round(maxLeave * t)}
+          </text>
+        ))}
+
         {/* Polyline for leave trend */}
         <polyline
           fill="none"
-          stroke="#6366f1"
-          strokeWidth={4}
+          strokeWidth={3}
+          className={theme === "dark" ? "stroke-indigo-500" : "stroke-indigo-400"}
           points={leaveTrend.map((l, i) => {
             const x = 40 + i * 80;
             const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
             return `${x},${y}`;
           }).join(" ")}
         />
-        {/* Circles for each point */}
+        
+        {/* Circles and labels for each point */}
         {leaveTrend.map((l, i) => {
           const x = 40 + i * 80;
           const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
+          const tooltipText = `${new Date(l._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}: ${l.count} leaves`;
+          
           return (
-            <circle key={l._id} cx={x} cy={y} r={8} fill="#6366f1" stroke="#fff" strokeWidth={2} />
-          );
-        })}
-        {/* Value label above point */}
-        {leaveTrend.map((l, i) => {
-          const x = 40 + i * 80;
-          const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
-          return (
+            <g key={l._id} className="group">
+              <title>{tooltipText}</title>
+              {/* Circle for the data point */}
+              <circle 
+                cx={x} 
+                cy={y} 
+                r={6} 
+                strokeWidth={3}
+                className={`transition-all group-hover:r-8 ${theme === "dark" ? "fill-gray-800 stroke-indigo-400" : "fill-white stroke-indigo-500"}`}
+              />
+              
+              {/* Value label that appears on hover */}
             <text
-              key={l._id + "-val"}
               x={x}
-              y={y - 15}
+                y={y - 18}
               textAnchor="middle"
-              className={theme === "dark" ? "text-xs fill-blue-300" : "text-xs fill-blue-700"}
+                className={`text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity ${theme === "dark" ? "fill-white" : "fill-black"}`}
             >
               {l.count}
             </text>
-          );
-        })}
-        {/* Date label below point */}
-        {leaveTrend.map((l, i) => {
-          const x = 40 + i * 80;
-          return (
+
+              {/* Month label below axis */}
             <text
-              key={l._id + "-label"}
               x={x}
               y={30 + chartHeight + 20}
               textAnchor="middle"
-              className={theme === "dark" ? "text-xs fill-gray-400" : "text-xs fill-gray-400"}
+                className={`text-xs ${theme === "dark" ? "fill-gray-400" : "fill-gray-600"}`}
             >
-              {l._id ? new Date(l._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+                {new Date(l._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
             </text>
+            </g>
           );
         })}
-        {/* Y axis labels */}
-        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-          <text
-            key={t}
-            x={20}
-            y={30 + chartHeight - chartHeight * t + 5}
-            textAnchor="end"
-            fontSize={"0.9rem"}
-            className={theme === "dark" ? "fill-gray-400" : "fill-gray-500"}
-          >
-            {Math.round(maxLeave * t)}
-          </text>
-        ))}
       </svg>
     );
   }
@@ -501,13 +547,21 @@ export default function ManagerDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         {/* Leave Trend Line Chart (Scrollable) */}
         <div
-          className={`rounded-2xl shadow p-6 border flex flex-col items-center ${
+          className={`rounded-2xl shadow p-6 border flex flex-col ${
             theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
           }`}
         >
           <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Leave Trend (Last 6 Months)</div>
-          <div className="w-full overflow-x-auto flex justify-center">
-            {leaveTrendLineSVG}
+          <div className="overflow-x-auto">
+            <div className="relative" style={{ minWidth: Math.max(leaveTrend.length * 80, 480) }}>
+                {leaveLoading ? (
+                    <div className="w-full text-center animate-pulse h-[220px] flex items-center justify-center">Loading...</div>
+                ) : leaveTrend.length === 0 ? (
+                    <div className="w-full text-center text-gray-400 h-[220px] flex items-center justify-center">No data</div>
+                ) : (
+                    leaveTrendLineSVG
+                )}
+            </div>
           </div>
         </div>
         {/* Recent Activities */}

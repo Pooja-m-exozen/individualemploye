@@ -7,6 +7,8 @@ import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaUser, FaClock, FaCheckCirc
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/context/ThemeContext';
 import Image from "next/image";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Employee {
   employeeId: string;
@@ -329,7 +331,17 @@ export default function GenerateIDCardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to generate ID card request');
+        // Show the most specific error message from backend
+        let backendError = data.error || data.message;
+        if (data.errors && typeof data.errors === 'object') {
+          // If there are validation errors, join them
+          backendError = Object.values(data.errors).join(' ');
+        }
+        // Map specific backend error to user-friendly message
+        if (typeof backendError === 'string' && backendError.includes('IDCard validation failed: employeeImage: Path `employeeImage` is required.')) {
+          backendError = 'Employee image is missing. Please add an image during KYC.';
+        }
+        throw new Error(backendError || 'Failed to generate ID card request');
       }
 
       setSuccess('ID Card request generated successfully and pending approval');
@@ -633,6 +645,130 @@ export default function GenerateIDCardPage() {
         return filteredRequests.filter(req => req.status === 'Approved' || req.status === 'Issued');
       default:
         return filteredRequests;
+    }
+  };
+
+  // Utility to fetch image as data URI (copied from ViewKYCModal)
+  const getImageDataUri = (url: string): Promise<string | null> => {
+    return new Promise(async (resolve) => {
+      try {
+        // Force HTTPS for remote images
+        let safeUrl = url;
+        if (safeUrl && safeUrl.startsWith('http://')) {
+          safeUrl = 'https://' + safeUrl.substring(7);
+        }
+        const fetchUrl = safeUrl && safeUrl.startsWith('http')
+          ? `${window.location.origin}/api/proxy-image?url=${encodeURIComponent(safeUrl)}`
+          : safeUrl;
+        console.log('Employee image URL:', url, 'Fetch URL:', fetchUrl);
+        const response = await fetch(fetchUrl);
+        if (!response.ok) {
+          console.error('Failed to fetch image for PDF:', response.statusText);
+          resolve(null);
+          return;
+        }
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      } catch (error) {
+        console.error('Error fetching image for PDF:', error);
+        resolve(null);
+      }
+    });
+  };
+
+  // Download handler for issued cards
+  const handleDownloadIdCard = async (request: IDCardRequest) => {
+    try {
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [54, 86] }); // ID card size
+      // Colors
+      const primaryColor: [number, number, number] = [30, 64, 175]; // blue-800
+      const accentColor: [number, number, number] = [59, 130, 246]; // blue-500
+      // Header/logo bar
+      doc.setFillColor(...primaryColor);
+      doc.rect(0, 0, 86, 10, 'F');
+      const logoDataUri = await getImageDataUri("/exozen_logo1.png");
+      if (logoDataUri) {
+        doc.addImage(logoDataUri, "PNG", 3, 1.5, 12, 7);
+      }
+      doc.setFontSize(12);
+      doc.setTextColor(255,255,255);
+      doc.setFont("helvetica", "bold");
+      doc.text("Exozen Pvt. Ltd.", 43, 7, { align: "center" });
+      // Card body background
+      doc.setFillColor(245, 245, 250);
+      doc.rect(0, 10, 86, 44, 'F');
+      // Employee photo (circular, like KYC PDF)
+      const centerX = 16; // X center of the circle
+      const centerY = 27; // Y center of the circle
+      const radius = 13;  // Circle radius
+      const imgSize = 24; // Image size (should be < 2*radius for margin)
+      // Draw white circle (background)
+      doc.setFillColor(255, 255, 255);
+      doc.circle(centerX, centerY, radius, 'F');
+      // Draw border circle (blue)
+      doc.setDrawColor(59, 130, 246); // blue-500
+      doc.setLineWidth(1);
+      doc.circle(centerX, centerY, radius, 'S');
+      // Draw the image centered in the circle
+      const employeeImageUri = await getImageDataUri(request.employeeImage || "");
+      if (employeeImageUri) {
+        doc.addImage(employeeImageUri, "JPEG", centerX - imgSize/2, centerY - imgSize/2, imgSize, imgSize, undefined, 'FAST');
+      } else {
+        doc.setFontSize(8);
+        doc.setTextColor(180,180,180);
+        doc.text("No Photo", centerX, centerY, { align: "center" });
+      }
+      // Details (right)
+      let xDetails = 30, yDetails = 15, lineGap = 7;
+      doc.setFontSize(10);
+      doc.setTextColor(30, 41, 59); // slate-800
+      doc.setFont("helvetica", "bold");
+      doc.text("Name:", xDetails, yDetails);
+      doc.setFont("helvetica", "normal");
+      doc.text(request.fullName, xDetails+18, yDetails);
+      yDetails += lineGap;
+      doc.setFont("helvetica", "bold");
+      doc.text("Employee ID:", xDetails, yDetails);
+      doc.setFont("helvetica", "normal");
+      doc.text(request.employeeId, xDetails+18, yDetails);
+      yDetails += lineGap;
+      doc.setFont("helvetica", "bold");
+      doc.text("Designation:", xDetails, yDetails);
+      doc.setFont("helvetica", "normal");
+      doc.text(request.designation, xDetails+18, yDetails);
+      yDetails += lineGap;
+      doc.setFont("helvetica", "bold");
+      doc.text("Project:", xDetails, yDetails);
+      doc.setFont("helvetica", "normal");
+      doc.text(request.projectName, xDetails+18, yDetails);
+      yDetails += lineGap;
+      if (request.bloodGroup) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Blood Group:", xDetails, yDetails);
+        doc.setFont("helvetica", "normal");
+        doc.text(request.bloodGroup, xDetails+18, yDetails);
+        yDetails += lineGap;
+      }
+      if (request.validUntil) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Valid Until:", xDetails, yDetails);
+        doc.setFont("helvetica", "normal");
+        doc.text(new Date(request.validUntil).toLocaleDateString(), xDetails+18, yDetails);
+        yDetails += lineGap;
+      }
+      // Footer bar
+      doc.setFillColor(...accentColor);
+      doc.rect(0, 54-7, 86, 7, 'F');
+      doc.setFontSize(9);
+      doc.setTextColor(255,255,255);
+      doc.setFont("helvetica", "bold");
+      doc.text("www.exozen.in", 43, 54-2, { align: "center" });
+      doc.save(`IDCard-${request.employeeId}.pdf`);
+    } catch (err) {
+      alert("Failed to generate ID Card PDF. Please try again.");
     }
   };
 
@@ -1319,35 +1455,13 @@ export default function GenerateIDCardPage() {
                                 />
                               </td>
                               <td className="px-8 py-6 whitespace-nowrap">
-                                <div className="flex items-center gap-4">
-                                  <div className="relative">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                                      theme === 'dark' ? 'bg-gray-600' : 'bg-gray-100'
-                                    }`}>
-                                      {request.employeeImage ? (
-                                        <Image src={request.employeeImage} alt={request.fullName} width={48} height={48} className="rounded-full" />
-                                      ) : (
-                                        <FaUser className={`w-6 h-6 ${
-                                          theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                                        }`} />
-                                      )}
-                                    </div>
-                                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 ${
-                                      theme === 'dark' ? 'border-gray-800' : 'border-white'
-                                    } ${
-                                      request.status === 'Issued' ? 'bg-green-500' :
-                                      request.status === 'Approved' ? 'bg-blue-500' :
-                                      request.status === 'Requested' ? 'bg-yellow-500' : 'bg-red-500'
-                                    }`}></div>
-                                  </div>
-                                  <div>
-                                    <div className={`font-semibold text-lg ${
-                                      theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                    }`}>{request.fullName}</div>
-                                    <div className={`text-sm font-mono ${
-                                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                                    }`}>{request.employeeId}</div>
-                                  </div>
+                                <div>
+                                  <div className={`font-semibold text-lg ${
+                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                  }`}>{request.fullName}</div>
+                                  <div className={`text-sm font-mono ${
+                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                  }`}>{request.employeeId}</div>
                                 </div>
                               </td>
                               <td className="px-8 py-6 whitespace-nowrap">
@@ -1398,7 +1512,9 @@ export default function GenerateIDCardPage() {
                                     </button>
                                   )}
                                   {request.status === 'Issued' && (
-                                    <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 shadow-sm">
+                                    <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 shadow-sm"
+                                      onClick={() => handleDownloadIdCard(request)}
+                                    >
                                       <FaDownload className="w-4 h-4" /> Download
                                     </button>
                                   )}
