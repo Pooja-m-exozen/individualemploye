@@ -1158,7 +1158,7 @@ export default function GenerateIDCardPage() {
                           type="text"
                           placeholder="Search by employee name or ID..."
                           value={searchTerm}
-                          onChange={(event) => setSearchTerm(event.target.value)}
+                          onChange={event => setSearchTerm(event.target.value)}
                           className={`w-full pl-12 pr-4 py-4 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-lg ${
                             theme === 'dark'
                               ? 'bg-gray-700 border-gray-600 text-gray-200'
