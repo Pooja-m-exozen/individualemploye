@@ -10,11 +10,21 @@ import * as XLSX from "xlsx";
 import 'react-tooltip/dist/react-tooltip.css';
 import Image from 'next/image';
 
+interface LeaveBalanceType {
+  [key: string]: {
+    allocated: number;
+    used: number;
+    remaining: number;
+    pending: number;
+  };
+}
+
 interface Employee {
   employeeId: string;
   fullName: string;
   designation: string;
   imageUrl: string;
+  leaveBalance?: LeaveBalanceType;
 }
 
 interface Attendance {
@@ -98,16 +108,37 @@ const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string,
 //   return weekOffs;
 // };
 
-const getPayableDays = (attendance: Attendance[]): number => {
+// Get payable days: if employee is absent and has done CompOff (CF),
+// match absent days with CF days, add matched to payable, remainder CF is shown as CF
+const getPayableDays = (
+  attendance: Attendance[],
+  compOffUsed?: number
+): { payable: number, absent: number, cfRemain: number } => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  // Only count Present, EL, SL, CL as payable days
-  return attendance.filter(a => {
+  let present = 0, el = 0, sl = 0, cl = 0, absent = 0, cf = 0;
+  attendance.forEach(a => {
     const attendanceDate = new Date(a.date);
     attendanceDate.setHours(0, 0, 0, 0);
-    if (attendanceDate > today) return false;
-    return ['P', 'EL', 'SL', 'CL'].includes(a.status);
-  }).length;
+    if (attendanceDate > today) return;
+    if (a.status === 'P') present++;
+    else if (a.status === 'EL') el++;
+    else if (a.status === 'SL') sl++;
+    else if (a.status === 'CL') cl++;
+    else if (a.status === 'A') absent++;
+    else if (a.status === 'CF') cf++;
+  });
+  // Match absent days with CF days
+  const cfMatched = Math.min(absent, cf);
+  const cfRemain = cf - cfMatched;
+  // Payable = present + el + sl + cl + cfMatched + compOffUsed (from leave balance)
+  let payable = present + el + sl + cl + cfMatched;
+  if (typeof compOffUsed === 'number' && compOffUsed > 0) {
+    payable += compOffUsed;
+  }
+  // Absent = absent - cfMatched
+  const absentFinal = absent - cfMatched;
+  return { payable, absent: absentFinal, cfRemain };
 };
 
 const getBase64FromUrl = async (url: string, retries = 3): Promise<string> => {
@@ -195,16 +226,36 @@ const OverallAttendancePage = (): JSX.Element => {
 
         if (kycData.kycForms) {
           const filteredEmployees = kycData.kycForms
-            .filter((form: KycForm) => form.personalDetails.projectName === "Exozen - IT")
+            .filter((form: KycForm) => form.personalDetails.projectName === "Exozen - FMS")
             .map((form: KycForm) => ({
               employeeId: form.personalDetails.employeeId,
               fullName: form.personalDetails.fullName,
               designation: form.personalDetails.designation,
               imageUrl: form.personalDetails.employeeImage || "/default-avatar.png",
             }));
-          setEmployees(filteredEmployees);
 
-          const leavePromises = filteredEmployees.map(emp =>
+          // Fetch leave balances for all employees
+          const leaveBalancePromises = filteredEmployees.map(emp =>
+            fetch(`https://cafm.zenapi.co.in/api/leave/balance/${emp.employeeId}`)
+              .then(res => res.json())
+              .then((data) => ({ employeeId: emp.employeeId, leaveBalance: data.balances || {} }))
+              .catch(() => ({ employeeId: emp.employeeId, leaveBalance: {} }))
+          );
+          const leaveBalances = await Promise.all(leaveBalancePromises);
+          const leaveBalanceMap: Record<string, LeaveBalanceType> = {};
+          leaveBalances.forEach(lb => {
+            leaveBalanceMap[lb.employeeId] = lb.leaveBalance;
+          });
+
+          // Attach leaveBalance to each employee
+          const employeesWithBalance = filteredEmployees.map(emp => ({
+            ...emp,
+            leaveBalance: leaveBalanceMap[emp.employeeId] || {},
+          }));
+          setEmployees(employeesWithBalance);
+
+          // Fetch leave history as before
+          const leavePromises = employeesWithBalance.map(emp =>
             fetch(`https://cafm.zenapi.co.in/api/leave/history/${emp.employeeId}`)
               .then(res => res.json())
               .then((data: LeaveHistoryResponse) => ({
@@ -212,7 +263,6 @@ const OverallAttendancePage = (): JSX.Element => {
                 leaves: data.leaveHistory || []
               }))
           );
-          
           const allLeaves = await Promise.all(leavePromises);
           const leaveMap: Record<string, LeaveRecord[]> = {};
           allLeaves.forEach(empLeaves => {
@@ -243,7 +293,7 @@ const OverallAttendancePage = (): JSX.Element => {
         employees.forEach((employee) => {
           const employeeAttendance = data.attendance.filter((record: AttendanceRecord) => 
             record.employeeId === employee.employeeId && 
-            record.projectName === "Exozen - IT"
+            record.projectName === "Exozen - FMS"
           );
           const employeeLeaves = leaveData[employee.employeeId] || [];
 
@@ -323,16 +373,15 @@ const OverallAttendancePage = (): JSX.Element => {
         return a.status === status && d <= today;
       }).length;
 
+      // Use new logic for payable/absent/cfRemain
+      const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
+      const { payable, absent, cfRemain } = getPayableDays(empAttendance, compOffUsed);
       const presentCount = getCount('P');
-      const absentCount = getCount('A');
       const holidayCount = getCount('H');
-      const cfCount = getCount('CF');
       const elCount = getCount('EL');
       const slCount = getCount('SL');
       const clCount = getCount('CL');
-      // const compOffCount = getCount('CompOff');
-      const payableDays = getPayableDays(empAttendance);
-      
+
       return [
         employee.employeeId, employee.fullName,
         ...empAttendance.map(record => {
@@ -349,7 +398,7 @@ const OverallAttendancePage = (): JSX.Element => {
           else if (record.status === 'A') textColor = [183, 28, 28];
           else if (record.status === 'CF') textColor = [8, 145, 178];
           else if (['EL', 'SL', 'CL', 'CompOff'].includes(record.status)) textColor = [217, 119, 6];
-          
+
           const fontStyle: 'bold' | 'normal' = ['P', 'A', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff'].includes(record.status) ? 'bold' : 'normal';
 
           return {
@@ -361,8 +410,8 @@ const OverallAttendancePage = (): JSX.Element => {
             }
           };
         }),
-        presentCount.toString(), absentCount.toString(), holidayCount.toString(), cfCount.toString(),
-        elCount.toString(), slCount.toString(), clCount.toString(), payableDays.toString()
+        presentCount.toString(), absent.toString(), holidayCount.toString(), cfRemain.toString(),
+        elCount.toString(), slCount.toString(), clCount.toString(), payable.toString()
       ];
     });
 
@@ -392,12 +441,15 @@ const OverallAttendancePage = (): JSX.Element => {
         d.setHours(0, 0, 0, 0);
         return a.status === status && d <= today;
       }).length;
-      
+
+      const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
+      const { payable, absent, cfRemain } = getPayableDays(empAttendance, compOffUsed);
+
       const rowData: { [key: string]: string | number } = {
         "Employee ID": employee.employeeId,
         "Employee Name": employee.fullName
       };
-      
+
       Array.from({ length: getDaysInMonth(year, month) }, (_, i) => {
         const date = new Date(year, month - 1, i + 1).toISOString().split("T")[0];
         const record = empAttendance.find(r => r.date === date);
@@ -406,14 +458,14 @@ const OverallAttendancePage = (): JSX.Element => {
       });
 
       rowData["Present"] = getCount('P');
-      rowData["Absent"] = getCount('A');
+      rowData["Absent"] = absent;
       rowData["Holiday"] = getCount('H');
-      rowData["CF"] = getCount('CF');
+      rowData["CF"] = cfRemain;
       rowData["EL"] = getCount('EL');
       rowData["SL"] = getCount('SL');
       rowData["CL"] = getCount('CL');
-      rowData["Payable Days"] = getPayableDays(empAttendance);
-      
+      rowData["Payable Days"] = payable;
+
       return rowData;
     });
 
@@ -545,7 +597,11 @@ const OverallAttendancePage = (): JSX.Element => {
                       d.setHours(0, 0, 0, 0);
                       return a.status === status && d <= today;
                     }).length;
-                    
+
+                    // Use new logic for payable/absent/cfRemain
+                    const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
+                    const { payable, absent, cfRemain } = getPayableDays(empAttendance, compOffUsed);
+
                     return (
                       <tr key={employee.employeeId} className={`transition-colors duration-150 ${theme === 'dark' ? 'hover:bg-gray-700/50' : 'hover:bg-blue-50/50'}`}>
                         <td className={`py-3 pl-4 pr-8 sticky left-0 bg-inherit z-10 whitespace-nowrap ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
@@ -577,13 +633,13 @@ const OverallAttendancePage = (): JSX.Element => {
                           );
                         })}
                         <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-green-900' : 'bg-green-100'}`}>{getCount('P')}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-red-900' : 'bg-red-100'}`}>{getCount('A')}</td>
+                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-red-900' : 'bg-red-100'}`}>{absent}</td>
                         <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-purple-900' : 'bg-purple-100'}`}>{getCount('H')}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{getCount('CF')}</td>
+                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{cfRemain}</td>
                         <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('EL')}</td>
                         <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('SL')}</td>
                         <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('CL')}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{getPayableDays(empAttendance)}</td>
+                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{payable}</td>
                       </tr>
                     );
                   })}

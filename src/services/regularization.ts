@@ -9,8 +9,8 @@ export async function fetchAllRegularizations() {
 
 export async function updateRegularizationStatus(id: string, action: string, rejectionReason?: string) {
   if (action === "approve") {
-    // Use the new approve API and body
-    return axios.patch(
+    // Use the new approve API and body with PUT
+    return axios.put(
       `https://cafm.zenapi.co.in/api/attendance/regularize/${id}/approve`,
       {
         status: "Approved",
@@ -18,8 +18,8 @@ export async function updateRegularizationStatus(id: string, action: string, rej
       }
     );
   } else if (action === "reject") {
-    // Use the new reject API and body
-    return axios.patch(
+    // Use the new reject API and body with PUT
+    return axios.put(
       `https://cafm.zenapi.co.in/api/attendance/regularize/${id}/reject`,
       {
         status: "Rejected",
