@@ -725,7 +725,7 @@ export default function GenerateIDCardPage() {
       if (employeeImageUri) {
         try {
           doc.addImage(employeeImageUri, imageType, centerX - imgSize/2, centerY - imgSize/2, imgSize, imgSize, undefined, 'FAST');
-        } catch (e) {
+        } catch {
           // fallback to PNG if JPEG fails
           try {
             doc.addImage(employeeImageUri, 'PNG', centerX - imgSize/2, centerY - imgSize/2, imgSize, imgSize, undefined, 'FAST');
