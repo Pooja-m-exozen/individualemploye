@@ -27,6 +27,17 @@ interface ProjectAttendanceRecord {
   date: string;
   name: string;
   designation: string;
+  punchInTime?: string;
+  punchOutTime?: string;
+  punchInPhoto?: string;
+  punchOutPhoto?: string;
+  punchInLatitude?: number;
+  punchInLongitude?: number;
+  punchOutLatitude?: number;
+  punchOutLongitude?: number;
+  projectName: string;
+  punchInLocation?: LocationDetail;
+  punchOutLocation?: LocationDetail;
 }
 
 // API response types
@@ -35,6 +46,21 @@ interface AttendanceApiResponse {
 }
 interface ProjectAttendanceApiResponse {
   attendance: ProjectAttendanceRecord[];
+}
+
+// Add KYC employee type
+interface KycEmployee {
+  employeeId: string;
+  fullName: string;
+  designation: string;
+  projectName: string;
+}
+
+// Add LocationDetail type
+interface LocationDetail {
+  latitude: number;
+  longitude: number;
+  address: string | null;
 }
 
 export default function AttendanceViewPage() {
@@ -48,7 +74,29 @@ export default function AttendanceViewPage() {
   const [projectAttendance, setProjectAttendance] = useState<ProjectAttendanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedRecord, setSelectedRecord] = useState<ProjectAttendanceRecord | null>(null);
+  const [inLocationAddress, setInLocationAddress] = useState<string>("");
+  const [outLocationAddress, setOutLocationAddress] = useState<string>("");
+  const [kycEmployees, setKycEmployees] = useState<KycEmployee[]>([]);
+  const [projectOptions, setProjectOptions] = useState<string[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
+  // Add formatDate and formatTime helpers
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+  const formatTime = (dateString: string | undefined): string => {
+    if (!dateString) return 'N/A';
+    const d = new Date(dateString);
+    if (Number.isNaN(d.getTime())) return 'N/A';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   // Fetch attendance data from API
   const fetchAttendance = async (): Promise<void> => {
@@ -90,6 +138,71 @@ export default function AttendanceViewPage() {
       setLoading(false);
     }
   };
+
+  // Fetch KYC employees and project options
+  useEffect(() => {
+    fetch("https://cafm.zenapi.co.in/api/kyc")
+      .then(res => res.json())
+      .then(data => {
+        const employees = (data.kycForms || []).map((form: any) => ({
+          employeeId: form.personalDetails.employeeId,
+          fullName: form.personalDetails.fullName,
+          designation: form.personalDetails.designation,
+          projectName: form.personalDetails.projectName,
+        }));
+        setKycEmployees(employees);
+        setProjectOptions(Array.from(new Set(employees.map((e: KycEmployee) => e.projectName).filter(Boolean))));
+      });
+  }, []);
+
+  // Helper: enrich attendance records with punchInLocation and punchOutLocation
+  const enrichWithLocations = (data: ProjectAttendanceRecord[]): ProjectAttendanceRecord[] => {
+    return data.map(record => ({
+      ...record,
+      punchInLocation: record.punchInLatitude && record.punchInLongitude
+        ? {
+            latitude: record.punchInLatitude,
+            longitude: record.punchInLongitude,
+            address: null
+          }
+        : undefined,
+      punchOutLocation: record.punchOutLatitude && record.punchOutLongitude
+        ? {
+            latitude: record.punchOutLatitude,
+            longitude: record.punchOutLongitude,
+            address: null
+          }
+        : undefined
+    }));
+  };
+
+  // Fetch attendance for all employees in selected project/month/year
+  useEffect(() => {
+    if (!projectFilter) return;
+    setLoading(true);
+    const employeesInProject = kycEmployees.filter(e => e.projectName === projectFilter);
+    Promise.all(
+      employeesInProject.map(emp =>
+        fetch(`https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${emp.employeeId}&month=${selectedMonth}&year=${selectedYear}`)
+          .then(res => res.json())
+          .then(data => enrichWithLocations((data.attendance || []).map((att: any) => ({
+            ...att,
+            name: emp.fullName,
+            designation: emp.designation,
+            projectName: att.projectName,
+            punchInPhoto: att.punchInPhoto,
+            punchOutPhoto: att.punchOutPhoto,
+            punchInLatitude: att.punchInLatitude,
+            punchInLongitude: att.punchInLongitude,
+            punchOutLatitude: att.punchOutLatitude,
+            punchOutLongitude: att.punchOutLongitude,
+          }))))
+      )
+    ).then(results => {
+      setProjectAttendance(results.flat());
+      setLoading(false);
+    });
+  }, [projectFilter, selectedMonth, selectedYear, kycEmployees]);
 
   useEffect(() => {
     fetchAttendance();
@@ -213,6 +326,75 @@ export default function AttendanceViewPage() {
   };
 
   const filteredProjectAttendance = filterProjectAttendance();
+
+  // Update reverseGeocode to include debug logging
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    console.log('Geocoding request for:', { lat, lng });
+    const GOOGLE_MAPS_API_KEY = 'AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4'; // Integrated valid API key
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
+      console.log('Geocoding URL:', url);
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log('Reverse geocode response:', data);
+      if (data.status === 'OK' && data.results?.[0]) {
+        const result = data.results[0];
+        const addressComponents = {
+          streetNumber: '',
+          route: '',
+          locality: '',
+          area: '',
+          city: '',
+          state: '',
+          country: ''
+        };
+        result.address_components.forEach((component: any) => {
+          if (component.types.includes('street_number')) addressComponents.streetNumber = component.long_name;
+          if (component.types.includes('route')) addressComponents.route = component.long_name;
+          if (component.types.includes('locality')) addressComponents.locality = component.long_name;
+          if (component.types.includes('sublocality')) addressComponents.area = component.long_name;
+          if (component.types.includes('administrative_area_level_2')) addressComponents.city = component.long_name;
+          if (component.types.includes('administrative_area_level_1')) addressComponents.state = component.long_name;
+          if (component.types.includes('country')) addressComponents.country = component.long_name;
+        });
+        const formattedAddress = [
+          [addressComponents.streetNumber, addressComponents.route].filter(Boolean).join(' '),
+          addressComponents.area,
+          addressComponents.locality,
+          addressComponents.city,
+          addressComponents.state,
+          addressComponents.country
+        ].filter(Boolean).join(', ');
+        return formattedAddress;
+      }
+      return 'Location not found';
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      return 'Error fetching location';
+    }
+  };
+
+  // Update handleRowClick to set address on selectedRecord's punchInLocation and punchOutLocation
+  const handleRowClick = async (record: ProjectAttendanceRecord) => {
+    let updatedRecord = { ...record };
+    if (record.punchInLatitude && record.punchInLongitude) {
+      const address = await reverseGeocode(record.punchInLatitude, record.punchInLongitude);
+      updatedRecord.punchInLocation = {
+        latitude: record.punchInLatitude,
+        longitude: record.punchInLongitude,
+        address,
+      };
+    }
+    if (record.punchOutLatitude && record.punchOutLongitude) {
+      const address = await reverseGeocode(record.punchOutLatitude, record.punchOutLongitude);
+      updatedRecord.punchOutLocation = {
+        latitude: record.punchOutLatitude,
+        longitude: record.punchOutLongitude,
+        address,
+      };
+    }
+    setSelectedRecord(updatedRecord);
+  };
 
   return (
     <ManagerDashboardLayout>
@@ -382,7 +564,7 @@ export default function AttendanceViewPage() {
           </div>
         )}
         {activeTab === "Project Wise Attendance" && (
-          <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg shadow-lg p-6`}> {/* removed overflow-x-auto from here */}
+          <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg shadow-lg p-6`}>
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-blue-100' : 'text-gray-800'}`}>Project Wise Attendance</h2>
@@ -390,7 +572,7 @@ export default function AttendanceViewPage() {
               </div>
             </div>
             <div className="relative">
-              <div className={`overflow-x-auto overflow-y-auto max-h-[60vh] rounded-lg border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}> {/* table scrolls vertically */}
+              <div className={`overflow-x-auto overflow-y-auto max-h-[60vh] rounded-lg border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
                 <table className="w-full text-left">
                   <thead>
                     <tr className={theme === 'dark' ? 'bg-blue-950' : 'bg-gray-50'}>
@@ -398,15 +580,18 @@ export default function AttendanceViewPage() {
                       <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Name</th>
                       <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Designation</th>
                       <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Date</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Punch In Time</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Punch Out Time</th>
                       <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Status</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Action</th>
                     </tr>
                   </thead>
                   <tbody className={theme === 'dark' ? 'divide-gray-800' : 'divide-gray-200'}>
                     {projectAttendance.length === 0 && (
-                      <tr><td colSpan={5} className="text-center py-8 text-gray-400">No records found.</td></tr>
+                      <tr><td colSpan={8} className="text-center py-8 text-gray-400">No records found.</td></tr>
                     )}
                     {filteredProjectAttendance.length === 0 && (
-                      <tr><td colSpan={5} className="text-center py-8 text-gray-400">No records found.</td></tr>
+                      <tr><td colSpan={8} className="text-center py-8 text-gray-400">No records found.</td></tr>
                     )}
                     {filteredProjectAttendance.map((row) => (
                       <tr key={row.employeeId + '-' + row.date} className={theme === 'dark' ? 'hover:bg-blue-950 transition-colors duration-200' : 'hover:bg-gray-50 transition-colors duration-200'}>
@@ -414,13 +599,141 @@ export default function AttendanceViewPage() {
                         <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.name}</td>
                         <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.designation}</td>
                         <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.date ? new Date(row.date).toLocaleDateString() : "N/A"}</td>
+                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.punchInTime ? row.punchInTime : 'N/A'}</td>
+                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.punchOutTime ? row.punchOutTime : 'N/A'}</td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${row.status === "Present" ? (theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800') : row.status === "Absent" ? (theme === 'dark' ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800') : (theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800')}`}>{row.status}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2 ${theme === 'dark' ? 'bg-blue-800 text-white hover:bg-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                            onClick={() => handleRowClick(row)}
+                          >
+                            View
+                          </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+        {selectedRecord && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-8 max-w-2xl w-full relative animate-fade-in overflow-y-auto max-h-[90vh]`}>
+              <button
+                onClick={() => setSelectedRecord(null)}
+                className={`absolute top-2 right-2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-800'} text-2xl font-bold`}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+              <h2 className={`text-2xl font-bold mb-6 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'} text-center`}>
+                Attendance Record Details
+              </h2>
+              <div className="space-y-4">
+                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Date:</span>
+                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                    {formatDate(selectedRecord.date)}
+                  </span>
+                </div>
+                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Project Name:</span>
+                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                    {selectedRecord.projectName || 'N/A'}
+                  </span>
+                </div>
+                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Designation:</span>
+                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                    {selectedRecord.designation || 'N/A'}
+                  </span>
+                </div>
+                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch In Time:</span>
+                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                    {formatTime(selectedRecord.punchInTime)}
+                  </span>
+                </div>
+                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch Out Time:</span>
+                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                    {formatTime(selectedRecord.punchOutTime)}
+                  </span>
+                </div>
+                {/* Punch In Location Details */}
+                <div className={`flex flex-col border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} mb-2`}>
+                    Punch In Details:
+                  </span>
+                  <div className="ml-4 space-y-2">
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
+                      <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                        {formatTime(selectedRecord.punchInTime)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
+                      <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
+                        {selectedRecord.punchInLocation?.address || 'Location not available'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {/* Punch Out Location Details */}
+                <div className={`flex flex-col border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} mb-2`}>
+                    Punch Out Details:
+                  </span>
+                  <div className="ml-4 space-y-2">
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
+                      <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                        {formatTime(selectedRecord.punchOutTime)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
+                      <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
+                        {selectedRecord.punchOutLocation?.address || 'Location not available'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {/* Attendance Photos section */}
+                <div className="flex flex-col items-start border-b pb-2">
+                  <span className="font-medium text-gray-500 mb-1">Attendance Photos:</span>
+                  <div className="grid grid-cols-2 gap-4 w-full">
+                    {selectedRecord.punchInPhoto && (
+                      <div>
+                        <span className="text-sm text-gray-500 block mb-1">Punch In:</span>
+                        <img
+                          src={selectedRecord.punchInPhoto}
+                          alt="Punch In"
+                          width={200}
+                          height={200}
+                          className="rounded-lg"
+                        />
+                      </div>
+                    )}
+                    {selectedRecord.punchOutPhoto && (
+                      <div>
+                        <span className="text-sm text-gray-500 block mb-1">Punch Out:</span>
+                        <img
+                          src={selectedRecord.punchOutPhoto}
+                          alt="Punch Out"
+                          width={200}
+                          height={200}
+                          className="rounded-lg"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
