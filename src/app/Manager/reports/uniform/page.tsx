@@ -60,7 +60,7 @@ export default function UniformReportPage() {
 
 	// Pagination states
 	const [currentPage, setCurrentPage] = useState(1);
-	const rowsPerPage = 15;
+	const rowsPerPage = 20;
 
 	// Sorting states
 	const [sortBy, setSortBy] = useState<"projectName" | "designation" | "issuedStatus" | null>(null);
@@ -152,15 +152,13 @@ export default function UniformReportPage() {
 				<div
 					className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${
 						theme === "dark"
-							? "bg-gradient-to-r from-blue-900 to-blue-800"
+							? "bg-[#323a48]"
 							: "bg-gradient-to-r from-blue-500 to-blue-800"
 					}`}
 				>
 					<div
-						className={`${
-							theme === "dark"
-								? "bg-blue-900"
-								: "bg-blue-600 bg-opacity-30"
+						className={`$${
+							theme === "dark" ? "bg-[#232a36]" : "bg-blue-600 bg-opacity-30"
 						} rounded-xl p-4 flex items-center justify-center`}
 					>
 						<FaTshirt className="w-10 h-10 text-white" />
@@ -169,7 +167,7 @@ export default function UniformReportPage() {
 						<h1 className="text-3xl font-bold text-white mb-1">
 							Uniform Report
 						</h1>
-						<p className="text-white text-base opacity-90">
+						<p className={theme === "dark" ? "text-blue-200 text-base" : "text-white text-base opacity-90"}>
 							View and export uniform issuance details for employees.
 						</p>
 					</div>
@@ -268,7 +266,7 @@ export default function UniformReportPage() {
 				</div>
 				{/* Table */}
 				<div
-					className={`overflow-x-auto rounded-xl border shadow-xl ${
+					className={`rounded-xl border shadow-xl ${
 						theme === "dark" ? "border-gray-700 bg-gray-900" : "border-blue-100 bg-white"
 					}`}
 				>
@@ -277,88 +275,90 @@ export default function UniformReportPage() {
 					) : error ? (
 						<div className="p-8 text-center text-red-500">{error}</div>
 					) : (
-						<table
-							className={`min-w-full divide-y ${
-								theme === "dark" ? "divide-gray-700" : "divide-blue-100"
-							}`}
-						>
-							<thead
-								className={
-									theme === "dark"
+						<div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+							<table
+								className={`min-w-full divide-y ${
+									theme === "dark" ? "divide-gray-700" : "divide-blue-100"
+								}`}
+							>
+								<thead
+									className={
+										theme === "dark"
 										? "bg-blue-950 sticky top-0 z-10"
 										: "bg-blue-50 sticky top-0 z-10"
-								}
-							>
-								<tr>
-									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Employee ID</th>
-									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Name</th>
-									<th
-										onClick={() => {
-											if (sortBy === "projectName") setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-											else { setSortBy("projectName"); setSortOrder("asc"); }
-										}}
-										className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}
-									>
-										Project {sortBy === "projectName" && (sortOrder === "asc" ? "▲" : "▼")}
-									</th>
-									<th
-										onClick={() => {
-											if (sortBy === "designation") setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-											else { setSortBy("designation"); setSortOrder("asc"); }
-										}}
-										className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}
-									>
-										Designation {sortBy === "designation" && (sortOrder === "asc" ? "▲" : "▼")}
-									</th>
-									<th
-										onClick={() => {
-											if (sortBy === "issuedStatus") setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-											else { setSortBy("issuedStatus"); setSortOrder("asc"); }
-										}}
-										className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}
-									>
-										Status {sortBy === "issuedStatus" && (sortOrder === "asc" ? "▲" : "▼")}
-									</th>
-								</tr>
-							</thead>
-							<tbody
-								className={
-									theme === "dark"
-									? "divide-y divide-gray-800"
-									: "divide-y divide-blue-50"
-								}
-							>
-								{paginatedRecords.length === 0 ? (
+									}
+								>
 									<tr>
-										<td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No records found</td>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Employee ID</th>
+										<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Name</th>
+										<th
+											onClick={() => {
+												if (sortBy === "projectName") setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+												else { setSortBy("projectName"); setSortOrder("asc"); }
+											}}
+											className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}
+										>
+											Project {sortBy === "projectName" && (sortOrder === "asc" ? "▲" : "▼")}
+										</th>
+										<th
+											onClick={() => {
+												if (sortBy === "designation") setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+												else { setSortBy("designation"); setSortOrder("asc"); }
+											}}
+											className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}
+										>
+											Designation {sortBy === "designation" && (sortOrder === "asc" ? "▲" : "▼")}
+										</th>
+										<th
+											onClick={() => {
+												if (sortBy === "issuedStatus") setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+												else { setSortBy("issuedStatus"); setSortOrder("asc"); }
+											}}
+											className={`px-4 py-3 text-left text-xs font-bold uppercase cursor-pointer select-none ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}
+										>
+											Status {sortBy === "issuedStatus" && (sortOrder === "asc" ? "▲" : "▼")}
+										</th>
 									</tr>
-								) : (
-									paginatedRecords.map((rec, idx) => (
-										<tr key={rec._id || idx} className={theme === "dark" ? "hover:bg-blue-950 transition" : "hover:bg-blue-50 transition"}>
-										<td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{rec.employeeId}</td>
-										<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.fullName}</td>
-										<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.projectName}</td>
-										<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.designation}</td>
-										<td className="px-4 py-3">
-											<span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-												rec.issuedStatus === "Issued"
-													? theme === "dark"
-														? "bg-green-900 text-green-200"
-														: "bg-green-100 text-green-800"
-													: rec.issuedStatus === "Pending"
+								</thead>
+								<tbody
+									className={
+										theme === "dark"
+										? "divide-y divide-gray-800"
+										: "divide-y divide-blue-50"
+									}
+								>
+									{paginatedRecords.length === 0 ? (
+										<tr>
+											<td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No records found</td>
+										</tr>
+									) : (
+										paginatedRecords.map((rec, idx) => (
+											<tr key={rec._id || idx} className={theme === "dark" ? "hover:bg-blue-950 transition" : "hover:bg-blue-50 transition"}>
+											<td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{rec.employeeId}</td>
+											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.fullName}</td>
+											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.projectName}</td>
+											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.designation}</td>
+											<td className="px-4 py-3">
+												<span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+													rec.issuedStatus === "Issued"
 														? theme === "dark"
-															? "bg-yellow-900 text-yellow-200"
-															: "bg-yellow-100 text-yellow-800"
-														: theme === "dark"
-															? "bg-red-900 text-red-200"
-															: "bg-red-100 text-red-800"
+															? "bg-green-900 text-green-200"
+															: "bg-green-100 text-green-800"
+														: rec.issuedStatus === "Pending"
+															? theme === "dark"
+																? "bg-yellow-900 text-yellow-200"
+																: "bg-yellow-100 text-yellow-800"
+															: theme === "dark"
+																? "bg-red-900 text-red-200"
+																: "bg-red-100 text-red-800"
 													}`}>{rec.issuedStatus}</span>
-										</td>
-									</tr>
+											</td>
+										</tr>
 									))
-								)}
-							</tbody>
-						</table>
+									)}
+								</tbody>
+							</table>
+						</div>
 					)}
 				</div>
 				{/* Pagination Controls */}

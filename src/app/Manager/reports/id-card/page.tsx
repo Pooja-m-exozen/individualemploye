@@ -174,13 +174,13 @@ export default function IDCardReportPage() {
 				<div
 					className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${
 						theme === "dark"
-							? "bg-gradient-to-r from-blue-900 to-blue-800"
+							? "bg-[#323a48]"
 							: "bg-gradient-to-r from-blue-500 to-blue-800"
 					}`}
 				>
 					<div
-						className={`${
-							theme === "dark" ? "bg-blue-900" : "bg-blue-600 bg-opacity-30"
+						className={`$${
+							theme === "dark" ? "bg-[#232a36]" : "bg-blue-600 bg-opacity-30"
 						} rounded-xl p-4 flex items-center justify-center`}
 					>
 						<FaIdCard className="w-10 h-10 text-white" />
@@ -189,7 +189,7 @@ export default function IDCardReportPage() {
 						<h1 className="text-3xl font-bold text-white mb-1">
 							ID Card Report
 						</h1>
-						<p className="text-white text-base opacity-90">
+						<p className={theme === "dark" ? "text-blue-200 text-base" : "text-white text-base opacity-90"}>
 							View and export ID card generation details for employees.
 						</p>
 					</div>

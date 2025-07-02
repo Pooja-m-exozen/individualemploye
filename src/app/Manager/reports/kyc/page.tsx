@@ -136,13 +136,13 @@ export default function KYCReportPage() {
     <div className={`min-h-screen font-sans ${theme === 'dark' ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
       <div className="p-6">
         {/* Header */}
-        <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${theme === 'dark' ? 'bg-gradient-to-r from-blue-900 to-blue-800' : 'bg-gradient-to-r from-blue-500 to-blue-800'}`}>
-          <div className={`${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-600 bg-opacity-30'} rounded-xl p-4 flex items-center justify-center`}>
+        <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${theme === 'dark' ? 'bg-[#323a48]' : 'bg-gradient-to-r from-blue-500 to-blue-800'}`}>
+          <div className={`${theme === 'dark' ? 'bg-[#232a36]' : 'bg-blue-600 bg-opacity-30'} rounded-xl p-4 flex items-center justify-center`}>
             <FaIdCard className="w-10 h-10 text-white" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-white mb-1">KYC Report</h1>
-            <p className="text-white text-base opacity-90">View and export KYC details for employees.</p>
+            <p className={`text-base ${theme === 'dark' ? 'text-blue-200' : 'text-white opacity-90'}`}>View and export KYC details for employees.</p>
           </div>
         </div>
         {/* Filters, Search, Export */}

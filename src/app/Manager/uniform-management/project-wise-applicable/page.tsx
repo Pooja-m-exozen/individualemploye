@@ -232,7 +232,9 @@ const UniformProjectWiseApplicablePage = () => {
     <ManagerDashboardLayout>
       <div className={`min-h-screen flex flex-col items-center py-8 ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
         {/* Modern Header */}
-        <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg w-full max-w-5xl mx-auto ${theme === 'dark' ? 'bg-[#2d3748]' : 'bg-blue-100'}`}>
+        <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg w-full max-w-5xl mx-auto ${theme === 'dark' 
+          ? 'bg-[#2d3748]' 
+          : 'bg-gradient-to-r from-[#2563eb] to-[#1d3bb8]'} `}>
           <div className={`${theme === 'dark' ? 'bg-gray-800 bg-opacity-30' : 'bg-blue-600 bg-opacity-30'} rounded-xl p-4 flex items-center justify-center`}>
             <FaIdCard className="w-10 h-10 text-white" />
           </div>

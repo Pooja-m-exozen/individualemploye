@@ -122,8 +122,8 @@ export default function PayrollViewPage() {
       <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
         {/* Modern Blue Gradient Header (like Payroll Update) */}
         <div className="mb-8">
-          <div className={`flex items-center gap-6 rounded-2xl px-8 py-8 ${theme === 'dark' ? 'bg-gradient-to-r from-blue-900 to-blue-800' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}>
-            <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${theme === 'dark' ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-500 bg-opacity-30'}`}>
+          <div className={`flex items-center gap-6 rounded-2xl px-8 py-8 ${theme === 'dark' ? 'bg-[#323a48]' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}>
+            <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${theme === 'dark' ? 'bg-[#232a36]' : 'bg-blue-500 bg-opacity-30'}`}>
               <FaMoneyBillWave className="w-8 h-8 text-white" />
             </div>
             <div>

@@ -774,10 +774,10 @@ export default function PayrollUpdatePage() {
                 </table>
                 {/* Legend */}
                 <div className="flex flex-wrap gap-4 mt-4 items-center">
-                  <span className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-green-500 inline-block"></span> Present (P)</span>
-                  <span className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-red-500 inline-block"></span> Absent (A)</span>
-                  <span className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-blue-500 inline-block"></span> Leave (L)</span>
-                  <span className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-yellow-400 border border-yellow-600 inline-block"></span> Holiday (H)</span>
+                  <span className={`flex items-center gap-2 ${theme === 'dark' ? '' : 'text-black'}`}><span className="w-4 h-4 rounded bg-green-500 inline-block"></span> Present (P)</span>
+                  <span className={`flex items-center gap-2 ${theme === 'dark' ? '' : 'text-black'}`}><span className="w-4 h-4 rounded bg-red-500 inline-block"></span> Absent (A)</span>
+                  <span className={`flex items-center gap-2 ${theme === 'dark' ? '' : 'text-black'}`}><span className="w-4 h-4 rounded bg-blue-500 inline-block"></span> Leave (L)</span>
+                  <span className={`flex items-center gap-2 ${theme === 'dark' ? '' : 'text-black'}`}><span className="w-4 h-4 rounded bg-yellow-400 border border-yellow-600 inline-block"></span> Holiday (H)</span>
                 </div>
               </div>
             </div>
@@ -804,8 +804,8 @@ export default function PayrollUpdatePage() {
       <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
         {/* Modern Blue Gradient Header (like KYC Edit) */}
         <div className="mb-8">
-          <div className={`flex items-center gap-6 rounded-2xl px-8 py-8 ${theme === 'dark' ? 'bg-gradient-to-r from-blue-900 to-blue-800' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}>
-            <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${theme === 'dark' ? 'bg-blue-900 bg-opacity-30' : 'bg-blue-500 bg-opacity-30'}`}>
+          <div className={`flex items-center gap-6 rounded-2xl px-8 py-8 ${theme === 'dark' ? 'bg-[#323a48]' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}>
+            <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${theme === 'dark' ? 'bg-[#232a36]' : 'bg-blue-500 bg-opacity-30'}`}>
               <FaMoneyBillWave className="w-8 h-8 text-white" />
             </div>
             <div>
@@ -816,14 +816,14 @@ export default function PayrollUpdatePage() {
         </div>
         <div className="flex-1 flex flex-col lg:flex-row">
           {/* Sidebar Stepper with Instructions/Notes */}
-          <div className={`lg:w-96 w-full lg:h-auto h-28 flex flex-col gap-4 p-4 border-r shadow-lg sticky top-0 z-10 ${theme === 'dark' ? 'bg-gray-900 border-blue-900' : 'bg-white border-blue-100'}`}>
+          <div className={`lg:w-96 w-full lg:h-auto h-28 flex flex-col gap-4 p-4 border-r shadow-lg ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-blue-100'}`}>
             {/* Instructions/Notes Card */}
-            <div className={`rounded-xl p-5 flex items-start gap-4 border ${theme === 'dark' ? 'bg-blue-950 border-blue-900' : 'bg-blue-50 border-blue-100'}`}>
-              <div className={`p-3 rounded-xl flex items-center justify-center ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>
-                <FaInfoCircle className={`w-6 h-6 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`} />
+            <div className={`rounded-xl p-5 flex items-start gap-4 border ${theme === 'dark' ? 'bg-[#232a36] border-gray-800' : 'bg-blue-50 border-blue-100'}`}>
+              <div className={`p-3 rounded-xl flex items-center justify-center ${theme === 'dark' ? 'bg-[#323a48]' : 'bg-blue-100'}`}>
+                <FaInfoCircle className={`w-6 h-6 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-600'}`} />
               </div>
               <div>
-                <h3 className={`font-semibold mb-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Instructions</h3>
+                <h3 className={`font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Instructions</h3>
                 <ul className={`list-disc ml-5 text-sm space-y-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
                   <li>Select the employee, month, and year to update payroll and view attendance.</li>
                   <li>Ensure the employee details are correct before proceeding.</li>
@@ -861,7 +861,7 @@ export default function PayrollUpdatePage() {
             </div>
           </div>
           {/* Main Content */}
-          <div className="flex-1 p-6 flex flex-col gap-8 max-w-3xl mx-auto">
+          <div className="flex-1 p-6 flex flex-col gap-8 max-w-3xl mx-auto overflow-y-auto" style={{ maxHeight: 'calc(100vh - 48px)' }}>
             {/* Step Content */}
             <div className="flex-1">
               {activeStep === 0 && renderSelectEmployee()}

@@ -564,11 +564,11 @@ const OverallSummaryPage = (): JSX.Element => {
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
 
-                    const getCount = (status: string) => empAttendance.filter(a => {
-                      const d = new Date(a.date);
-                      d.setHours(0, 0, 0, 0);
-                      return a.status === status && d <= today;
-                    }).length;
+                    // const getCount = (status: string) => empAttendance.filter(a => {
+                    //   const d = new Date(a.date);
+                    //   d.setHours(0, 0, 0, 0);
+                    //   return a.status === status && d <= today;
+                    // }).length;
 
                     // Use new logic for payable/absent/cfRemain, using CompOff used from leave balance
                     const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;

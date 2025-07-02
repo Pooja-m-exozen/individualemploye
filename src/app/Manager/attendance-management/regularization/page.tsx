@@ -10,9 +10,6 @@ import autoTable from "jspdf-autotable";
 export default function AttendanceReportPage() {
     const { theme } = useTheme();
     const [search, setSearch] = useState("");
-    const [projectFilter, setProjectFilter] = useState("All Projects");
-    const [designationFilter, setDesignationFilter] = useState("All Designations");
-    const [statusFilter, setStatusFilter] = useState("All Statuses");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [records, setRecords] = useState<RegularizationRecord[]>([]);

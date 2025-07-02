@@ -139,9 +139,9 @@ export default function PayrollReportPage() {
   const bgMain = theme === "dark"
     ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
     : "bg-gradient-to-br from-indigo-50 via-white to-blue-50";
-  const headerBg = theme === "dark"
-    ? "bg-gradient-to-r from-blue-900 to-gray-800"
-    : "bg-gradient-to-r from-blue-500 to-blue-800";
+  // const headerBg = theme === "dark"
+  //   ? "bg-gradient-to-r from-blue-900 to-gray-800"
+  //   : "bg-gradient-to-r from-blue-500 to-blue-800";
   const cardBg = theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-white border-blue-100";
   const tableHead = theme === "dark" ? "bg-gray-800" : "bg-blue-50";
   const tableText = theme === "dark" ? "text-white" : "text-black";
@@ -158,13 +158,21 @@ export default function PayrollReportPage() {
     <div className={`min-h-screen font-sans ${bgMain}`}>
       <div className="p-6">
         {/* Header */}
-        <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${headerBg}`}>
-          <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
+        <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${
+          theme === "dark"
+            ? "bg-[#323a48]"
+            : "bg-gradient-to-r from-blue-500 to-blue-800"
+        }`}>
+          <div className={`${
+            theme === "dark" ? "bg-[#232a36]" : "bg-blue-600 bg-opacity-30"
+          } rounded-xl p-4 flex items-center justify-center`}>
             <FaMoneyBillWave className="w-10 h-10 text-white" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-white mb-1">Payroll Report</h1>
-            <p className="text-white text-base opacity-90">View and export payroll details for employees.</p>
+            <p className={theme === "dark" ? "text-blue-200 text-base" : "text-white text-base opacity-90"}>
+              View and export payroll details for employees.
+            </p>
           </div>
         </div>
         {/* Filters, Search, Export */}

@@ -339,7 +339,9 @@ export default function ProjectManagementPage() {
       >
         <div className="p-6">
           {/* Header */}
-          <div className={`rounded-2xl mb-8 p-8 flex items-center gap-6 shadow-lg ${theme === 'dark' ? 'bg-[#2d3748]' : 'bg-blue-100'}`}>
+          <div className={`rounded-2xl mb-8 p-8 flex items-center gap-6 shadow-lg ${theme === 'dark' 
+            ? 'bg-[#2d3748]' 
+            : 'bg-gradient-to-r from-[#2563eb] to-[#1d3bb8]'} `}>
             <div className={`rounded-xl p-5 flex items-center justify-center ${theme === 'dark' ? 'bg-gray-800 bg-opacity-60' : 'bg-blue-600 bg-opacity-30'}`}>
               <FaProjectDiagram className="w-12 h-12 text-white" />
             </div>
