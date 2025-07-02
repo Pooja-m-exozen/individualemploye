@@ -131,7 +131,7 @@ export default function StoreInStockPage() {
                   </li>
                 ))}
               </ul>
-              <div className={`mt-8 p-4 rounded-xl border text-blue-700 transition-colors duration-300 ${theme === "dark" ? "bg-blue-900 border-blue-800 text-blue-200" : "bg-blue-50 border-blue-100 text-blue-700"}`}>
+              <div className={`mt-8 p-4 rounded-xl border text-blue-700 transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-blue-800 text-blue-200" : "bg-blue-50 border-blue-100 text-blue-700"}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <FaStore className="w-4 h-4" />
                   <span className="font-semibold">Need Help?</span>

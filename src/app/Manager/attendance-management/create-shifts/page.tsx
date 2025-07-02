@@ -64,7 +64,7 @@ export default function CreateShiftsPage() {
               </nav>
             </div>
             {/* Instructions/Info Card */}
-            <div className={`relative rounded-2xl p-6 border shadow-xl flex flex-col gap-3 items-start transition-all duration-300 hover:shadow-2xl ${theme === 'dark' ? 'bg-blue-950 border-blue-900' : 'bg-blue-50 border-blue-200'}`}>
+            <div className={`relative rounded-2xl p-6 border shadow-xl flex flex-col gap-3 items-start transition-all duration-300 hover:shadow-2xl ${theme === 'dark' ? 'bg-gray-700 bg-opacity-80 border-blue-900' : 'bg-blue-50 border-blue-200'}`}>
               <div className="flex items-center gap-3 mb-2">
                 <div className={`${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'} p-2 rounded-xl flex items-center justify-center`}>
                   <FaInfoCircle className="w-6 h-6 text-blue-600" />
@@ -76,6 +76,13 @@ export default function CreateShiftsPage() {
                 <li>• Fill all required fields before submitting.</li>
                 <li>• All fields marked with * are mandatory.</li>
               </ul>
+              <div className={`mt-8 p-4 rounded-xl border text-blue-700 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-700 bg-opacity-80 border-blue-900 text-blue-200' : 'bg-blue-50 border-blue-100 text-blue-700'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <FaInfoCircle className="w-4 h-4" />
+                  <span className="font-semibold">Need Help?</span>
+                </div>
+                <p className="text-sm">Contact <span className="font-medium">support@yourdomain.com</span> for support.</p>
+              </div>
             </div>
           </aside>
           {/* Main Content */}
