@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useState } from "react";
 import { FaTimes, FaPrint, FaDownload, FaSpinner } from "react-icons/fa";
 import Image from "next/image";
 import { useReactToPrint } from "react-to-print";
@@ -97,7 +97,6 @@ const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, th
       // Center coordinates and radius
       const centerX = 75;
       const centerY = 70;
-      const radius = 20;
       const imgSize = 38; // slightly smaller than the circle
 
       // Draw the image, slightly smaller and perfectly centered
@@ -110,7 +109,7 @@ const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, th
       }
 
       // Employee Details below the image (larger font sizes)
-      let detailsTop = 97;
+      const detailsTop = 97;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.setTextColor(31, 41, 55);
