@@ -4,7 +4,6 @@ import React, { useRef, useEffect, useState } from "react";
 import { FaTimes, FaPrint, FaDownload, FaSpinner } from "react-icons/fa";
 import Image from "next/image";
 import { useReactToPrint } from "react-to-print";
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 interface IDCardData {
@@ -13,7 +12,7 @@ interface IDCardData {
   designation: string;
   projectName: string;
   bloodGroup?: string;
-  employeeImage?: string;
+  employeeImage: string;
   qrCodeImage: string;
   validUntil: string;
 }
@@ -27,79 +26,137 @@ interface IDCardModalProps {
 
 const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, theme }) => {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [employeeImageBase64, setEmployeeImageBase64] = useState<string | null>(null);
-  const [isImageLoading, setIsImageLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-
-  useEffect(() => {
-    if (isOpen && cardData?.employeeImage) {
-      setIsImageLoading(true);
-      let isMounted = true;
-
-      fetch(cardData.employeeImage)
-        .then(res => res.blob())
-        .then(blob => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            if (isMounted) {
-              setEmployeeImageBase64(reader.result as string);
-              setIsImageLoading(false);
-            }
-          };
-          reader.readAsDataURL(blob);
-        })
-        .catch(err => {
-          console.error("Image load failed:", err);
-          setIsImageLoading(false);
-        });
-
-      return () => {
-        isMounted = false;
-      };
-    } else if (!isOpen) {
-      setEmployeeImageBase64(null);
-    }
-  }, [isOpen, cardData?.employeeImage]);
-
 
   const handlePrint = useReactToPrint({
     contentRef: cardRef,
   });
 
   const handleDownloadPdf = async () => {
-    if (!cardRef.current) return;
+    if (!cardData) return;
     setIsDownloading(true);
-
     try {
-      const images = cardRef.current.querySelectorAll("img");
-      await Promise.all(
-        Array.from(images).map(img => {
-          if (img.complete) return Promise.resolve();
-          return new Promise(resolve => {
-            img.onload = resolve;
-            img.onerror = resolve;
+      const doc = new jsPDF({ unit: 'px', format: [150, 250] });
+      // Helper to fetch image as data URI
+      const getImageDataUri = async (url: string): Promise<string | null> => {
+        try {
+          const fetchUrl = url.startsWith('http')
+            ? `/v1/employee/api/proxy-image?url=${encodeURIComponent(url)}`
+            : url;
+          const response = await fetch(fetchUrl);
+          if (!response.ok) return null;
+          const blob = await response.blob();
+          return await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
           });
-        })
+        } catch {
+          return null;
+        }
+      };
+
+      // --- Card Border ---
+      doc.setDrawColor(44, 44, 44);
+      doc.setLineWidth(1);
+      doc.roundedRect(3, 3, 144, 244, 10, 10, 'S');
+
+      // --- Logo ---
+      const logoDataUri = await getImageDataUri('/v1/employee/exozen_logo1.png');
+      if (logoDataUri) {
+        doc.addImage(logoDataUri, 'PNG', 55, 8, 40, 10);
+      }
+
+      // --- Header Text ---
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(31, 41, 55);
+      doc.text('Smart Society Solutions', 75, 22, { align: 'center' });
+      doc.setFontSize(4);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(107, 114, 128);
+      doc.text('www.exozenifm.com | www.exozen.in', 75, 27, { align: 'center' });
+
+      // --- Essential Services Badge ---
+      doc.setFillColor(220, 38, 38);
+      doc.roundedRect(35, 30, 80, 9, 4, 4, 'F');
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text('Essential Services', 75, 37, { align: 'center' });
+
+      // --- Divider ---
+      doc.setDrawColor(44, 44, 44);
+      doc.setLineWidth(0.5);
+      doc.line(10, 43, 140, 43);
+
+      // --- Main Section: Single Column Layout ---
+      // Centered Employee Image at the top (circular, no border)
+      const employeeImageDataUri = cardData.employeeImage ? await getImageDataUri(cardData.employeeImage) : null;
+      // Center coordinates and radius
+      const centerX = 75;
+      const centerY = 70;
+      const radius = 20;
+      const imgSize = 38; // slightly smaller than the circle
+
+      // Draw the image, slightly smaller and perfectly centered
+      if (employeeImageDataUri) {
+        doc.addImage(employeeImageDataUri, 'JPEG', centerX - imgSize / 2, centerY - imgSize / 2, imgSize, imgSize, undefined, 'FAST');
+      } else {
+        doc.setFontSize(8);
+        doc.setTextColor(160, 160, 160);
+        doc.text('Photo', centerX, centerY, { align: 'center', baseline: 'middle' });
+      }
+
+      // Employee Details below the image (larger font sizes)
+      let detailsTop = 97;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(31, 41, 55);
+      doc.text(cardData.fullName, 75, detailsTop + 5, { align: 'center' });
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(37, 99, 235);
+      doc.text(cardData.designation, 75, detailsTop + 18, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(44, 44, 44);
+      doc.text(`Project: ${cardData.projectName}`, 75, detailsTop + 28, { align: 'center' });
+      doc.text(`ID: ${cardData.employeeId}`, 75, detailsTop + 39, { align: 'center' });
+      let infoY = detailsTop + 49;
+      if (cardData.bloodGroup) {
+        doc.text(`Blood Group: ${cardData.bloodGroup}`, 75, infoY, { align: 'center' });
+        infoY += 9;
+      }
+      doc.text(`Valid Until: ${new Date(cardData.validUntil).toLocaleDateString()}`, 75, infoY, { align: 'center' });
+
+      // QR Code centered below details
+      if (cardData.qrCodeImage) {
+        const qrDataUri = await getImageDataUri(cardData.qrCodeImage);
+        if (qrDataUri) {
+          doc.addImage(qrDataUri, 'PNG', 45, infoY + 8, 60, 60);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(4);
+          doc.setTextColor(44, 44, 44);
+          doc.text('Scan for Details', 75, infoY + 72, { align: 'center' });
+        }
+      }
+
+      // Footer Address at the bottom
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(5);
+      doc.setTextColor(0, 0, 0);
+      doc.text(
+        '25/1, 4th Floor, SKIP House, Museum Rd, near Brigade Tower, Shanthala Nagar, Ashok Nagar, Bengaluru, Karnataka 560025',
+        75,
+        240,
+        { align: 'center', maxWidth: 130 }
       );
 
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 3,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "px",
-        format: [canvas.width, canvas.height],
-      });
-
-      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-      pdf.save(`${cardData?.fullName || "IDCard"}-ID-Card.pdf`);
+      doc.save(`${cardData.fullName || 'IDCard'}-ID-Card.pdf`);
     } catch (err) {
-      console.error("PDF generation error:", err);
+      console.error('PDF generation error:', err);
     } finally {
       setIsDownloading(false);
     }
@@ -107,7 +164,7 @@ const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, th
 
   if (!isOpen || !cardData) return null;
 
-  const imageToRender = employeeImageBase64 || (cardData.employeeImage && !isImageLoading ? cardData.employeeImage : null);
+  const imageToRender = cardData.employeeImage;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
@@ -157,14 +214,10 @@ const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, th
           <div className="relative z-10 my-4 px-4">
             <div className="flex items-center gap-4">
               <div
-  className="w-24 h-24 relative flex-shrink-0 rounded-full border-4 bg-gray-100 shadow-lg overflow-hidden"
-  style={{ borderColor: "#d1d5db", background: "#f3f4f6" }}
->
-                {isImageLoading ? (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <FaSpinner className="animate-spin" style={{ color: "#6b7280" }} />
-                  </div>
-                ) : imageToRender ? (
+                className="w-24 h-24 relative flex-shrink-0 rounded-full border-4 bg-gray-100 shadow-lg overflow-hidden"
+                style={{ borderColor: "#d1d5db", background: "#f3f4f6" }}
+              >
+                {imageToRender ? (
                   <Image src={imageToRender} alt="Employee" layout="fill" objectFit="cover" unoptimized />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center" style={{ color: "#9ca3af" }}>Photo</div>
@@ -209,14 +262,12 @@ const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, th
         <div className="flex justify-end gap-3 mt-4">
           <button
             onClick={handlePrint}
-            disabled={isImageLoading || isDownloading}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg ${theme === "dark" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-blue-500 text-white hover:bg-blue-600"} disabled:opacity-50`}
           >
             <FaPrint /> Print
           </button>
           <button
             onClick={handleDownloadPdf}
-            disabled={isImageLoading || isDownloading}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg ${theme === "dark" ? "bg-green-600 text-white hover:bg-green-700" : "bg-green-500 text-white hover:bg-green-600"} disabled:opacity-50`}
           >
             {isDownloading ? <FaSpinner className="animate-spin" /> : <FaDownload />}

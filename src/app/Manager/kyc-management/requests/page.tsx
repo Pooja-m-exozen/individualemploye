@@ -34,6 +34,9 @@ export default function KYCRequestsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const { theme } = useTheme();
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectingRequest, setRejectingRequest] = useState<{ id: string, employeeId: string } | null>(null);
 
   useEffect(() => {
     fetchRequests();
@@ -67,11 +70,18 @@ export default function KYCRequestsPage() {
 
   const designationOptions = Array.from(new Set(requests.map(f => f.personalDetails.designation))).filter(Boolean);
 
-  const handleAction = async (id: string, action: "approve" | "reject", employeeId: string) => {
+  const handleAction = async (id: string, action: "approve" | "reject", employeeId: string, reason?: string) => {
     setActionLoading(id + action);
     setError(null);
     try {
-      const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${employeeId}/${action}`, { method: "POST" });
+      const res = await fetch(
+        `https://cafm.zenapi.co.in/api/kyc/${employeeId}/${action}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: action === "reject" ? JSON.stringify({ reason }) : undefined,
+        }
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.reason || data.message || "Action failed");
       setRequests((prev) => prev.filter((req) => req._id !== id));
@@ -295,7 +305,10 @@ export default function KYCRequestsPage() {
                           Approve
                         </button>
                         <button
-                          onClick={() => handleAction(req._id, "reject", req.personalDetails.employeeId)}
+                          onClick={() => {
+                            setRejectingRequest({ id: req._id, employeeId: req.personalDetails.employeeId });
+                            setShowRejectModal(true);
+                          }}
                           disabled={actionLoading === req._id + "reject"}
                           title="Reject KYC"
                           className={`flex-1 flex items-center justify-center gap-2 px-5 py-2 rounded-full font-semibold text-base shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2
@@ -353,7 +366,10 @@ export default function KYCRequestsPage() {
                                 Approve
                               </button>
                               <button
-                                onClick={() => handleAction(req._id, "reject", req.personalDetails.employeeId)}
+                                onClick={() => {
+                                  setRejectingRequest({ id: req._id, employeeId: req.personalDetails.employeeId });
+                                  setShowRejectModal(true);
+                                }}
                                 disabled={actionLoading === req._id + "reject"}
                                 title="Reject KYC"
                                 className={`flex items-center justify-center gap-2 px-4 py-1 rounded-full font-semibold text-sm shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2
@@ -375,6 +391,47 @@ export default function KYCRequestsPage() {
           </div>
         </div>
       </div>
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className={`bg-white ${theme === 'dark' ? 'bg-gray-800 text-white' : 'text-black'} rounded-2xl shadow-xl p-8 w-full max-w-md`}>
+            <h2 className="text-xl font-bold mb-4">Reject KYC Request</h2>
+            <label className="block mb-2 font-semibold">Reason for rejection:</label>
+            <textarea
+              className="w-full p-2 border rounded mb-4 text-black"
+              rows={4}
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="Enter reason..."
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                className="px-4 py-2 rounded bg-gray-300 text-black font-semibold"
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectReason("");
+                  setRejectingRequest(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-red-600 text-white font-semibold"
+                disabled={!rejectReason.trim()}
+                onClick={async () => {
+                  if (rejectingRequest) {
+                    await handleAction(rejectingRequest.id, "reject", rejectingRequest.employeeId, rejectReason);
+                    setShowRejectModal(false);
+                    setRejectReason("");
+                    setRejectingRequest(null);
+                  }
+                }}
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </ManagerDashboardLayout>
   );
 } 

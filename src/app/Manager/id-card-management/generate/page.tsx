@@ -652,10 +652,10 @@ export default function GenerateIDCardPage() {
       try {
         // Force HTTPS for remote images
         let safeUrl = url;
-        if (safeUrl && safeUrl.startsWith('http://')) {
+        if (safeUrl && safeUrl.startsWith('https://')) {
           safeUrl = 'https://' + safeUrl.substring(7);
         }
-        const fetchUrl = safeUrl && safeUrl.startsWith('http')
+        const fetchUrl = safeUrl && safeUrl.startsWith('https')
           ? `${window.location.origin}/api/proxy-image?url=${encodeURIComponent(safeUrl)}`
           : safeUrl;
         console.log('Employee image URL:', url, 'Fetch URL:', fetchUrl);
@@ -711,9 +711,30 @@ export default function GenerateIDCardPage() {
       doc.setLineWidth(1);
       doc.circle(centerX, centerY, radius, 'S');
       // Draw the image centered in the circle
-      const employeeImageUri = await getImageDataUri(request.employeeImage || "");
+      // --- Always fetch employee image as data URI using proxy to avoid CORS ---
+      let employeeImageUri: string | null = null;
+      let imageType: 'JPEG' | 'PNG' = 'JPEG';
+      if (request.employeeImage) {
+        employeeImageUri = await getImageDataUri(request.employeeImage);
+        // Try PNG if JPEG fails
+        if (!employeeImageUri) {
+          imageType = 'PNG';
+          employeeImageUri = await getImageDataUri(request.employeeImage);
+        }
+      }
       if (employeeImageUri) {
-        doc.addImage(employeeImageUri, "JPEG", centerX - imgSize/2, centerY - imgSize/2, imgSize, imgSize, undefined, 'FAST');
+        try {
+          doc.addImage(employeeImageUri, imageType, centerX - imgSize/2, centerY - imgSize/2, imgSize, imgSize, undefined, 'FAST');
+        } catch (e) {
+          // fallback to PNG if JPEG fails
+          try {
+            doc.addImage(employeeImageUri, 'PNG', centerX - imgSize/2, centerY - imgSize/2, imgSize, imgSize, undefined, 'FAST');
+          } catch {
+            doc.setFontSize(8);
+            doc.setTextColor(180,180,180);
+            doc.text("No Photo", centerX, centerY, { align: "center" });
+          }
+        }
       } else {
         doc.setFontSize(8);
         doc.setTextColor(180,180,180);
