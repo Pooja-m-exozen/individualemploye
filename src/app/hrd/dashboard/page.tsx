@@ -128,8 +128,6 @@ export default function HrdDashboardPage() {
   const [recentKYC, setRecentKYC] = useState<RecentKYCItem[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
-  const [onLeaveToday, setOnLeaveToday] = useState<OnLeaveTodayItem[]>([]);
-  const [onLeaveTodayLoading, setOnLeaveTodayLoading] = useState(true);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -227,43 +225,6 @@ export default function HrdDashboardPage() {
       setRecentLoading(false);
     }
     fetchRecentActivities();
-  }, []);
-
-  useEffect(() => {
-    async function fetchOnLeaveToday() {
-      setOnLeaveTodayLoading(true);
-      try {
-        const [leaveRes, kycRes] = await Promise.all([
-          fetch("https://cafm.zenapi.co.in/api/dashboard/on-leave-today"),
-          fetch("https://cafm.zenapi.co.in/api/kyc"),
-        ]);
-        
-        const leaveData = await leaveRes.json();
-        const kycData = await kycRes.json();
-        
-        const employees = (kycData.kycForms || []) as KycForm[];
-        const employeeNameMap = new Map<string, string>();
-        for (const kyc of employees) {
-            if (kyc.personalDetails && kyc.personalDetails.employeeId) {
-                employeeNameMap.set(kyc.personalDetails.employeeId, kyc.personalDetails.fullName);
-            }
-        }
-        
-        const onLeaveData = (leaveData.onLeave || []) as OnLeaveApiResponseItem[];
-        
-        const enrichedOnLeaveData = onLeaveData.map((leaveItem) => ({
-          ...leaveItem,
-          name: employeeNameMap.get(leaveItem.employeeId) || 'Unknown',
-          date: leaveItem.startDate,
-        }));
-        
-        setOnLeaveToday(enrichedOnLeaveData as OnLeaveTodayItem[]);
-      } catch {
-        setOnLeaveToday([] as OnLeaveTodayItem[]);
-      }
-      setOnLeaveTodayLoading(false);
-    }
-    fetchOnLeaveToday();
   }, []);
 
   // Pie chart calculations

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import HrdDashboardLayout from "@/components/dashboard/HrdDashboardLayout";
 import { useTheme } from "@/context/ThemeContext";
 import { api } from '@/services/api';
+import type { AxiosError } from 'axios';
 
 interface Note {
   text: string;
@@ -31,11 +32,6 @@ const statusColors: Record<string, string> = {
   Onboarding: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
   Filled: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   Closed: "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
-};
-
-const sortDirections = {
-  asc: "asc",
-  desc: "desc",
 };
 
 type SortKey = keyof Pick<Position, "title" | "department" | "location" | "status">;
@@ -103,8 +99,9 @@ export default function RecruitmentOnboardingDataAddition() {
       const res = await api.get('/positions', { params });
       setPositions(res.data.positions);
       setTotal(res.data.total);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error fetching positions');
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      setError(error.response?.data?.message || 'Error fetching positions');
     } finally {
       setLoading(false);
     }
@@ -156,8 +153,9 @@ export default function RecruitmentOnboardingDataAddition() {
       setForm({ title: '', department: '', location: '', status: 'Open' });
       setSuccess('Position added successfully.');
       fetchPositions();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error adding position');
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      setError(error.response?.data?.message || 'Error adding position');
     } finally {
       setLoading(false);
     }
@@ -187,8 +185,9 @@ export default function RecruitmentOnboardingDataAddition() {
       setEditingId(null);
       setSuccess('Position updated successfully.');
       fetchPositions();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error updating position');
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      setError(error.response?.data?.message || 'Error updating position');
     } finally {
       setLoading(false);
     }
@@ -211,8 +210,9 @@ export default function RecruitmentOnboardingDataAddition() {
       setShowDeleteConfirm(false);
       setSuccess('Position deleted.');
       fetchPositions();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error deleting position');
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      setError(error.response?.data?.message || 'Error deleting position');
     } finally {
       setLoading(false);
     }
@@ -230,8 +230,9 @@ export default function RecruitmentOnboardingDataAddition() {
       setShowBulkDeleteConfirm(false);
       setSuccess('Selected positions deleted.');
       fetchPositions();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error bulk deleting positions');
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      setError(error.response?.data?.message || 'Error bulk deleting positions');
     } finally {
       setLoading(false);
     }
@@ -244,8 +245,9 @@ export default function RecruitmentOnboardingDataAddition() {
       await api.put(`/positions/${id}`, { status: 'Onboarding' });
       setSuccess('Onboarding started.');
       fetchPositions();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error starting onboarding');
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      setError(error.response?.data?.message || 'Error starting onboarding');
     } finally {
       setLoading(false);
     }
@@ -263,8 +265,9 @@ export default function RecruitmentOnboardingDataAddition() {
       setShowBulkStatusConfirm(false);
       setSuccess('Status updated for selected positions.');
       fetchPositions();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error updating status');
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      setError(error.response?.data?.message || 'Error updating status');
     } finally {
       setLoading(false);
     }
@@ -308,8 +311,9 @@ export default function RecruitmentOnboardingDataAddition() {
       link.click();
       link.parentNode?.removeChild(link);
       setSuccess('Exported CSV.');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error exporting CSV');
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      setError(error.response?.data?.message || 'Error exporting CSV');
     } finally {
       setLoading(false);
     }
@@ -346,8 +350,9 @@ export default function RecruitmentOnboardingDataAddition() {
       setNoteInput('');
       setSuccess('Note added.');
       fetchPositions();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error adding note');
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      setError(error.response?.data?.message || 'Error adding note');
     } finally {
       setLoading(false);
     }
@@ -360,8 +365,9 @@ export default function RecruitmentOnboardingDataAddition() {
       await api.post(`/positions/${pos._id}/duplicate`);
       setSuccess('Position duplicated.');
       fetchPositions();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error duplicating position');
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      setError(error.response?.data?.message || 'Error duplicating position');
     } finally {
       setLoading(false);
     }

@@ -408,11 +408,6 @@ const handleLogout = () => {
     }
   };
 
-  const handleHRView = () => {
-    setShowProfileDropdown(false);
-    setShowHRPasswordModal(true);
-  };
-
   const handleHRPasswordSubmit = () => {
     if (HRPassword === 'Hrd@exozen2025!') {
       setHRPasswordError(false);
