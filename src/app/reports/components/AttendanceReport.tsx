@@ -118,6 +118,37 @@ interface AttendanceReportProps {
     theme: 'light' | 'dark';  // Add this line
 }
 
+const formatHoursToHoursAndMinutes = (hoursDecimal: string): string => {
+    if (hoursDecimal === '0' || hoursDecimal === 'N/A') return 'N/A';
+    const hours = Math.floor(parseFloat(hoursDecimal));
+    const minutes = Math.round((parseFloat(hoursDecimal) - hours) * 60);
+    return `${hours}h ${minutes}m`;
+};
+
+const formatTime = (dateString: string | null): string => {
+    if (!dateString) return '-';
+    // If it's already in HH:mm:ss or HH:mm format
+    const timeMatch = dateString.match(/(\d{2}:\d{2}:\d{2})/);
+    if (timeMatch) {
+        return timeMatch[1];
+    }
+    const timeMatchShort = dateString.match(/(\d{2}:\d{2})/);
+    if (timeMatchShort) {
+        return timeMatchShort[1];
+    }
+    // Try parsing as a full date string
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+        // If the time is 00:00:00, treat as missing
+        const h = date.getHours();
+        const m = date.getMinutes();
+        const s = date.getSeconds();
+        if (h === 0 && m === 0 && s === 0) return '-';
+        return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    return '-';
+};
+
 const AttendanceReport: React.FC<AttendanceReportProps> = ({
     // loading,
     attendanceData,
@@ -470,7 +501,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         };
 
         const tableRows = filteredRecords.map((record: ExtendedRawAttendanceRecord) => {
-            const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName === null ? undefined : record.projectName);
+            const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
             const status = getAttendanceStatus(record, dayType);
             let hoursWorked = 'Incomplete';
             
@@ -518,92 +549,200 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
         // Second page - Monthly Summary
         doc.addPage();
-        // Remove Attendance Location Report page from the main attendance report PDF
         // Only include the monthly summary and other sections below
         // Monthly Summary Table
-        autoTable(doc, {
+        // Find if this is 'arvind technical' by checking if any record in filteredRecords is 'arvind technical'
+        const isArvindTechnical = filteredRecords.some(
+          (record) => record.projectName && record.projectName.trim().toLowerCase() === 'arvind technical'
+        );
+        if (isArvindTechnical) {
+          // For Arvind Technical: Total Working Days = days in month (30/31), Total Payable Days = Present Days + Comp Off (worked on Sundays)
+          const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+          // Present Days: count of records with status 'Present' (>=7h)
+          let presentDays = 0;
+          let compOffDays = 0;
+          filteredRecords.forEach((record) => {
+            const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
+            const status = getAttendanceStatus(record, dayType);
+            if (status === 'Present') presentDays++;
+            // Comp Off: worked on Sunday (dayType === 'Sunday' and status === 'Comp Off')
+            if (dayType === 'Sunday' && status === 'Comp Off') compOffDays++;
+          });
+          const totalPayableDays = presentDays + compOffDays;
+          autoTable(doc, {
             head: [[
-                'Total Days',
-                'Present Days',
-                'Half Days',
-                'Partially Absent',
-                'Total Weekoff', // Replaces 'Week Offs'
-                'Holidays',
-                'EL',
-                'SL',
-                'CL',
-                'Comp Off',
-                'LOP'
+              'Total Working Days (incl. Week Off)',
+              'Present Days',
+              'Comp Off (Worked Sundays)',
+              'Total Payable Days'
             ]],
             body: [[
-                summary?.summary.totalDays ?? 0,
-                summary?.summary.presentDays ?? 0,
-                summary?.summary.halfDays ?? 0,
-                summary?.summary.partiallyAbsentDays ?? 0,
-                summary?.summary.weekOffs ?? 0, // Total Weekoff
-                summary?.summary.holidays ?? 0,
-                summary?.summary.el ?? 0,
-                summary?.summary.sl ?? 0,
-                summary?.summary.cl ?? 0,
-                summary?.summary.compOff ?? 0,
-                summary?.summary.lop ?? 0
+              daysInMonth,
+              presentDays,
+              compOffDays,
+              totalPayableDays
             ]],
             startY: yPosition,
             theme: 'grid',
-            styles: { 
-                fontSize: 8,
-                cellPadding: 4,
-                halign: 'center'
-            },
-            headStyles: { 
-                fillColor: [41, 128, 185], 
-                textColor: 255,
-                fontSize: 8,
-                fontStyle: 'bold'
-            },
+            styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
+            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 7, fontStyle: 'bold' },
             columnStyles: {
-                0: { cellWidth: 17.5 },
-                1: { cellWidth: 17.5 },
-                2: { cellWidth: 17.5 },
-                3: { cellWidth: 17.5 },
-                4: { cellWidth: 20 }, // Total Weekoff
-                5: { cellWidth: 17.5 },
-                6: { cellWidth: 17.5 },
-                7: { cellWidth: 17.5 },
-                8: { cellWidth: 17.5 },
-                9: { cellWidth: 17.5 },
-                10: { cellWidth: 17.5 }
+              0: { cellWidth: 40 },
+              1: { cellWidth: 30 },
+              2: { cellWidth: 40 },
+              3: { cellWidth: 40 }
             },
-            margin: { left: 15 }
-        });
+            margin: { left: 10, right: 10 }
+          });
+        } else {
+          // Calculate summary from attendance records and leave history
+          let presentDays = 0;
+          let halfDays = 0;
+          let partiallyAbsentDays = 0;
+          let weekOffs = 0;
+          let holidays = 0;
+          let el = 0;
+          let sl = 0;
+          let cl = 0;
+          let compOffGained = 0;
+          let compOffLeaveUsed = 0;
+          let lop = 0;
 
-        // Summary text
-        yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
-        doc.setFontSize(9);
-        doc.setTextColor(0, 0, 0);
-        
-        if (summary) {
-            const workingDays = summary.summary.totalDays - (summary.summary.weekOffs + summary.summary.holidays);
-            const totalWeekoff = summary.summary.weekOffs ?? 0;
-            const totalLop = summary.summary.lop ?? 0;
-            const totalPayableDays = workingDays - totalLop;
-            const attendancePercentage = workingDays > 0 ? ((totalPayableDays / workingDays) * 100).toFixed(2) : '0.00';
-            doc.text([
-                `Total Working Days: ${workingDays} days`,
-                `Total Weekoff: ${totalWeekoff} days`,
-                `Total Payable Days: ${totalPayableDays} days`,
-                `Attendance Percentage: ${attendancePercentage}%`
-            ], 15, yPosition, { lineHeightFactor: 1.5 });
+          // Helper: is this a week off day?
+          const isWeekOffDay = (date: string, year: number, month: number, projectName?: string) => {
+            const dayType = getDayType(date, year, month, projectName);
+            return dayType === 'Sunday' || dayType === '2nd Saturday' || dayType === '4th Saturday';
+          };
+
+          // Build a set of all week off dates in the month
+          const weekOffDates = new Set<string>();
+          for (let d = 1; d <= new Date(selectedYear, selectedMonth, 0).getDate(); d++) {
+            const dateStr = new Date(selectedYear, selectedMonth - 1, d).toISOString().split('T')[0];
+            if (isWeekOffDay(dateStr, selectedYear, selectedMonth)) {
+              weekOffDates.add(dateStr);
+            }
+          }
+
+          // Track which week off dates the employee worked on
+          const workedWeekOffDates = new Set<string>();
+
+          filteredRecords.forEach((record) => {
+            const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
+            const status = getAttendanceStatus(record, dayType);
+            const dateStr = record.date.split('T')[0];
+            if (status === 'Present') presentDays++;
+            else if (status === 'Half Day') halfDays++;
+            else if (status === 'Partially Absent') partiallyAbsentDays++;
+            else if (status === 'Comp Off') {
+              compOffGained++;
+              // If worked on week off, mark as worked
+              if (isWeekOffDay(record.date, selectedYear, selectedMonth, record.projectName ?? undefined)) {
+                workedWeekOffDates.add(dateStr);
+              }
+            }
+            else if (status === 'Absent') lop++;
+            // Holidays
+            if (dayType === 'Holiday') holidays++;
+            // Comp Off Leave Used
+            if (status === 'CompOff Leave') compOffLeaveUsed++;
+          });
+
+          // Weekoff: only those week off dates where employee did NOT work
+          weekOffs = Array.from(weekOffDates).filter(date => !workedWeekOffDates.has(date)).length;
+
+          // Count EL, SL, CL from leaveHistory for the selected month
+          leaveHistory.forEach((leave) => {
+            if (leave.leaveType === 'EL') el += leave.numberOfDays;
+            if (leave.leaveType === 'SL') sl += leave.numberOfDays;
+            if (leave.leaveType === 'CL') cl += leave.numberOfDays;
+          });
+
+          // LOP: add Partially Absent as LOP if required
+          lop += partiallyAbsentDays;
+
+          autoTable(doc, {
+            head: [[
+              'Total Days',
+              'Present Days',
+              'Half Days',
+              'Partially Absent',
+              'Total Weekoff',
+              'Holidays',
+              'EL',
+              'SL',
+              'CL',
+              'Comp Off (Gained)',
+              'Comp Off Leave (Used)',
+              'LOP'
+            ]],
+            body: [[
+              filteredRecords.length,
+              presentDays,
+              halfDays,
+              partiallyAbsentDays,
+              weekOffs,
+              holidays,
+              el,
+              sl,
+              cl,
+              compOffGained,
+              compOffLeaveUsed,
+              lop
+            ]],
+            startY: yPosition,
+            theme: 'grid',
+            styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
+            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 7, fontStyle: 'bold' },
+            columnStyles: {
+              0: { cellWidth: 15 },
+              1: { cellWidth: 15 },
+              2: { cellWidth: 15 },
+              3: { cellWidth: 15 },
+              4: { cellWidth: 18 },
+              5: { cellWidth: 15 },
+              6: { cellWidth: 15 },
+              7: { cellWidth: 15 },
+              8: { cellWidth: 15 },
+              9: { cellWidth: 20 },
+              10: { cellWidth: 25 },
+              11: { cellWidth: 15 }
+            },
+            margin: { left: 10, right: 10 }
+          });
+
+          // Add spacing after summary table
+          yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+          doc.setFontSize(9);
+          doc.setTextColor(0, 0, 0);
+
+          // Summary text
+          const totalWorkingDays = filteredRecords.length;
+          // Total Payable Days calculation
+          const totalPayableDays = presentDays + halfDays + partiallyAbsentDays + weekOffs + holidays + el + cl + sl + compOffLeaveUsed;
+          let totalPayableText = `Total Payable Days: ${totalPayableDays}`;
+          if (compOffGained > 0) {
+            totalPayableText += ` (Comp Off Gained: ${compOffGained})`;
+          }
+          // Attendance Percentage (keep as is)
+          const attendancePercentage = totalWorkingDays > 0 ? ((totalPayableDays / totalWorkingDays) * 100).toFixed(2) : '0.00';
+          doc.text([
+              `Total Working Days: ${totalWorkingDays} days`,
+              totalPayableText,
+              `Attendance Percentage: ${attendancePercentage}%`
+          ], 12, yPosition, { lineHeightFactor: 1.5 });
+          yPosition += 15 * 1;
         }
 
-        // Add Leave Balance section on same page
-        yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 40;
-        doc.setFontSize(12);
-        doc.setTextColor(41, 128, 185);
-        doc.text('Leave Balance', 15, yPosition);
-        yPosition += 10;
+        // Add extra spacing after summary text before leave table
+        yPosition += 15;
 
-        if (leaveBalance && leaveBalance.balances) {
+        // Add Leave Balance section on same page, but check for overflow
+        if (!isArvindTechnical && leaveBalance && leaveBalance.balances) {
+          // If not enough space, add a new page
+          if (yPosition + 40 > doc.internal.pageSize.getHeight()) {
+            doc.addPage();
+            yPosition = 20;
+          }
           const leaveTableHead = [['Leave Type', 'Allocated', 'Used', 'Remaining', 'Pending']];
           const leaveTableRows = Object.entries(leaveBalance.balances).map(([type, values]) => {
             const v = values as { allocated: number; used: number; remaining: number; pending: number };
@@ -614,30 +753,38 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             body: leaveTableRows,
             startY: yPosition,
             theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 4 },
+            styles: { fontSize: 8, cellPadding: 2 },
             headStyles: { fillColor: [41, 128, 185], textColor: 255 },
             columnStyles: {
-              0: { cellWidth: 40 },
-              1: { cellWidth: 30, halign: 'center' },
-              2: { cellWidth: 30, halign: 'center' },
-              3: { cellWidth: 30, halign: 'center' },
-              4: { cellWidth: 30, halign: 'center' }
+              0: { cellWidth: 30 },
+              1: { cellWidth: 18, halign: 'center' },
+              2: { cellWidth: 18, halign: 'center' },
+              3: { cellWidth: 18, halign: 'center' },
+              4: { cellWidth: 18, halign: 'center' }
             },
-            margin: { left: 15 }
+            margin: { left: 10, right: 10 }
           });
-          yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
-          doc.setFontSize(10);
-          doc.text(`Total Allocated: ${leaveBalance.totalAllocated}   Total Used: ${leaveBalance.totalUsed}   Total Remaining: ${leaveBalance.totalRemaining}   Total Pending: ${leaveBalance.totalPending}`, 15, yPosition);
-          yPosition += 10;
+          yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 18;
+          // If the summary line would overflow, move to next page
+          if (yPosition + 8 > doc.internal.pageSize.getHeight()) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          doc.setFontSize(9);
+          doc.text(`Total Allocated: ${leaveBalance.totalAllocated}   Total Used: ${leaveBalance.totalUsed}   Total Remaining: ${leaveBalance.totalRemaining}   Total Pending: ${leaveBalance.totalPending}`, 12, yPosition);
+          yPosition += 8;
         }
 
-        // Add Leave History section after leave balance
+        // Add Leave History section after leave balance, check for overflow
         if (leaveHistory.length > 0) {
-            yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
-            doc.setFontSize(12);
+            if (yPosition + 40 > doc.internal.pageSize.getHeight()) {
+                doc.addPage();
+                yPosition = 20;
+            }
+            doc.setFontSize(11);
             doc.setTextColor(41, 128, 185);
-            doc.text('Leave History', 15, yPosition);
-            yPosition += 10;
+            doc.text('Leave History', 12, yPosition);
+            yPosition += 8;
 
             const leaveHistoryHead = [['Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason']];
             const leaveHistoryRows = leaveHistory.map(leave => [
@@ -654,59 +801,54 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 body: leaveHistoryRows,
                 startY: yPosition,
                 theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 4 },
+                styles: { fontSize: 7, cellPadding: 2 },
                 headStyles: { fillColor: [41, 128, 185], textColor: 255 },
                 columnStyles: {
-                    0: { cellWidth: 25 },
-                    1: { cellWidth: 30 },
-                    2: { cellWidth: 30 },
-                    3: { cellWidth: 20 },
-                    4: { cellWidth: 25 },
-                    5: { cellWidth: 50 }
+                    0: { cellWidth: 18 },
+                    1: { cellWidth: 22 },
+                    2: { cellWidth: 22 },
+                    3: { cellWidth: 12 },
+                    4: { cellWidth: 18 },
+                    5: { cellWidth: 40 }
                 },
-                margin: { left: 15 }
+                margin: { left: 10, right: 10 }
             });
+            yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
         }
 
         // Get the final Y position after all tables
         const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
         const pageHeight = doc.internal.pageSize.getHeight();
         // Calculate required space for note + signature
-        let noteY = finalY + 60;
-        let signatureY = noteY + 40;
+        let noteY = finalY + 20;
+        let signatureY = noteY + 18;
         // If not enough space, add a new page and reset Y positions
         if (signatureY + 20 > pageHeight) {
             doc.addPage();
-            noteY = 40; // some top margin
-            signatureY = noteY + 40;
+            noteY = 30; // some top margin
+            signatureY = noteY + 18;
         }
         // Add note below the leave history table with proper spacing
-        doc.setFontSize(11);
-        doc.setFont('bold');
-        doc.setTextColor(200, 0, 0);
-        const noteLabel = 'Note:';
-        doc.setTextColor(0, 0, 0);
-        const noteText = 'Please ensure that the total working hours per day are at least 8 hours.';
-        doc.text(`${noteLabel} ${noteText}`, 15, noteY);
+        if (!isArvindTechnical) {
+          doc.setFontSize(10);
+          doc.setFont('bold');
+          doc.setTextColor(200, 0, 0);
+          const noteLabel = 'Note:';
+          doc.setTextColor(0, 0, 0);
+          const noteText = 'Please ensure that the total working hours per day are at least 8 hours.';
+          doc.text(`${noteLabel} ${noteText}`, 12, noteY);
+        }
 
         // Signature lines
         doc.setDrawColor(100, 100, 100);
         doc.setLineWidth(0.3);
-        doc.line(25, signatureY, 85, signatureY);
-        doc.line(125, signatureY, 185, signatureY);
-        doc.setFontSize(10);
-        doc.text('Authorized Signature', 25, signatureY + 6);
-        doc.text('Employee Signature', 125, signatureY + 6);
+        doc.line(30, signatureY, 90, signatureY);
+        doc.line(120, signatureY, 180, signatureY);
+        doc.setFontSize(9);
+        doc.text('Authorized Signature', 30, signatureY + 6);
+        doc.text('Employee Signature', 120, signatureY + 6);
 
         doc.save(`attendance_report_${selectedMonth}_${selectedYear}.pdf`);
-    };
-
-    // Add this helper function before downloadPDF
-    const formatHoursToHoursAndMinutes = (hoursDecimal: string): string => {
-        if (hoursDecimal === '0' || hoursDecimal === 'N/A') return 'N/A';
-        const hours = Math.floor(parseFloat(hoursDecimal));
-        const minutes = Math.round((parseFloat(hoursDecimal) - hours) * 60);
-        return `${hours}h ${minutes}m`;
     };
 
     // Add this helper function after getLeaveTypeForDate
@@ -727,33 +869,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
     // In your component's main render logic, process the attendance data
     const processedData = enrichWithLocations(attendanceData);
-
-    const formatTime = (dateString: string | null): string => {
-        if (!dateString) return '-';
-
-        // If it's already in HH:mm:ss or HH:mm format
-        const timeMatch = dateString.match(/(\d{2}:\d{2}:\d{2})/);
-        if (timeMatch) {
-            return timeMatch[1];
-        }
-        const timeMatchShort = dateString.match(/(\d{2}:\d{2})/);
-        if (timeMatchShort) {
-            return timeMatchShort[1];
-        }
-
-        // Try parsing as a full date string
-        const date = new Date(dateString);
-        if (!isNaN(date.getTime())) {
-            // If the time is 00:00:00, treat as missing
-            const h = date.getHours();
-            const m = date.getMinutes();
-            const s = date.getSeconds();
-            if (h === 0 && m === 0 && s === 0) return '-';
-            return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        }
-
-        return '-';
-    };
 
     // Helper to batch fetch addresses for all records
     const fetchAllAddresses = async (records: ExtendedRawAttendanceRecord[]) => {
@@ -777,7 +892,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
       return results;
     };
 
-    // Replace the XLSX location export with PDF export, now with batch address fetching
+    // Export Location Report (PDF)
     const downloadLocationPDF = async () => {
       // Filter records for the selected month/year
       const filteredRecords = processedData.filter(record => {
@@ -979,7 +1094,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
     {(() => {
-  const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName === null ? undefined : record.projectName);
+  const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
   if (record.punchInTime && record.punchOutTime) {
     return formatHoursToHoursAndMinutes(
       calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime)
@@ -1003,7 +1118,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                             (() => {
-                                const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName === null ? undefined : record.projectName);
+                                const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
                                 const status = getAttendanceStatus(record, dayType);
                                 switch (status) {
                                     case 'Present':
@@ -1022,7 +1137,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             })()
                           }`}>
                             {(() => {
-                                const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName === null ? undefined : record.projectName);
+                                const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
                                 return getAttendanceStatus(record, dayType);
                             })()}
                           </span>
