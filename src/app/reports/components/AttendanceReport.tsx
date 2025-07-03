@@ -7,8 +7,7 @@ import Image from 'next/image';
 import { calculateHoursUtc, transformAttendanceRecord } from '../../utils/attendanceUtils';
 import { 
     RawAttendanceRecord as BaseRawAttendanceRecord,
-    TransformedAttendanceRecord, 
-    MonthSummaryResponse
+    TransformedAttendanceRecord
 } from '../../types/attendance';
 
 interface GoogleMapsAddressComponent {
