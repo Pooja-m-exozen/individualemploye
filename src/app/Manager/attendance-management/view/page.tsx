@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { FaClock, FaRegCalendarAlt } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import Image from 'next/image';
 
 interface AttendanceRecord {
   _id: string;
@@ -44,9 +45,6 @@ interface ProjectAttendanceRecord {
 interface AttendanceApiResponse {
   attendance: AttendanceRecord[];
 }
-interface ProjectAttendanceApiResponse {
-  attendance: ProjectAttendanceRecord[];
-}
 
 // Add KYC employee type
 interface KycEmployee {
@@ -54,6 +52,18 @@ interface KycEmployee {
   fullName: string;
   designation: string;
   projectName: string;
+}
+
+// Add KYC form type for API response
+interface KycForm {
+  personalDetails: {
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    projectName: string;
+    // ...other fields if needed
+  };
+  // ...other fields if needed
 }
 
 // Add LocationDetail type
@@ -75,28 +85,9 @@ export default function AttendanceViewPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<ProjectAttendanceRecord | null>(null);
-  const [inLocationAddress, setInLocationAddress] = useState<string>("");
-  const [outLocationAddress, setOutLocationAddress] = useState<string>("");
   const [kycEmployees, setKycEmployees] = useState<KycEmployee[]>([]);
-  const [projectOptions, setProjectOptions] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-
-  // Add formatDate and formatTime helpers
-  const formatDate = (dateString: string): string => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-  const formatTime = (dateString: string | undefined): string => {
-    if (!dateString) return 'N/A';
-    const d = new Date(dateString);
-    if (Number.isNaN(d.getTime())) return 'N/A';
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const [selectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedYear] = useState<number>(new Date().getFullYear());
 
   // Fetch attendance data from API
   const fetchAttendance = async (): Promise<void> => {
@@ -118,40 +109,18 @@ export default function AttendanceViewPage() {
     }
   };
 
-  // Fetch project-wise attendance data
-  const fetchProjectAttendance = async (project: string, from: string, to: string): Promise<void> => {
-    setLoading(true);
-    setError("");
-    try {
-      const url = `https://cafm.zenapi.co.in/api/attendance/project/attendance?projectName=${encodeURIComponent(project)}&fromDate=${from || "2025-01-01"}&toDate=${to || new Date().toISOString().slice(0,10)}`;
-      const res = await fetch(url);
-      const data: ProjectAttendanceApiResponse = await res.json();
-      if (data && data.attendance) {
-        setProjectAttendance(data.attendance);
-      } else {
-        setProjectAttendance([]);
-      }
-    } catch {
-      setError("Failed to fetch project attendance data");
-      setProjectAttendance([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Fetch KYC employees and project options
   useEffect(() => {
     fetch("https://cafm.zenapi.co.in/api/kyc")
       .then(res => res.json())
       .then(data => {
-        const employees = (data.kycForms || []).map((form: any) => ({
+        const employees = (data.kycForms || []).map((form: KycForm) => ({
           employeeId: form.personalDetails.employeeId,
           fullName: form.personalDetails.fullName,
           designation: form.personalDetails.designation,
           projectName: form.personalDetails.projectName,
         }));
         setKycEmployees(employees);
-        setProjectOptions(Array.from(new Set(employees.map((e: KycEmployee) => e.projectName).filter(Boolean))));
       });
   }, []);
 
@@ -178,14 +147,14 @@ export default function AttendanceViewPage() {
 
   // Fetch attendance for all employees in selected project/month/year
   useEffect(() => {
-    if (!projectFilter) return;
+    if (activeTab !== "Project Wise Attendance" || !projectFilter) return;
     setLoading(true);
     const employeesInProject = kycEmployees.filter(e => e.projectName === projectFilter);
     Promise.all(
       employeesInProject.map(emp =>
         fetch(`https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${emp.employeeId}&month=${selectedMonth}&year=${selectedYear}`)
           .then(res => res.json())
-          .then(data => enrichWithLocations((data.attendance || []).map((att: any) => ({
+          .then(data => enrichWithLocations((data.attendance || []).map((att: ProjectAttendanceRecord) => ({
             ...att,
             name: emp.fullName,
             designation: emp.designation,
@@ -196,13 +165,14 @@ export default function AttendanceViewPage() {
             punchInLongitude: att.punchInLongitude,
             punchOutLatitude: att.punchOutLatitude,
             punchOutLongitude: att.punchOutLongitude,
-          }))))
+          })))
+        )
       )
     ).then(results => {
       setProjectAttendance(results.flat());
       setLoading(false);
     });
-  }, [projectFilter, selectedMonth, selectedYear, kycEmployees]);
+  }, [activeTab, projectFilter, selectedMonth, selectedYear, kycEmployees]);
 
   useEffect(() => {
     fetchAttendance();
@@ -211,24 +181,12 @@ export default function AttendanceViewPage() {
   // Set default project to 'Exozen-Ops' when switching to Project Wise Attendance
   useEffect(() => {
     if (activeTab === "Project Wise Attendance" && !projectFilter) {
-      // Find if 'Exozen-Ops' exists in uniqueProjects
-      const exozenProject = attendanceData.find(row => row.projectName === "Exozen-Ops");
-      if (exozenProject) {
-        setProjectFilter("Exozen-Ops");
-      } else if (uniqueProjects.length > 0) {
+      if (uniqueProjects.length > 0) {
         setProjectFilter(uniqueProjects[0]);
       }
     }
     // eslint-disable-next-line
   }, [activeTab, attendanceData]);
-
-  // Fetch project attendance when project, fromDate, or toDate changes (only in Project Wise Attendance tab)
-  useEffect(() => {
-    if (activeTab === "Project Wise Attendance" && projectFilter) {
-      fetchProjectAttendance(projectFilter, fromDate, toDate);
-    }
-    
-  }, [activeTab, projectFilter, fromDate, toDate]);
 
   // Helper to get YYYY-MM-DD from a date string
   const getDateOnly = (dateStr: string): string => {
@@ -295,19 +253,6 @@ export default function AttendanceViewPage() {
   // Unique projects for filter dropdown
   const uniqueProjects: string[] = Array.from(new Set(attendanceData.map((row: AttendanceRecord) => row.projectName)));
 
-  // Calculate hours worked
-  // const calculateHours = (punchIn?: string, punchOut?: string) => {
-  //   if (!punchIn || !punchOut) return "N/A";
-  //   const inTime = new Date(punchIn);
-  //   const outTime = new Date(punchOut);
-  //   if (Number.isNaN(inTime.getTime()) || Number.isNaN(outTime.getTime())) return "N/A";
-  //   const diffMs = outTime.getTime() - inTime.getTime();
-  //   if (diffMs < 0) return "N/A";
-  //   const hours = Math.floor(diffMs / (1000 * 60 * 60));
-  //   const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  //   return `${hours}h ${mins}m`;
-  // };
-
   // Helper: filter projectAttendance by search, fromDate, toDate
   const filterProjectAttendance = () => {
     const searchLower = searchQuery.toLowerCase();
@@ -348,7 +293,12 @@ export default function AttendanceViewPage() {
           state: '',
           country: ''
         };
-        result.address_components.forEach((component: any) => {
+        type AddressComponent = {
+          long_name: string;
+          short_name: string;
+          types: string[];
+        };
+        (result.address_components as AddressComponent[]).forEach((component) => {
           if (component.types.includes('street_number')) addressComponents.streetNumber = component.long_name;
           if (component.types.includes('route')) addressComponents.route = component.long_name;
           if (component.types.includes('locality')) addressComponents.locality = component.long_name;
@@ -376,7 +326,7 @@ export default function AttendanceViewPage() {
 
   // Update handleRowClick to set address on selectedRecord's punchInLocation and punchOutLocation
   const handleRowClick = async (record: ProjectAttendanceRecord) => {
-    let updatedRecord = { ...record };
+    const updatedRecord = { ...record };
     if (record.punchInLatitude && record.punchInLongitude) {
       const address = await reverseGeocode(record.punchInLatitude, record.punchInLongitude);
       updatedRecord.punchInLocation = {
@@ -394,6 +344,23 @@ export default function AttendanceViewPage() {
       };
     }
     setSelectedRecord(updatedRecord);
+  };
+
+  // Helper to extract UTC time (HH:mm:ss) from ISO string
+  const getUtcTimeOnly = (isoString?: string): string => {
+    if (!isoString) return 'N/A';
+    const match = isoString.match(/T(\d{2}:\d{2}:\d{2})/);
+    return match ? match[1] : 'N/A';
+  };
+
+  // Add back formatDate helper
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
   return (
@@ -599,8 +566,8 @@ export default function AttendanceViewPage() {
                         <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.name}</td>
                         <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.designation}</td>
                         <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.date ? new Date(row.date).toLocaleDateString() : "N/A"}</td>
-                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.punchInTime ? row.punchInTime : 'N/A'}</td>
-                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.punchOutTime ? row.punchOutTime : 'N/A'}</td>
+                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.punchInTime ? getUtcTimeOnly(row.punchInTime) : 'N/A'}</td>
+                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.punchOutTime ? getUtcTimeOnly(row.punchOutTime) : 'N/A'}</td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${row.status === "Present" ? (theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800') : row.status === "Absent" ? (theme === 'dark' ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800') : (theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800')}`}>{row.status}</span>
                         </td>
@@ -655,13 +622,13 @@ export default function AttendanceViewPage() {
                 <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
                   <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch In Time:</span>
                   <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
-                    {formatTime(selectedRecord.punchInTime)}
+                    {getUtcTimeOnly(selectedRecord.punchInTime)}
                   </span>
                 </div>
                 <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
                   <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch Out Time:</span>
                   <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
-                    {formatTime(selectedRecord.punchOutTime)}
+                    {getUtcTimeOnly(selectedRecord.punchOutTime)}
                   </span>
                 </div>
                 {/* Punch In Location Details */}
@@ -673,7 +640,7 @@ export default function AttendanceViewPage() {
                     <div className="flex justify-between">
                       <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
                       <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
-                        {formatTime(selectedRecord.punchInTime)}
+                        {getUtcTimeOnly(selectedRecord.punchInTime)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -693,7 +660,7 @@ export default function AttendanceViewPage() {
                     <div className="flex justify-between">
                       <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
                       <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
-                        {formatTime(selectedRecord.punchOutTime)}
+                        {getUtcTimeOnly(selectedRecord.punchOutTime)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -711,7 +678,7 @@ export default function AttendanceViewPage() {
                     {selectedRecord.punchInPhoto && (
                       <div>
                         <span className="text-sm text-gray-500 block mb-1">Punch In:</span>
-                        <img
+                        <Image
                           src={selectedRecord.punchInPhoto}
                           alt="Punch In"
                           width={200}
@@ -723,7 +690,7 @@ export default function AttendanceViewPage() {
                     {selectedRecord.punchOutPhoto && (
                       <div>
                         <span className="text-sm text-gray-500 block mb-1">Punch Out:</span>
-                        <img
+                        <Image
                           src={selectedRecord.punchOutPhoto}
                           alt="Punch Out"
                           width={200}
