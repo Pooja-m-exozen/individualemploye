@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
+import HrdDashboardLayout from "@/components/dashboard/HrdDashboardLayout";
 import { useTheme } from "@/context/ThemeContext";
 import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle, FaPaperclip, FaUpload } from "react-icons/fa";
 
@@ -331,7 +331,7 @@ export default function CreateKYCPage() {
   };
 
   return (
-    <ManagerDashboardLayout>
+    <HrdDashboardLayout>
       <div className={`min-h-screen flex flex-col items-center justify-center py-8 transition-colors duration-200 ${theme === "dark" ? "bg-gray-900" : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"}`}>
         {/* Modern KYC Header */}
         <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg w-full max-w-5xl mx-auto ${theme === "dark" ? "bg-gradient-to-r from-gray-800 to-gray-900" : "bg-gradient-to-r from-blue-500 to-blue-800"}`}>
@@ -867,6 +867,6 @@ export default function CreateKYCPage() {
           </main>
         </div>
       </div>
-    </ManagerDashboardLayout>
+    </HrdDashboardLayout>
   );
 } 

@@ -6,8 +6,6 @@ import {
   FaChevronRight,
   FaTachometerAlt,
   FaUsers,
-  // FaTasks,
-  // FaChartLine,
   FaCog,
   FaSun,
   FaMoon,

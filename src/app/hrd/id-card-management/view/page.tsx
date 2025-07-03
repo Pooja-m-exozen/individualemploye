@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
+import HrdDashboardLayout from "@/components/dashboard/HrdDashboardLayout";
 import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaEye, FaTimesCircle, FaCheckCircle, FaTimes } from "react-icons/fa";
 import { QRCodeSVG } from 'qrcode.react';
 import { useTheme } from '@/context/ThemeContext';
@@ -274,7 +274,7 @@ export default function ViewIDCardsPage() {
   };
 
   return (
-    <ManagerDashboardLayout>
+    <HrdDashboardLayout>
       <div className={`min-h-screen font-sans ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-200' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'}`}>
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -554,6 +554,6 @@ export default function ViewIDCardsPage() {
           animation: fade-in 0.25s cubic-bezier(0.4,0,0.2,1);
         }
       `}</style>
-    </ManagerDashboardLayout>
+    </HrdDashboardLayout>
   );
 }
