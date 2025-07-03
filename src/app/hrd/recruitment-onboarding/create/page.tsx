@@ -70,8 +70,6 @@ export default function RecruitmentOnboardingDataAddition() {
   const [sortState, setSortState] = useState<SortState>({ key: "title", direction: "asc" });
   const [showDetails, setShowDetails] = useState<Position | null>(null);
   const [noteInput, setNoteInput] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [total, setTotal] = useState(0);
 
   // Toast auto-hide
   React.useEffect(() => {
@@ -86,7 +84,6 @@ export default function RecruitmentOnboardingDataAddition() {
 
   // Fetch positions from API
   const fetchPositions = async () => {
-    setLoading(true);
     try {
       const params: any = {
         search,
@@ -98,12 +95,9 @@ export default function RecruitmentOnboardingDataAddition() {
       Object.keys(params).forEach((k) => params[k] === '' && delete params[k]);
       const res = await api.get('/positions', { params });
       setPositions(res.data.positions);
-      setTotal(res.data.total);
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string }>;
       setError(error.response?.data?.message || 'Error fetching positions');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -147,7 +141,6 @@ export default function RecruitmentOnboardingDataAddition() {
       setError('All fields are required.');
       return;
     }
-    setLoading(true);
     try {
       await api.post('/positions', form);
       setForm({ title: '', department: '', location: '', status: 'Open' });
@@ -156,8 +149,6 @@ export default function RecruitmentOnboardingDataAddition() {
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string }>;
       setError(error.response?.data?.message || 'Error adding position');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -179,7 +170,6 @@ export default function RecruitmentOnboardingDataAddition() {
       setError('All fields are required.');
       return;
     }
-    setLoading(true);
     try {
       await api.put(`/positions/${id}`, editForm);
       setEditingId(null);
@@ -188,8 +178,6 @@ export default function RecruitmentOnboardingDataAddition() {
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string }>;
       setError(error.response?.data?.message || 'Error updating position');
-    } finally {
-      setLoading(false);
     }
   };
   const cancelEdit = () => {
@@ -203,7 +191,6 @@ export default function RecruitmentOnboardingDataAddition() {
     setShowDeleteConfirm(true);
   };
   const confirmDelete = async () => {
-    setLoading(true);
     try {
       await api.delete(`/positions/${selectedIds[0]}`);
       setSelectedIds([]);
@@ -213,8 +200,6 @@ export default function RecruitmentOnboardingDataAddition() {
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string }>;
       setError(error.response?.data?.message || 'Error deleting position');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -223,7 +208,6 @@ export default function RecruitmentOnboardingDataAddition() {
     setShowBulkDeleteConfirm(true);
   };
   const confirmBulkDelete = async () => {
-    setLoading(true);
     try {
       await api.post('/positions/bulk-delete', { ids: selectedIds });
       setSelectedIds([]);
@@ -233,14 +217,11 @@ export default function RecruitmentOnboardingDataAddition() {
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string }>;
       setError(error.response?.data?.message || 'Error bulk deleting positions');
-    } finally {
-      setLoading(false);
     }
   };
 
   // Onboarding action
   const startOnboarding = async (id: string) => {
-    setLoading(true);
     try {
       await api.put(`/positions/${id}`, { status: 'Onboarding' });
       setSuccess('Onboarding started.');
@@ -248,8 +229,6 @@ export default function RecruitmentOnboardingDataAddition() {
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string }>;
       setError(error.response?.data?.message || 'Error starting onboarding');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -258,7 +237,6 @@ export default function RecruitmentOnboardingDataAddition() {
     setShowBulkStatusConfirm(true);
   };
   const confirmBulkStatusUpdate = async () => {
-    setLoading(true);
     try {
       await api.post('/positions/bulk-status', { ids: selectedIds, status: bulkStatus });
       setSelectedIds([]);
@@ -268,8 +246,6 @@ export default function RecruitmentOnboardingDataAddition() {
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string }>;
       setError(error.response?.data?.message || 'Error updating status');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -294,7 +270,6 @@ export default function RecruitmentOnboardingDataAddition() {
 
   // Export to CSV
   const exportCSV = async () => {
-    setLoading(true);
     try {
       const params: any = {
         search,
@@ -314,8 +289,6 @@ export default function RecruitmentOnboardingDataAddition() {
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string }>;
       setError(error.response?.data?.message || 'Error exporting CSV');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -344,7 +317,6 @@ export default function RecruitmentOnboardingDataAddition() {
   // Add note to position
   const addNote = async (id: string) => {
     if (!noteInput.trim()) return;
-    setLoading(true);
     try {
       await api.post(`/positions/${id}/notes`, { text: noteInput });
       setNoteInput('');
@@ -353,14 +325,11 @@ export default function RecruitmentOnboardingDataAddition() {
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string }>;
       setError(error.response?.data?.message || 'Error adding note');
-    } finally {
-      setLoading(false);
     }
   };
 
   // Duplicate position
   const duplicatePosition = async (pos: Position) => {
-    setLoading(true);
     try {
       await api.post(`/positions/${pos._id}/duplicate`);
       setSuccess('Position duplicated.');
@@ -368,8 +337,6 @@ export default function RecruitmentOnboardingDataAddition() {
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string }>;
       setError(error.response?.data?.message || 'Error duplicating position');
-    } finally {
-      setLoading(false);
     }
   };
 

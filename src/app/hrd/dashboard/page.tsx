@@ -74,32 +74,12 @@ type RecentKYCItem = {
   personalDetails: Record<string, unknown>;
 };
 
-type OnLeaveTodayItem = {
-  _id: string;
-  employeeId: string;
-  name?: string;
-  leaveType?: string;
-  status?: string;
-  date?: string;
-};
 
 type KycPersonalDetails = {
   employeeId: string;
   fullName: string;
 };
 
-type KycForm = {
-  personalDetails: KycPersonalDetails;
-};
-
-type OnLeaveApiResponseItem = {
-  _id: string;
-  employeeId: string;
-  leaveType: string;
-  startDate: string;
-  endDate: string;
-  status: string;
-};
 
 // PIE CHART COLORS
 const PIE_COLORS = [
