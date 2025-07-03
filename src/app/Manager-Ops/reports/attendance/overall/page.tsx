@@ -112,11 +112,12 @@ const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string,
 // match absent days with CF days, add matched to payable, remainder CF is shown as CF
 const getPayableDays = (
   attendance: Attendance[],
-  compOffUsed?: number
+  compOffUsed: number = 0,
+  daysInMonth: number
 ): { payable: number, absent: number, cfRemain: number } => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  let present = 0, el = 0, sl = 0, cl = 0, absent = 0, cf = 0;
+  let present = 0, el = 0, sl = 0, cl = 0, absent = 0, cf = 0, holiday = 0;
   attendance.forEach(a => {
     const attendanceDate = new Date(a.date);
     attendanceDate.setHours(0, 0, 0, 0);
@@ -127,15 +128,18 @@ const getPayableDays = (
     else if (a.status === 'CL') cl++;
     else if (a.status === 'A') absent++;
     else if (a.status === 'CF') cf++;
+    else if (a.status === 'H') holiday++;
   });
   // Match absent days with CF days
   const cfMatched = Math.min(absent, cf);
   const cfRemain = cf - cfMatched;
-  // Payable = present + el + sl + cl + cfMatched + compOffUsed (from leave balance)
-  let payable = present + el + sl + cl + cfMatched;
+  // Payable = present + holiday + el + sl + cl + cfMatched + compOffUsed (from leave balance)
+  let payableSum = present + holiday + el + sl + cl + cfMatched;
   if (typeof compOffUsed === 'number' && compOffUsed > 0) {
-    payable += compOffUsed;
+    payableSum += compOffUsed;
   }
+  // If sum matches days in month, set payable to daysInMonth
+  let payable = payableSum === daysInMonth ? daysInMonth : payableSum;
   // Absent = absent - cfMatched
   const absentFinal = absent - cfMatched;
   return { payable, absent: absentFinal, cfRemain };
@@ -358,7 +362,7 @@ const OverallAttendancePage = (): JSX.Element => {
       [
         'Emp ID', 'Name',
         ...Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString()),
-        'P', 'A', 'H', 'CF', 'EL', 'SL', 'CL', 'Payable'
+        'P', 'A', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff Used', 'Payable'
       ]
     ];
 
@@ -366,22 +370,23 @@ const OverallAttendancePage = (): JSX.Element => {
       const empAttendance = attendanceData[employee.employeeId] || [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-
       const getCount = (status: string) => empAttendance.filter(a => {
         const d = new Date(a.date);
         d.setHours(0, 0, 0, 0);
         return a.status === status && d <= today;
       }).length;
-
-      // Use new logic for payable/absent/cfRemain
+      const daysInMonth = getDaysInMonth(year, month);
       const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
-      const { payable, absent, cfRemain } = getPayableDays(empAttendance, compOffUsed);
+      // Add all CF days (not just cfRemain) to payable days
+      const cfCount = getCount('CF');
+      const payableInfo = getPayableDays(empAttendance, compOffUsed, daysInMonth);
       const presentCount = getCount('P');
       const holidayCount = getCount('H');
       const elCount = getCount('EL');
       const slCount = getCount('SL');
       const clCount = getCount('CL');
-
+      // Payable days = present + holiday + EL + SL + CL + all CF + CompOff Used
+      const payableDays = presentCount + holidayCount + elCount + slCount + clCount + cfCount + compOffUsed;
       return [
         employee.employeeId, employee.fullName,
         ...empAttendance.map(record => {
@@ -410,8 +415,8 @@ const OverallAttendancePage = (): JSX.Element => {
             }
           };
         }),
-        presentCount.toString(), absent.toString(), holidayCount.toString(), cfRemain.toString(),
-        elCount.toString(), slCount.toString(), clCount.toString(), payable.toString()
+        presentCount.toString(), payableInfo.absent.toString(), holidayCount.toString(), cfCount.toString(),
+        elCount.toString(), slCount.toString(), clCount.toString(), compOffUsed.toString(), payableDays.toString()
       ];
     });
 
@@ -435,15 +440,14 @@ const OverallAttendancePage = (): JSX.Element => {
       const empAttendance = attendanceData[employee.employeeId] || [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-
+      const daysInMonth = getDaysInMonth(year, month);
       const getCount = (status: string) => empAttendance.filter(a => {
         const d = new Date(a.date);
         d.setHours(0, 0, 0, 0);
         return a.status === status && d <= today;
       }).length;
-
       const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
-      const { payable, absent, cfRemain } = getPayableDays(empAttendance, compOffUsed);
+      const { payable, absent, cfRemain } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
 
       const rowData: { [key: string]: string | number } = {
         "Employee ID": employee.employeeId,
@@ -464,6 +468,7 @@ const OverallAttendancePage = (): JSX.Element => {
       rowData["EL"] = getCount('EL');
       rowData["SL"] = getCount('SL');
       rowData["CL"] = getCount('CL');
+      rowData["CompOff Used"] = compOffUsed;
       rowData["Payable Days"] = payable;
 
       return rowData;
@@ -583,6 +588,7 @@ const OverallAttendancePage = (): JSX.Element => {
                     <th className="p-3 text-center font-semibold bg-yellow-600">EL</th>
                     <th className="p-3 text-center font-semibold bg-yellow-600">SL</th>
                     <th className="p-3 text-center font-semibold bg-yellow-600">CL</th>
+                    <th className="p-3 text-center font-semibold bg-cyan-800">CompOff Used</th>
                     <th className="p-3 text-center font-semibold bg-blue-600">Payable</th>
                   </tr>
                 </thead>
@@ -591,16 +597,22 @@ const OverallAttendancePage = (): JSX.Element => {
                     const empAttendance = attendanceData[employee.employeeId] || [];
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
-
+                    const daysInMonth = getDaysInMonth(year, month);
                     const getCount = (status: string) => empAttendance.filter(a => {
                       const d = new Date(a.date);
                       d.setHours(0, 0, 0, 0);
                       return a.status === status && d <= today;
                     }).length;
-
-                    // Use new logic for payable/absent/cfRemain
                     const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
-                    const { payable, absent, cfRemain } = getPayableDays(empAttendance, compOffUsed);
+                    const cfCount = getCount('CF');
+                    const { absent } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
+                    const presentCount = getCount('P');
+                    const holidayCount = getCount('H');
+                    const elCount = getCount('EL');
+                    const slCount = getCount('SL');
+                    const clCount = getCount('CL');
+                    // Payable days = present + holiday + EL + SL + CL + all CF + CompOff Used
+                    const payableDays = presentCount + holidayCount + elCount + slCount + clCount + cfCount + compOffUsed;
 
                     return (
                       <tr key={employee.employeeId} className={`transition-colors duration-150 ${theme === 'dark' ? 'hover:bg-gray-700/50' : 'hover:bg-blue-50/50'}`}>
@@ -632,14 +644,15 @@ const OverallAttendancePage = (): JSX.Element => {
                             </td>
                           );
                         })}
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-green-900' : 'bg-green-100'}`}>{getCount('P')}</td>
+                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-green-900' : 'bg-green-100'}`}>{presentCount}</td>
                         <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-red-900' : 'bg-red-100'}`}>{absent}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-purple-900' : 'bg-purple-100'}`}>{getCount('H')}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{cfRemain}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('EL')}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('SL')}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('CL')}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{payable}</td>
+                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-purple-900' : 'bg-purple-100'}`}>{holidayCount}</td>
+                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{cfCount}</td>
+                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{elCount}</td>
+                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{slCount}</td>
+                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{clCount}</td>
+                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{compOffUsed}</td>
+                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{payableDays}</td>
                       </tr>
                     );
                   })}

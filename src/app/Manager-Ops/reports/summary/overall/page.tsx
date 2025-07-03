@@ -136,11 +136,12 @@ const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string,
 // match absent days with CF days, add matched to payable, remainder CF is shown as CF
 const getPayableDays = (
   attendance: Attendance[],
-  compOffUsed?: number
+  compOffUsed: number = 0,
+  daysInMonth: number
 ): { payable: number, absent: number, cfRemain: number } => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  let present = 0, el = 0, sl = 0, cl = 0, absent = 0, cf = 0;
+  let present = 0, el = 0, sl = 0, cl = 0, absent = 0, cf = 0, holiday = 0;
   attendance.forEach(a => {
     const attendanceDate = new Date(a.date);
     attendanceDate.setHours(0, 0, 0, 0);
@@ -151,15 +152,18 @@ const getPayableDays = (
     else if (a.status === 'CL') cl++;
     else if (a.status === 'A') absent++;
     else if (a.status === 'CF') cf++;
+    else if (a.status === 'H') holiday++;
   });
   // Match absent days with CF days
   const cfMatched = Math.min(absent, cf);
   const cfRemain = cf - cfMatched;
-  // Payable = present + el + sl + cl + cfMatched + compOffUsed (from leave balance)
-  let payable = present + el + sl + cl + cfMatched;
+  // Payable = present + holiday + el + sl + cl + cfMatched + compOffUsed (from leave balance)
+  let payableSum = present + holiday + el + sl + cl + cfMatched;
   if (typeof compOffUsed === 'number' && compOffUsed > 0) {
-    payable += compOffUsed;
+    payableSum += compOffUsed;
   }
+  // If sum matches days in month, set payable to daysInMonth
+  let payable = payableSum === daysInMonth ? daysInMonth : payableSum;
   // Absent = absent - cfMatched
   const absentFinal = absent - cfMatched;
   return { payable, absent: absentFinal, cfRemain };
@@ -368,38 +372,44 @@ const OverallSummaryPage = (): JSX.Element => {
     doc.text(`${new Date(0, month - 1).toLocaleString('default', { month: 'long' })} ${year}`, pageWidth / 2, 55, { align: 'center' });
 
     const tableHeaders = [
-        ['Employee', 'ID', 'Total Days', 'Present', 'Absent', 'Week Offs', 'Holidays', 'CF', 'EL', 'CL', 'SL', 'LOP', 'Payable Days']
+        ['Employee', 'ID', 'Total Days', 'Present', 'Absent', 'Week Offs', 'Holidays', 'CF', 'EL', 'CL', 'SL', 'LOP', 'CompOff Used', 'Payable Days']
     ];
 
     const tableData = employees.map(employee => {
         const empAttendance = attendanceData[employee.employeeId] || [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-
+        const daysInMonth = new Date(year, month, 0).getDate();
         const getCount = (status: string) => empAttendance.filter(a => {
             const d = new Date(a.date);
             d.setHours(0, 0, 0, 0);
             return a.status === status && d <= today;
         }).length;
-
-        // Get CompOff used from leave balance if available
         const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
-        const { payable, absent, cfRemain } = getPayableDays(empAttendance, compOffUsed);
-
+        const presentDays = getCount('P');
+        const holidayCount = getCount('H');
+        const elCount = getCount('EL');
+        const clCount = getCount('CL');
+        const slCount = getCount('SL');
+        const cfCount = getCount('CF');
+        const payableDays = presentDays + holidayCount + elCount + slCount + clCount + cfCount + compOffUsed;
+        const { absent, cfRemain } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
+        
         return [
             employee.fullName,
             employee.employeeId,
             daysInMonth,
-            getCount('P'),
+            presentDays,
             absent,
             weekOffData[employee.employeeId] ?? 0,
-            getCount('H'),
-            cfRemain,
-            getCount('EL'),
-            getCount('CL'),
-            getCount('SL'),
+            holidayCount,
+            cfCount,
+            elCount,
+            clCount,
+            slCount,
             lopData[employee.employeeId] ?? 0,
-            payable
+            compOffUsed,
+            payableDays
         ];
     });
 
@@ -418,30 +428,37 @@ const OverallSummaryPage = (): JSX.Element => {
           const empAttendance = attendanceData[employee.employeeId] || [];
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-
+          const daysInMonth = new Date(year, month, 0).getDate();
           const getCount = (status: string) => empAttendance.filter(a => {
               const d = new Date(a.date);
               d.setHours(0, 0, 0, 0);
               return a.status === status && d <= today;
           }).length;
-
           const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
-          const { payable, absent, cfRemain } = getPayableDays(empAttendance, compOffUsed);
-
+          const presentDays = getCount('P');
+          const holidayCount = getCount('H');
+          const elCount = getCount('EL');
+          const clCount = getCount('CL');
+          const slCount = getCount('SL');
+          const cfCount = getCount('CF');
+          const payableDays = presentDays + holidayCount + elCount + slCount + clCount + cfCount + compOffUsed;
+          const { absent, cfRemain } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
+          
           return {
               'Employee Name': employee.fullName,
               'Employee ID': employee.employeeId,
               'Total Days': daysInMonth,
-              'Present': getCount('P'),
+              'Present': presentDays,
               'Absent': absent,
               'Week Offs': weekOffData[employee.employeeId] ?? 0,
-              'Holidays': getCount('H'),
-              'CF': cfRemain,
-              'EL': getCount('EL'),
-              'CL': getCount('CL'),
-              'SL': getCount('SL'),
+              'Holidays': holidayCount,
+              'CF': cfCount,
+              'EL': elCount,
+              'CL': clCount,
+              'SL': slCount,
               'LOP': lopData[employee.employeeId] ?? 0,
-              'Payable Days': payable
+              'CompOff Used': compOffUsed,
+              'Payable Days': payableDays
           };
       });
 
@@ -544,6 +561,7 @@ const OverallSummaryPage = (): JSX.Element => {
                     <th className="p-3 text-center">CL</th>
                     <th className="p-3 text-center">SL</th>
                     <th className="p-3 text-center">LOP</th>
+                    <th className="p-3 text-center">CompOff Used</th>
                     <th className="p-3 text-center">Payable Days</th>
                   </tr>
                 </thead>
@@ -563,102 +581,84 @@ const OverallSummaryPage = (): JSX.Element => {
 
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
-
-                    // const getCount = (status: string) => empAttendance.filter(a => {
-                    //   const d = new Date(a.date);
-                    //   d.setHours(0, 0, 0, 0);
-                    //   return a.status === status && d <= today;
-                    // }).length;
-
-                    // Use new logic for payable/absent/cfRemain, using CompOff used from leave balance
+                    const daysInMonth = new Date(year, month, 0).getDate();
+                    const getCount = (status: string) => empAttendance.filter(a => {
+                      const d = new Date(a.date);
+                      d.setHours(0, 0, 0, 0);
+                      return a.status === status && d <= today;
+                    }).length;
                     const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
-                    const { payable, absent, cfRemain } = getPayableDays(empAttendance, compOffUsed);
-                  const presentDays = empAttendance.filter(a => {
-                    const d = new Date(a.date);
-                    d.setHours(0, 0, 0, 0);
-                    return a.status === 'P' && d <= today;
-                  }).length;
-                  const holidayCount = empAttendance.filter(a => {
-                    const d = new Date(a.date);
-                    d.setHours(0, 0, 0, 0);
-                    return a.status === 'H' && d <= today;
-                  }).length;
-                  const cfCount = cfRemain;
-                  const elCount = empAttendance.filter(a => {
-                    const d = new Date(a.date);
-                    d.setHours(0, 0, 0, 0);
-                    return a.status === 'EL' && d <= today;
-                  }).length;
-                  const clCount = empAttendance.filter(a => {
-                    const d = new Date(a.date);
-                    d.setHours(0, 0, 0, 0);
-                    return a.status === 'CL' && d <= today;
-                  }).length;
-                  const slCount = empAttendance.filter(a => {
-                    const d = new Date(a.date);
-                    d.setHours(0, 0, 0, 0);
-                    return a.status === 'SL' && d <= today;
-                  }).length;
-                  
-                  return (
-                    <tr
-                      key={employee.employeeId}
-                      className={`transition-colors ${
-                        theme === 'light'
-                          ? 'hover:bg-gray-50'
-                          : 'hover:bg-gray-700'
-                      }`}
-                    >
-                      <td className="p-3">
-                        <div className="flex items-center gap-3">
-                        <Image
-                          src={employee.imageUrl}
-                          alt={employee.fullName}
-                            width={40}
-                            height={40}
-                            className="w-10 h-10 rounded-full object-cover"
-                        />
-                          <div>
-                              <div className="font-bold">{employee.fullName}</div>
-                              <div className="text-xs opacity-70">{employee.employeeId}</div>
+                    const presentDays = getCount('P');
+                    const holidayCount = getCount('H');
+                    const elCount = getCount('EL');
+                    const clCount = getCount('CL');
+                    const slCount = getCount('SL');
+                    const cfCount = getCount('CF');
+                    const payableDays = presentDays + holidayCount + elCount + slCount + clCount + cfCount + compOffUsed;
+                    const { absent, cfRemain } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
+                    
+                    return (
+                      <tr
+                        key={employee.employeeId}
+                        className={`transition-colors ${
+                          theme === 'light'
+                            ? 'hover:bg-gray-50'
+                            : 'hover:bg-gray-700'
+                        }`}
+                      >
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
+                          <Image
+                            src={employee.imageUrl}
+                            alt={employee.fullName}
+                              width={40}
+                              height={40}
+                              className="w-10 h-10 rounded-full object-cover"
+                          />
+                            <div>
+                                <div className="font-bold">{employee.fullName}</div>
+                                <div className="text-xs opacity-70">{employee.employeeId}</div>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className={`p-3 border text-center ${
-                        theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                      }`}>{daysInMonth}</td>
-                      <td className={`p-3 border text-center ${
-                        theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                      }`}>{presentDays}</td>
-                      <td className={`p-3 border text-center ${
-                        theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                      }`}>{absent}</td>
-                      <td className={`p-3 border text-center ${
-                        theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                      }`}>{loadingLop ? '...' : weekOffData[employee.employeeId] ?? 0}</td>
-                      <td className={`p-3 border text-center ${
-                        theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                      }`}>{holidayCount}</td>
-                      <td className={`p-3 border text-center ${
-                        theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                      }`}>{cfCount}</td>
-                      <td className={`p-3 border text-center ${
-                        theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                      }`}>{elCount}</td>
-                      <td className={`p-3 border text-center ${
-                        theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                      }`}>{clCount}</td>
-                      <td className={`p-3 border text-center ${
-                        theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                      }`}>{slCount}</td>
-                      <td className={`p-3 border text-center ${
-                        theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                      }`}>{loadingLop ? '...' : lopData[employee.employeeId] ?? 0}</td>
-                      <td className={`p-3 border text-center font-bold ${
-                        theme === 'light' ? 'border-gray-200 text-blue-600' : 'border-gray-700 text-blue-400'
-                      }`}>{payable}</td>
-                    </tr>
-                  );
+                        </td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{daysInMonth}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{presentDays}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{absent}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{loadingLop ? '...' : weekOffData[employee.employeeId] ?? 0}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{holidayCount}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{cfCount}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{elCount}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{clCount}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{slCount}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{loadingLop ? '...' : lopData[employee.employeeId] ?? 0}</td>
+                        <td className={`p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{compOffUsed}</td>
+                        <td className={`p-3 border text-center font-bold ${
+                          theme === 'light' ? 'border-gray-200 text-blue-600' : 'border-gray-700 text-blue-400'
+                        }`}>{payableDays}</td>
+                      </tr>
+                    );
                   })}
                 </tbody>
               </table>
