@@ -74,13 +74,6 @@ type RecentKYCItem = {
   personalDetails: Record<string, unknown>;
 };
 
-
-type KycPersonalDetails = {
-  employeeId: string;
-  fullName: string;
-};
-
-
 // PIE CHART COLORS
 const PIE_COLORS = [
   '#6366f1', '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6', '#fb7185', '#facc15', '#4ade80', '#2dd4bf', '#38bdf8', '#818cf8', '#f59e42', '#eab308', '#84cc16', '#14b8a6', '#0ea5e9', '#a3e635', '#f43f5e'

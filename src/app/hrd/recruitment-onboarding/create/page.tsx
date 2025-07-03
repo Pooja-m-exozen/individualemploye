@@ -85,7 +85,7 @@ export default function RecruitmentOnboardingDataAddition() {
   // Fetch positions from API
   const fetchPositions = async () => {
     try {
-      const params: any = {
+      const params: Record<string, string | number | undefined> = {
         search,
         status: statusFilter,
         sort: `${sortState.key}:${sortState.direction}`,
@@ -271,7 +271,7 @@ export default function RecruitmentOnboardingDataAddition() {
   // Export to CSV
   const exportCSV = async () => {
     try {
-      const params: any = {
+      const params: Record<string, string | number | undefined> = {
         search,
         status: statusFilter,
         sort: `${sortState.key}:${sortState.direction}`,
