@@ -434,7 +434,7 @@ export default function ManagerDashboardPage() {
       >
         <div
           className={`rounded-xl p-4 flex items-center justify-center ${
-            theme === "dark" ? "bg-blue-900 bg-opacity-40" : "bg-blue-600 bg-opacity-30"
+            theme === "dark" ? "bg-gray-900 bg-opacity-80" : "bg-blue-600 bg-opacity-30"
           }`}
         >
           <FaChartBar className="w-10 h-10 text-white" />
@@ -457,7 +457,7 @@ export default function ManagerDashboardPage() {
           >
             <div
               className={`rounded-xl p-3 flex items-center justify-center ${
-                theme === "dark" ? "bg-blue-900" : "bg-blue-100"
+                theme === "dark" ? "bg-gray-900" : "bg-blue-100"
               }`}
             >
               {/* Render icon with blue color in light theme, white in dark theme */}
@@ -485,7 +485,7 @@ export default function ManagerDashboardPage() {
         >
           <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Attendance Trend (Last 6 Months)</div>
           <div className="overflow-x-auto">
-            <div className="relative min-w-max" style={{ width: Math.max(attendanceTrend.length * 80, 480) }}>
+            <div className="relative min-w-max mt-8" style={{ width: Math.max(attendanceTrend.length * 80, 480) }}>
               {attendanceLoading ? (
                 <div className="w-full text-center animate-pulse">Loading...</div>
               ) : attendanceTrend.length === 0 ? (
@@ -578,7 +578,7 @@ export default function ManagerDashboardPage() {
               <>
                 {recentAttendance.slice(0, 3).map((act) => (
                   <li key={act._id} className="flex items-center gap-3">
-                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-blue-900" : "bg-blue-50"}`}>
+                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-gray-900" : "bg-blue-50"}`}>
                       <FaBell className="text-blue-500" />
                     </span>
                     <div className="flex-1">
@@ -591,7 +591,7 @@ export default function ManagerDashboardPage() {
                 ))}
                 {recentLeaves.slice(0, 2).map((leave) => (
                   <li key={leave._id} className="flex items-center gap-3">
-                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-green-900" : "bg-green-50"}`}>
+                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-gray-900" : "bg-green-50"}`}>
                       <FaCheckCircle className="text-green-500" />
                     </span>
                     <div className="flex-1">
@@ -604,7 +604,7 @@ export default function ManagerDashboardPage() {
                 ))}
                 {recentKYC.slice(0, 1).map((kyc) => (
                   <li key={kyc._id} className="flex items-center gap-3">
-                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-yellow-900" : "bg-yellow-50"}`}>
+                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-gray-900" : "bg-yellow-50"}`}>
                       <FaFileAlt className="text-yellow-500" />
                     </span>
                     <div className="flex-1">

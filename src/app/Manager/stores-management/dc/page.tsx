@@ -123,9 +123,7 @@ export default function StoreDCPage() {
         >
           <div
             className={`rounded-xl p-4 flex items-center justify-center ${
-              theme === "dark"
-                ? "bg-blue-900 bg-opacity-40"
-                : "bg-blue-600 bg-opacity-30"
+              theme === "dark" ? "bg-[#232e3e]" : "bg-blue-600 bg-opacity-30"
             }`}
           >
             <FaStore className="w-10 h-10 text-white" />
