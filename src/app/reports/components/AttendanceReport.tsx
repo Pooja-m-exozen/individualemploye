@@ -833,27 +833,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
       doc.save(`location_report_${selectedMonth}_${selectedYear}.pdf`);
     };
 
-    // Add this function near your other export/download functions
-    const downloadLocationExcel = async () => {
-      // Filter records for the selected month/year
-      const filteredRecords = processedData.filter(record => {
-        const dateObj = new Date(record.date);
-        return dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
-      });
-      // Fetch addresses for all records
-      const recordsWithAddresses = await fetchAllAddresses(filteredRecords);
-      // Prepare data for Excel
-      const excelData = recordsWithAddresses.map(record => ({
-        Date: formatDate(record.date),
-        'Check-in Location': record.punchInResolvedAddress,
-        'Check-out Location': record.punchOutResolvedAddress,
-      }));
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Location Report');
-      XLSX.writeFile(workbook, `location_report_${selectedMonth}_${selectedYear}.xlsx`);
-    };
-
     return (
         <div className={`space-y-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm p-6`}>
             {/* Header */}
@@ -945,13 +924,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                   >
                     <FaFilePdf className="w-4 h-4" />
                     Export Location Report (PDF)
-                  </button>
-                  <button
-                    onClick={downloadLocationExcel}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    <FaFileExcel className="w-4 h-4" />
-                    Export Location Report (Excel)
                   </button>
                 </div>
               </div>
