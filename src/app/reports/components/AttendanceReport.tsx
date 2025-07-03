@@ -162,7 +162,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     theme
 }) => {
     const [selectedRecord, setSelectedRecord] = useState<ExtendedRawAttendanceRecord | null>(null);
-    const [summary, setSummary] = useState<MonthSummaryResponse['data'] | null>(null);
     const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistory[]>([]);
     const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
@@ -320,23 +319,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             return 'Error fetching location';
         }
     };
-
-    useEffect(() => {
-        if (!employeeId || !selectedMonth || !selectedYear) return;
-        
-        fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${selectedMonth}&year=${selectedYear}`)
-          .then(res => res.json())
-          .then((data: MonthSummaryResponse) => {
-            if (data.success) {
-              setSummary(data.data);
-            } else {
-              setSummary(null);
-            }
-          })
-          .catch(() => {
-            setSummary(null);
-          });
-    }, [employeeId, selectedMonth, selectedYear]);
 
     useEffect(() => {
         if (!employeeId) return;
