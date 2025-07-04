@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { FaUsers, FaProjectDiagram, FaFileAlt, FaChartBar } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
-// Add type for summary and attendance trend
+// Add type for summary 
 
 type SummaryItem = {
   label: string;
@@ -12,14 +12,6 @@ type SummaryItem = {
   icon: React.ReactNode;
 };
 
-type AttendanceTrendItem = {
-  date: string;
-  total: number;
-  present: number;
-  absent: number;
-  presentBreakdown: Record<string, unknown>;
-  absentBreakdown: Record<string, unknown>;
-};
 
 type ProjectDistributionItem = {
   _id: string;
