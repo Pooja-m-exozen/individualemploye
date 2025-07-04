@@ -1,26 +1,154 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { FaCalendarAlt, FaProjectDiagram,  FaInfoCircle } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
 export default function CreateShiftsPage() {
   const { theme } = useTheme();
-  // Dummy data for mapping
   const [activeSection, setActiveSection] = useState("addShift");
-  const projects = ["Project Alpha", "Project Beta", "Project Gamma"];
-  const designations = ["Security Guard", "Supervisor", "Technician", "Driver"];
-  const employees = [
-    { id: "EMP001", name: "John Doe", designation: "Security Guard", project: "Project Alpha", weekoff: "Sunday" },
-    { id: "EMP002", name: "Jane Smith", designation: "Supervisor", project: "Project Beta", weekoff: "Saturday" },
-    { id: "EMP003", name: "Alice Johnson", designation: "Technician", project: "Project Gamma", weekoff: "Monday" },
-  ];
+
   const shifts = ["Morning Shift", "Evening Shift", "Night Shift"];
-  const mappings = [
-    { project: "Project Alpha", designation: "Security Guard", employee: "John Doe", shift: "Morning Shift" },
-    { project: "Project Beta", designation: "Supervisor", employee: "Jane Smith", shift: "Evening Shift" },
-  ];
   const weekoffDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  // Shift form state
+  const [shiftName, setShiftName] = useState("");
+  const [shiftCode, setShiftCode] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [department, setDepartment] = useState("");
+  const [location, setLocation] = useState("");
+  const [maxEmployees, setMaxEmployees] = useState("");
+  const [breakTime, setBreakTime] = useState("");
+  const [workingDays, setWorkingDays] = useState<string[]>([]);
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiSuccess, setApiSuccess] = useState<string | null>(null);
+
+  // KYC-based dropdown state
+  const [kycProjects, setKycProjects] = useState<string[]>([]);
+  const [kycDesignations, setKycDesignations] = useState<string[]>([]);
+  const [kycEmployees, setKycEmployees] = useState<{ id: string; name: string; designation: string; project: string }[]>([]);
+
+  // For filtering dropdowns
+  const [selectedProject, setSelectedProject] = useState("");
+  const [selectedDesignation, setSelectedDesignation] = useState("");
+
+  // Fetch KYC data for dropdowns
+  useEffect(() => {
+    fetch("https://cafm.zenapi.co.in/api/kyc")
+      .then(res => res.json())
+      .then(data => {
+        if (data.kycForms && Array.isArray(data.kycForms)) {
+          const projectsSet = new Set<string>();
+          const designationsSet = new Set<string>();
+          const employeesArr: { id: string; name: string; designation: string; project: string }[] = [];
+          data.kycForms.forEach((form: { personalDetails?: {
+            workType?: string;
+            weekoffDay?: string | null;
+            employeeId?: string;
+            projectName?: string;
+            fullName?: string;
+            designation?: string;
+          } }) => {
+            const pd = form.personalDetails;
+            if (pd) {
+              if (pd.projectName) projectsSet.add(pd.projectName);
+              if (pd.designation) designationsSet.add(pd.designation);
+              if (pd.employeeId && pd.fullName) {
+                employeesArr.push({
+                  id: pd.employeeId,
+                  name: pd.fullName,
+                  designation: pd.designation || "",
+                  project: pd.projectName || "",
+                });
+              }
+            }
+          });
+          setKycProjects(Array.from(projectsSet));
+          setKycDesignations(Array.from(designationsSet));
+          setKycEmployees(employeesArr);
+        }
+      });
+  }, []);
+
+  // Derived projects and employees for Update Weekoffs section
+  const projects = kycProjects;
+  const employees = kycEmployees.map(e => ({
+    id: e.id,
+    name: e.name,
+    designation: e.designation,
+    project: e.project,
+    weekoff: "", // Default to empty, or set from KYC if available
+  }));
+
+  // Filter designations and employees based on selected project/designation
+  const filteredDesignations = selectedProject
+    ? Array.from(new Set(kycEmployees.filter(e => e.project === selectedProject).map(e => e.designation)))
+    : kycDesignations;
+
+  const filteredEmployees = kycEmployees.filter(e =>
+    (!selectedProject || e.project === selectedProject) &&
+    (!selectedDesignation || e.designation === selectedDesignation)
+  );
+
+  // Handle working days checkbox
+  const handleWorkingDaysChange = (day: string) => {
+    setWorkingDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
+  };
+
+  // Add Shift API handler
+  const handleAddShift = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setApiError(null);
+    setApiSuccess(null);
+    try {
+      const res = await fetch("https://cafm.zenapi.co.in/api/shift/shifts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shiftName,
+          shiftCode,
+          startTime,
+          endTime,
+          department,
+          location,
+          maxEmployees,
+          breakTime,
+          workingDays,
+          description,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to create shift");
+      }
+      setApiSuccess("Shift created successfully!");
+      // Optionally: clear form or update local shift list
+      setShiftName("");
+      setShiftCode("");
+      setStartTime("");
+      setEndTime("");
+      setDepartment("");
+      setLocation("");
+      setMaxEmployees("");
+      setBreakTime("");
+      setWorkingDays([]);
+      setDescription("");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setApiError(err.message || "Error creating shift");
+      } else {
+        setApiError("Error creating shift");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <ManagerDashboardLayout>
@@ -90,25 +218,141 @@ export default function CreateShiftsPage() {
             {activeSection === "addShift" && (
               <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-8 border shadow-xl`}>
                 <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Add New Shift</h2>
-                <form className="flex flex-col gap-6">
+                {/* API feedback */}
+                {apiError && <div className="mb-4 text-red-600 font-semibold">{apiError}</div>}
+                {apiSuccess && <div className="mb-4 text-green-600 font-semibold">{apiSuccess}</div>}
+                <form className="flex flex-col gap-6" onSubmit={handleAddShift}>
                   <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1">
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Shift Name</label>
-                      <input type="text" className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`} placeholder="Morning Shift" />
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Shift Name*</label>
+                      <input
+                        type="text"
+                        value={shiftName}
+                        onChange={e => setShiftName(e.target.value)}
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
+                        placeholder="Morning Shift"
+                        required
+                      />
                     </div>
                     <div className="flex-1">
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Start Time</label>
-                      <input type="time" className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`} />
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Shift Code*</label>
+                      <input
+                        type="text"
+                        value={shiftCode}
+                        onChange={e => setShiftCode(e.target.value)}
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
+                        placeholder="MS-001"
+                        required
+                      />
                     </div>
                     <div className="flex-1">
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>End Time</label>
-                      <input type="time" className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`} />
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Department</label>
+                      <input
+                        type="text"
+                        value={department}
+                        onChange={e => setDepartment(e.target.value)}
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
+                        placeholder="IT"
+                      />
                     </div>
                   </div>
-                  <button type="submit" className="self-end px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400">Add Shift</button>
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Location</label>
+                      <input
+                        type="text"
+                        value={location}
+                        onChange={e => setLocation(e.target.value)}
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
+                        placeholder="Bangalore"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Max Employees</label>
+                      <input
+                        type="number"
+                        value={maxEmployees}
+                        onChange={e => setMaxEmployees(e.target.value)}
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
+                        placeholder="20"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Break Time (minutes)</label>
+                      <input
+                        type="number"
+                        value={breakTime}
+                        onChange={e => setBreakTime(e.target.value)}
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
+                        placeholder="60"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Start Time*</label>
+                      <input
+                        type="time"
+                        value={startTime}
+                        onChange={e => setStartTime(e.target.value)}
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
+                        required
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>End Time*</label>
+                      <input
+                        type="time"
+                        value={endTime}
+                        onChange={e => setEndTime(e.target.value)}
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
+                        required
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Description</label>
+                      <input
+                        type="text"
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}
+                        placeholder="Standard day shift"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Working Days</label>
+                    <div className="flex flex-wrap gap-3">
+                      {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(day => (
+                        <label
+                          key={day}
+                          className={`flex items-center gap-1
+                            ${theme === 'dark'
+                              ? 'text-blue-200'
+                              : 'text-black'
+                            }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={workingDays.includes(day)}
+                            onChange={() => handleWorkingDaysChange(day)}
+                            className={`accent-blue-600 ${theme === 'dark' ? 'bg-gray-900' : 'bg-white text-black'}`}
+                          />
+                          <span>{day}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="self-end px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    disabled={loading}
+                  >
+                    {loading ? "Adding..." : "Add Shift"}
+                  </button>
                 </form>
                 <div className="mt-8">
-                  <h3 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Existing Shifts</h3>
+                  <h3 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Existing Shifts</h3>
                   <table className={`min-w-full divide-y ${theme === 'dark' ? 'divide-gray-800' : 'divide-blue-100'}`}> 
                     <thead className={theme === 'dark' ? 'bg-blue-950' : 'bg-blue-50'}>
                       <tr>
@@ -136,34 +380,67 @@ export default function CreateShiftsPage() {
               </section>
             )}
             {activeSection === "mapShift" && (
-              <section className="bg-white rounded-2xl p-8 border border-blue-100 shadow-xl">
-                <h2 className="text-xl font-bold text-blue-700 mb-4">Map Shift to Project, Designation & Employee</h2>
+              <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-8 border shadow-xl`}>
+                <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Map Shift to Project, Designation & Employee</h2>
                 <form className="flex flex-col gap-6 mb-6">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Project</label>
-                      <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Project</label>
+                      <select
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2
+                          ${theme === 'dark'
+                            ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800'
+                            : 'bg-white text-black border-blue-200 focus:ring-blue-400'
+                          }`}
+                        value={selectedProject}
+                        onChange={e => {
+                          setSelectedProject(e.target.value);
+                          setSelectedDesignation(""); // reset designation on project change
+                        }}
+                      >
                         <option value="">Select Project</option>
-                        {projects.map(p => <option key={p} value={p}>{p}</option>)}
+                        {kycProjects.map((p: string) => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Designation</label>
-                      <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Designation</label>
+                      <select
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2
+                          ${theme === 'dark'
+                            ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800'
+                            : 'bg-white text-black border-blue-200 focus:ring-blue-400'
+                          }`}
+                        value={selectedDesignation}
+                        onChange={e => setSelectedDesignation(e.target.value)}
+                        disabled={!selectedProject}
+                      >
                         <option value="">Select Designation</option>
-                        {designations.map(d => <option key={d} value={d}>{d}</option>)}
+                        {filteredDesignations.map((d: string) => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Employee</label>
-                      <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee</label>
+                      <select
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2
+                          ${theme === 'dark'
+                            ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800'
+                            : 'bg-white text-black border-blue-200 focus:ring-blue-400'
+                          }`}
+                        disabled={!selectedProject || !selectedDesignation}
+                      >
                         <option value="">Select Employee</option>
-                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        {filteredEmployees.map((e: { id: string; name: string }) => <option key={e.id} value={e.id}>{e.name}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Shift</label>
-                      <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Shift</label>
+                      <select
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2
+                          ${theme === 'dark'
+                            ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800'
+                            : 'bg-white text-black border-blue-200 focus:ring-blue-400'
+                          }`}
+                      >
                         <option value="">Select Shift</option>
                         {shifts.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
@@ -172,27 +449,8 @@ export default function CreateShiftsPage() {
                   <button type="submit" className="self-end px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400">Map Shift</button>
                 </form>
                 <div>
-                  <h3 className="text-lg font-bold text-blue-700 mb-2">Existing Mappings</h3>
-                  <table className="min-w-full divide-y divide-blue-100">
-                    <thead className="bg-blue-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Project</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Designation</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Employee</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Shift</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-blue-50">
-                      {mappings.map((m, idx) => (
-                        <tr key={idx} className="hover:bg-blue-50 transition">
-                          <td className="px-4 py-3 font-bold text-blue-800">{m.project}</td>
-                          <td className="px-4 py-3">{m.designation}</td>
-                          <td className="px-4 py-3">{m.employee}</td>
-                          <td className="px-4 py-3">{m.shift}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <h3 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Existing Mappings</h3>
+                  {/* ...existing code for mappings table (if any, or leave empty) ... */}
                 </div>
               </section>
             )}
@@ -205,7 +463,7 @@ export default function CreateShiftsPage() {
                       <label className="block text-blue-800 font-semibold mb-1">Project</label>
                       <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
                         <option value="">Select Project</option>
-                        {projects.map(p => <option key={p} value={p}>{p}</option>)}
+                        {projects.map((p: string) => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </div>
                     <div>
@@ -238,7 +496,7 @@ export default function CreateShiftsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-blue-50">
-                      {employees.map((emp, idx) => (
+                      {employees.map((emp: { id: string; name: string; designation: string; project: string; weekoff: string }, idx: number) => (
                         <tr key={idx} className="hover:bg-blue-50 transition">
                           <td className="px-4 py-3 font-bold text-blue-800">{emp.id}</td>
                           <td className="px-4 py-3">{emp.name}</td>
@@ -248,7 +506,7 @@ export default function CreateShiftsPage() {
                           <td className="px-4 py-3">
                             <select className="border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
                               <option value="">Select Day</option>
-                              {weekoffDays.map(day => <option key={day} value={day}>{day}</option>)}
+                              {weekoffDays.map((day: string) => <option key={day} value={day}>{day}</option>)}
                             </select>
                           </td>
                           <td className="px-4 py-3">
