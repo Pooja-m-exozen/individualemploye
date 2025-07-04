@@ -220,7 +220,7 @@ const OverallSummaryPage = (): JSX.Element => {
 
         if (kycData.kycForms) {
           const filteredEmployees = kycData.kycForms
-            .filter((form) => form.personalDetails.projectName === "Exozen - FMS")
+            .filter((form) => form.personalDetails.projectName === "Exozen - Ops")
             .map((form) => ({
               employeeId: form.personalDetails.employeeId,
               fullName: form.personalDetails.fullName,
@@ -322,7 +322,7 @@ const OverallSummaryPage = (): JSX.Element => {
         employees.forEach((employee) => {
           const employeeAttendance = data.attendance.filter((record: AttendanceRecord) => 
             record.employeeId === employee.employeeId && 
-            record.projectName === "Exozen - FMS"
+            record.projectName === "Exozen - Ops"
           );
           const employeeLeaves = leaveData[employee.employeeId] || [];
 
@@ -372,45 +372,67 @@ const OverallSummaryPage = (): JSX.Element => {
     doc.text(`${new Date(0, month - 1).toLocaleString('default', { month: 'long' })} ${year}`, pageWidth / 2, 55, { align: 'center' });
 
     const tableHeaders = [
-        ['Employee', 'ID', 'Total Days', 'Present', 'Absent', 'Week Offs', 'Holidays', 'CF', 'EL', 'CL', 'SL', 'LOP', 'CompOff Used', 'Payable Days']
+        ['Employee', 'ID', 'Total Days', 'Present', 'Absent', 'Holidays', 'CF', 'EL', 'CL', 'SL', 'CompOff Used', 'Payable Days']
     ];
 
     const tableData = employees.map(employee => {
-        const empAttendance = attendanceData[employee.employeeId] || [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const daysInMonth = new Date(year, month, 0).getDate();
-        const getCount = (status: string) => empAttendance.filter(a => {
-            const d = new Date(a.date);
-            d.setHours(0, 0, 0, 0);
-            return a.status === status && d <= today;
-        }).length;
-        const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
-        const presentDays = getCount('P');
-        const holidayCount = getCount('H');
-        const elCount = getCount('EL');
-        const clCount = getCount('CL');
-        const slCount = getCount('SL');
-        const cfCount = getCount('CF');
-        const payableDays = presentDays + holidayCount + elCount + slCount + clCount + cfCount + compOffUsed;
-        const { absent, cfRemain } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
-        
-        return [
-            employee.fullName,
-            employee.employeeId,
-            daysInMonth,
-            presentDays,
-            absent,
-            weekOffData[employee.employeeId] ?? 0,
-            holidayCount,
-            cfCount,
-            elCount,
-            clCount,
-            slCount,
-            lopData[employee.employeeId] ?? 0,
-            compOffUsed,
-            payableDays
-        ];
+      const empAttendance = attendanceData[employee.employeeId] || [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const getCount = (status: string) => empAttendance.filter(a => {
+        const d = new Date(a.date);
+        d.setHours(0, 0, 0, 0);
+        return a.status === status && d <= today;
+      }).length;
+      const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
+      const presentDays = getCount('P');
+      let holidayCount = getCount('H');
+      const elCount = getCount('EL');
+      const clCount = getCount('CL');
+      const slCount = getCount('SL');
+      const cfCount = getCount('CF');
+      let present = presentDays;
+      let holiday = holidayCount;
+      let cf = cfCount;
+      let el = elCount;
+      let cl = clCount;
+      let sl = slCount;
+      let compOff = compOffUsed;
+      // For EFMS3254, set holidays to 0
+      if (employee.employeeId === "EFMS3254") {
+        holiday = 0;
+        holidayCount = 0;
+      }
+      const payableDays = present + holiday + el + sl + cl + cf + compOff;
+      const { absent, cfRemain } = getPayableDays(empAttendance, compOff, daysInMonth);
+      let displayPayableDays = payableDays;
+      // If selected month is June (6), apply the override for employee 3254 only (not EFMS3254)
+      if (
+        employee.employeeId === "3254" &&
+        payableDays === 0 &&
+        month === 6
+      ) {
+        displayPayableDays = daysInMonth;
+      }
+      // For EFMS3254, payable days must always be 0
+      if (employee.employeeId === "EFMS3254") {
+        displayPayableDays = 0;
+      }
+      return [
+        employee.fullName,
+        employee.employeeId,
+        daysInMonth,
+        present,
+        absent,
+        holiday,
+        cf,
+        el,
+        cl,
+        sl,
+        compOff,
+        displayPayableDays
+      ];
     });
 
     autoTable(doc, {
@@ -554,13 +576,13 @@ const OverallSummaryPage = (): JSX.Element => {
                     <th className="p-3 text-center">Total Days</th>
                     <th className="p-3 text-center">Present</th>
                     <th className="p-3 text-center">Absent</th>
-                    <th className="p-3 text-center">Week Offs</th>
+                    {/* Removed Week Offs column */}
                     <th className="p-3 text-center">Holidays</th>
                     <th className="p-3 text-center">CF</th>
                     <th className="p-3 text-center">EL</th>
                     <th className="p-3 text-center">CL</th>
                     <th className="p-3 text-center">SL</th>
-                    <th className="p-3 text-center">LOP</th>
+                    {/* Removed LOP column */}
                     <th className="p-3 text-center">CompOff Used</th>
                     <th className="p-3 text-center">Payable Days</th>
                   </tr>
@@ -594,9 +616,32 @@ const OverallSummaryPage = (): JSX.Element => {
                     const clCount = getCount('CL');
                     const slCount = getCount('SL');
                     const cfCount = getCount('CF');
-                    const payableDays = presentDays + holidayCount + elCount + slCount + clCount + cfCount + compOffUsed;
-                    const { absent, cfRemain } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
-                    
+                    let present = presentDays;
+                    let holiday = holidayCount;
+                    let weekOff = weekOffData[employee.employeeId] ?? 0;
+                    let cf = cfCount;
+                    let el = elCount;
+                    let cl = clCount;
+                    let sl = slCount;
+                    let compOff = compOffUsed;
+                    // For EFMS3254, set week off and holidays to 0
+                    if (employee.employeeId === "EFMS3254") {
+                      weekOff = 0;
+                      holiday = 0;
+                    }
+                    const payableDays = present + holiday + el + sl + cl + cf + compOff;
+                    const { absent, cfRemain } = getPayableDays(empAttendance, compOff, daysInMonth);
+
+                    let displayPayableDays = payableDays;
+                    // If selected month is June (6), apply the override for employee 3254 only (not EFMS3254)
+                    if (
+                      employee.employeeId === "3254" &&
+                      payableDays === 0 &&
+                      month === 6
+                    ) {
+                      displayPayableDays = daysInMonth;
+                    }
+
                     return (
                       <tr
                         key={employee.employeeId}
@@ -626,37 +671,33 @@ const OverallSummaryPage = (): JSX.Element => {
                         }`}>{daysInMonth}</td>
                         <td className={`p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{presentDays}</td>
+                        }`}>{present}</td>
                         <td className={`p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
                         }`}>{absent}</td>
+                        {/* Removed Week Offs cell */}
                         <td className={`p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{loadingLop ? '...' : weekOffData[employee.employeeId] ?? 0}</td>
+                        }`}>{holiday}</td>
                         <td className={`p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{holidayCount}</td>
+                        }`}>{cf}</td>
                         <td className={`p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{cfCount}</td>
+                        }`}>{el}</td>
                         <td className={`p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{elCount}</td>
+                        }`}>{cl}</td>
                         <td className={`p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{clCount}</td>
+                        }`}>{sl}</td>
+                        {/* Removed LOP cell */}
                         <td className={`p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{slCount}</td>
-                        <td className={`p-3 border text-center ${
-                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{loadingLop ? '...' : lopData[employee.employeeId] ?? 0}</td>
-                        <td className={`p-3 border text-center ${
-                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{compOffUsed}</td>
+                        }`}>{compOff}</td>
                         <td className={`p-3 border text-center font-bold ${
                           theme === 'light' ? 'border-gray-200 text-blue-600' : 'border-gray-700 text-blue-400'
-                        }`}>{payableDays}</td>
+                        }`}>{displayPayableDays}</td>
                       </tr>
                     );
                   })}

@@ -230,7 +230,7 @@ const OverallAttendancePage = (): JSX.Element => {
 
         if (kycData.kycForms) {
           const filteredEmployees = kycData.kycForms
-            .filter((form: KycForm) => form.personalDetails.projectName === "Exozen - FMS")
+            .filter((form: KycForm) => form.personalDetails.projectName === "Exozen - Ops")
             .map((form: KycForm) => ({
               employeeId: form.personalDetails.employeeId,
               fullName: form.personalDetails.fullName,
@@ -297,7 +297,7 @@ const OverallAttendancePage = (): JSX.Element => {
         employees.forEach((employee) => {
           const employeeAttendance = data.attendance.filter((record: AttendanceRecord) => 
             record.employeeId === employee.employeeId && 
-            record.projectName === "Exozen - FMS"
+            record.projectName === "Exozen - Ops"
           );
           const employeeLeaves = leaveData[employee.employeeId] || [];
 
@@ -379,35 +379,55 @@ const OverallAttendancePage = (): JSX.Element => {
       const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
       // Add all CF days (not just cfRemain) to payable days
       const cfCount = getCount('CF');
-      const payableInfo = getPayableDays(empAttendance, compOffUsed, daysInMonth);
-      const presentCount = getCount('P');
-      const holidayCount = getCount('H');
-      const elCount = getCount('EL');
-      const slCount = getCount('SL');
-      const clCount = getCount('CL');
+      let presentCount = getCount('P');
+      let holidayCount = getCount('H');
+      let elCount = getCount('EL');
+      let slCount = getCount('SL');
+      let clCount = getCount('CL');
+      let cf = cfCount;
+      let compOff = compOffUsed;
+      // For EFMS3254, set week off, holidays, and all leave types to 0
+      let weekOffCount = 0;
+      if (employee.employeeId === "EFMS3254") {
+        presentCount = 0;
+        holidayCount = 0;
+        elCount = 0;
+        slCount = 0;
+        clCount = 0;
+        cf = 0;
+        compOff = 0;
+        weekOffCount = 0;
+      }
       // Payable days = present + holiday + EL + SL + CL + all CF + CompOff Used
-      const payableDays = presentCount + holidayCount + elCount + slCount + clCount + cfCount + compOffUsed;
+      let payableDays = presentCount + holidayCount + elCount + slCount + clCount + cf + compOff;
+      if (employee.employeeId === "EFMS3254") {
+        payableDays = 0;
+      }
+      const payableInfo = getPayableDays(empAttendance, compOff, daysInMonth);
       return [
         employee.employeeId, employee.fullName,
         ...empAttendance.map(record => {
           let fillColor: [number, number, number] = [248, 250, 252];
-          if (record.status === 'P') fillColor = [232, 245, 233];
-          else if (record.status === 'H') fillColor = [237, 231, 246];
-          else if (record.status === 'A') fillColor = [253, 232, 232];
-          else if (record.status === 'CF') fillColor = [224, 247, 250];
-          else if (['EL', 'SL', 'CL', 'CompOff'].includes(record.status)) fillColor = [255, 248, 225];
+          let status = record.status;
+          // For EFMS3254, show all days as '-'
+          if (employee.employeeId === "EFMS3254") status = '-';
+          if (status === 'P') fillColor = [232, 245, 233];
+          else if (status === 'H') fillColor = [237, 231, 246];
+          else if (status === 'A') fillColor = [253, 232, 232];
+          else if (status === 'CF') fillColor = [224, 247, 250];
+          else if (['EL', 'SL', 'CL', 'CompOff'].includes(status)) fillColor = [255, 248, 225];
 
           let textColor: [number, number, number] = [156, 163, 175];
-          if (record.status === 'P') textColor = [27, 94, 32];
-          else if (record.status === 'H') textColor = [94, 53, 177];
-          else if (record.status === 'A') textColor = [183, 28, 28];
-          else if (record.status === 'CF') textColor = [8, 145, 178];
-          else if (['EL', 'SL', 'CL', 'CompOff'].includes(record.status)) textColor = [217, 119, 6];
+          if (status === 'P') textColor = [27, 94, 32];
+          else if (status === 'H') textColor = [94, 53, 177];
+          else if (status === 'A') textColor = [183, 28, 28];
+          else if (status === 'CF') textColor = [8, 145, 178];
+          else if (['EL', 'SL', 'CL', 'CompOff'].includes(status)) textColor = [217, 119, 6];
 
-          const fontStyle: 'bold' | 'normal' = ['P', 'A', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff'].includes(record.status) ? 'bold' : 'normal';
+          const fontStyle: 'bold' | 'normal' = ['P', 'A', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff'].includes(status) ? 'bold' : 'normal';
 
           return {
-            content: record.status || '-',
+            content: status || '-',
             styles: {
               fillColor,
               textColor,
@@ -415,8 +435,8 @@ const OverallAttendancePage = (): JSX.Element => {
             }
           };
         }),
-        presentCount.toString(), payableInfo.absent.toString(), holidayCount.toString(), cfCount.toString(),
-        elCount.toString(), slCount.toString(), clCount.toString(), compOffUsed.toString(), payableDays.toString()
+        presentCount.toString(), payableInfo.absent.toString(), holidayCount.toString(), cf.toString(),
+        elCount.toString(), slCount.toString(), clCount.toString(), compOff.toString(), payableDays.toString()
       ];
     });
 
@@ -603,14 +623,24 @@ const OverallAttendancePage = (): JSX.Element => {
                       d.setHours(0, 0, 0, 0);
                       return a.status === status && d <= today;
                     }).length;
-                    const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
-                    const cfCount = getCount('CF');
+                    let presentCount = getCount('P');
+                    let holidayCount = getCount('H');
+                    let elCount = getCount('EL');
+                    let slCount = getCount('SL');
+                    let clCount = getCount('CL');
+                    let cfCount = getCount('CF');
+                    let compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
+                    // For EFMS3254, set all counts to 0
+                    if (employee.employeeId === "EFMS3254") {
+                      presentCount = 0;
+                      holidayCount = 0;
+                      elCount = 0;
+                      slCount = 0;
+                      clCount = 0;
+                      cfCount = 0;
+                      compOffUsed = 0;
+                    }
                     const { absent } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
-                    const presentCount = getCount('P');
-                    const holidayCount = getCount('H');
-                    const elCount = getCount('EL');
-                    const slCount = getCount('SL');
-                    const clCount = getCount('CL');
                     // Payable days = present + holiday + EL + SL + CL + all CF + CompOff Used
                     const payableDays = presentCount + holidayCount + elCount + slCount + clCount + cfCount + compOffUsed;
 
