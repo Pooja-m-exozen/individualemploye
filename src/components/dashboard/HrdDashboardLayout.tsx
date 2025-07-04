@@ -73,8 +73,8 @@ const menuItems = [
     label: "Compliance & Legal Management",
     icon: <FaTasks />,
     subItems: [
-      { label: "Dummy", href: "/hrd/compliance-legal-management/dummy" },
-      { label: "Data Addition", href: "/hrd/compliance-legal-management/data-addition" },
+      { label: "View", href: "/hrd/compliance-legal-management/view" },
+      { label: "Latest Updates", href: "/hrd/compliance-legal-management/latest-updates" },
     ]
   },
   {

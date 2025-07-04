@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { FaTimes } from "react-icons/fa";
 import HrdDashboardLayout from "@/components/dashboard/HrdDashboardLayout";
 
-const ExitOffboardingComingSoon = () => {
+const ComplianceLegalView = () => {
   const router = useRouter();
   return (
     <HrdDashboardLayout>
@@ -32,4 +32,4 @@ const ExitOffboardingComingSoon = () => {
   );
 };
 
-export default ExitOffboardingComingSoon; 
+export default ComplianceLegalView; 

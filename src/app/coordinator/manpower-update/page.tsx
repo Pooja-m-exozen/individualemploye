@@ -2,17 +2,17 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { FaTimes } from "react-icons/fa";
-import HrdDashboardLayout from "@/components/dashboard/HrdDashboardLayout";
+import CoordinatorDashboardLayout from "@/components/dashboard/CoordinatorDashboardLayout";
 
-const ExitOffboardingComingSoon = () => {
+const ComplianceLegalView = () => {
   const router = useRouter();
   return (
-    <HrdDashboardLayout>
+    <CoordinatorDashboardLayout>
       <div className="fixed inset-0 bg-gray-900/70 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl text-center max-w-md mx-4 relative">
           {/* Back/Close Button */}
           <button
-            onClick={() => router.push('/hrd/dashboard')}
+            onClick={() => router.push('/coordinator/dashboard')}
             className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:hover:text-white focus:outline-none"
             aria-label="Back to Dashboard"
           >
@@ -28,8 +28,8 @@ const ExitOffboardingComingSoon = () => {
         </div>
       </div>
       {/* Future content can go here, masked by overlay */}
-    </HrdDashboardLayout>
+    </CoordinatorDashboardLayout>
   );
 };
 
-export default ExitOffboardingComingSoon; 
+export default ComplianceLegalView; 

@@ -53,6 +53,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const [showHRPasswordModal, setShowHRPasswordModal] = useState(false);
   const [HRPassword, setHRPassword] = useState('');
   const [HRPasswordError, setHRPasswordError] = useState(false);
+  const [showCoordinatorPasswordModal, setShowCoordinatorPasswordModal] = useState(false);
+  const [coordinatorPassword, setCoordinatorPassword] = useState("");
+  const [coordinatorPasswordError, setCoordinatorPasswordError] = useState(false);
+  const [showCoordinatorPassword, setShowCoordinatorPassword] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -419,6 +423,22 @@ const handleLogout = () => {
     }
   };
 
+  const handleCoordinatorView = () => {
+    setShowProfileDropdown(false);
+    setShowCoordinatorPasswordModal(true);
+  };
+
+  const handleCoordinatorPasswordSubmit = () => {
+    if (coordinatorPassword === 'coordinator@exozen2025!') {
+      setCoordinatorPasswordError(false);
+      setShowCoordinatorPasswordModal(false);
+      setCoordinatorPassword("");
+      router.push('/coordinator/dashboard');
+    } else {
+      setCoordinatorPasswordError(true);
+    }
+  };
+
   return (
     <UserContext.Provider value={userDetails}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
@@ -568,6 +588,15 @@ const handleLogout = () => {
                               className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-purple-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
                             >
                               <FaTasks className="text-purple-500 w-5 h-5" /> HR View
+                            </button>
+                          )}
+                          {/* Add Coordinator View option if the role is coordinator */}
+                          {getUserRole() === 'Coordinator' && (
+                            <button
+                              onClick={handleCoordinatorView}
+                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-orange-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                            >
+                              <FaUser className="text-orange-500 w-5 h-5" /> Coordinator View
                             </button>
                           )}
                           <button
@@ -746,6 +775,49 @@ const handleLogout = () => {
                 <button
                   onClick={handleHRPasswordSubmit}
                   className="px-8 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Coordinator Password Modal */}
+        {showCoordinatorPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowCoordinatorPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <input
+                  type={showCoordinatorPassword ? 'text' : 'password'}
+                  value={coordinatorPassword}
+                  onChange={(e) => setCoordinatorPassword(e.target.value)}
+                  placeholder="Enter Coordinator Password"
+                  className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-orange-500`}
+                />
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showCoordinatorPassword}
+                    onChange={() => setShowCoordinatorPassword((prev) => !prev)}
+                    className="form-checkbox"
+                  />
+                  Show Password
+                </label>
+                {coordinatorPasswordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
+                <button
+                  onClick={handleCoordinatorPasswordSubmit}
+                  className="px-8 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
                 >
                   Submit
                 </button>
