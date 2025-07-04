@@ -163,7 +163,7 @@ const getPayableDays = (
     payableSum += compOffUsed;
   }
   // If sum matches days in month, set payable to daysInMonth
-  let payable = payableSum === daysInMonth ? daysInMonth : payableSum;
+  const payable = payableSum === daysInMonth ? daysInMonth : payableSum;
   // Absent = absent - cfMatched
   const absentFinal = absent - cfMatched;
   return { payable, absent: absentFinal, cfRemain };
@@ -205,11 +205,8 @@ const OverallSummaryPage = (): JSX.Element => {
   const [lopData, setLopData] = useState<Record<string, number>>({});
   const [weekOffData, setWeekOffData] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState<boolean>(true);
-  const [loadingLop, setLoadingLop] = useState<boolean>(true);
   const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
   const [year, setYear] = useState<number>(new Date().getFullYear());
-
-  const daysInMonth = new Date(year, month, 0).getDate();
 
   useEffect(() => {
     const fetchEmployeesAndLeaves = async () => {
@@ -278,7 +275,6 @@ const OverallSummaryPage = (): JSX.Element => {
   useEffect(() => {
     const fetchSummaryData = async () => {
       if (employees.length === 0) return;
-      setLoadingLop(true);
       try {
         const summaryPromises = employees.map(emp =>
           fetch(`https://cafm.zenapi.co.in/api/attendance/${emp.employeeId}/monthly-summary?month=${month}&year=${year}`)
@@ -301,8 +297,6 @@ const OverallSummaryPage = (): JSX.Element => {
         setWeekOffData(weekOffMap);
       } catch (error) {
         console.error("Error fetching summary data:", error);
-      } finally {
-        setLoadingLop(false);
       }
     };
 
@@ -392,20 +386,21 @@ const OverallSummaryPage = (): JSX.Element => {
       const clCount = getCount('CL');
       const slCount = getCount('SL');
       const cfCount = getCount('CF');
-      let present = presentDays;
+      const present = presentDays;
       let holiday = holidayCount;
-      let cf = cfCount;
-      let el = elCount;
-      let cl = clCount;
-      let sl = slCount;
-      let compOff = compOffUsed;
+      const cf = cfCount;
+      const el = elCount;
+      const cl = clCount;
+      const sl = slCount;
+      const compOff = compOffUsed;
       // For EFMS3254, set holidays to 0
       if (employee.employeeId === "EFMS3254") {
         holiday = 0;
         holidayCount = 0;
       }
       const payableDays = present + holiday + el + sl + cl + cf + compOff;
-      const { absent, cfRemain } = getPayableDays(empAttendance, compOff, daysInMonth);
+      const { absent } = getPayableDays(empAttendance, compOff, daysInMonth);
+      // Removed: const { absent, cfRemain } = getPayableDays(empAttendance, compOff, daysInMonth);
       let displayPayableDays = payableDays;
       // If selected month is June (6), apply the override for employee 3254 only (not EFMS3254)
       if (
@@ -464,7 +459,8 @@ const OverallSummaryPage = (): JSX.Element => {
           const slCount = getCount('SL');
           const cfCount = getCount('CF');
           const payableDays = presentDays + holidayCount + elCount + slCount + clCount + cfCount + compOffUsed;
-          const { absent, cfRemain } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
+          const { absent } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
+          // Removed: const { absent, cfRemain } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
           
           return {
               'Employee Name': employee.fullName,
@@ -616,21 +612,22 @@ const OverallSummaryPage = (): JSX.Element => {
                     const clCount = getCount('CL');
                     const slCount = getCount('SL');
                     const cfCount = getCount('CF');
-                    let present = presentDays;
+                    const present = presentDays;
                     let holiday = holidayCount;
-                    let weekOff = weekOffData[employee.employeeId] ?? 0;
-                    let cf = cfCount;
-                    let el = elCount;
-                    let cl = clCount;
-                    let sl = slCount;
-                    let compOff = compOffUsed;
+                    // Removed: let weekOff = weekOffData[employee.employeeId] ?? 0;
+                    const cf = cfCount;
+                    const el = elCount;
+                    const cl = clCount;
+                    const sl = slCount;
+                    const compOff = compOffUsed;
                     // For EFMS3254, set week off and holidays to 0
                     if (employee.employeeId === "EFMS3254") {
-                      weekOff = 0;
+                      // Removed: weekOff = 0;
                       holiday = 0;
                     }
                     const payableDays = present + holiday + el + sl + cl + cf + compOff;
-                    const { absent, cfRemain } = getPayableDays(empAttendance, compOff, daysInMonth);
+                    const { absent } = getPayableDays(empAttendance, compOff, daysInMonth);
+                    // Removed: const { absent, cfRemain } = getPayableDays(empAttendance, compOff, daysInMonth);
 
                     let displayPayableDays = payableDays;
                     // If selected month is June (6), apply the override for employee 3254 only (not EFMS3254)

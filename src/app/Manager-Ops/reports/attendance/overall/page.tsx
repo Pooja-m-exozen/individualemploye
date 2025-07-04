@@ -139,7 +139,7 @@ const getPayableDays = (
     payableSum += compOffUsed;
   }
   // If sum matches days in month, set payable to daysInMonth
-  let payable = payableSum === daysInMonth ? daysInMonth : payableSum;
+  const payable = payableSum === daysInMonth ? daysInMonth : payableSum;
   // Absent = absent - cfMatched
   const absentFinal = absent - cfMatched;
   return { payable, absent: absentFinal, cfRemain };
@@ -387,7 +387,6 @@ const OverallAttendancePage = (): JSX.Element => {
       let cf = cfCount;
       let compOff = compOffUsed;
       // For EFMS3254, set week off, holidays, and all leave types to 0
-      let weekOffCount = 0;
       if (employee.employeeId === "EFMS3254") {
         presentCount = 0;
         holidayCount = 0;
@@ -396,7 +395,6 @@ const OverallAttendancePage = (): JSX.Element => {
         clCount = 0;
         cf = 0;
         compOff = 0;
-        weekOffCount = 0;
       }
       // Payable days = present + holiday + EL + SL + CL + all CF + CompOff Used
       let payableDays = presentCount + holidayCount + elCount + slCount + clCount + cf + compOff;
