@@ -2,13 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaTrash, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaEye, FaSort, FaSortUp, FaSortDown, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
+import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaEye, FaSort, FaSortUp, FaSortDown, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
 import EditKYCModal from "@/components/dashboard/EditKYCModal";
 import ViewKYCModal from "@/components/dashboard/ViewKYCModal";
 import { useTheme } from "@/context/ThemeContext";
 import * as XLSX from 'xlsx';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 
 interface KYCForm {
   _id: string;
@@ -96,7 +95,6 @@ type KYCDataFromModal = Omit<KYCForm, '_id'>;
 
 export default function ViewAllKYCPage() {
   const { theme } = useTheme();
-  const router = useRouter();
   const [kycForms, setKYCForms] = useState<KYCForm[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

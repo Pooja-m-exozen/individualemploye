@@ -382,23 +382,18 @@ export default function AttendanceViewPage() {
     });
   };
 
-  const handleExportToExcel = () => {
-    const formatDateTime = (dt: string) => {
-      if (!dt) return '';
-      // Remove milliseconds and 'Z' if present
-      return dt.replace(/\.\d{3}Z$/, '');
-    };
+  const handleExportToExcel = async () => {
+    const XLSX = (await import('xlsx')).default;
     const exportData = filteredProjectAttendance.map(row => ({
       EmployeeID: row.employeeId,
       Name: row.name,
       Designation: row.designation,
       Project: row.projectName,
       Date: row.date ? new Date(row.date).toLocaleDateString() : 'N/A',
-      PunchInTime: formatDateTime(row.punchInTime || ''),
-      PunchOutTime: formatDateTime(row.punchOutTime || ''),
+      PunchInTime: row.punchInTime ? row.punchInTime.replace(/\.\d{3}Z$/, '') : '',
+      PunchOutTime: row.punchOutTime ? row.punchOutTime.replace(/\.\d{3}Z$/, '') : '',
       Status: row.status,
     }));
-    const XLSX = require('xlsx');
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Project Attendance');
@@ -461,48 +456,6 @@ export default function AttendanceViewPage() {
       headStyles: { fillColor: [41, 128, 185] },
     });
     doc.save('project_attendance.pdf');
-  };
-
-  const handleExportToPDFLocation = async () => {
-    const jsPDF = (await import('jspdf')).default;
-    const autoTable = (await import('jspdf-autotable')).default;
-    const doc = new jsPDF();
-    const exportData = filteredProjectAttendance.map(row => ([
-      row.employeeId,
-      row.name,
-      row.designation,
-      row.projectName,
-      row.date ? new Date(row.date).toLocaleDateString() : 'N/A',
-      row.punchInTime || '',
-      row.punchOutTime || '',
-      row.status,
-      row.punchInLatitude || '',
-      row.punchInLongitude || '',
-      row.punchOutLatitude || '',
-      row.punchOutLongitude || '',
-    ]));
-    doc.text('Project Wise Attendance (with Location)', 14, 16);
-    autoTable(doc, {
-      head: [[
-        'EmployeeID',
-        'Name',
-        'Designation',
-        'Project',
-        'Date',
-        'PunchInTime',
-        'PunchOutTime',
-        'Status',
-        'PunchInLat',
-        'PunchInLng',
-        'PunchOutLat',
-        'PunchOutLng',
-      ]],
-      body: exportData,
-      startY: 22,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [41, 128, 185] },
-    });
-    doc.save('project_attendance_location.pdf');
   };
 
   return (
