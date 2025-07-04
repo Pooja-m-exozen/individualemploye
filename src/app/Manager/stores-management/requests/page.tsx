@@ -173,25 +173,25 @@ export default function StoreRequestsPage() {
       >
         {/* Header */}
         <div
-          className={`rounded-2xl mb-8 p-6 flex items-center justify-between shadow-lg w-full max-w-7xl mx-auto bg-gradient-to-r ${
+          className={`rounded-2xl mb-8 p-6 flex items-center justify-between shadow-lg w-full max-w-7xl mx-auto transition-colors duration-300 ${
             theme === "dark"
-              ? "from-blue-900 to-blue-700"
-              : "from-blue-500 to-blue-800"
+              ? "bg-[#2d3748]"
+              : "bg-gradient-to-r from-blue-500 to-blue-800"
           }`}
         >
           <div className="flex items-center gap-5">
             <div
               className={`rounded-xl p-4 flex items-center justify-center ${
                 theme === "dark"
-                  ? "bg-blue-900 bg-opacity-40"
-                  : "bg-blue-600 bg-opacity-30"
+                  ? "bg-[#232b38]"
+                  : "bg-blue-100"
               }`}
             >
-              <FaStore className="w-10 h-10 text-white" />
+              <FaStore className={`w-10 h-10 ${theme === "dark" ? "text-white" : "text-blue-700"}`} />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white mb-1">Store Requests</h1>
-              <p className="text-white text-base opacity-90">View and manage store requests</p>
+              <h1 className={`text-3xl font-bold mb-1 ${theme === "dark" ? "text-white" : "text-white"}`}>Store Requests</h1>
+              <p className={`text-base opacity-90 ${theme === "dark" ? "text-white" : "text-white"}`}>View and manage store requests</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -200,7 +200,7 @@ export default function StoreRequestsPage() {
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md ${
                 theme === "dark"
                   ? "bg-gray-900 text-blue-200 hover:bg-blue-900"
-                  : "bg-white text-blue-600 hover:bg-blue-50"
+                  : "bg-white text-blue-600 hover:bg-blue-50 border border-blue-200"
               }`}
             >
               <FaDownload className="w-4 h-4" />
@@ -350,10 +350,10 @@ export default function StoreRequestsPage() {
                       <tbody className={theme === "dark" ? "bg-gray-900 divide-y divide-gray-800" : "bg-white divide-y divide-gray-200"}>
                         {paginated.map((req, idx) => (
                           <tr key={req._id || idx} className={`transition-all duration-200 group ${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-blue-50"}`}>
-                            <td className={`px-6 py-4 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{req.employeeId}</td>
-                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.fullName}</td>
-                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.projectName}</td>
-                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{Array.isArray(req.uniformType) ? req.uniformType.join(", ") : ""}</td>
+                            <td className={`px-6 py-4 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>{req.employeeId}</td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-white" : "text-black"}`}>{req.fullName}</td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-white" : "text-black"}`}>{req.projectName}</td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-white" : "text-black"}`}>{Array.isArray(req.uniformType) ? req.uniformType.join(", ") : ""}</td>
                             <td className="px-6 py-4">
                               <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${getStatusColor(req.approvalStatus, theme)}`}>
                                 {req.approvalStatus === "Approved" && <FaCheckCircle className="w-3 h-3 mr-1" />}
@@ -362,7 +362,7 @@ export default function StoreRequestsPage() {
                                 {req.approvalStatus}
                               </span>
                             </td>
-                            <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-100" : ""}`}>{req.requestDate ? new Date(req.requestDate).toLocaleDateString() : ""}</td>
+                            <td className={`px-6 py-4 ${theme === "dark" ? "text-white" : "text-black"}`}>{req.requestDate ? new Date(req.requestDate).toLocaleDateString() : ""}</td>
                             <td className="px-6 py-4">
                               <button
                                 className={`px-4 py-1 rounded-lg font-semibold text-sm transition ${theme === "dark" ? "bg-blue-900 text-blue-200 hover:bg-blue-800" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}
@@ -379,7 +379,7 @@ export default function StoreRequestsPage() {
                   {/* Pagination Controls */}
                   {totalPages > 1 && (
                     <div className={`px-6 py-4 border-t transition-colors duration-300 ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col items-center justify-center gap-2">
                         <div className={theme === "dark" ? "text-sm text-gray-300" : "text-sm text-gray-600"}>
                           Showing <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
                           <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>
@@ -387,11 +387,11 @@ export default function StoreRequestsPage() {
                           </span>{' '}
                           of <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>{filtered.length}</span> results
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mt-2">
                           <button
                             onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                             disabled={currentPage === 1}
-                            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${theme === "dark" ? "text-gray-400 bg-gray-900 border border-gray-700 hover:bg-gray-800" : "text-gray-500 bg-white border border-gray-300 hover:bg-gray-50"}`}
+                            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border ${theme === "dark" ? "text-gray-400 bg-gray-900 border-gray-700 hover:bg-gray-800" : "text-gray-500 bg-white border-gray-300 hover:bg-gray-100"}`}
                           >
                             <FaChevronLeft className="w-4 h-4" />
                             Previous
@@ -412,14 +412,14 @@ export default function StoreRequestsPage() {
                                 <button
                                   key={pageNum}
                                   onClick={() => setCurrentPage(pageNum)}
-                                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                                  className={`px-3 py-2 text-sm font-medium rounded-full border transition-all duration-200 ${
                                     currentPage === pageNum
                                       ? theme === "dark"
-                                        ? "bg-blue-800 text-white shadow-md"
-                                        : "bg-blue-600 text-white shadow-md"
+                                        ? "bg-blue-800 text-white border-blue-700 shadow-md"
+                                        : "bg-blue-600 text-white border-blue-600 shadow-md"
                                       : theme === "dark"
-                                      ? "text-gray-300 bg-gray-900 border border-gray-700 hover:bg-gray-800"
-                                      : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                                      ? "text-gray-300 bg-gray-900 border-gray-700 hover:bg-gray-800"
+                                      : "text-gray-700 bg-white border-gray-300 hover:bg-gray-100"
                                   }`}
                                 >
                                   {pageNum}
@@ -430,7 +430,7 @@ export default function StoreRequestsPage() {
                           <button
                             onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                             disabled={currentPage === totalPages}
-                            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${theme === "dark" ? "text-gray-400 bg-gray-900 border border-gray-700 hover:bg-gray-800" : "text-gray-500 bg-white border border-gray-300 hover:bg-gray-50"}`}
+                            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border ${theme === "dark" ? "text-gray-400 bg-gray-900 border-gray-700 hover:bg-gray-800" : "text-gray-500 bg-white border-gray-300 hover:bg-gray-100"}`}
                           >
                             Next
                             <FaChevronRight className="w-4 h-4" />

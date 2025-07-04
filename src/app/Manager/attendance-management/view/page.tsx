@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { FaClock, FaRegCalendarAlt } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import Image from 'next/image';
 
 interface AttendanceRecord {
   _id: string;
@@ -27,14 +28,49 @@ interface ProjectAttendanceRecord {
   date: string;
   name: string;
   designation: string;
+  punchInTime?: string;
+  punchOutTime?: string;
+  punchInPhoto?: string;
+  punchOutPhoto?: string;
+  punchInLatitude?: number;
+  punchInLongitude?: number;
+  punchOutLatitude?: number;
+  punchOutLongitude?: number;
+  projectName: string;
+  punchInLocation?: LocationDetail;
+  punchOutLocation?: LocationDetail;
 }
 
 // API response types
 interface AttendanceApiResponse {
   attendance: AttendanceRecord[];
 }
-interface ProjectAttendanceApiResponse {
-  attendance: ProjectAttendanceRecord[];
+
+// Add KYC employee type
+interface KycEmployee {
+  employeeId: string;
+  fullName: string;
+  designation: string;
+  projectName: string;
+}
+
+// Add KYC form type for API response
+interface KycForm {
+  personalDetails: {
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    projectName: string;
+    // ...other fields if needed
+  };
+  // ...other fields if needed
+}
+
+// Add LocationDetail type
+interface LocationDetail {
+  latitude: number;
+  longitude: number;
+  address: string | null;
 }
 
 export default function AttendanceViewPage() {
@@ -48,7 +84,10 @@ export default function AttendanceViewPage() {
   const [projectAttendance, setProjectAttendance] = useState<ProjectAttendanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
+  const [selectedRecord, setSelectedRecord] = useState<ProjectAttendanceRecord | null>(null);
+  const [kycEmployees, setKycEmployees] = useState<KycEmployee[]>([]);
+  const [selectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedYear] = useState<number>(new Date().getFullYear());
 
   // Fetch attendance data from API
   const fetchAttendance = async (): Promise<void> => {
@@ -70,26 +109,70 @@ export default function AttendanceViewPage() {
     }
   };
 
-  // Fetch project-wise attendance data
-  const fetchProjectAttendance = async (project: string, from: string, to: string): Promise<void> => {
-    setLoading(true);
-    setError("");
-    try {
-      const url = `https://cafm.zenapi.co.in/api/attendance/project/attendance?projectName=${encodeURIComponent(project)}&fromDate=${from || "2025-01-01"}&toDate=${to || new Date().toISOString().slice(0,10)}`;
-      const res = await fetch(url);
-      const data: ProjectAttendanceApiResponse = await res.json();
-      if (data && data.attendance) {
-        setProjectAttendance(data.attendance);
-      } else {
-        setProjectAttendance([]);
-      }
-    } catch {
-      setError("Failed to fetch project attendance data");
-      setProjectAttendance([]);
-    } finally {
-      setLoading(false);
-    }
+  // Fetch KYC employees and project options
+  useEffect(() => {
+    fetch("https://cafm.zenapi.co.in/api/kyc")
+      .then(res => res.json())
+      .then(data => {
+        const employees = (data.kycForms || []).map((form: KycForm) => ({
+          employeeId: form.personalDetails.employeeId,
+          fullName: form.personalDetails.fullName,
+          designation: form.personalDetails.designation,
+          projectName: form.personalDetails.projectName,
+        }));
+        setKycEmployees(employees);
+      });
+  }, []);
+
+  // Helper: enrich attendance records with punchInLocation and punchOutLocation
+  const enrichWithLocations = (data: ProjectAttendanceRecord[]): ProjectAttendanceRecord[] => {
+    return data.map(record => ({
+      ...record,
+      punchInLocation: record.punchInLatitude && record.punchInLongitude
+        ? {
+            latitude: record.punchInLatitude,
+            longitude: record.punchInLongitude,
+            address: null
+          }
+        : undefined,
+      punchOutLocation: record.punchOutLatitude && record.punchOutLongitude
+        ? {
+            latitude: record.punchOutLatitude,
+            longitude: record.punchOutLongitude,
+            address: null
+          }
+        : undefined
+    }));
   };
+
+  // Fetch attendance for all employees in selected project/month/year
+  useEffect(() => {
+    if (activeTab !== "Project Wise Attendance" || !projectFilter) return;
+    setLoading(true);
+    const employeesInProject = kycEmployees.filter(e => e.projectName === projectFilter);
+    Promise.all(
+      employeesInProject.map(emp =>
+        fetch(`https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${emp.employeeId}&month=${selectedMonth}&year=${selectedYear}`)
+          .then(res => res.json())
+          .then(data => enrichWithLocations((data.attendance || []).map((att: ProjectAttendanceRecord) => ({
+            ...att,
+            name: emp.fullName,
+            designation: emp.designation,
+            projectName: att.projectName,
+            punchInPhoto: att.punchInPhoto,
+            punchOutPhoto: att.punchOutPhoto,
+            punchInLatitude: att.punchInLatitude,
+            punchInLongitude: att.punchInLongitude,
+            punchOutLatitude: att.punchOutLatitude,
+            punchOutLongitude: att.punchOutLongitude,
+          })))
+        )
+      )
+    ).then(results => {
+      setProjectAttendance(results.flat());
+      setLoading(false);
+    });
+  }, [activeTab, projectFilter, selectedMonth, selectedYear, kycEmployees]);
 
   useEffect(() => {
     fetchAttendance();
@@ -98,24 +181,12 @@ export default function AttendanceViewPage() {
   // Set default project to 'Exozen-Ops' when switching to Project Wise Attendance
   useEffect(() => {
     if (activeTab === "Project Wise Attendance" && !projectFilter) {
-      // Find if 'Exozen-Ops' exists in uniqueProjects
-      const exozenProject = attendanceData.find(row => row.projectName === "Exozen-Ops");
-      if (exozenProject) {
-        setProjectFilter("Exozen-Ops");
-      } else if (uniqueProjects.length > 0) {
+      if (uniqueProjects.length > 0) {
         setProjectFilter(uniqueProjects[0]);
       }
     }
     // eslint-disable-next-line
   }, [activeTab, attendanceData]);
-
-  // Fetch project attendance when project, fromDate, or toDate changes (only in Project Wise Attendance tab)
-  useEffect(() => {
-    if (activeTab === "Project Wise Attendance" && projectFilter) {
-      fetchProjectAttendance(projectFilter, fromDate, toDate);
-    }
-    
-  }, [activeTab, projectFilter, fromDate, toDate]);
 
   // Helper to get YYYY-MM-DD from a date string
   const getDateOnly = (dateStr: string): string => {
@@ -182,19 +253,6 @@ export default function AttendanceViewPage() {
   // Unique projects for filter dropdown
   const uniqueProjects: string[] = Array.from(new Set(attendanceData.map((row: AttendanceRecord) => row.projectName)));
 
-  // Calculate hours worked
-  // const calculateHours = (punchIn?: string, punchOut?: string) => {
-  //   if (!punchIn || !punchOut) return "N/A";
-  //   const inTime = new Date(punchIn);
-  //   const outTime = new Date(punchOut);
-  //   if (Number.isNaN(inTime.getTime()) || Number.isNaN(outTime.getTime())) return "N/A";
-  //   const diffMs = outTime.getTime() - inTime.getTime();
-  //   if (diffMs < 0) return "N/A";
-  //   const hours = Math.floor(diffMs / (1000 * 60 * 60));
-  //   const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  //   return `${hours}h ${mins}m`;
-  // };
-
   // Helper: filter projectAttendance by search, fromDate, toDate
   const filterProjectAttendance = () => {
     const searchLower = searchQuery.toLowerCase();
@@ -214,12 +272,245 @@ export default function AttendanceViewPage() {
 
   const filteredProjectAttendance = filterProjectAttendance();
 
+  // Add a helper to fetch address from lat/lng using reverse geocoding
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const apiKey = 'AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4'; // Use your Google Maps API key
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === 'OK' && data.results?.[0]) {
+        return data.results[0].formatted_address;
+      }
+      return 'Location not found';
+    } catch {
+      return 'Error fetching location';
+    }
+  };
+
+  const fetchAllAddresses = async (records: ProjectAttendanceRecord[]) => {
+    const getAddress = async (lat?: number, lng?: number) => {
+      if (!lat || !lng) return 'N/A';
+      return await reverseGeocode(lat, lng);
+    };
+    const results = await Promise.all(records.map(async (record) => {
+      const punchInAddress = record.punchInLatitude && record.punchInLongitude
+        ? await getAddress(record.punchInLatitude, record.punchInLongitude)
+        : 'N/A';
+      const punchOutAddress = record.punchOutLatitude && record.punchOutLongitude
+        ? await getAddress(record.punchOutLatitude, record.punchOutLongitude)
+        : 'N/A';
+      return {
+        ...record,
+        punchInResolvedAddress: punchInAddress,
+        punchOutResolvedAddress: punchOutAddress,
+      };
+    }));
+    return results;
+  };
+
+  const handleExportLocationPDF = async () => {
+    // Filter records for the current view (project wise attendance)
+    const recordsWithAddresses = await fetchAllAddresses(filteredProjectAttendance);
+    const jsPDF = (await import('jspdf')).default;
+    const autoTable = (await import('jspdf-autotable')).default;
+    const doc = new jsPDF();
+    let yPosition = 15;
+    doc.setFontSize(12);
+    doc.setTextColor(41, 128, 185);
+    doc.text('Attendance Location Report', 14, yPosition);
+    yPosition += 8;
+    const tableHead = [['Date', 'Check-in Location', 'Check-out Location']];
+    const tableRows = recordsWithAddresses.map(record => [
+      record.date ? new Date(record.date).toLocaleDateString() : 'N/A',
+      record.punchInResolvedAddress,
+      record.punchOutResolvedAddress
+    ]);
+    autoTable(doc, {
+      head: tableHead,
+      body: tableRows,
+      startY: yPosition,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 10, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 30 },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 70 }
+      },
+      margin: { left: 15 }
+    });
+    doc.save('location_report.pdf');
+  };
+
+  // Update handleRowClick to set address on selectedRecord's punchInLocation and punchOutLocation
+  const handleRowClick = async (record: ProjectAttendanceRecord) => {
+    const updatedRecord = { ...record };
+    if (record.punchInLatitude && record.punchInLongitude) {
+      const address = await reverseGeocode(record.punchInLatitude, record.punchInLongitude);
+      updatedRecord.punchInLocation = {
+        latitude: record.punchInLatitude,
+        longitude: record.punchInLongitude,
+        address,
+      };
+    }
+    if (record.punchOutLatitude && record.punchOutLongitude) {
+      const address = await reverseGeocode(record.punchOutLatitude, record.punchOutLongitude);
+      updatedRecord.punchOutLocation = {
+        latitude: record.punchOutLatitude,
+        longitude: record.punchOutLongitude,
+        address,
+      };
+    }
+    setSelectedRecord(updatedRecord);
+  };
+
+  // Helper to extract UTC time (HH:mm:ss) from ISO string
+  const getUtcTimeOnly = (isoString?: string): string => {
+    if (!isoString) return 'N/A';
+    const match = isoString.match(/T(\d{2}:\d{2}:\d{2})/);
+    return match ? match[1] : 'N/A';
+  };
+
+  // Add back formatDate helper
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const handleExportToExcel = () => {
+    const formatDateTime = (dt: string) => {
+      if (!dt) return '';
+      // Remove milliseconds and 'Z' if present
+      return dt.replace(/\.\d{3}Z$/, '');
+    };
+    const exportData = filteredProjectAttendance.map(row => ({
+      EmployeeID: row.employeeId,
+      Name: row.name,
+      Designation: row.designation,
+      Project: row.projectName,
+      Date: row.date ? new Date(row.date).toLocaleDateString() : 'N/A',
+      PunchInTime: formatDateTime(row.punchInTime || ''),
+      PunchOutTime: formatDateTime(row.punchOutTime || ''),
+      Status: row.status,
+    }));
+    const XLSX = require('xlsx');
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Project Attendance');
+    XLSX.writeFile(workbook, 'project_attendance.xlsx');
+  };
+
+  const handleExportToPDF = async () => {
+    const jsPDF = (await import('jspdf')).default;
+    const autoTable = (await import('jspdf-autotable')).default;
+    const doc = new jsPDF();
+
+    // Helper to extract only time (HH:mm:ss) from ISO string
+    const extractTime = (dt: string | undefined) => {
+      if (!dt) return '';
+      const match = dt.match(/T(\d{2}:\d{2}:\d{2})/);
+      return match ? match[1] : '';
+    };
+
+    // Helper to calculate hours worked
+    const calcHoursWorked = (inTime?: string, outTime?: string) => {
+      if (!inTime || !outTime) return '';
+      const inDate = new Date(inTime);
+      const outDate = new Date(outTime);
+      if (isNaN(inDate.getTime()) || isNaN(outDate.getTime())) return '';
+      let diff = (outDate.getTime() - inDate.getTime()) / 1000; // seconds
+      if (diff < 0) diff += 24 * 3600; // handle overnight
+      const hours = Math.floor(diff / 3600);
+      const mins = Math.floor((diff % 3600) / 60);
+      return `${hours}h ${mins}m`;
+    };
+
+    const exportData = filteredProjectAttendance.map(row => ([
+      row.employeeId,
+      row.name,
+      row.designation,
+      row.projectName,
+      row.date ? new Date(row.date).toLocaleDateString() : 'N/A',
+      extractTime(row.punchInTime),
+      extractTime(row.punchOutTime),
+      calcHoursWorked(row.punchInTime, row.punchOutTime),
+      row.status,
+    ]));
+
+    doc.text('Project Wise Attendance', 14, 16);
+    autoTable(doc, {
+      head: [[
+        'EmployeeID',
+        'Name',
+        'Designation',
+        'Project',
+        'Date',
+        'PunchInTime',
+        'PunchOutTime',
+        'Total Hours Worked',
+        'Status',
+      ]],
+      body: exportData,
+      startY: 22,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [41, 128, 185] },
+    });
+    doc.save('project_attendance.pdf');
+  };
+
+  const handleExportToPDFLocation = async () => {
+    const jsPDF = (await import('jspdf')).default;
+    const autoTable = (await import('jspdf-autotable')).default;
+    const doc = new jsPDF();
+    const exportData = filteredProjectAttendance.map(row => ([
+      row.employeeId,
+      row.name,
+      row.designation,
+      row.projectName,
+      row.date ? new Date(row.date).toLocaleDateString() : 'N/A',
+      row.punchInTime || '',
+      row.punchOutTime || '',
+      row.status,
+      row.punchInLatitude || '',
+      row.punchInLongitude || '',
+      row.punchOutLatitude || '',
+      row.punchOutLongitude || '',
+    ]));
+    doc.text('Project Wise Attendance (with Location)', 14, 16);
+    autoTable(doc, {
+      head: [[
+        'EmployeeID',
+        'Name',
+        'Designation',
+        'Project',
+        'Date',
+        'PunchInTime',
+        'PunchOutTime',
+        'Status',
+        'PunchInLat',
+        'PunchInLng',
+        'PunchOutLat',
+        'PunchOutLng',
+      ]],
+      body: exportData,
+      startY: 22,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [41, 128, 185] },
+    });
+    doc.save('project_attendance_location.pdf');
+  };
+
   return (
     <ManagerDashboardLayout>
       <div className={`p-4 md:p-8 min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gray-100'}`}>
         {/* Header */}
-        <div className={`${theme === 'dark' ? 'bg-gradient-to-r from-blue-900 to-blue-700 text-blue-100' : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white'} rounded-lg p-6 mb-6 flex items-center gap-6 shadow-lg`}>
-          <div className={`${theme === 'dark' ? 'bg-gray-900 text-blue-400' : 'bg-white text-blue-600'} p-6 rounded-full flex items-center justify-center shadow-md`}>
+        <div className={`${theme === 'dark' ? 'bg-[#2d3748] text-blue-100' : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white'} rounded-2xl p-8 mb-8 flex items-center gap-6 shadow-lg`}>
+          <div className={`${theme === 'dark' ? 'bg-gray-800 text-blue-400' : 'bg-white text-blue-600'} p-6 rounded-full flex items-center justify-center shadow-md`}>
             <FaClock className="text-3xl" />
           </div>
           <div>
@@ -322,8 +613,8 @@ export default function AttendanceViewPage() {
                 className={`w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-black border-gray-300 focus:ring-blue-600'}`}
               >
                 {/* No 'All Projects' option, only list unique projects */}
-                {uniqueProjects.map(project => (
-                  <option key={project} value={project}>{project}</option>
+                {uniqueProjects.map((project, idx) => (
+                  <option key={project || idx} value={project}>{project}</option>
                 ))}
               </select>
             </div>
@@ -382,15 +673,35 @@ export default function AttendanceViewPage() {
           </div>
         )}
         {activeTab === "Project Wise Attendance" && (
-          <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg shadow-lg p-6`}> {/* removed overflow-x-auto from here */}
+          <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg shadow-lg p-6`}>
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-blue-100' : 'text-gray-800'}`}>Project Wise Attendance</h2>
                 <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-blue-300' : 'text-gray-500'}`}>Review and manage project wise attendance</p>
               </div>
+              <div className="flex gap-2">
+                <button
+                  className={`${theme === 'dark' ? 'bg-green-700 text-white hover:bg-green-800' : 'bg-green-500 text-white hover:bg-green-600'} px-4 py-2 rounded-lg`}
+                  onClick={handleExportToExcel}
+                >
+                  Export to Excel
+                </button>
+                <button
+                  className={`${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-500 text-white hover:bg-blue-600'} px-4 py-2 rounded-lg`}
+                  onClick={handleExportToPDF}
+                >
+                  Export PDF
+                </button>
+                <button
+                  className={`${theme === 'dark' ? 'bg-purple-700 text-white hover:bg-purple-800' : 'bg-purple-500 text-white hover:bg-purple-600'} px-4 py-2 rounded-lg`}
+                  onClick={handleExportLocationPDF}
+                >
+                  Export Location PDF
+                </button>
+              </div>
             </div>
             <div className="relative">
-              <div className={`overflow-x-auto overflow-y-auto max-h-[60vh] rounded-lg border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}> {/* table scrolls vertically */}
+              <div className={`overflow-x-auto overflow-y-auto max-h-[60vh] rounded-lg border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
                 <table className="w-full text-left">
                   <thead>
                     <tr className={theme === 'dark' ? 'bg-blue-950' : 'bg-gray-50'}>
@@ -398,15 +709,18 @@ export default function AttendanceViewPage() {
                       <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Name</th>
                       <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Designation</th>
                       <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Date</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Punch In Time</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Punch Out Time</th>
                       <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Status</th>
+                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Action</th>
                     </tr>
                   </thead>
                   <tbody className={theme === 'dark' ? 'divide-gray-800' : 'divide-gray-200'}>
                     {projectAttendance.length === 0 && (
-                      <tr><td colSpan={5} className="text-center py-8 text-gray-400">No records found.</td></tr>
+                      <tr><td colSpan={8} className="text-center py-8 text-gray-400">No records found.</td></tr>
                     )}
                     {filteredProjectAttendance.length === 0 && (
-                      <tr><td colSpan={5} className="text-center py-8 text-gray-400">No records found.</td></tr>
+                      <tr><td colSpan={8} className="text-center py-8 text-gray-400">No records found.</td></tr>
                     )}
                     {filteredProjectAttendance.map((row) => (
                       <tr key={row.employeeId + '-' + row.date} className={theme === 'dark' ? 'hover:bg-blue-950 transition-colors duration-200' : 'hover:bg-gray-50 transition-colors duration-200'}>
@@ -414,13 +728,141 @@ export default function AttendanceViewPage() {
                         <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.name}</td>
                         <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.designation}</td>
                         <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.date ? new Date(row.date).toLocaleDateString() : "N/A"}</td>
+                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.punchInTime ? getUtcTimeOnly(row.punchInTime) : 'N/A'}</td>
+                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.punchOutTime ? getUtcTimeOnly(row.punchOutTime) : 'N/A'}</td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${row.status === "Present" ? (theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800') : row.status === "Absent" ? (theme === 'dark' ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800') : (theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800')}`}>{row.status}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2 ${theme === 'dark' ? 'bg-blue-800 text-white hover:bg-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                            onClick={() => handleRowClick(row)}
+                          >
+                            View
+                          </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+        {selectedRecord && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-8 max-w-2xl w-full relative animate-fade-in overflow-y-auto max-h-[90vh]`}>
+              <button
+                onClick={() => setSelectedRecord(null)}
+                className={`absolute top-2 right-2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-800'} text-2xl font-bold`}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+              <h2 className={`text-2xl font-bold mb-6 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'} text-center`}>
+                Attendance Record Details
+              </h2>
+              <div className="space-y-4">
+                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Date:</span>
+                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                    {formatDate(selectedRecord.date)}
+                  </span>
+                </div>
+                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Project Name:</span>
+                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                    {selectedRecord.projectName || 'N/A'}
+                  </span>
+                </div>
+                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Designation:</span>
+                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                    {selectedRecord.designation || 'N/A'}
+                  </span>
+                </div>
+                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch In Time:</span>
+                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                    {getUtcTimeOnly(selectedRecord.punchInTime)}
+                  </span>
+                </div>
+                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch Out Time:</span>
+                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                    {getUtcTimeOnly(selectedRecord.punchOutTime)}
+                  </span>
+                </div>
+                {/* Punch In Location Details */}
+                <div className={`flex flex-col border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} mb-2`}>
+                    Punch In Details:
+                  </span>
+                  <div className="ml-4 space-y-2">
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
+                      <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                        {getUtcTimeOnly(selectedRecord.punchInTime)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
+                      <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
+                        {selectedRecord.punchInLocation?.address || 'Location not available'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {/* Punch Out Location Details */}
+                <div className={`flex flex-col border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} mb-2`}>
+                    Punch Out Details:
+                  </span>
+                  <div className="ml-4 space-y-2">
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
+                      <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
+                        {getUtcTimeOnly(selectedRecord.punchOutTime)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
+                      <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
+                        {selectedRecord.punchOutLocation?.address || 'Location not available'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {/* Attendance Photos section */}
+                <div className="flex flex-col items-start border-b pb-2">
+                  <span className="font-medium text-gray-500 mb-1">Attendance Photos:</span>
+                  <div className="grid grid-cols-2 gap-4 w-full">
+                    {selectedRecord.punchInPhoto && (
+                      <div>
+                        <span className="text-sm text-gray-500 block mb-1">Punch In:</span>
+                        <Image
+                          src={selectedRecord.punchInPhoto}
+                          alt="Punch In"
+                          width={200}
+                          height={200}
+                          className="rounded-lg"
+                        />
+                      </div>
+                    )}
+                    {selectedRecord.punchOutPhoto && (
+                      <div>
+                        <span className="text-sm text-gray-500 block mb-1">Punch Out:</span>
+                        <Image
+                          src={selectedRecord.punchOutPhoto}
+                          alt="Punch Out"
+                          width={200}
+                          height={200}
+                          className="rounded-lg"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

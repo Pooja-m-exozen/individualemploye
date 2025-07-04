@@ -86,16 +86,16 @@ export default function StoreInStockPage() {
       >
         {/* Header */}
         <div
-          className={`rounded-2xl mb-8 p-6 flex items-center gap-6 shadow-lg w-full max-w-7xl mx-auto bg-gradient-to-r ${
+          className={`rounded-2xl mb-12 p-6 flex items-center gap-6 shadow-lg w-full max-w-7xl mx-auto transition-colors duration-300 ${
             theme === "dark"
-              ? "from-blue-900 to-blue-700"
-              : "from-blue-500 to-blue-800"
+              ? "bg-[#2d3748]"
+              : "bg-gradient-to-r from-blue-500 to-blue-800"
           }`}
         >
           <div
             className={`rounded-xl p-4 flex items-center justify-center ${
               theme === "dark"
-                ? "bg-blue-900 bg-opacity-40"
+                ? "bg-[#232b38]"
                 : "bg-blue-600 bg-opacity-30"
             }`}
           >
@@ -103,11 +103,11 @@ export default function StoreInStockPage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-white mb-1">In Stock</h1>
-            <p className="text-white text-base opacity-90">View and manage in-stock items</p>
+            <p className="text-white text-base opacity-90 mt-3">View and manage in-stock items</p>
           </div>
         </div>
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-8 px-4">
+        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-8 px-4 pt-4">
           {/* Left Panel - Info/Guidelines */}
           <div className="lg:w-1/3 w-full">
             <div
@@ -131,7 +131,7 @@ export default function StoreInStockPage() {
                   </li>
                 ))}
               </ul>
-              <div className={`mt-8 p-4 rounded-xl border text-blue-700 transition-colors duration-300 ${theme === "dark" ? "bg-blue-900 border-blue-800 text-blue-200" : "bg-blue-50 border-blue-100 text-blue-700"}`}>
+              <div className={`mt-8 p-4 rounded-xl border text-blue-700 transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-blue-800 text-blue-200" : "bg-blue-50 border-blue-100 text-blue-700"}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <FaStore className="w-4 h-4" />
                   <span className="font-semibold">Need Help?</span>
@@ -169,7 +169,7 @@ export default function StoreInStockPage() {
               </div>
             </div>
             {/* Stock Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto">
               {loading ? (
                 <div className={`col-span-full text-center py-12 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Loading...</div>
               ) : error ? (
@@ -228,7 +228,7 @@ export default function StoreInStockPage() {
                         </div>
                         <div className="mt-6">
                           <button
-                            className={`w-full px-4 py-2 rounded-lg font-semibold text-sm transition ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+                            className={`w-full px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900 focus:ring-blue-900" : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-300"}`}
                             onClick={() => { setSelectedItem(item); setModalOpen(true); }}
                           >
                             View Details

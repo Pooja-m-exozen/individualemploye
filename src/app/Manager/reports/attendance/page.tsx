@@ -1,348 +1,701 @@
 "use client";
-import React, { useState, useMemo, useEffect } from "react";
-import { FaSearch, FaCalendarAlt, FaFileExport } from "react-icons/fa";
+
+import React, { JSX, useEffect, useState } from "react";
+import ManagerLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { useTheme } from "@/context/ThemeContext";
+import { FaSpinner,  FaFilePdf, FaFileExcel, FaInfoCircle } from "react-icons/fa";
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import 'react-tooltip/dist/react-tooltip.css';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
-// Define the type for attendance record
+interface Employee {
+  employeeId: string;
+  fullName: string;
+  designation: string;
+  projectName: string;
+  imageUrl: string;
+}
+
+interface Attendance {
+  date: string;
+  status: string;
+  punchInTime?: string;
+  punchOutTime?: string;
+}
+
+interface LeaveRecord {
+  leaveId?: string;
+  employeeId: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+}
+
+const GOVERNMENT_HOLIDAYS = [
+  { date: '2024-01-26', description: 'Republic Day' },
+  { date: '2024-08-15', description: 'Independence Day' },
+];
+
+const isSecondOrFourthSaturday = (date: Date): boolean => {
+  if (date.getDay() !== 6) return false;
+  const saturday = Math.floor((date.getDate() - 1) / 7) + 1;
+  return saturday === 2 || saturday === 4;
+};
+
+const isHoliday = (date: Date): boolean => {
+  const day = date.getDay();
+  const dateString = date.toISOString().split('T')[0];
+  if (day === 0) return true;
+  if (isSecondOrFourthSaturday(date)) return true;
+  return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
+};
+
+const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string, punchInTime?: string, punchOutTime?: string): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const checkDate = new Date(date);
+  checkDate.setHours(0, 0, 0, 0);
+
+  if (checkDate > today) {
+    return '';
+  }
+
+  const onLeave = leaves.find(leave => {
+    const startDate = new Date(leave.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(leave.endDate);
+    endDate.setHours(0, 0, 0, 0);
+    return checkDate >= startDate && checkDate <= endDate && leave.status === 'Approved';
+  });
+
+  if (onLeave) {
+    return onLeave.leaveType;
+  }
+
+  if (isHoliday(date)) {
+    if (punchInTime && punchOutTime) return 'CF';
+    return 'H';
+  }
+
+  const isToday = checkDate.getTime() === today.getTime();
+  return (status === 'Present' && punchInTime && (punchOutTime || isToday)) ? 'P' : 'A';
+};
+
+// type WeekOffType = 'sunday' | 'saturday';
+// const getWeekOffs = (year: number, month: number): { date: string, type: WeekOffType }[] => {
+//   const daysInMonth = new Date(year, month, 0).getDate();
+//   const weekOffs: { date: string, type: WeekOffType }[] = [];
+//   for (let day = 1; day <= daysInMonth; day++) {
+//     const date = new Date(year, month - 1, day);
+//     if (date.getDay() === 0) {
+//       weekOffs.push({ date: date.toISOString().split('T')[0], type: 'sunday' });
+//     } else if (isSecondOrFourthSaturday(date)) {
+//       weekOffs.push({ date: date.toISOString().split('T')[0], type: 'saturday' });
+//     }
+//   }
+//   return weekOffs;
+// };
+
+const getPayableDays = (attendance: Attendance[]): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  return attendance.filter(a => {
+    const attendanceDate = new Date(a.date);
+    attendanceDate.setHours(0, 0, 0, 0);
+    if (attendanceDate > today) return false;
+    return ['P', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff'].includes(a.status);
+  }).length;
+};
+
+const getBase64FromUrl = async (url: string, retries = 3): Promise<string> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to convert image to base64'));
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`Retrying image fetch, ${retries} attempts remaining`);
+      return getBase64FromUrl(url, retries - 1);
+    }
+    throw error;
+  }
+};
+
+const addLogoToPDF = async (doc: jsPDF, x: number, y: number, width: number, height: number): Promise<void> => {
+  try {
+    const logoBase64 = await getBase64FromUrl("/v1/employee/exozen_logo1.png");
+    doc.addImage(logoBase64, 'PNG', x, y, width, height);
+  } catch {
+    console.warn('Failed to load primary logo, trying fallback logo');
+    try {
+      const fallbackLogoBase64 = await getBase64FromUrl('/exozen_logo.png');
+      doc.addImage(fallbackLogoBase64, 'PNG', x, y, width, height);
+    } catch (fallbackError) {
+      console.error('Failed to load both logos:', fallbackError);
+      doc.setFontSize(12);
+      doc.setTextColor(150, 150, 150);
+      doc.text('EXOZEN', x, y + height / 2);
+    }
+  }
+};
+
+interface KycForm {
+  personalDetails: {
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    projectName: string;
+    employeeImage?: string;
+  };
+}
+interface KycApiResponse {
+  kycForms: KycForm[];
+}
 interface AttendanceRecord {
-	employeeId: string;
-	projectName: string;
-	date: string;
-	punchInTime?: string;
-	punchOutTime?: string;
-	status: string;
-	_id?: string;
+  employeeId: string;
+  projectName: string;
+  date: string;
+  status: string;
+  punchInTime?: string;
+  punchOutTime?: string;
+}
+interface AttendanceApiResponse {
+  attendance: AttendanceRecord[];
+}
+interface LeaveHistoryResponse {
+  leaveHistory: LeaveRecord[];
 }
 
-interface IdCard {
-	employeeId: string;
-	designation: string;
-}
+const OverallAttendancePage = (): JSX.Element => {
+  const { theme } = useTheme();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [attendanceData, setAttendanceData] = useState<Record<string, Attendance[]>>({});
+  const [leaveData, setLeaveData] = useState<Record<string, LeaveRecord[]>>({});
+  const [loading, setLoading] = useState<boolean>(true);
+  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
+  const [year, setYear] = useState<number>(new Date().getFullYear());
+  const [activeTab, setActiveTab] = useState<'overall' | 'consolidated'>('overall');
+  const router = useRouter();
+  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [selectedDesignation, setSelectedDesignation] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-export default function AttendanceReportPage() {
-	const { theme } = useTheme();
-	const [search, setSearch] = useState("");
-	const [projectFilter, setProjectFilter] = useState("All Projects");
-	const [designationFilter, setDesignationFilter] = useState("All Designations");
-	const [statusFilter, setStatusFilter] = useState("All Statuses");
-	const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-	const [designationOptions, setDesignationOptions] = useState<string[]>(["All Designations"]);
-	const [designationMap, setDesignationMap] = useState<Record<string, string>>({});
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
-	const [currentPage, setCurrentPage] = useState(1);
-	const rowsPerPage = 15;
+  useEffect(() => {
+    const fetchEmployeesAndLeaves = async () => {
+      setLoading(true);
+      try {
+        const kycResponse = await fetch("https://cafm.zenapi.co.in/api/kyc");
+        const kycData: KycApiResponse = await kycResponse.json();
 
-	useEffect(() => {
-		async function fetchData() {
-			setLoading(true);
-			setError("");
-			try {
-				const [attendanceRes, idCardRes] = await Promise.all([
-					fetch("https://cafm.zenapi.co.in/api/attendance/all"),
-					fetch("https://cafm.zenapi.co.in/api/id-cards/all"),
-				]);
-				const attendanceData = await attendanceRes.json();
-				const idCardData = await idCardRes.json();
-				// Fix: Only check for attendanceData.attendance array
-				if (Array.isArray(attendanceData.attendance)) {
-					setAttendanceRecords(attendanceData.attendance);
-				} else {
-					setError("Failed to load attendance records.");
-				}
-				if (idCardData.allIdCards) {
-					const designations = Array.from(
-						new Set(
-							idCardData.allIdCards
-								.map((f: IdCard) => (f.designation ? String(f.designation) : ""))
-								.filter((d: string) => Boolean(d))
-						)
-					) as string[];
-					setDesignationOptions(["All Designations", ...designations]);
-					const map: Record<string, string> = {};
-					idCardData.allIdCards.forEach((f: IdCard) => {
-						if (f.employeeId && f.designation) map[f.employeeId] = String(f.designation);
-					});
-					setDesignationMap(map);
-				}
-			} catch {
-				setError("Error fetching data.");
-			}
-			setLoading(false);
-		}
-		fetchData();
-	}, []);
+        if (kycData.kycForms) {
+          const filteredEmployees = kycData.kycForms
+            // .filter((form: KycForm) => form.personalDetails.projectName === "Exozen - ")
+            .map((form: KycForm) => ({
+              employeeId: form.personalDetails.employeeId,
+              fullName: form.personalDetails.fullName,
+              designation: form.personalDetails.designation,
+              projectName: form.personalDetails.projectName,
+              imageUrl: form.personalDetails.employeeImage || "/default-avatar.png",
+            }));
+          setEmployees(filteredEmployees);
 
-	const filteredRecords = useMemo(() => {
-		return attendanceRecords.filter((rec) => {
-			const matchesSearch =
-				search === "" ||
-				rec.employeeId?.toLowerCase().includes(search.toLowerCase());
-			const matchesProject =
-				projectFilter === "All Projects" || rec.projectName === projectFilter;
-			const recDesignation = designationMap[rec.employeeId] || "";
-			const matchesDesignation =
-				designationFilter === "All Designations" || recDesignation === designationFilter;
-			const matchesStatus =
-				statusFilter === "All Statuses" || rec.status === statusFilter;
-			return (
-				matchesSearch &&
-				matchesProject &&
-				matchesDesignation &&
-				matchesStatus
-			);
-		});
-	}, [search, projectFilter, designationFilter, statusFilter, attendanceRecords, designationMap]);
+          const leavePromises = filteredEmployees.map(emp =>
+            fetch(`https://cafm.zenapi.co.in/api/leave/history/${emp.employeeId}`)
+              .then(res => res.json())
+              .then((data: LeaveHistoryResponse) => ({
+                employeeId: emp.employeeId,
+                leaves: data.leaveHistory || []
+              }))
+          );
+          
+          const allLeaves = await Promise.all(leavePromises);
+          const leaveMap: Record<string, LeaveRecord[]> = {};
+          allLeaves.forEach(empLeaves => {
+            leaveMap[empLeaves.employeeId] = empLeaves.leaves;
+          });
+          setLeaveData(leaveMap);
+        }
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-	const paginatedRecords = useMemo(() => {
-		const start = (currentPage - 1) * rowsPerPage;
-		return filteredRecords.slice(start, start + rowsPerPage);
-	}, [filteredRecords, currentPage]);
-	const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);
+    fetchEmployeesAndLeaves();
+  }, []);
 
-	const projectOptions = useMemo(() => {
-		const projects = new Set(attendanceRecords.map((rec) => rec.projectName).filter(Boolean));
-		return ["All Projects", ...Array.from(projects).sort()];
-	}, [attendanceRecords]);
-	const statusOptions = useMemo(() => {
-		const statuses = new Set(attendanceRecords.map((rec) => String(rec.status)).filter((s: string) => Boolean(s)));
-		return ["All Statuses", ...Array.from(statuses)];
-	}, [attendanceRecords]);
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      if (employees.length === 0) return;
+      setLoading(true);
+      try {
+        const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/all`);
+        const data: AttendanceApiResponse = await response.json();
+        
+        const attendanceMap: Record<string, Attendance[]> = {};
+        
+        employees.forEach((employee) => {
+          const employeeAttendance = data.attendance.filter((record: AttendanceRecord) => 
+            record.employeeId === employee.employeeId
+          );
+          const employeeLeaves = leaveData[employee.employeeId] || [];
 
-	function downloadExcel() {
-		const data = filteredRecords.map((rec) => ({
-			"Employee ID": rec.employeeId,
-			"Project": rec.projectName,
-			"Designation": designationMap[rec.employeeId] || "-",
-			"Date": rec.date ? new Date(rec.date).toLocaleDateString() : "-",
-			"Status": rec.status,
-		}));
-		const worksheet = XLSX.utils.json_to_sheet(data);
-		const workbook = XLSX.utils.book_new();
-		XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Report");
-		XLSX.writeFile(workbook, "attendance_report.xlsx");
-	}
-	function downloadPDF() {
-		const doc = new jsPDF();
-		autoTable(doc, {
-			head: [["Employee ID", "Project", "Designation", "Date", "Status"]],
-			body: filteredRecords.map((rec) => [
-				rec.employeeId,
-				rec.projectName,
-				designationMap[rec.employeeId] || "-",
-				rec.date ? new Date(rec.date).toLocaleDateString() : "-",
-				rec.status,
-			]),
-			startY: 20,
-			styles: { fontSize: 10 },
-			headStyles: { fillColor: [41, 128, 185] },
-		});
-		doc.save("attendance_report.pdf");
-	}
+          const daysInMonth = new Date(year, month, 0).getDate();
+          const monthAttendance: Attendance[] = [];
 
-	return (
-		<div className={`min-h-screen font-sans ${theme === "dark" ? "bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950" : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"}`}>
-			<div className="p-6">
-				{/* Header */}
-				<div
-					className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${
-						theme === "dark"
-							? "bg-gradient-to-r from-blue-900 to-blue-800"
-							: "bg-gradient-to-r from-blue-500 to-blue-800"
-					}`}
-				>
-					<div
-						className={`${
-							theme === "dark" ? "bg-blue-900" : "bg-blue-600 bg-opacity-30"
-						} rounded-xl p-4 flex items-center justify-center`}
-					>
-						<FaCalendarAlt className="w-10 h-10 text-white" />
-					</div>
-					<div>
-						<h1 className="text-3xl font-bold text-white mb-1">
-							Attendance Report
-						</h1>
-						<p className="text-white text-base opacity-90">
-							View and export attendance details for employees.
-						</p>
-					</div>
-				</div>
-				{/* Filters, Search, Export */}
-				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-					<div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
-						<div className="relative w-40 min-w-[140px]">
-							<select
-								value={projectFilter}
-								onChange={(e) => setProjectFilter(e.target.value)}
-								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
-								}`}
-							>
-								<option value="All Projects">All Projects</option>
-								{projectOptions.map((project) => (
-									<option key={project} value={project}>
-										{project}
-									</option>
-								))}
-							</select>
-						</div>
-						<div className="relative w-44 min-w-[130px]">
-							<select
-								value={designationFilter}
-								onChange={(e) => setDesignationFilter(e.target.value)}
-								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
-								}`}
-							>
-								<option value="All Designations">All Designations</option>
-								{designationOptions.map((designation) => (
-									<option key={designation} value={designation}>
-										{designation}
-									</option>
-								))}
-							</select>
-						</div>
-						<div className="relative w-40 min-w-[120px]">
-							<select
-								value={statusFilter}
-								onChange={(e) => setStatusFilter(e.target.value)}
-								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
-								}`}
-							>
-								<option value="All Statuses">All Statuses</option>
-								{statusOptions.map((status) => (
-									<option key={status} value={status}>
-										{status}
-									</option>
-								))}
-							</select>
-						</div>
-						<div className="relative flex-1 min-w-[180px] max-w-xs">
-							<FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-							<input
-								type="text"
-								placeholder="Search employee name or ID..."
-								value={search}
-								onChange={(e) => setSearch(e.target.value)}
-								className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
-									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
-								}`}
-							/>
-						</div>
-					</div>
-					<div className="flex gap-2 justify-end">
-						<button
-							onClick={downloadExcel}
-							className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-								theme === "dark"
-									? "bg-green-700 text-white hover:bg-green-800"
-									: "bg-green-500 text-white hover:bg-green-600"
-							}`}
-						>
-							<FaFileExport /> Export Excel
-						</button>
-						<button
-							onClick={downloadPDF}
-							className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-								theme === "dark"
-									? "bg-red-700 text-white hover:bg-red-800"
-									: "bg-red-500 text-white hover:bg-red-600"
-							}`}
-						>
-							<FaFileExport /> Export PDF
-						</button>
-					</div>
-				</div>
-				{/* Table */}
-				<div
-					className={`overflow-x-auto rounded-xl border shadow-xl ${
-						theme === "dark" ? "border-gray-700 bg-gray-900" : "border-blue-100 bg-white"
-					}`}
-				>
-					{loading ? (
-						<div className="p-8 text-center text-blue-500">Loading...</div>
-					) : error ? (
-						<div className="p-8 text-center text-red-500">{error}</div>
-					) : (
-						<table
-							className={`min-w-full divide-y ${
-								theme === "dark" ? "divide-gray-700" : "divide-blue-100"
-							}`}
-						>
-							<thead
-								className={
-									theme === "dark"
-									? "bg-blue-950 sticky top-0 z-10"
-									: "bg-blue-50 sticky top-0 z-10"
-								}
-							>
-								<tr>
-									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Employee ID</th>
-									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Project</th>
-									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Designation</th>
-									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Date</th>
-									<th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Status</th>
-								</tr>
-							</thead>
-							<tbody
-								className={
-									theme === "dark"
-									? "divide-y divide-gray-800"
-									: "divide-y divide-blue-50"
-								}
-							>
-								{paginatedRecords.length === 0 ? (
-									<tr>
-										<td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No records found</td>
-									</tr>
-								) : (
-									paginatedRecords.map((rec, idx) => (
-										<tr key={rec._id || idx} className={theme === "dark" ? "hover:bg-blue-950 transition" : "hover:bg-blue-50 transition"}>
-											<td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{rec.employeeId}</td>
-											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.projectName}</td>
-											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{designationMap[rec.employeeId] || "-"}</td>
-											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.date ? new Date(rec.date).toLocaleDateString() : "-"}</td>
-											<td className={theme === "dark" ? "px-4 py-3 text-gray-100" : "px-4 py-3 text-black"}>{rec.status}</td>
-										</tr>
-									))
-								)}
-							</tbody>
-						</table>
-					)}
-					{/* Pagination Controls */}
-					{totalPages > 1 && (
-						<div className="flex justify-end items-center gap-2 mt-4">
-							<button
-								disabled={currentPage === 1}
-								onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-								className="px-3 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
-							>
-								Prev
-							</button>
-							<span className="px-2">Page {currentPage} of {totalPages}</span>
-							<button
-								disabled={currentPage === totalPages}
-								onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-								className="px-3 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
-							>
-								Next
-							</button>
-						</div>
-					)}
-				</div>
-			</div>
-		</div>
-	);
-}
+          for (let day = 1; day <= daysInMonth; day++) {
+            const currentDate = new Date(year, month - 1, day);
+            const dateString = currentDate.toISOString().split('T')[0];
+            
+            const dayRecord = employeeAttendance.find((record: AttendanceRecord) => {
+              const recordDate = new Date(record.date);
+              return recordDate.getFullYear() === currentDate.getFullYear() &&
+                     recordDate.getMonth() === currentDate.getMonth() &&
+                     recordDate.getDate() === currentDate.getDate();
+            });
+            
+            monthAttendance.push({
+              date: dateString,
+              status: getAttendanceStatus(currentDate, employeeLeaves, dayRecord?.status, dayRecord?.punchInTime, dayRecord?.punchOutTime),
+              punchInTime: dayRecord?.punchInTime,
+              punchOutTime: dayRecord?.punchOutTime
+            });
+          }
+
+          attendanceMap[employee.employeeId] = monthAttendance;
+        });
+
+        setAttendanceData(attendanceMap);
+      } catch (error) {
+        console.error("Error fetching attendance:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAttendance();
+  }, [employees, leaveData, month, year]);
+
+  const downloadPDF = async () => {
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    // const pageHeight = doc.internal.pageSize.getHeight();
+    const margins = 10;
+    let yPosition = 12;
+    const logoWidth = 60;
+    const logoHeight = 25;
+    const logoX = (pageWidth - logoWidth) / 2;
+    await addLogoToPDF(doc, logoX, yPosition, logoWidth, logoHeight);
+    yPosition += logoHeight + 6;
+
+    doc.setFontSize(20);
+    doc.setTextColor(41, 128, 185);
+    doc.text('Monthly Attendance Report', pageWidth / 2, yPosition + 8, { align: 'center' });
+
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${new Date(year, month - 1).toLocaleString('default', { month: 'long' })} ${year}`, pageWidth / 2, yPosition + 18, { align: 'center' });
+
+    const daysInMonth = getDaysInMonth(year, month);
+    const tableHeaders = [
+      [
+        'Emp ID', 'Name',
+        ...Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString()),
+        'P', 'A', 'H', 'CF', 'EL', 'SL', 'CL', 'Payable'
+      ]
+    ];
+
+    const tableData = employees.map(employee => {
+      const empAttendance = attendanceData[employee.employeeId] || [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const getCount = (status: string) => empAttendance.filter(a => {
+        const d = new Date(a.date);
+        d.setHours(0, 0, 0, 0);
+        return a.status === status && d <= today;
+      }).length;
+
+      const presentCount = getCount('P');
+      const absentCount = getCount('A');
+      const holidayCount = getCount('H');
+      const cfCount = getCount('CF');
+      const elCount = getCount('EL');
+      const slCount = getCount('SL');
+      const clCount = getCount('CL');
+      // const compOffCount = getCount('CompOff');
+      const payableDays = getPayableDays(empAttendance);
+      
+      return [
+        employee.employeeId, employee.fullName,
+        ...empAttendance.map(record => {
+          let fillColor: [number, number, number] = [248, 250, 252];
+          if (record.status === 'P') fillColor = [232, 245, 233];
+          else if (record.status === 'H') fillColor = [237, 231, 246];
+          else if (record.status === 'A') fillColor = [253, 232, 232];
+          else if (record.status === 'CF') fillColor = [224, 247, 250];
+          else if (['EL', 'SL', 'CL', 'CompOff'].includes(record.status)) fillColor = [255, 248, 225];
+
+          let textColor: [number, number, number] = [156, 163, 175];
+          if (record.status === 'P') textColor = [27, 94, 32];
+          else if (record.status === 'H') textColor = [94, 53, 177];
+          else if (record.status === 'A') textColor = [183, 28, 28];
+          else if (record.status === 'CF') textColor = [8, 145, 178];
+          else if (['EL', 'SL', 'CL', 'CompOff'].includes(record.status)) textColor = [217, 119, 6];
+          
+          const fontStyle: 'bold' | 'normal' = ['P', 'A', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff'].includes(record.status) ? 'bold' : 'normal';
+
+          return {
+            content: record.status || '-',
+            styles: {
+              fillColor,
+              textColor,
+              fontStyle,
+            }
+          };
+        }),
+        presentCount.toString(), absentCount.toString(), holidayCount.toString(), cfCount.toString(),
+        elCount.toString(), slCount.toString(), clCount.toString(), payableDays.toString()
+      ];
+    });
+
+    autoTable(doc, {
+      head: tableHeaders,
+      body: tableData,
+      startY: yPosition + 28,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 1, valign: 'middle', halign: 'center', lineWidth: 0.1, lineColor: [226, 232, 240] },
+      columnStyles: { 1: { cellWidth: 35 } },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+      margin: { left: margins, right: margins }
+    });
+
+    const fileName = `Attendance_Report_${new Date(year, month - 1).toLocaleString('default', { month: 'long' })}_${year}.pdf`;
+    doc.save(fileName);
+  };
+
+  const downloadExcel = () => {
+    const worksheetData = employees.map((employee) => {
+      const empAttendance = attendanceData[employee.employeeId] || [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const getCount = (status: string) => empAttendance.filter(a => {
+        const d = new Date(a.date);
+        d.setHours(0, 0, 0, 0);
+        return a.status === status && d <= today;
+      }).length;
+      
+      const rowData: { [key: string]: string | number } = {
+        "Employee ID": employee.employeeId,
+        "Employee Name": employee.fullName
+      };
+      
+      Array.from({ length: getDaysInMonth(year, month) }, (_, i) => {
+        const date = new Date(year, month - 1, i + 1).toISOString().split("T")[0];
+        const record = empAttendance.find(r => r.date === date);
+        const dateLabel = new Date(year, month - 1, i + 1).toLocaleDateString("en-US", { day: "2-digit", month: "short" });
+        rowData[dateLabel] = record ? record.status : '-';
+      });
+
+      rowData["Present"] = getCount('P');
+      rowData["Absent"] = getCount('A');
+      rowData["Holiday"] = getCount('H');
+      rowData["CF"] = getCount('CF');
+      rowData["EL"] = getCount('EL');
+      rowData["SL"] = getCount('SL');
+      rowData["CL"] = getCount('CL');
+      rowData["Payable Days"] = getPayableDays(empAttendance);
+      
+      return rowData;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Overall Attendance");
+    XLSX.writeFile(workbook, "Overall_Attendance_Report.xlsx");
+  };
+
+  const getDaysInMonth = (year: number, month: number): number => {
+    return new Date(year, month, 0).getDate();
+  };
+
+  const LoadingSkeleton = () => (
+    <div className="flex flex-col items-center justify-center min-h-[300px] py-10">
+      <FaSpinner className="animate-spin text-4xl text-blue-500 mb-4" />
+      <span className="text-lg text-gray-500 dark:text-gray-300">Loading attendance data...</span>
+    </div>
+  );
+
+  const EmptyState = () => (
+    <div className="flex flex-col items-center justify-center min-h-[300px] py-10">
+      <FaInfoCircle className="text-4xl text-blue-400 mb-4" />
+      <span className="text-lg text-gray-500 dark:text-gray-300">No employees or attendance data found for this period.</span>
+    </div>
+  );
+  
+  // Tab click handler
+  const handleTabClick = (tab: 'overall' | 'consolidated') => {
+    setActiveTab(tab);
+    if (tab === 'overall') {
+      router.push('/Manager/reports/attendance');
+    } else if (tab === 'consolidated') {
+      router.push('/Manager/reports/attendance/overall');
+    }
+  };
+
+  // Extract unique project names and designations
+  const projectNames = Array.from(new Set(employees.map(e => e.projectName).filter(Boolean)));
+  const designations = Array.from(new Set(employees.map(e => e.designation).filter(Boolean)));
+
+  // Filter employees based on selected filters and search
+  const filteredEmployees = employees.filter(emp => {
+    const matchesProject = selectedProject ? emp.projectName === selectedProject : true;
+    const matchesDesignation = selectedDesignation ? emp.designation === selectedDesignation : true;
+    const matchesSearch = searchQuery
+      ? emp.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.employeeId.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+    return matchesProject && matchesDesignation && matchesSearch;
+  });
+
+  return (
+    <ManagerLayout>
+      <div className={`min-h-screen font-sans ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
+        <div className="p-6">
+          {/* Tabs */}
+          <div className="mb-6 flex gap-2">
+            <button
+              className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
+                activeTab === 'overall'
+                  ? theme === 'dark'
+                    ? 'bg-gray-800 border-blue-400 text-blue-400'
+                    : 'bg-white border-blue-600 text-blue-700'
+                  : theme === 'dark'
+                  ? 'bg-gray-700 border-transparent text-gray-300 hover:text-blue-300'
+                  : 'bg-gray-100 border-transparent text-gray-500 hover:text-blue-700'
+              }`}
+              onClick={() => handleTabClick('overall')}
+            >
+              Overall
+            </button>
+            <button
+              className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
+                activeTab === 'consolidated'
+                  ? theme === 'dark'
+                    ? 'bg-gray-800 border-blue-400 text-blue-400'
+                    : 'bg-white border-blue-600 text-blue-700'
+                  : theme === 'dark'
+                  ? 'bg-gray-700 border-transparent text-gray-300 hover:text-blue-300'
+                  : 'bg-gray-100 border-transparent text-gray-500 hover:text-blue-700'
+              }`}
+              onClick={() => handleTabClick('consolidated')}
+            >
+              Consolidated
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'consolidated' ? (
+            null
+          ) : (
+            <>
+              <div className={`rounded-2xl p-6 shadow-lg mb-6 ${
+                  theme === 'light' 
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-800' 
+                    : 'bg-gradient-to-r from-gray-700 to-gray-800'
+                }`}>
+                  <h1 className="text-3xl font-bold text-white">Overall Attendance Summary</h1>
+                  <p className="text-white text-sm mt-2 opacity-90">
+                    View detailed attendance and leave summaries for all employees.
+                  </p>
+                </div>
+              <div className="flex gap-4 mb-6 items-center flex-wrap">
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(Number(e.target.value))}
+                  className={`border rounded-lg p-2 min-w-[120px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
+                >
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {new Date(0, i).toLocaleString("default", { month: "long" })}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={year}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  className={`border rounded-lg p-2 min-w-[100px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
+                >
+                  {[2025, 2024, 2023].map((yr) => (
+                    <option key={yr} value={yr}>
+                      {yr}
+                    </option>
+                  ))}
+                </select>
+                {/* Project Dropdown */}
+                <select
+                  value={selectedProject}
+                  onChange={e => setSelectedProject(e.target.value)}
+                  className={`border rounded-lg p-2 min-w-[140px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
+                >
+                  <option value="">All Projects</option>
+                  {projectNames.map(project => (
+                    <option key={project} value={project}>{project}</option>
+                  ))}
+                </select>
+                {/* Designation Dropdown */}
+                <select
+                  value={selectedDesignation}
+                  onChange={e => setSelectedDesignation(e.target.value)}
+                  className={`border rounded-lg p-2 min-w-[140px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
+                >
+                  <option value="">All Designations</option>
+                  {designations.map(designation => (
+                    <option key={designation} value={designation}>{designation}</option>
+                  ))}
+                </select>
+                {/* Search Bar */}
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search by name or ID"
+                  className={`border rounded-lg p-2 min-w-[180px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
+                />
+              </div>
+
+              <div className="flex justify-end gap-4 mb-6 items-center flex-wrap">
+                <button
+                  onClick={downloadExcel}
+                  className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+                  title="Download as Excel"
+                >
+                  <FaFileExcel /> Excel
+                </button>
+                <button
+                  onClick={downloadPDF}
+                  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+                  title="Download as PDF"
+                >
+                  <FaFilePdf /> PDF
+                </button>
+              </div>
+
+              <div className={`mb-4 p-4 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'}`}>
+                <h3 className="font-semibold mb-2">Attendance Legend:</h3>
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                  <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-700'}`}>P</span><span>Present</span></div>
+                  <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700'}`}>A</span><span>Absent</span></div>
+                  <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>H</span><span>Holiday</span></div>
+                  <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-cyan-900 text-cyan-300' : 'bg-cyan-100 text-cyan-700'}`}>CF</span><span>Comp. Off</span></div>
+                  <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-700'}`}>EL/SL/CL</span><span>On Leave</span></div>
+                  <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>-</span><span>Future</span></div>
+                </div>
+              </div>
+
+              {loading ? (
+                <LoadingSkeleton />
+              ) : filteredEmployees.length === 0 ? (
+                <EmptyState />
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-md" style={{ maxHeight: '70vh' }}>
+                  <table className={`w-full min-w-[1200px] rounded-lg overflow-hidden text-sm ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-700'}`}>
+                    <thead className={`sticky top-0 z-10 ${theme === 'dark' ? 'bg-gray-700/80 backdrop-blur-sm' : 'bg-blue-600/90 backdrop-blur-sm'} text-white`}>
+                      <tr>
+                        <th className="py-3 pl-4 pr-8 text-left font-semibold sticky left-0 bg-inherit z-20 w-64">Employee</th>
+                        {Array.from({ length: getDaysInMonth(year, month) }, (_, i) => (
+                          <th key={i + 1} className="p-3 text-center font-semibold">
+                            {new Date(year, month - 1, i + 1).toLocaleDateString("en-US", { day: "2-digit", month: "short" })}
+                          </th>
+                        ))}
+                        <th className="p-3 text-center font-semibold bg-green-600">P</th>
+                        <th className="p-3 text-center font-semibold bg-red-600">A</th>
+                        <th className="p-3 text-center font-semibold bg-purple-600">H</th>
+                        <th className="p-3 text-center font-semibold bg-cyan-600">CF</th>
+                        <th className="p-3 text-center font-semibold bg-yellow-600">EL</th>
+                        <th className="p-3 text-center font-semibold bg-yellow-600">SL</th>
+                        <th className="p-3 text-center font-semibold bg-yellow-600">CL</th>
+                        <th className="p-3 text-center font-semibold bg-blue-600">Payable</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {filteredEmployees.map((employee) => {
+                        const empAttendance = attendanceData[employee.employeeId] || [];
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        const getCount = (status: string) => empAttendance.filter(a => {
+                          const d = new Date(a.date);
+                          d.setHours(0, 0, 0, 0);
+                          return a.status === status && d <= today;
+                        }).length;
+                        
+                        return (
+                          <tr key={employee.employeeId} className={`transition-colors duration-150 ${theme === 'dark' ? 'hover:bg-gray-700/50' : 'hover:bg-blue-50/50'}`}>
+                            <td className={`py-3 pl-4 pr-8 sticky left-0 bg-inherit z-10 whitespace-nowrap ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+                              <div className="flex items-center gap-3">
+                                <Image src={employee.imageUrl} alt={employee.fullName} width={40} height={40} className="rounded-full object-cover" />
+                                <div>
+                                  <div className="font-bold">{employee.fullName}</div>
+                                  <div className="text-xs opacity-70">{employee.employeeId}</div>
+                                </div>
+                              </div>
+                            </td>
+                            {Array.from({ length: getDaysInMonth(year, month) }, (_, i) => {
+                              const date = new Date(year, month - 1, i + 1).toISOString().split('T')[0];
+                              const record = empAttendance.find(r => r.date === date);
+                              const status = record?.status || '';
+                              
+                              let badgeColor = '';
+                              if (status === 'P') badgeColor = theme === 'dark' ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-700';
+                              else if (status === 'A') badgeColor = theme === 'dark' ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700';
+                              else if (status === 'H') badgeColor = theme === 'dark' ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-700';
+                              else if (status === 'CF') badgeColor = theme === 'dark' ? 'bg-cyan-900 text-cyan-300' : 'bg-cyan-100 text-cyan-700';
+                              else if (['EL', 'SL', 'CL'].includes(status)) badgeColor = theme === 'dark' ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-700';
+                              else badgeColor = theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500';
+                              
+                              return (
+                                <td key={i + 1} className="p-3 text-center font-semibold">
+                                  <span className={`inline-block rounded-full w-8 py-1 text-xs font-bold shadow-sm ${badgeColor}`}>{status || '-'}</span>
+                                </td>
+                              );
+                            })}
+                            <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-green-900' : 'bg-green-100'}`}>{getCount('P')}</td>
+                            <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-red-900' : 'bg-red-100'}`}>{getCount('A')}</td>
+                            <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-purple-900' : 'bg-purple-100'}`}>{getCount('H')}</td>
+                            <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{getCount('CF')}</td>
+                            <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('EL')}</td>
+                            <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('SL')}</td>
+                            <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('CL')}</td>
+                            <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{getPayableDays(empAttendance)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </ManagerLayout>
+  );
+};
+
+export default OverallAttendancePage;
