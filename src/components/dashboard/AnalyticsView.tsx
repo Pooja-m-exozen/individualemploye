@@ -147,7 +147,7 @@ export default function AnalyticsView() {
           counts[designation] = (counts[designation] || 0) + 1;
         });
         setDesignationCounts(counts);
-      } catch (err) {
+      } catch {
         setDesignationCounts({});
       }
       setKycLoading(false);
@@ -248,10 +248,6 @@ export default function AnalyticsView() {
 
   // Calculate metrics from project data
   const totalProjects = projects.length;
-  
-  // Calculate project status distribution (simplified - you can enhance this based on your business logic)
-  const activeProjects = Math.floor(totalProjects * 0.7); // 70% active
-  const completedProjects = Math.floor(totalProjects * 0.2); // 20% completed
 
   if (loading) {
     return (
