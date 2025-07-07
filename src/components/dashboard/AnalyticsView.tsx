@@ -24,19 +24,7 @@ interface Project {
   __v: number;
 }
 
-interface KYCWeeklyTrend {
-  statusCounts: Array<{
-    status: string;
-    count: number;
-  }>;
-  totalSubmitted: number;
-  year: number;
-  week: number;
-  weekLabel: string;
-  submitted: number;
-  approved: number;
-  rejected: number;
-}
+
 
 interface KYCDailyTrend {
   statusCounts: Array<{
@@ -153,8 +141,9 @@ export default function AnalyticsView() {
         const response = await fetch('https://cafm.zenapi.co.in/api/kyc');
         const data = await response.json();
         const counts: { [key: string]: number } = {};
-        (data.kycForms || []).forEach((form: any) => {
-          const designation = form.personalDetails?.designation || 'Unknown';
+        (data.kycForms || []).forEach((form: Record<string, unknown>) => {
+          const personalDetails = form.personalDetails as Record<string, unknown> | undefined;
+          const designation = personalDetails?.designation as string || 'Unknown';
           counts[designation] = (counts[designation] || 0) + 1;
         });
         setDesignationCounts(counts);
@@ -177,9 +166,8 @@ export default function AnalyticsView() {
         }
         const data: KYCDailyResponse = await response.json();
         setKycDailyData(data);
-      } catch (err) {
-        setKycDailyError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Error fetching KYC daily trends:', err);
+      } catch {
+        setKycDailyError('An error occurred while fetching KYC daily trends');
       } finally {
         setKycDailyLoading(false);
       }
@@ -233,7 +221,7 @@ export default function AnalyticsView() {
         
         // Find today's attendance data
         if (data.trend && data.trend.length > 0) {
-          const todayEntry = data.trend.find((entry: any) => entry.date === today);
+          const todayEntry = data.trend.find((entry: Record<string, unknown>) => entry.date === today);
           console.log('Today\'s entry:', todayEntry); // Debug log
           
           if (todayEntry) {
@@ -264,7 +252,6 @@ export default function AnalyticsView() {
   // Calculate project status distribution (simplified - you can enhance this based on your business logic)
   const activeProjects = Math.floor(totalProjects * 0.7); // 70% active
   const completedProjects = Math.floor(totalProjects * 0.2); // 20% completed
-  const pendingProjects = totalProjects - activeProjects - completedProjects; // 10% pending
 
   if (loading) {
     return (

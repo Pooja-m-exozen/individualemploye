@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { useTheme } from "@/context/ThemeContext";
-import { FaTable, FaUsers, FaUserCheck, FaClipboardList, FaIdBadge, FaSearch, FaFilter, FaDownload, FaEye, FaEdit, FaTrash } from "react-icons/fa";
+import { FaUsers, FaUserCheck, FaClipboardList, FaIdBadge, FaSearch, FaDownload, FaEye, FaEdit, FaTrash } from "react-icons/fa";
 
 export default function DescriptiveView() {
   const [searchTerm, setSearchTerm] = useState("");

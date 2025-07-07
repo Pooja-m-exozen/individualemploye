@@ -136,14 +136,14 @@ export default function LeaveManagementViewPage() {
 
   function getApprovedBy(record: Record<string, unknown>): string {
     if (typeof record === 'object' && record && 'approvedBy' in record) {
-      return (record as any).approvedBy || 'N/A';
+      return (record as Record<string, unknown>).approvedBy as string || 'N/A';
     }
     return 'N/A';
   }
 
   function getRejectionReason(record: Record<string, unknown>): string {
     if (typeof record === 'object' && record && 'rejectionReason' in record) {
-      return (record as any).rejectionReason || '-';
+      return (record as Record<string, unknown>).rejectionReason as string || '-';
     }
     return '-';
   }
