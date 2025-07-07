@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
-import { FaSearch, FaCalendarAlt, FaFileExport } from "react-icons/fa";
+import { FaSearch, FaCalendarAlt, FaFileExport, FaEye, FaCheck, FaTimes } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { fetchAllRegularizations, updateRegularizationStatus } from "@/services/regularization";
 import type { RegularizationRecord } from "@/types/regularization";
@@ -156,31 +156,31 @@ export default function AttendanceReportPage() {
                     : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"
             }`}
         >
-            <div className="p-6">
+            <div className="p-4 md:p-8">
                 {/* Header */}
                 <div
-                    className={`rounded-2xl mb-8 p-8 flex items-center gap-6 shadow-lg ${
+                    className={`rounded-2xl mb-6 p-6 flex items-center gap-5 shadow-lg ${
                         theme === "dark"
-                            ? "bg-[#2d3748]"
-                            : "bg-gradient-to-r from-blue-500 to-blue-800"
+                            ? "bg-[#23272f]"
+                            : "bg-gradient-to-r from-blue-500 to-blue-700"
                     }`}
                 >
                     <div
-                        className={`${
+                        className={`$${
                             theme === "dark" ? "bg-gray-800" : "bg-blue-600 bg-opacity-30"
-                        } rounded-xl p-4 flex items-center justify-center`}
+                        } rounded-xl p-3 flex items-center justify-center`}
                     >
-                        <FaCalendarAlt className="w-10 h-10 text-white" />
+                        <FaCalendarAlt className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold mb-1 text-white">Attendance Regulization</h1>
+                        <h1 className="text-2xl md:text-3xl font-bold mb-1 text-white">Attendance Regularization</h1>
                         <p className="text-base opacity-90 text-white">Manage and regularize employee attendance records, including correction of missed punches and shift adjustments.</p>
                     </div>
                 </div>
                 {/* Filters, Search, Export */}
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                    <div className="flex flex-row flex-wrap gap-2 mb-6 items-center w-full">
-                        <div className="relative flex-1 min-w-[180px] max-w-xs">
+                    <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
+                        <div className="relative flex-1 min-w-[180px] max-w-xs shadow-sm">
                             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                             <input
                                 type="text"
@@ -195,18 +195,18 @@ export default function AttendanceReportPage() {
                             />
                         </div>
                     </div>
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex gap-2 justify-end w-full md:w-auto">
                         <button
                             onClick={downloadExcel}
-                            className={`px-4 py-2 min-w-[140px] rounded-lg flex items-center justify-center gap-2 transition-colors ${theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-500 text-white hover:bg-green-600"}`}
+                            className={`px-4 py-2 min-w-[120px] rounded-lg flex items-center justify-center gap-2 shadow-sm transition-colors ${theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-500 text-white hover:bg-green-600"}`}
                         >
-                            <FaFileExport /> Export Excel
+                            <FaFileExport /> Excel
                         </button>
                         <button
                             onClick={downloadPDF}
-                            className={`px-4 py-2 min-w-[140px] rounded-lg flex items-center justify-center gap-2 transition-colors ${theme === "dark" ? "bg-red-700 text-white hover:bg-red-800" : "bg-red-500 text-white hover:bg-red-600"}`}
+                            className={`px-4 py-2 min-w-[120px] rounded-lg flex items-center justify-center gap-2 shadow-sm transition-colors ${theme === "dark" ? "bg-red-700 text-white hover:bg-red-800" : "bg-red-500 text-white hover:bg-red-600"}`}
                         >
-                            <FaFileExport /> Export PDF
+                            <FaFileExport /> PDF
                         </button>
                     </div>
                 </div>
@@ -261,30 +261,75 @@ export default function AttendanceReportPage() {
                                 </tr>
                             ) : (
                                 filteredRecords.map((rec, idx) => (
-                                    <tr key={rec._id || idx}>
+                                    <tr
+                                        key={rec._id || idx}
+                                        className={`transition-colors duration-150 ${
+                                            idx % 2 === 0
+                                                ? theme === 'dark'
+                                                    ? 'bg-gray-900'
+                                                    : 'bg-white'
+                                                : theme === 'dark'
+                                                    ? 'bg-gray-800'
+                                                    : 'bg-blue-50'
+                                        } hover:bg-blue-100 dark:hover:bg-blue-950`}
+                                    >
                                         <td className={`px-4 py-3 font-bold text-center ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{formatDate(rec.date)}</td>
-                                        <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{rec.status}</td>
-                                        <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{rec.regularizationReason || "-"}</td>
+                                        <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                                rec.status === 'Present'
+                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                                    : rec.status === 'Absent'
+                                                        ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                                                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                                            }`}>
+                                                {rec.status}
+                                            </span>
+                                        </td>
+                                        <td
+                                            className={`px-4 py-3 whitespace-pre-line break-words align-top max-w-xs ${theme === 'dark' ? 'text-white' : 'text-black'}`}
+                                            title={rec.regularizationReason || "-"}
+                                        >
+                                            {rec.regularizationReason || "-"}
+                                        </td>
                                         <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{rec.regularizedBy || "-"}</td>
-                                        <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{rec.regularizationStatus}</td>
+                                        <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                                rec.regularizationStatus === 'Approved'
+                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                                    : rec.regularizationStatus === 'Rejected'
+                                                        ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                                                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                                            }`}>
+                                                {rec.regularizationStatus}
+                                            </span>
+                                        </td>
                                         <td className={`px-4 py-3 text-center ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-                                            <div className="flex flex-col md:flex-row gap-2 justify-center items-center">
+                                            <div className="flex flex-row gap-2 justify-center items-center">
                                                 <button
-                                                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+                                                    className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full transition shadow-md"
+                                                    title="View Details"
                                                     onClick={() => setViewRecord(rec)}
-                                                >View</button>
+                                                >
+                                                    <FaEye />
+                                                </button>
                                                 {rec.regularizationStatus === "Pending" && (
                                                     <>
                                                         <button
-                                                            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition"
+                                                            className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-full transition shadow-md"
+                                                            title="Approve"
                                                             onClick={() => handleAction(rec._id, "approve")}
                                                             disabled={loading}
-                                                        >Approve</button>
+                                                        >
+                                                            <FaCheck />
+                                                        </button>
                                                         <button
-                                                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition"
+                                                            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-full transition shadow-md"
+                                                            title="Reject"
                                                             onClick={() => handleReject(rec._id)}
                                                             disabled={loading}
-                                                        >Reject</button>
+                                                        >
+                                                            <FaTimes />
+                                                        </button>
                                                     </>
                                                 )}
                                             </div>
@@ -298,7 +343,7 @@ export default function AttendanceReportPage() {
             </div>
             {/* Modal for View */}
             {viewRecord && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className={`rounded-xl shadow-2xl p-6 w-full max-w-md ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Regularization Details</h2>
@@ -324,7 +369,7 @@ export default function AttendanceReportPage() {
             )}
             {/* Reject Modal */}
             {showRejectModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className={`rounded-xl shadow-2xl p-6 w-full max-w-md ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Reject Regularization</h2>

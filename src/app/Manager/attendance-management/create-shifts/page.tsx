@@ -129,34 +129,34 @@ export default function CreateShiftsPage() {
               </section>
             )}
             {activeSection === "mapShift" && (
-              <section className="bg-white rounded-2xl p-8 border border-blue-100 shadow-xl">
-                <h2 className="text-xl font-bold text-blue-700 mb-4">Map Shift to Project, Designation & Employee</h2>
+              <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-8 border shadow-xl`}>
+                <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Map Shift to Project, Designation & Employee</h2>
                 <form className="flex flex-col gap-6 mb-6">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Project</label>
-                      <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Project</label>
+                      <select className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}>
                         <option value="">Select Project</option>
                         {projects.map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Designation</label>
-                      <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Designation</label>
+                      <select className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}>
                         <option value="">Select Designation</option>
                         {designations.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Employee</label>
-                      <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee</label>
+                      <select className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}>
                         <option value="">Select Employee</option>
                         {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Shift</label>
-                      <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Shift</label>
+                      <select className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}>
                         <option value="">Select Shift</option>
                         {shifts.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
@@ -165,23 +165,23 @@ export default function CreateShiftsPage() {
                   <button type="submit" className="self-end px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400">Map Shift</button>
                 </form>
                 <div>
-                  <h3 className="text-lg font-bold text-blue-700 mb-2">Existing Mappings</h3>
-                  <table className="min-w-full divide-y divide-blue-100">
-                    <thead className="bg-blue-50">
+                  <h3 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Existing Mappings</h3>
+                  <table className={`min-w-full divide-y ${theme === 'dark' ? 'divide-gray-800' : 'divide-blue-100'}`}>
+                    <thead className={theme === 'dark' ? 'bg-blue-950' : 'bg-blue-50'}>
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Project</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Designation</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Employee</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Shift</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Project</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Designation</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Employee</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Shift</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-blue-50">
+                    <tbody className={theme === 'dark' ? 'divide-gray-800' : 'divide-blue-50'}>
                       {mappings.map((m, idx) => (
-                        <tr key={idx} className="hover:bg-blue-50 transition">
-                          <td className="px-4 py-3 font-bold text-blue-800">{m.project}</td>
-                          <td className="px-4 py-3">{m.designation}</td>
-                          <td className="px-4 py-3">{m.employee}</td>
-                          <td className="px-4 py-3">{m.shift}</td>
+                        <tr key={idx} className={theme === 'dark' ? 'hover:bg-blue-950 transition' : 'hover:bg-blue-50 transition'}>
+                          <td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>{m.project}</td>
+                          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : ''}`}>{m.designation}</td>
+                          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : ''}`}>{m.employee}</td>
+                          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : ''}`}>{m.shift}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -190,62 +190,62 @@ export default function CreateShiftsPage() {
               </section>
             )}
             {activeSection === "updateWeekoff" && (
-              <section className="bg-white rounded-2xl p-8 border border-blue-100 shadow-xl">
-                <h2 className="text-xl font-bold text-blue-700 mb-4">Update Weekoffs</h2>
+              <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-8 border shadow-xl`}>
+                <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Update Weekoffs</h2>
                 <form className="flex flex-col gap-6 mb-8">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Project</label>
-                      <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Project</label>
+                      <select className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}>
                         <option value="">Select Project</option>
                         {projects.map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Start Date</label>
-                      <input type="date" className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Start Date</label>
+                      <input type="date" className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`} />
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">End Date</label>
-                      <input type="date" className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>End Date</label>
+                      <input type="date" className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`} />
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Employee ID</label>
-                      <input type="text" placeholder="Search by Employee ID" className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee ID</label>
+                      <input type="text" placeholder="Search by Employee ID" className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`} />
                     </div>
                   </div>
                   <button type="button" className="self-end px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400">Search</button>
                 </form>
                 <div>
-                  <h3 className="text-lg font-bold text-blue-700 mb-2">Employee Weekoff List</h3>
-                  <table className="min-w-full divide-y divide-blue-100">
-                    <thead className="bg-blue-50">
+                  <h3 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Employee Weekoff List</h3>
+                  <table className={`min-w-full divide-y ${theme === 'dark' ? 'divide-gray-800' : 'divide-blue-100'}`}>
+                    <thead className={theme === 'dark' ? 'bg-blue-950' : 'bg-blue-50'}>
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Employee ID</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Designation</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Project</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Current Weekoff</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">New Weekoff</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Action</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Employee ID</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Name</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Designation</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Project</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Current Weekoff</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>New Weekoff</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-blue-50">
+                    <tbody className={theme === 'dark' ? 'divide-gray-800' : 'divide-blue-50'}>
                       {employees.map((emp, idx) => (
-                        <tr key={idx} className="hover:bg-blue-50 transition">
-                          <td className="px-4 py-3 font-bold text-blue-800">{emp.id}</td>
-                          <td className="px-4 py-3">{emp.name}</td>
-                          <td className="px-4 py-3">{emp.designation}</td>
-                          <td className="px-4 py-3">{emp.project}</td>
-                          <td className="px-4 py-3">{emp.weekoff}</td>
-                          <td className="px-4 py-3">
-                            <select className="border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <tr key={idx} className={theme === 'dark' ? 'hover:bg-blue-950 transition' : 'hover:bg-blue-50 transition'}>
+                          <td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>{emp.id}</td>
+                          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : ''}`}>{emp.name}</td>
+                          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : ''}`}>{emp.designation}</td>
+                          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : ''}`}>{emp.project}</td>
+                          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-blue-100' : ''}`}>{emp.weekoff}</td>
+                          <td className={`px-4 py-3`}>
+                            <select className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}>
                               <option value="">Select Day</option>
                               {weekoffDays.map(day => <option key={day} value={day}>{day}</option>)}
                             </select>
                           </td>
                           <td className="px-4 py-3">
-                            <button className="px-4 py-1 rounded-lg bg-blue-100 text-blue-700 font-semibold text-sm hover:bg-blue-200 transition">Update Weekoff</button>
+                            <button className={`px-4 py-1 rounded-lg font-semibold text-sm transition ${theme === 'dark' ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}>Update Weekoff</button>
                           </td>
                         </tr>
                       ))}

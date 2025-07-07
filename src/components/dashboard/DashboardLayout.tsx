@@ -3,7 +3,7 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import type { JSX } from 'react';
 import Image from 'next/image';
-import {  FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus, FaChevronLeft,  FaUser, FaCalendarAlt, FaMoneyBillWave, FaTasks,  FaHeadset,  FaBell,  FaIdCard,  FaTimes, FaBars, FaCog, FaEdit, FaUserCheck, FaCalendarCheck, FaClipboardCheck, FaHistory, FaSun, FaMoon } from 'react-icons/fa';
+import {  FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus, FaChevronLeft,  FaUser, FaCalendarAlt, FaMoneyBillWave, FaTasks,  FaHeadset,  FaBell,  FaIdCard,  FaTimes, FaBars, FaCog, FaEdit, FaUserCheck, FaCalendarCheck, FaClipboardCheck, FaHistory, FaSun, FaMoon, FaEye, FaEyeSlash } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { logout, isAuthenticated, getUserRole, getEmployeeId } from '@/services/auth';
@@ -57,6 +57,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const [coordinatorPassword, setCoordinatorPassword] = useState("");
   const [coordinatorPasswordError, setCoordinatorPasswordError] = useState(false);
   const [showCoordinatorPassword, setShowCoordinatorPassword] = useState(false);
+  const [showOpsPassword, setShowOpsPassword] = useState(false);
+  const [showManagerPassword, setShowManagerPassword] = useState(false);
+  const [showHRPassword, setShowHRPassword] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -692,13 +695,22 @@ const handleLogout = () => {
               </button>
               <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
               <div className="flex flex-col gap-4">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter Ops Manager Password"
-                  className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                />
+                <div className="relative">
+                  <input
+                    type={showOpsPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter Ops Manager Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOpsPassword(!showOpsPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showOpsPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
                 {passwordError && (
                   <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
                     Incorrect password. Please try again.
@@ -726,13 +738,22 @@ const handleLogout = () => {
               </button>
               <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
               <div className="flex flex-col gap-4">
-                <input
-                  type="password"
-                  value={ManagerPassword}
-                  onChange={(e) => setManagerPassword(e.target.value)}
-                  placeholder="Enter Ops-Manager Manager Password"
-                  className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-green-500`}
-                />
+                <div className="relative">
+                  <input
+                    type={showManagerPassword ? 'text' : 'password'}
+                    value={ManagerPassword}
+                    onChange={(e) => setManagerPassword(e.target.value)}
+                    placeholder="Enter Ops-Manager Manager Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-green-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowManagerPassword(!showManagerPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showManagerPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
                 {ManagerPasswordError && (
                   <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
                     Incorrect password. Please try again.
@@ -760,13 +781,22 @@ const handleLogout = () => {
               </button>
               <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
               <div className="flex flex-col gap-4">
-                <input
-                  type="password"
-                  value={HRPassword}
-                  onChange={(e) => setHRPassword(e.target.value)}
-                  placeholder="Enter HR Password"
-                  className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-purple-500`}
-                />
+                <div className="relative">
+                  <input
+                    type={showHRPassword ? 'text' : 'password'}
+                    value={HRPassword}
+                    onChange={(e) => setHRPassword(e.target.value)}
+                    placeholder="Enter HR Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowHRPassword(!showHRPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showHRPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
                 {HRPasswordError && (
                   <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
                     Incorrect password. Please try again.
@@ -794,22 +824,22 @@ const handleLogout = () => {
               </button>
               <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
               <div className="flex flex-col gap-4">
-                <input
-                  type={showCoordinatorPassword ? 'text' : 'password'}
-                  value={coordinatorPassword}
-                  onChange={(e) => setCoordinatorPassword(e.target.value)}
-                  placeholder="Enter Coordinator Password"
-                  className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-orange-500`}
-                />
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <div className="relative">
                   <input
-                    type="checkbox"
-                    checked={showCoordinatorPassword}
-                    onChange={() => setShowCoordinatorPassword((prev) => !prev)}
-                    className="form-checkbox"
+                    type={showCoordinatorPassword ? 'text' : 'password'}
+                    value={coordinatorPassword}
+                    onChange={(e) => setCoordinatorPassword(e.target.value)}
+                    placeholder="Enter Coordinator Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-orange-500`}
                   />
-                  Show Password
-                </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowCoordinatorPassword(!showCoordinatorPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showCoordinatorPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
                 {coordinatorPasswordError && (
                   <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
                     Incorrect password. Please try again.

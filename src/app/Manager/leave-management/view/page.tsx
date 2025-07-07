@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaSpinner, FaUserAlt, FaTimesCircle } from "react-icons/fa";
+import { FaSpinner, FaUserAlt, FaTimesCircle, FaCheck, FaTimes, FaSearch, FaEye } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory } from "@/services/leave";
 import { showToast, ToastStyles } from "@/components/Toast";
@@ -19,6 +19,7 @@ export default function LeaveManagementViewPage() {
   const [rejectLeaveId, setRejectLeaveId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionError, setRejectionError] = useState("");
+  const [viewRecord, setViewRecord] = useState<typeof allLeaves[0] | null>(null);
 
   React.useEffect(() => {
     setLoading(true);
@@ -149,6 +150,14 @@ export default function LeaveManagementViewPage() {
     setRejectionError("");
   };
 
+  function getApprovedBy(record: any) {
+    return typeof record === 'object' && record && 'approvedBy' in record ? record.approvedBy || 'N/A' : 'N/A';
+  }
+
+  function getRejectionReason(record: any) {
+    return typeof record === 'object' && record && 'rejectionReason' in record ? record.rejectionReason || '-' : '-';
+  }
+
   return (
     <ManagerDashboardLayout>
       <ToastStyles />
@@ -196,31 +205,47 @@ export default function LeaveManagementViewPage() {
           </div>
         </div>
       )}
+      {viewRecord && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className={`rounded-xl shadow-2xl p-6 w-full max-w-md ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Leave Details</h2>
+              <button onClick={() => setViewRecord(null)} className="text-2xl font-bold hover:text-red-500">&times;</button>
+            </div>
+            <div className="space-y-2">
+              <div><span className="font-semibold">Employee Name:</span> {viewRecord.employeeName}</div>
+              <div><span className="font-semibold">Employee ID:</span> {viewRecord.employeeId}</div>
+              <div><span className="font-semibold">Leave Type:</span> {viewRecord.leaveType}</div>
+              <div><span className="font-semibold">No of Days:</span> {viewRecord.numberOfDays}</div>
+              <div><span className="font-semibold">Date:</span> {viewRecord.startDate ? new Date(viewRecord.startDate).toISOString().split('T')[0] : 'N/A'}</div>
+              <div><span className="font-semibold">End Date:</span> {viewRecord.endDate ? new Date(viewRecord.endDate).toISOString().split('T')[0] : 'N/A'}</div>
+              <div><span className="font-semibold">Status:</span> {viewRecord.status}</div>
+              <div><span className="font-semibold">Reason:</span> {viewRecord.reason}</div>
+              <div><span className="font-semibold">Approved By:</span> {getApprovedBy(viewRecord)}</div>
+              <div><span className="font-semibold">Applied On:</span> {viewRecord.appliedOn ? new Date(viewRecord.appliedOn).toISOString().split('T')[0] : 'N/A'}</div>
+              <div><span className="font-semibold">Last Updated:</span> {viewRecord.lastUpdated ? new Date(viewRecord.lastUpdated).toISOString().split('T')[0] : 'N/A'}</div>
+              <div><span className="font-semibold">Emergency Contact:</span> {viewRecord.emergencyContact || 'N/A'}</div>
+              <div><span className="font-semibold">Rejection Reason:</span> {getRejectionReason(viewRecord)}</div>
+            </div>
+            <div className="flex justify-end mt-6">
+              <button onClick={() => setViewRecord(null)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div
         className={`p-4 md:p-8 min-h-screen transition-colors duration-300 ${
           theme === "dark" ? "bg-gray-900" : "bg-gray-50"
         }`}
       >
         {/* Header */}
-        <div
-          className={`rounded-2xl mb-8 p-8 flex items-center gap-6 shadow-lg ${
-            theme === "dark"
-              ? "bg-[#2d3748]"
-              : "bg-gradient-to-r from-blue-600 to-blue-800 text-white"
-          }`}
-        >
-          <div
-            className={`$${
-              theme === "dark"
-                ? "bg-gray-800 text-blue-200"
-                : "bg-white text-blue-600"
-            } p-6 rounded-full flex items-center justify-center shadow-md`}
-          >
-            <FaUserAlt className="text-3xl text-white" />
+        <div className={`rounded-2xl mb-6 p-6 flex items-center gap-5 shadow-lg ${theme === "dark" ? "bg-[#23272f]" : "bg-gradient-to-r from-blue-500 to-blue-700"}`}>
+          <div className={`${theme === "dark" ? "bg-gray-800" : "bg-blue-600 bg-opacity-30"} rounded-xl p-3 flex items-center justify-center`}>
+            <FaUserAlt className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Employee Leave Report</h1>
-            <p className="text-lg">Easily manage leave details for employees in your projects.</p>
+            <h1 className="text-2xl md:text-3xl font-bold mb-1 text-white">Employee Leave Report</h1>
+            <p className="text-base opacity-90 text-white">Easily manage leave details for employees in your projects.</p>
           </div>
         </div>
         {/* Tabs for Filtering */}
@@ -244,41 +269,32 @@ export default function LeaveManagementViewPage() {
           ))}
         </div>
         {/* Search Bar with Filters */}
-        <div className="mb-6 flex flex-col md:flex-row items-center gap-4">
-          <div className="flex-grow relative">
-            <input
-              type="text"
-              placeholder="Search by name, date, or leave type..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 shadow-sm transition-colors duration-300 ${
-                theme === "dark"
-                  ? "bg-gray-800 border-gray-700 text-gray-100 focus:ring-blue-800 placeholder-gray-400"
-                  : "bg-white border-gray-300 text-gray-900 focus:ring-blue-600 placeholder-gray-400"
-              }`}
-            />
-            {searchQuery && (
-              <button
-                onClick={clearSearch}
-                className={`absolute right-2 top-2 transition-colors duration-200 ${
-                  theme === "dark"
-                    ? "text-gray-400 hover:text-red-400"
-                    : "text-gray-500 hover:text-red-500"
-                }`}
-              >
-                <FaTimesCircle className="text-xl" />
-              </button>
-            )}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
+            <div className="relative flex-1 min-w-[180px] max-w-xs shadow-sm">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name, date, or leave type..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100" : "bg-white border-gray-200 text-black"}`}
+              />
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className={`absolute right-2 top-2 transition-colors duration-200 ${theme === "dark" ? "text-gray-400 hover:text-red-400" : "text-gray-500 hover:text-red-500"}`}
+                >
+                  <FaTimesCircle className="text-xl" />
+                </button>
+              )}
+            </div>
           </div>
           <div>
             <select
               value={filterLeaveType}
               onChange={(e) => setFilterLeaveType(e.target.value)}
-              className={`px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 shadow-sm transition-colors duration-300 ${
-                theme === "dark"
-                  ? "bg-gray-800 border-gray-700 text-gray-100 focus:ring-blue-800"
-                  : "bg-white border-gray-300 text-gray-900 focus:ring-blue-600"
-              }`}
+              className={`px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 shadow-sm transition-colors duration-300 ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100 focus:ring-blue-800" : "bg-white border-gray-300 text-gray-900 focus:ring-blue-600"}`}
             >
               <option value="All">All Leave Types</option>
               <option value="EL">EL</option>
@@ -300,166 +316,121 @@ export default function LeaveManagementViewPage() {
             <div className="text-red-500 text-center py-8">{error}</div>
           ) : (
             <div className="min-w-[1200px]">
-              <table className="w-full">
-                <thead>
-                  <tr className={theme === "dark" ? "border-b-2 border-gray-700" : "border-b-2 border-gray-200"}>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Employee</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Leave Details</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Duration</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Reason</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Status</th>
-                    {activeTab === "Pending" && (
-                      <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Actions</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className={theme === "dark" ? "divide-y divide-gray-700" : "divide-y divide-gray-200"}>
-                  {paginatedData.map((leave) => (
-                    <tr
-                      key={leave.leaveId}
-                      className={`transition-colors duration-200 ${
-                        theme === "dark"
-                          ? "hover:bg-gray-700"
-                          : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <td className="p-4">
-                        <div>
-                          <div className={theme === "dark" ? "font-medium text-gray-100" : "font-medium text-gray-900"}>{leave.employeeName || "N/A"}</div>
-                          <div className={theme === "dark" ? "text-sm text-gray-400" : "text-sm text-gray-500"}>{leave.employeeId || "N/A"}</div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span className={
-                          theme === "dark"
-                            ? "px-3 py-1 bg-blue-900 text-blue-200 rounded-full text-sm font-medium"
-                            : "px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                        }>
-                          {leave.leaveType}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="space-y-1">
-                          <div className={theme === "dark" ? "text-sm text-gray-100" : "text-sm text-gray-900"}>
-                            {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
-                          </div>
-                          <div className={theme === "dark" ? "text-sm text-gray-400" : "text-sm text-gray-500"}>
-                            {leave.numberOfDays} {leave.numberOfDays === 1 ? 'day' : 'days'}
-                            {leave.isHalfDay ? ` (${leave.halfDayType || 'Half Day'})` : ''}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className={theme === "dark" ? "text-sm text-gray-100 max-w-xs truncate" : "text-sm text-gray-900 max-w-xs truncate"} title={leave.reason}>
-                          {leave.reason}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
-                            leave.status === "Approved"
-                              ? theme === "dark"
-                                ? "bg-green-900 text-green-200"
-                                : "bg-green-100 text-green-800"
-                              : leave.status === "Rejected"
-                              ? theme === "dark"
-                                ? "bg-red-900 text-red-200"
-                                : "bg-red-100 text-red-800"
-                              : leave.status === "Pending"
-                              ? theme === "dark"
-                                ? "bg-yellow-900 text-yellow-200"
-                                : "bg-yellow-100 text-yellow-800"
-                              : theme === "dark"
-                              ? "bg-gray-700 text-gray-200"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {leave.status}
-                        </span>
-                      </td>
-                      {activeTab === "Pending" && (
-                        <td className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => handleApprove(leave.leaveId)}
-                              className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${
-                                theme === "dark"
-                                  ? "bg-green-800 text-white hover:bg-green-700"
-                                  : "bg-green-500 text-white hover:bg-green-600"
-                              }`}
-                              title="Approve"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleReject(leave.leaveId)}
-                              className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${
-                                theme === "dark"
-                                  ? "bg-red-800 text-white hover:bg-red-700"
-                                  : "bg-red-500 text-white hover:bg-red-600"
-                              }`}
-                              title="Reject"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </td>
-                      )}
+              <div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === "dark" ? "border-gray-700 bg-gray-900" : "border-blue-100 bg-white"}`}>
+                <table className="w-full">
+                  <thead className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-blue-50'}`}>
+                    <tr>
+                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>Date</th>
+                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>Employee ID</th>
+                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>Employee Name</th>
+                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>Leave Type</th>
+                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>No of Days</th>
+                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>Reason</th>
+                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>View</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center mt-6 gap-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                    currentPage === 1
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
-                      : theme === 'dark'
-                        ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
-                        : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
-                  }`}
-                >
-                  Prev
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`px-4 py-2 rounded-lg font-semibold border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                      currentPage === page
-                        ? theme === 'dark'
-                          ? 'bg-blue-700 text-white border-blue-700 shadow-lg'
-                          : 'bg-blue-600 text-white border-blue-600 shadow-lg'
-                        : theme === 'dark'
-                          ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-blue-800 hover:text-white'
-                          : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                    currentPage === totalPages
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
-                      : theme === 'dark'
-                        ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
-                        : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
-                  }`}
-                >
-                  Next
-                </button>
+                  </thead>
+                  <tbody>
+                    {paginatedData.map((leave, idx) => (
+                      <tr
+                        key={leave.leaveId}
+                        className={`align-top ${
+                          theme === 'dark'
+                            ? idx % 2 === 0
+                              ? 'bg-gray-900'
+                              : 'bg-gray-800'
+                            : idx % 2 === 0
+                              ? 'bg-white'
+                              : 'bg-blue-50'
+                        } hover:bg-blue-100 dark:hover:bg-blue-950 transition-colors duration-150`}
+                      >
+                        <td className="p-4 align-top font-bold text-left">
+                          {leave.startDate ? new Date(leave.startDate).toISOString().split('T')[0] : 'N/A'}
+                        </td>
+                        <td className="p-4 align-top text-left">{leave.employeeId}</td>
+                        <td className="p-4 align-top text-left">{leave.employeeName}</td>
+                        <td className="p-4 align-top text-left">
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                            leave.leaveType === 'EL'
+                              ? 'bg-blue-100 text-blue-700'
+                              : leave.leaveType === 'CL'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : leave.leaveType === 'SL'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-gray-200 text-gray-700'
+                          }`}>
+                            {leave.leaveType}
+                          </span>
+                        </td>
+                        <td className="p-4 align-top text-left">{leave.numberOfDays}</td>
+                        <td className="p-4 align-top whitespace-pre-line break-words max-w-[180px] text-left" title={leave.reason}>
+                          {leave.reason}
+                        </td>
+                        <td className="p-4 align-top text-center">
+                          <button
+                            className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            title="View"
+                            onClick={() => setViewRecord(leave)}
+                          >
+                            <FaEye />
+                            <span className="font-semibold">View</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
             </div>
           )}
         </div>
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center mt-6 gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                currentPage === 1
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
+                  : theme === 'dark'
+                    ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
+                    : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
+              }`}
+            >
+              Prev
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`px-4 py-2 rounded-lg font-semibold border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                  currentPage === page
+                    ? theme === 'dark'
+                      ? 'bg-blue-700 text-white border-blue-700 shadow-lg'
+                      : 'bg-blue-600 text-white border-blue-600 shadow-lg'
+                    : theme === 'dark'
+                      ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-blue-800 hover:text-white'
+                      : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                currentPage === totalPages
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
+                  : theme === 'dark'
+                    ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
+                    : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </ManagerDashboardLayout>
   );

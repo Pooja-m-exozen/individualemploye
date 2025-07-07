@@ -203,7 +203,7 @@ export default function StoreDCPage() {
               </div>
             </div>
             {/* DC Table */}
-            <div className="w-full rounded-2xl border shadow-xl transition-colors duration-300">
+            <div className="w-full rounded-2xl shadow-xl transition-colors duration-300">
               <div className="w-full overflow-x-auto">
                 <table className={`min-w-max table-fixed divide-y ${theme === "dark" ? "divide-blue-900" : "divide-blue-100"}`}>
                   <thead className={theme === "dark" ? "bg-blue-950" : "bg-blue-50"}>

@@ -470,75 +470,77 @@ export default function ViewIDCardsPage() {
           <div className={`relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-md w-full max-h-[95vh] overflow-y-auto border-2 ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'} flex flex-col items-center px-0 sm:px-0`}
             style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)' }}
           >
-            {/* Floating Close Button */}
-            <button
-              onClick={() => setSelectedCard(null)}
-              className="absolute top-4 right-4 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow hover:bg-red-100 dark:hover:bg-red-900 transition-all duration-200 z-10"
-              aria-label="Close"
-            >
-              <FaTimes className="w-5 h-5 text-red-500" />
-            </button>
-            {/* Card Header: Logo */}
-            <div className="w-full flex flex-col items-center pt-8 pb-2">
-              <Image src="/v1/employee/exozen_logo1.png" alt="Exozen Logo" width={90} height={36} className="object-contain mb-2" />
-              <div className={`text-xs font-semibold px-3 py-1 rounded-lg ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-blue-50 text-blue-700'} shadow`}>{new Date().toLocaleString()}</div>
-            </div>
-            {/* Card Body: Photo, QR, Details */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full px-6 py-4">
-              {/* Left: Photo & QR */}
-              <div className="flex flex-col items-center gap-4">
-                <Image
-                  src={selectedCard.employeeImage || '/placeholder-user.jpg'}
-                  alt={selectedCard.fullName}
-                  width={100}
-                  height={100}
-                  className="rounded-xl object-cover border-4 border-blue-200 dark:border-blue-700 shadow-lg"
-                  loader={({ src }) => src.startsWith('http') ? src : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${src}`}
-                  unoptimized={selectedCard.employeeImage?.startsWith('http')}
-                />
-                <div className="w-[90px] h-[90px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-inner">
-                  {qrLoading ? (
-                    <FaSpinner className="animate-spin text-blue-600 w-8 h-8" />
-                  ) : qrCodeData ? (
-                    <QRCodeSVG
-                      value={JSON.stringify(qrCodeData)}
-                      size={80}
-                      className="rounded-xl"
-                      bgColor={theme === 'dark' ? '#1f2937' : '#ffffff'}
-                      fgColor={theme === 'dark' ? '#ffffff' : '#000000'}
-                    />
-                  ) : qrError ? (
-                    <p className="text-red-500 text-xs text-center">{qrError}</p>
-                  ) : (
-                    <p className="text-gray-400 text-xs text-center">No QR</p>
-                  )}
-                </div>
-                <div className={`text-xs font-mono ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'} flex items-center justify-center gap-1`}><FaIdCard className="inline-block mr-1" />{selectedCard.employeeId}</div>
+            <div className="text-gray-900 dark:text-white w-full flex flex-col items-center">
+              {/* Floating Close Button */}
+              <button
+                onClick={() => setSelectedCard(null)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow hover:bg-red-100 dark:hover:bg-red-900 transition-all duration-200 z-10"
+                aria-label="Close"
+              >
+                <FaTimes className="w-5 h-5 text-red-500" />
+              </button>
+              {/* Card Header: Logo */}
+              <div className="w-full flex flex-col items-center pt-8 pb-2">
+                <Image src="/v1/employee/exozen_logo1.png" alt="Exozen Logo" width={90} height={36} className="object-contain mb-2" />
+                <div className={`text-xs font-semibold px-3 py-1 rounded-lg ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-blue-50 text-blue-700'} shadow`}>{new Date().toLocaleString()}</div>
               </div>
-              {/* Right: Details */}
-              <div className="flex-1 flex flex-col gap-2 min-w-[180px]">
-                <div className={`text-xl font-extrabold tracking-tight mb-1 ${theme === 'dark' ? 'text-white' : 'text-blue-900'}`}>{selectedCard.fullName}</div>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border-2 shadow transition-all duration-200 ${selectedCard.status === 'Issued' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-100 text-gray-800 border-gray-300'}`}>{selectedCard.status === 'Issued' && <FaCheckCircle className="w-3 h-3 mr-1" />}{selectedCard.status}</span>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${theme === 'dark' ? 'bg-blue-900 text-blue-200 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{selectedCard.designation}</span>
+              {/* Card Body: Photo, QR, Details */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full px-6 py-4">
+                {/* Left: Photo & QR */}
+                <div className="flex flex-col items-center gap-4">
+                  <Image
+                    src={selectedCard.employeeImage || '/placeholder-user.jpg'}
+                    alt={selectedCard.fullName}
+                    width={100}
+                    height={100}
+                    className="rounded-xl object-cover border-4 border-blue-200 dark:border-blue-700 shadow-lg"
+                    loader={({ src }) => src.startsWith('http') ? src : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${src}`}
+                    unoptimized={selectedCard.employeeImage?.startsWith('http')}
+                  />
+                  <div className="w-[90px] h-[90px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-inner">
+                    {qrLoading ? (
+                      <FaSpinner className="animate-spin text-blue-600 w-8 h-8" />
+                    ) : qrCodeData ? (
+                      <QRCodeSVG
+                        value={JSON.stringify(qrCodeData)}
+                        size={80}
+                        className="rounded-xl"
+                        bgColor={theme === 'dark' ? '#1f2937' : '#ffffff'}
+                        fgColor={theme === 'dark' ? '#ffffff' : '#000000'}
+                      />
+                    ) : qrError ? (
+                      <p className="text-red-500 text-xs text-center">{qrError}</p>
+                    ) : (
+                      <p className="text-gray-400 text-xs text-center">No QR</p>
+                    )}
+                  </div>
+                  <div className={`text-xs font-mono ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'} flex items-center justify-center gap-1`}><FaIdCard className="inline-block mr-1" />{selectedCard.employeeId}</div>
                 </div>
-                <div className="grid grid-cols-1 gap-y-1 text-sm">
-                  <div><span className="font-semibold">Project:</span> {selectedCard.projectName}</div>
-                  <div><span className="font-semibold">Gender:</span> {selectedCard.gender}</div>
-                  <div><span className="font-semibold">Blood Group:</span> {selectedCard.bloodGroup}</div>
-                  <div><span className="font-semibold">Issued:</span> {selectedCard.issuedDate ? new Date(selectedCard.issuedDate).toLocaleDateString() : 'N/A'}</div>
-                  <div><span className="font-semibold">Valid Until:</span> {new Date(selectedCard.validUntil).toLocaleDateString()}</div>
+                {/* Right: Details */}
+                <div className="flex-1 flex flex-col gap-2 min-w-[180px]">
+                  <div className={`text-xl font-extrabold tracking-tight mb-1 ${theme === 'dark' ? 'text-black-800' : 'text-blue-900'}`}>{selectedCard.fullName}</div>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border-2 shadow transition-all duration-200 ${selectedCard.status === 'Issued' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-100 text-gray-800 border-gray-300'}`}>{selectedCard.status === 'Issued' && <FaCheckCircle className="w-3 h-3 mr-1" />}{selectedCard.status}</span>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${theme === 'dark' ? 'bg-blue-700 text-white border-blue-500' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{selectedCard.designation}</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-y-1 text-sm">
+                    <div><span className="font-semibold">Project:</span> {selectedCard.projectName}</div>
+                    <div><span className="font-semibold">Gender:</span> {selectedCard.gender}</div>
+                    <div><span className="font-semibold">Blood Group:</span> {selectedCard.bloodGroup}</div>
+                    <div><span className="font-semibold">Issued:</span> {selectedCard.issuedDate ? new Date(selectedCard.issuedDate).toLocaleDateString() : 'N/A'}</div>
+                    <div><span className="font-semibold">Valid Until:</span> {new Date(selectedCard.validUntil).toLocaleDateString()}</div>
+                  </div>
                 </div>
               </div>
+              {/* Download Button */}
+              <button
+                className={`mt-4 mb-8 w-11/12 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition-all duration-200 ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                onClick={() => handleDownload(selectedCard)}
+                disabled={downloading}
+              >
+                <FaDownload /> Download ID Card
+              </button>
             </div>
-            {/* Download Button */}
-            <button
-              className={`mt-4 mb-8 w-11/12 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition-all duration-200 ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-              onClick={() => handleDownload(selectedCard)}
-              disabled={downloading}
-            >
-              <FaDownload /> Download ID Card
-            </button>
           </div>
         </div>
       )}

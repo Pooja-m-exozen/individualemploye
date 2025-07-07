@@ -216,7 +216,7 @@ export default function StoreInStockPage() {
                                 {item.sizeInventory.map((sz: SizeInventory) => (
                                   <span
                                     key={sz._id}
-                                    className={`px-2 py-1 rounded text-xs border ${theme === "dark" ? "border-blue-900 text-blue-200" : "border-blue-200 text-blue-700"}`}
+                                    className={`px-2 py-1 rounded text-xs font-semibold border ${theme === "dark" ? "bg-blue-900 border-blue-400 text-white" : "bg-white border-blue-700 text-blue-700"}`}
                                   >
                                     {sz.size}: {sz.quantity} {sz.unit}
                                   </span>
@@ -243,65 +243,67 @@ export default function StoreInStockPage() {
             {/* Modal for item details */}
             {modalOpen && selectedItem && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                <div className={`bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-lg w-full p-6 relative`}>
-                  <button
-                    className="absolute top-2 right-3 text-2xl text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                    onClick={() => setModalOpen(false)}
-                    aria-label="Close"
-                  >
-                    &times;
-                  </button>
-                  <div className="flex items-center gap-4 mb-4">
-                    <Image
-                      src={"/v1/employee/logo-exo%20.png"}
-                      alt={selectedItem.name}
-                      width={60}
-                      height={60}
-                      className="rounded-lg bg-blue-50 dark:bg-blue-950"
-                    />
-                    <div>
-                      <h2 className="text-xl font-bold">{selectedItem.name}</h2>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        <span className="px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-semibold dark:bg-blue-900 dark:text-blue-200">{selectedItem.category}</span>
-                        {selectedItem.subCategory && (
-                          <span className="px-2 py-1 rounded bg-green-50 text-green-700 text-xs font-semibold dark:bg-green-900 dark:text-green-200">{selectedItem.subCategory}</span>
-                        )}
+                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-lg w-full p-6 relative">
+                  <div className="text-gray-900 dark:text-white">
+                    <button
+                      className="absolute top-2 right-3 text-2xl text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                      onClick={() => setModalOpen(false)}
+                      aria-label="Close"
+                    >
+                      &times;
+                    </button>
+                    <div className="flex items-center gap-4 mb-4">
+                      <Image
+                        src={"/v1/employee/logo-exo%20.png"}
+                        alt={selectedItem.name}
+                        width={60}
+                        height={60}
+                        className="rounded-lg bg-blue-50 dark:bg-blue-950"
+                      />
+                      <div>
+                        <h2 className="text-xl font-bold text-blue-800 dark:text-blue-200">{selectedItem.name}</h2>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <span className="px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-semibold dark:bg-blue-900 dark:text-blue-200">{selectedItem.category}</span>
+                          {selectedItem.subCategory && (
+                            <span className="px-2 py-1 rounded bg-green-50 text-green-700 text-xs font-semibold dark:bg-green-900 dark:text-green-200">{selectedItem.subCategory}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="mb-2">
-                    <span className="font-semibold">Description:</span>{" "}
-                    <span>{selectedItem.description || "No description"}</span>
-                  </div>
-                  <div className="mb-2">
-                    <span className="font-semibold">Notes:</span>{" "}
-                    <span>{selectedItem.notes || "None"}</span>
-                  </div>
-                  <div className="mb-2">
-                    <span className="font-semibold">Instructions:</span>{" "}
-                    <span>{selectedItem.instructions || "None"}</span>
-                  </div>
-                  <div className="mb-2">
-                    <span className="font-semibold">Total Quantity:</span>{" "}
-                    <span>
-                      {selectedItem.sizeInventory?.reduce((sum: number, s: SizeInventory) => sum + (s.quantity || 0), 0)}
-                    </span>
-                  </div>
-                  <div className="mb-2">
-                    <span className="font-semibold">Sizes:</span>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {selectedItem.sizeInventory?.map((sz: SizeInventory) => (
-                        <span
-                          key={sz._id}
-                          className="px-2 py-1 rounded text-xs border border-blue-200 dark:border-blue-900 dark:text-blue-200"
-                        >
-                          {sz.size}: {sz.quantity} {sz.unit}
-                        </span>
-                      ))}
+                    <div className="mb-2">
+                      <span className="font-semibold">Description:</span>{" "}
+                      <span>{selectedItem.description || "No description"}</span>
                     </div>
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-4">
-                    Last Updated: {selectedItem.updatedAt ? new Date(selectedItem.updatedAt).toLocaleString() : "-"}
+                    <div className="mb-2">
+                      <span className="font-semibold">Notes:</span>{" "}
+                      <span>{selectedItem.notes || "None"}</span>
+                    </div>
+                    <div className="mb-2">
+                      <span className="font-semibold">Instructions:</span>{" "}
+                      <span>{selectedItem.instructions || "None"}</span>
+                    </div>
+                    <div className="mb-2">
+                      <span className="font-semibold">Total Quantity:</span>{" "}
+                      <span>
+                        {selectedItem.sizeInventory?.reduce((sum: number, s: SizeInventory) => sum + (s.quantity || 0), 0)}
+                      </span>
+                    </div>
+                    <div className="mb-2">
+                      <span className="font-semibold">Sizes:</span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedItem.sizeInventory?.map((sz: SizeInventory) => (
+                          <span
+                            key={sz._id}
+                            className={`px-2 py-1 rounded text-xs font-semibold border ${theme === "dark" ? "bg-blue-900 border-blue-400 text-white" : "bg-white border-blue-700 text-blue-700"}`}
+                          >
+                            {sz.size}: {sz.quantity} {sz.unit}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+                      Last Updated: {selectedItem.updatedAt ? new Date(selectedItem.updatedAt).toLocaleString() : "-"}
+                    </div>
                   </div>
                 </div>
               </div>

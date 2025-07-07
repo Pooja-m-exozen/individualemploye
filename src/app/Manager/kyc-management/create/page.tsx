@@ -244,6 +244,7 @@ export default function CreateKYCPage() {
         setMultiDocError(null);
         setMultiDocCustomTypes([""]);
         setEmployeeIdSeed(seed => seed + 1); // Immediately increment to trigger next ID fetch
+        setActiveSection('personal'); // Navigate to Personal Details section
       } else {
         setError(data.message || "Submission failed.");
       }

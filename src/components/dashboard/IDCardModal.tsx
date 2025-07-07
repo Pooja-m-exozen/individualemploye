@@ -72,19 +72,19 @@ const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, th
       doc.setFontSize(7);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(31, 41, 55);
-      doc.text('Smart Society Solutions', 75, 22, { align: 'center' });
+      doc.text('Private Limited', 75, 22, { align: 'center' });
       doc.setFontSize(4);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(107, 114, 128);
       doc.text('www.exozenifm.com | www.exozen.in', 75, 27, { align: 'center' });
 
-      // --- Essential Services Badge ---
+      // --- Smart Services Badge ---
       doc.setFillColor(220, 38, 38);
       doc.roundedRect(35, 30, 80, 9, 4, 4, 'F');
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
-      doc.text('Essential Services', 75, 37, { align: 'center' });
+      doc.text('Smart Services', 75, 37, { align: 'center' });
 
       // --- Divider ---
       doc.setDrawColor(44, 44, 44);
@@ -197,14 +197,14 @@ const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, th
               <div className="w-24 h-8 relative">
                 <Image src="/v1/employee/exozen_logo1.png" alt="Logo" layout="fill" objectFit="contain" unoptimized />
               </div>
-              <p className="text-lg font-bold" style={{ color: "#1f2937" }}>Smart Society Solutions</p>
+              <p className="text-lg font-bold" style={{ color: "#1f2937" }}>Private Limited</p>
             </div>
             <p className="text-xs" style={{ color: "#6b7280" }}>www.exozenifm.com | www.exozen.in</p>
             <div
               className="mt-2 inline-block text-white text-sm font-bold px-4 py-1 rounded-lg shadow-md"
               style={{ background: "#dc2626" }}
             >
-              Essential Services
+              Smart Services
             </div>
           </div>
 

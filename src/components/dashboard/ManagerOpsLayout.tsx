@@ -15,6 +15,7 @@ import {
   FaCalendarAlt, // Added for Attendance
   FaPlaneDeparture, // Added for Leave
   FaClipboardList, // Added for Summary
+  FaIdBadge, // Added for KYC
 } from "react-icons/fa";
 import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
@@ -107,6 +108,22 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
     { label: "Performance Overview", icon: <FaUsers />, href: "/v1/employee/Manager-Ops/team-overview" },
     { label: "Attendance Management", icon: <FaCalendarAlt />, href: "/v1/employee/Manager-Ops/attendance-management" },
     { label: "Leave Management", icon: <FaPlaneDeparture />, href: "/v1/employee/Manager-Ops/leave-management" },
+    {
+      label: "KYC Management",
+      icon: <FaIdBadge />,
+      subItems: [
+        {
+          label: "Create KYC",
+          href: "/v1/employee/Manager-Ops/kyc-management/create",
+          icon: undefined,
+        },
+        {
+          label: "View KYC",
+          href: "/v1/employee/Manager-Ops/kyc-management/view",
+          icon: undefined,
+        },
+      ],
+    },
     {
       label: "Reports",
       icon: <FaCog />,
