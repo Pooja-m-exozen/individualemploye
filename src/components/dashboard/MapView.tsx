@@ -1,11 +1,10 @@
 "use client";
 import React, { useState } from "react";
 import { useTheme } from "@/context/ThemeContext";
-import { FaMapMarkerAlt, FaUsers, FaUserCheck, FaClipboardList, FaIdBadge, FaSearch, FaFilter, FaDownload, FaEye, FaLocationArrow, FaGlobe } from "react-icons/fa";
+import { FaMapMarkerAlt, FaUsers, FaUserCheck, FaSearch, FaDownload, FaEye, FaLocationArrow, FaGlobe } from "react-icons/fa";
 
 export default function MapView() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState("all");
   const { theme } = useTheme();
 
   const mockLocationData = [
@@ -21,8 +20,7 @@ export default function MapView() {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.department.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = selectedFilter === "all" || item.status.toLowerCase() === selectedFilter;
-    return matchesSearch && matchesFilter;
+    return matchesSearch;
   });
 
   const totalEmployees = mockLocationData.reduce((sum, item) => sum + item.employees, 0);
@@ -215,20 +213,10 @@ export default function MapView() {
                         {location.location}
                       </div>
                     </td>
-                    <td className={`px-4 py-3 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                      {location.employees}
-                    </td>
-                    <td className={`px-4 py-3 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {location.department}
-                    </td>
+                    <td className={`px-4 py-3 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{location.employees}</td>
+                    <td className={`px-4 py-3 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{location.department}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        location.status === "Active" 
-                          ? theme === 'dark' ? "bg-green-900 text-green-300" : "bg-green-100 text-green-800"
-                          : theme === 'dark' ? "bg-red-900 text-red-300" : "bg-red-100 text-red-800"
-                      }`}>
-                        {location.status}
-                      </span>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${location.status === "Active" ? (theme === 'dark' ? "bg-green-900 text-green-300" : "bg-green-100 text-green-800") : (theme === 'dark' ? "bg-red-900 text-red-300" : "bg-red-100 text-red-800")}`}>{location.status}</span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
@@ -249,4 +237,4 @@ export default function MapView() {
       </div>
     </div>
   );
-} 
+}

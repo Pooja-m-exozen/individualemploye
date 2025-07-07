@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
-import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaTrash, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaEye, FaSort, FaSortUp, FaSortDown, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
+import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaEye, FaSort, FaSortUp, FaSortDown, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
 import EditKYCModal from "@/components/dashboard/EditKYCModal";
 import ViewKYCModal from "@/components/dashboard/ViewKYCModal";
 import { useTheme } from "@/context/ThemeContext";

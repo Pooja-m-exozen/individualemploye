@@ -5,19 +5,13 @@ import {
   FaChartBar, 
   FaUsers, 
   FaUserCheck, 
-  FaClipboardList, 
-  FaIdBadge, 
   FaArrowUp, 
   FaArrowDown, 
   FaEye, 
   FaDownload,
   FaProjectDiagram,
   FaCalendarAlt,
-  FaUserTie,
-  FaChartPie,
-  FaChartLine,
-  FaChartArea,
-  FaPoll
+  FaChartArea
 } from "react-icons/fa";
 
 interface Project {
@@ -67,27 +61,7 @@ interface KYCChartData {
   }>;
 }
 
-interface KYCWeeklyResponse {
-  success: boolean;
-  message: string;
-  filters: {
-    startDate: string;
-    endDate: string;
-    projectName: string;
-  };
-  summary: {
-    totalWeeks: number;
-    totalSubmitted: number;
-    totalPending: number;
-    totalApproved: number;
-    totalRejected: number;
-    averageSubmittedPerWeek: string;
-    averageApprovedPerWeek: string;
-    averageRejectedPerWeek: string;
-  };
-  weeklyTrends: KYCWeeklyTrend[];
-  chartData: KYCChartData;
-}
+
 
 interface KYCDailyResponse {
   success: boolean;
@@ -134,7 +108,6 @@ export default function AnalyticsView() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showLegend, setShowLegend] = useState(false);
   const [showProjectLegend, setShowProjectLegend] = useState(false);
   const [designationCounts, setDesignationCounts] = useState<{ [key: string]: number }>({});
   const [kycLoading, setKycLoading] = useState(true);
@@ -150,7 +123,7 @@ export default function AnalyticsView() {
   const [kycDailyData, setKycDailyData] = useState<KYCDailyResponse | null>(null);
   const [kycDailyLoading, setKycDailyLoading] = useState(true);
   const [kycDailyError, setKycDailyError] = useState<string | null>(null);
-  const [hoveredBar, setHoveredBar] = useState<number | null>(null);
+
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -570,8 +543,7 @@ export default function AnalyticsView() {
                                 fill="#f59e42"
                                 rx={4}
                                 opacity={trend.submitted > 0 ? 1 : 0.2}
-                                onMouseEnter={() => setHoveredBar(i)}
-                                onMouseLeave={() => setHoveredBar(null)}
+
                                 style={{ cursor: 'pointer' }}
                               />
                               {/* Vertical count label inside the bar */}

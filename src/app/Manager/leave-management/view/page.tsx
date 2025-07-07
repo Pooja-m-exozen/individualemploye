@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaSpinner, FaUserAlt, FaTimesCircle, FaCheck, FaTimes, FaSearch, FaEye } from "react-icons/fa";
+import { FaSpinner, FaUserAlt, FaTimesCircle, FaSearch, FaEye } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory } from "@/services/leave";
 import { showToast, ToastStyles } from "@/components/Toast";
@@ -105,22 +105,6 @@ export default function LeaveManagementViewPage() {
     }
   };
 
-  const handleApprove = async (leaveId: string) => {
-    try {
-      await updateLeaveStatus(leaveId, "Approved");
-      showToast({ message: "Leave approved successfully!", type: "success" });
-      await refreshLeaveData();
-    } catch {
-      showToast({ message: "Failed to approve leave", type: "error" });
-    }
-  };
-
-  const handleReject = (leaveId: string) => {
-    setRejectLeaveId(leaveId);
-    setRejectionReason("");
-    setRejectionError("");
-    setRejectModalOpen(true);
-  };
 
   const handleRejectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,12 +134,18 @@ export default function LeaveManagementViewPage() {
     setRejectionError("");
   };
 
-  function getApprovedBy(record: any) {
-    return typeof record === 'object' && record && 'approvedBy' in record ? record.approvedBy || 'N/A' : 'N/A';
+  function getApprovedBy(record: Record<string, unknown>): string {
+    if (typeof record === 'object' && record && 'approvedBy' in record) {
+      return (record as any).approvedBy || 'N/A';
+    }
+    return 'N/A';
   }
 
-  function getRejectionReason(record: any) {
-    return typeof record === 'object' && record && 'rejectionReason' in record ? record.rejectionReason || '-' : '-';
+  function getRejectionReason(record: Record<string, unknown>): string {
+    if (typeof record === 'object' && record && 'rejectionReason' in record) {
+      return (record as any).rejectionReason || '-';
+    }
+    return '-';
   }
 
   return (
@@ -221,11 +211,11 @@ export default function LeaveManagementViewPage() {
               <div><span className="font-semibold">End Date:</span> {viewRecord.endDate ? new Date(viewRecord.endDate).toISOString().split('T')[0] : 'N/A'}</div>
               <div><span className="font-semibold">Status:</span> {viewRecord.status}</div>
               <div><span className="font-semibold">Reason:</span> {viewRecord.reason}</div>
-              <div><span className="font-semibold">Approved By:</span> {getApprovedBy(viewRecord)}</div>
+              <div><span className="font-semibold">Approved By:</span> {viewRecord ? String(getApprovedBy(viewRecord)) : "N/A"}</div>
               <div><span className="font-semibold">Applied On:</span> {viewRecord.appliedOn ? new Date(viewRecord.appliedOn).toISOString().split('T')[0] : 'N/A'}</div>
               <div><span className="font-semibold">Last Updated:</span> {viewRecord.lastUpdated ? new Date(viewRecord.lastUpdated).toISOString().split('T')[0] : 'N/A'}</div>
               <div><span className="font-semibold">Emergency Contact:</span> {viewRecord.emergencyContact || 'N/A'}</div>
-              <div><span className="font-semibold">Rejection Reason:</span> {getRejectionReason(viewRecord)}</div>
+              <div><span className="font-semibold">Rejection Reason:</span> {viewRecord ? String(getRejectionReason(viewRecord)) : "-"}</div>
             </div>
             <div className="flex justify-end mt-6">
               <button onClick={() => setViewRecord(null)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Close</button>

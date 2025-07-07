@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { FaTshirt, FaSearch, FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaUser, FaTable, FaThLarge, FaDownload, FaEye, FaTimes, FaFilter, FaSort, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaTshirt, FaSearch, FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaUser, FaTable, FaThLarge, FaDownload, FaEye, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import ManagerDashboardLayout from '@/components/dashboard/ManagerDashboardLayout';
 import { useTheme } from "@/context/ThemeContext";
 
@@ -58,7 +58,7 @@ const UniformViewPage = () => {
 	const [viewModal, setViewModal] = useState<{ open: boolean, request: UniformRequest | null }>({ open: false, request: null });
 	const [projectFilter, setProjectFilter] = useState('All Projects');
 	const [designationFilter, setDesignationFilter] = useState('All Designations');
-	const [showFilters, setShowFilters] = useState(false);
+
 
 	useEffect(() => {
 		const fetchUniforms = async () => {
@@ -267,7 +267,7 @@ const UniformViewPage = () => {
 									</tr>
 								</thead>
 								<tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200'}`}>
-									{paginatedRequests.map((req, idx) => (
+									{paginatedRequests.map((req) => (
 										<tr
 											key={req._id}
 											className={`transition-colors duration-200 ${

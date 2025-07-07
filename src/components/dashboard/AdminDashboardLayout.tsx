@@ -6,15 +6,12 @@ import {
   FaChevronRight,
   FaTachometerAlt,
   FaUsers,
-  FaCog,
   FaSun,
   FaMoon,
-  FaBell,
   FaBars,
   FaSignOutAlt,
   FaCalendarAlt, // Added for Attendance
   FaPlaneDeparture, // Added for Leave
-  FaClipboardList, // Added for Summary
   FaTimes, // Added for mobile close button
 } from "react-icons/fa";
 import Image from "next/image";
