@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
-import { FaIdCard, FaUser, FaSpinner, FaSearch, FaTimesCircle, FaTrash, FaUsers, FaDownload, FaEye, FaTimes, FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
+import { FaIdCard, FaUser, FaSpinner, FaSearch, FaTimesCircle, FaTrash, FaUsers, FaDownload, FaEye, FaTimes } from "react-icons/fa";
 import EditKYCModal from "@/components/dashboard/EditKYCModal";
 import ViewKYCModal from "@/components/dashboard/ViewKYCModal";
 import { useTheme } from "@/context/ThemeContext";
@@ -109,8 +109,6 @@ export default function ViewAllKYCPage() {
   const [newJoinersLoading, setNewJoinersLoading] = useState(false);
   const [newJoinersError, setNewJoinersError] = useState<string | null>(null);
   const [timeFrame, setTimeFrame] = useState(30);
-  const [sortField, setSortField] = useState<"name" | "employeeId" | "designation" | "project" | "status">("name");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [modal, setModal] = useState<null | { type: 'joiner' | 'view' | 'edit', data: KYCForm | null }>(null);
   const [newJoinersSearch, setNewJoinersSearch] = useState("");
   const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
@@ -192,37 +190,10 @@ export default function ViewAllKYCPage() {
     .sort((a, b) => {
       let aValue: string, bValue: string;
       
-      switch (sortField) {
-        case "name":
-          aValue = a.personalDetails.fullName.toLowerCase();
-          bValue = b.personalDetails.fullName.toLowerCase();
-          break;
-        case "employeeId":
-          aValue = a.personalDetails.employeeId.toLowerCase();
-          bValue = b.personalDetails.employeeId.toLowerCase();
-          break;
-        case "designation":
-          aValue = a.personalDetails.designation.toLowerCase();
-          bValue = b.personalDetails.designation.toLowerCase();
-          break;
-        case "project":
-          aValue = a.personalDetails.projectName.toLowerCase();
-          bValue = b.personalDetails.projectName.toLowerCase();
-          break;
-        case "status":
-          aValue = a.status.toLowerCase();
-          bValue = b.status.toLowerCase();
-          break;
-        default:
-          aValue = a.personalDetails.fullName.toLowerCase();
-          bValue = b.personalDetails.fullName.toLowerCase();
-      }
+      aValue = a.personalDetails.fullName.toLowerCase();
+      bValue = b.personalDetails.fullName.toLowerCase();
 
-      if (sortDirection === "asc") {
-        return aValue.localeCompare(bValue);
-      } else {
-        return bValue.localeCompare(aValue);
-      }
+      return aValue.localeCompare(bValue);
     });
 
   // Paginate only the filtered results
