@@ -260,15 +260,15 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className={`rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-2 sm:p-4">
+      <div className={`rounded-2xl shadow-2xl w-full max-w-full sm:max-w-6xl max-h-[95vh] overflow-hidden
         ${theme === 'dark' ? 'bg-gray-900 border border-gray-700' : 'bg-white'}`}
       >
         {/* Header */}
-        <div className={`px-6 py-4 rounded-t-2xl
+        <div className={`px-4 sm:px-6 py-4 rounded-t-2xl
           ${theme === 'dark' ? 'bg-gradient-to-r from-gray-800 to-gray-700' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
             <div className="flex items-center gap-4">
               <div className={`rounded-xl p-3
                 ${theme === 'dark' ? 'bg-gray-700' : 'bg-blue-500 bg-opacity-30'}`}
@@ -276,11 +276,11 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
                 <FaIdCard className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">View KYC Details</h2>
-                <p className={`text-sm ${theme === 'dark' ? 'text-blue-200' : 'text-blue-100'}`}>{kycData.personalDetails.fullName} - {kycData.personalDetails.employeeId}</p>
+                <h2 className="text-lg sm:text-xl font-bold text-white">View KYC Details</h2>
+                <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-blue-200' : 'text-blue-100'}`}>{kycData.personalDetails.fullName} - {kycData.personalDetails.employeeId}</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 mt-2 sm:mt-0">
               <button 
                 onClick={handleDownload}
                 disabled={isDownloading}
@@ -297,20 +297,20 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
         </div>
 
         {/* Progress Bar */}
-        <div className={`px-6 py-4 border-b
+        <div className={`px-4 sm:px-6 py-4 border-b
           ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-blue-50 border-blue-100'}`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <h3 className={`text-sm font-semibold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>KYC Completion Status</h3>
-            <span className={`text-sm font-medium ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}>{calculateCompletion()}% Complete</span>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-1 sm:gap-0">
+            <h3 className={`text-xs sm:text-sm font-semibold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>KYC Completion Status</h3>
+            <span className={`text-xs sm:text-sm font-medium ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}>{calculateCompletion()}% Complete</span>
           </div>
-          <div className={`w-full rounded-full h-2 ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-200'}`}>
+          <div className={`w-full rounded-full h-2 ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-200'}`}> 
             <div
               className={`h-2 rounded-full transition-all duration-500 ${theme === 'dark' ? 'bg-blue-600' : 'bg-blue-600'}`}
               style={{ width: `${calculateCompletion()}%` }}
             />
           </div>
-          <div className="grid grid-cols-5 gap-2 mt-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
             {Object.entries(completionStatus).map(([section, isComplete]) => (
               <div key={section} className="flex items-center gap-1">
                 {isComplete ? (
@@ -325,21 +325,21 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
         </div>
 
         {/* Content */}
-        <div className="flex h-[calc(90vh-200px)]">
+        <div className="flex flex-col md:flex-row h-[calc(95vh-180px)]">
           {/* Side Navigation */}
-          <div className={`w-64 p-4 border-r
-            ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+          <div className={`w-full md:w-64 p-2 sm:p-4 border-b md:border-b-0 md:border-r
+            ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}
+            flex md:block overflow-x-auto md:overflow-visible`}
           >
-            <nav className="space-y-1">
+            <nav className="flex md:flex-col gap-2 md:gap-1 w-full">
               {navigationItems.map((item) => {
                 const isActive = selectedTab === item.id;
                 const isCompleted = completionStatus[item.key as keyof typeof completionStatus];
-                
                 return (
                   <button
                     key={item.id}
                     onClick={() => setSelectedTab(item.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors
+                    className={`flex-1 md:w-full flex items-center gap-2 md:gap-3 px-2 sm:px-4 py-2 sm:py-3 rounded-xl text-left transition-colors min-w-[120px] md:min-w-0
                       ${isActive
                         ? theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-600'
                         : isCompleted
@@ -348,7 +348,7 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
                     `}
                   >
                     <item.icon className={`w-5 h-5 ${isActive ? (theme === 'dark' ? 'text-blue-200' : 'text-blue-600') : isCompleted ? 'text-green-500' : theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
-                    <span className="font-medium text-sm">{item.label}</span>
+                    <span className="font-medium text-xs sm:text-sm">{item.label}</span>
                     {isCompleted && <FaCheckCircle className="w-4 h-4 text-green-500 ml-auto" />}
                   </button>
                 );
@@ -357,7 +357,7 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-2 sm:p-6">
             <AnimatePresence mode="wait">
               {selectedTab === 0 && (
                 <motion.div

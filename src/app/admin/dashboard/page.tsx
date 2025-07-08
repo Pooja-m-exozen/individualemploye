@@ -13,19 +13,23 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminDashboardLayout>
-      <div className="flex flex-col gap-6 p-4 lg:p-6 max-w-7xl mx-auto w-full">
+      <div className={`flex flex-col gap-6 p-4 lg:p-6 max-w-7xl mx-auto w-full font-sans ${
+        theme === 'dark'
+          ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950 text-white'
+          : 'bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-900'
+      }`}>
         {/* Clean Tab Navigation */}
-        <div className={`flex border-b ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'} rounded-t-xl`}>
+        <div className={`flex border-b rounded-t-xl ${theme === 'dark' ? 'bg-[#23272f]' : ''}`} style={theme === 'dark' ? {} : { background: '#1769ff' }}>
           <button
             onClick={() => setActiveTab("analytics")}
-            className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 ${
+            className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 rounded-t-xl ${
               activeTab === "analytics"
-                ? theme === 'dark' 
-                  ? "text-blue-400 border-b-2 border-blue-400 bg-blue-900/20"
-                  : "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
+                ? theme === 'dark'
+                  ? 'text-white bg-[#384152] border-b-4 border-white shadow-md'
+                  : 'text-white bg-[#1769ff] border-b-4 border-white shadow-md'
                 : theme === 'dark'
-                  ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                  ? 'text-blue-100 hover:text-white hover:bg-[#384152]'
+                  : 'text-blue-100 hover:text-white hover:bg-blue-600/30'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
@@ -35,14 +39,14 @@ export default function AdminDashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab("descriptive")}
-            className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 ${
+            className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 rounded-t-xl ${
               activeTab === "descriptive"
                 ? theme === 'dark'
-                  ? "text-green-400 border-b-2 border-green-400 bg-green-900/20"
-                  : "text-green-600 border-b-2 border-green-600 bg-green-50"
+                  ? 'text-white bg-[#384152] border-b-4 border-white shadow-md'
+                  : 'text-white bg-[#1769ff] border-b-4 border-white shadow-md'
                 : theme === 'dark'
-                  ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                  ? 'text-blue-100 hover:text-white hover:bg-[#384152]'
+                  : 'text-blue-100 hover:text-white hover:bg-blue-600/30'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
@@ -52,14 +56,14 @@ export default function AdminDashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab("map")}
-            className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 ${
+            className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 rounded-t-xl ${
               activeTab === "map"
                 ? theme === 'dark'
-                  ? "text-red-400 border-b-2 border-red-400 bg-red-900/20"
-                  : "text-red-600 border-b-2 border-red-600 bg-red-50"
+                  ? 'text-white bg-[#384152] border-b-4 border-white shadow-md'
+                  : 'text-white bg-[#1769ff] border-b-4 border-white shadow-md'
                 : theme === 'dark'
-                  ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                  ? 'text-blue-100 hover:text-white hover:bg-[#384152]'
+                  : 'text-blue-100 hover:text-white hover:bg-blue-600/30'
             }`}
           >
             <div className="flex items-center justify-center gap-2">

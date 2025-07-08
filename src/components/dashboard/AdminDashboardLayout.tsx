@@ -10,23 +10,27 @@ import {
   FaMoon,
   FaBars,
   FaSignOutAlt,
-  FaCalendarAlt, // Added for Attendance
-  FaPlaneDeparture, // Added for Leave
-  FaTimes, // Added for mobile close button
+  FaCalendarAlt,
+  FaPlaneDeparture,
+  FaTimes,
+  FaCog,
+  FaChartBar,
 } from "react-icons/fa";
 import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
 import { getEmployeeId, logout } from "@/services/auth";
+import { getAllEmployeesLeaveHistory } from "@/services/leave";
 
 interface AdminLayoutProps {
-  children: ReactNode; // Ensure children is properly typed
+  children: ReactNode;
 }
 
 interface MenuItem {
   label: string;
   icon: ReactNode;
-  href?: string; // Optional for items with subItems
-  subItems?: MenuItem[]; // Optional for items with nested submenus
+  href?: string;
+  subItems?: MenuItem[];
+  badge?: string | number;
 }
 
 const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
@@ -40,6 +44,9 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
   const { theme, toggleTheme } = useTheme();
   const [expandedSubmenus, setExpandedSubmenus] = useState<{ [key: string]: boolean }>({});
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [currentPath, setCurrentPath] = useState<string>("");
+  const [isClient, setIsClient] = useState(false);
+  const [pendingLeaveCount, setPendingLeaveCount] = useState<number>(0);
 
   // Auto-close mobile sidebar when screen size changes
   useEffect(() => {
@@ -96,6 +103,39 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
     fetchUserDetails();
   }, []);
 
+  useEffect(() => {
+    setIsClient(true);
+    setCurrentPath(window.location.pathname);
+  }, []);
+
+  // Fetch pending leave count
+  useEffect(() => {
+    const fetchPendingLeaveCount = async () => {
+      try {
+        const allLeaveData = await getAllEmployeesLeaveHistory();
+        const allLeaves = allLeaveData.flatMap((emp) =>
+          (emp.leaveHistory?.leaveHistory || []).map((leave) => ({
+            ...leave,
+            employeeName: emp.kyc.personalDetails.fullName,
+            employeeId: emp.kyc.personalDetails.employeeId,
+            designation: emp.kyc.personalDetails.designation,
+            employeeImage: emp.kyc.personalDetails.employeeImage,
+          }))
+        );
+        
+        const pendingCount = allLeaves.filter(leave => leave.status === "Pending").length;
+        setPendingLeaveCount(pendingCount);
+      } catch (error) {
+        console.error("Error fetching pending leave count:", error);
+        setPendingLeaveCount(0);
+      }
+    };
+
+    if (isClient) {
+      fetchPendingLeaveCount();
+    }
+  }, [isClient]);
+
   const toggleSidebar = () => {
     setSidebarExpanded(!isSidebarExpanded);
   };
@@ -117,18 +157,70 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
   };
 
   const menuItems: MenuItem[] = [
-    { label: "Admin Dashboard", icon: <FaTachometerAlt />, href: "/v1/employee/Admin/dashboard" },
-    { label: "Performance Overview", icon: <FaUsers />, href: "/v1/employee/Admin/team-overview" },
-    { label: "Attendance Management", icon: <FaCalendarAlt />, href: "/v1/employee/Admin/attendance-management" },
-    { label: "Leave Management", icon: <FaPlaneDeparture />, href: "/v1/employee/Admin/leave-management" },
+    { 
+      label: "Dashboard", 
+      icon: <FaTachometerAlt />, 
+      href: "/v1/employee/admin/dashboard" 
+    },
+    { 
+      label: "Team Overview", 
+      icon: <FaUsers />, 
+      href: "/v1/employee/admin/team-overview",
+      badge: "New"
+    },
+    {
+      label: "Attendance",
+      icon: <FaCalendarAlt />,
+      subItems: [
+        { label: "View Attendance", icon: <FaCalendarAlt />, href: "/v1/employee/admin/attendance-management" },
+        { label: "Regularization", icon: <FaCog />, href: "/v1/employee/admin/attendance-management/regularization" },
+      ],
+    },
+    { 
+      label: "Leave Management", 
+      icon: <FaPlaneDeparture />, 
+      href: "/v1/employee/admin/leave-management",
+      badge: pendingLeaveCount > 0 ? pendingLeaveCount : undefined
+    },
+    {
+      label: "Reports",
+      icon: <FaChartBar />,
+      subItems: [
+        { label: "Project Report", icon: <FaChartBar />, href: "/v1/employee/admin/reports/project" },
+        { label: "Employee Report", icon: <FaUsers />, href: "/v1/employee/admin/reports/employee" },
+        { label: "Attendance Report", icon: <FaCalendarAlt />, href: "/v1/employee/admin/reports/attendance" },
+        { label: "Stock Report", icon: <FaChartBar />, href: "/v1/employee/admin/reports/stock" },
+      ],
+    },
   ];
 
+  const isActive = (href?: string) => {
+    if (!href || !isClient) return false;
+    return currentPath.startsWith(href);
+  };
+
+  const isSubmenuActive = (subItems?: MenuItem[]) => {
+    if (!subItems) return false;
+    return subItems.some(item => isActive(item.href));
+  };
+
+  // Don't render until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="flex items-center justify-center h-screen">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`min-h-screen ${theme === "dark" ? "bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950" : "bg-gradient-to-br from-blue-50 via-white to-blue-100"} transition-colors duration-200`}>
+    <div className={`min-h-screen ${theme === "dark" ? "bg-[#0f172a]" : "bg-gradient-to-br from-slate-50 via-white to-blue-50"} transition-colors duration-300`}>
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden" 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden" 
           onClick={closeMobileSidebar}
         />
       )}
@@ -136,239 +228,330 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 flex flex-col z-50
-          ${isSidebarExpanded ? "w-64" : "w-16"}
-          ${theme === "dark" ? "bg-gradient-to-b from-gray-900 via-blue-950 to-gray-900 text-white" : "bg-gradient-to-b from-white via-blue-100 to-blue-200 text-gray-800"}
-          transition-all duration-300 shadow-2xl rounded-tr-3xl rounded-br-3xl border-r-2 border-blue-100 dark:border-blue-900 backdrop-blur-xl
+          ${isSidebarExpanded ? "w-72" : "w-20"}
+          ${theme === "dark" ? "bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white" : "bg-white text-slate-700"}
+          transition-all duration-300 ease-in-out shadow-2xl border-r
+          ${theme === "dark" ? "border-slate-700" : "border-slate-200"}
           ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
           lg:translate-x-0 lg:z-30
         `}
-        style={{ backdropFilter: 'blur(16px)' }}
       >
         {/* Top: Logo and Toggle */}
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between p-2 lg:p-4 border-b border-blue-100 dark:border-blue-900">
+          <div className={`flex items-center justify-between p-4 border-b ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`}>
             <div className={`flex items-center ${isSidebarExpanded ? "justify-start" : "justify-center"} w-full`}>
-              <Image
-                src="/v1/employee/logo-exo .png"
-                alt="Exozen Logo"
-                width={32}
-                height={32}
-                className="rounded-xl shadow-md lg:w-10 lg:h-10"
-              />
+              <div className="relative">
+                <Image
+                  src="/v1/employee/logo-exo .png"
+                  alt="Exozen Logo"
+                  width={40}
+                  height={40}
+                  className="rounded-xl shadow-lg"
+                />
+                {!isSidebarExpanded && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                )}
+              </div>
               {isSidebarExpanded && (
-                <span className={`ml-2 font-extrabold text-base lg:text-xl tracking-wide ${theme === "dark" ? "text-white" : "text-blue-900"}`}>
-                  Exozen Admin
-                </span>
+                <div className="ml-3">
+                  <span className={`font-bold text-lg tracking-wide ${theme === "dark" ? "text-white" : "text-slate-800"}`}>
+                    Exozen
+                  </span>
+                  <div className={`text-xs font-medium ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
+                    Admin Panel
+                  </div>
+                </div>
               )}
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               {/* Mobile close button */}
               <button
                 onClick={closeMobileSidebar}
-                className={`p-1.5 rounded-lg lg:hidden ${theme === "dark" ? "text-gray-400 hover:bg-blue-900 hover:text-white" : "text-blue-600 hover:bg-blue-200 hover:text-blue-900"} transition-all duration-200`}
+                className={`p-2 rounded-lg lg:hidden transition-all duration-200 ${
+                  theme === "dark" 
+                    ? "text-slate-400 hover:bg-slate-700 hover:text-white" 
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
                 title="Close sidebar"
               >
-                <FaTimes className="w-3 h-3" />
+                <FaTimes className="w-4 h-4" />
               </button>
               {/* Desktop toggle button */}
               <button
                 onClick={toggleSidebar}
-                className={`p-1.5 rounded-lg hidden lg:block ${theme === "dark" ? "text-gray-400 hover:bg-blue-900 hover:text-white" : "text-blue-600 hover:bg-blue-200 hover:text-blue-900"} transition-all duration-200`}
+                className={`p-2 rounded-lg hidden lg:block transition-all duration-200 ${
+                  theme === "dark" 
+                    ? "text-slate-400 hover:bg-slate-700 hover:text-white" 
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
                 title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
               >
-                {isSidebarExpanded ? <FaChevronLeft className="w-3 h-3" /> : <FaChevronRight className="w-3 h-3" />}
+                {isSidebarExpanded ? <FaChevronLeft className="w-4 h-4" /> : <FaChevronRight className="w-4 h-4" />}
               </button>
             </div>
           </div>
           
-          {/* Section Title */}
-          {isSidebarExpanded && (
-            <div className="px-2 lg:px-4 pt-2 lg:pt-3 pb-1 text-xs font-bold uppercase tracking-widest text-blue-400 dark:text-blue-300">
-              Management
-            </div>
-          )}
-          
-          {/* Navigation - Fixed height, no scroll */}
-          <nav className="flex-1 px-2 py-2">
-            <ul className="space-y-0.5 lg:space-y-1">
+          {/* Navigation */}
+          <nav className="flex-1 px-3 py-6">
+            <div className="space-y-2">
               {menuItems.map((item) => {
-                const isActive = typeof window !== 'undefined' && window.location.pathname.startsWith(item.href || '');
+                const active = isActive(item.href) || isSubmenuActive(item.subItems);
+                const submenuExpanded = expandedSubmenus[item.label];
+                
                 return (
-                  <li key={item.label}>
+                  <div key={item.label} className="space-y-1">
                     {item.subItems ? (
-                      <div className="space-y-0.5">
-                        <button
-                          onClick={() => toggleSubmenu(item.label)}
-                          className={`flex items-center w-full px-2 py-2 lg:py-2.5 rounded-lg lg:rounded-xl transition-all duration-200 group relative
-                            ${theme === "dark" ? "hover:bg-blue-900" : "hover:bg-blue-100"}
-                            ${isActive ? (theme === "dark" ? "bg-blue-900 border-l-4 border-blue-400" : "bg-blue-100 border-l-4 border-blue-600") : ""}
-                            ${isSidebarExpanded ? "justify-start" : "justify-center"}`}
-                          title={!isSidebarExpanded ? item.label : undefined}
-                        >
-                          <span className="text-base lg:text-lg">{item.icon}</span>
-                          {isSidebarExpanded && <span className="ml-2 font-semibold text-xs lg:text-sm">{item.label}</span>}
-                          {isSidebarExpanded && (
-                            <span className={`ml-auto transition-transform ${expandedSubmenus[item.label] ? "rotate-90" : ""}`}>
-                              <FaChevronRight className="w-3 h-3 lg:w-4 lg:h-4" />
-                            </span>
-                          )}
-                          {!isSidebarExpanded && (
-                            <span className="absolute left-full ml-2 bg-blue-700 text-white text-xs rounded px-2 py-1 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                              {item.label}
-                            </span>
-                          )}
-                        </button>
-                        {expandedSubmenus[item.label] && isSidebarExpanded && (
-                          <ul className="pl-4 lg:pl-6 space-y-0.5 border-l-2 border-blue-100 dark:border-blue-900">
-                            {item.subItems.map((subItem) => (
-                              <li key={subItem.label}>
-                                {subItem.subItems ? (
-                                  <details className="group">
-                                    <summary className={`flex items-center px-2 py-1.5 rounded-lg cursor-pointer transition-all duration-200 ${theme === "dark" ? "hover:bg-blue-900" : "hover:bg-blue-100"}`}>
-                                      <span className="text-sm lg:text-base">{subItem.icon}</span>
-                                      <span className="ml-2 font-medium text-xs lg:text-sm">{subItem.label}</span>
-                                      <span className="ml-auto group-open:rotate-90 transition-transform">
-                                        <FaChevronRight className="w-3 h-3 lg:w-4 lg:h-4" />
-                                      </span>
-                                    </summary>
-                                    <ul className="pl-3 lg:pl-4 space-y-0.5 border-l-2 border-blue-100 dark:border-blue-900">
-                                      {subItem.subItems.map((nestedSubItem) => (
-                                        <li key={nestedSubItem.label} className="ml-1">
-                                          <a
-                                            href={nestedSubItem.href}
-                                            onClick={closeMobileSidebar}
-                                            className={`flex items-center px-2 py-1.5 rounded-lg transition-all duration-200 text-xs lg:text-sm ${theme === "dark" ? "text-blue-200 hover:bg-blue-900" : "text-blue-700 hover:bg-blue-100"}`}
-                                          >
-                                            <FaChevronRight className="mr-1.5 text-xs" />
-                                            <span>{nestedSubItem.label}</span>
-                                          </a>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </details>
-                                ) : (
-                                  <a
-                                    href={subItem.href}
-                                    onClick={closeMobileSidebar}
-                                    className={`flex items-center px-2 py-1.5 rounded-lg transition-all duration-200 text-xs lg:text-sm ${theme === "dark" ? "text-blue-200 hover:bg-blue-900" : "text-blue-700 hover:bg-blue-100"}`}
-                                  >
-                                    <FaChevronRight className="mr-1.5 text-xs" />
-                                    <span>{subItem.label}</span>
-                                  </a>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
+                      <button
+                        onClick={() => toggleSubmenu(item.label)}
+                        className={`group flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium gap-3 relative overflow-hidden ${
+                          active 
+                            ? theme === "dark"
+                              ? "bg-blue-600 text-white shadow-lg"
+                              : "bg-blue-50 text-blue-700 border border-blue-200"
+                            : theme === "dark"
+                              ? "text-slate-300 hover:bg-slate-700 hover:text-white"
+                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
+                        } ${isSidebarExpanded ? "justify-start" : "justify-center"}`}
+                        title={!isSidebarExpanded ? item.label : undefined}
+                      >
+                        {/* Active indicator */}
+                        {active && (
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                            theme === "dark" ? "bg-white" : "bg-blue-600"
+                          }`}></div>
                         )}
-                      </div>
+                        
+                        <span className={`text-lg transition-transform duration-200 ${
+                          submenuExpanded ? "rotate-90" : ""
+                        }`}>
+                          {item.icon}
+                        </span>
+                        
+                        {isSidebarExpanded && (
+                          <div className="flex items-center justify-between w-full">
+                            <span>{item.label}</span>
+                            <div className="flex items-center gap-2">
+                              {item.badge && (
+                                <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                                  typeof item.badge === 'number' && item.badge > 0
+                                    ? theme === "dark"
+                                      ? "bg-red-500 text-white"
+                                      : "bg-red-100 text-red-700"
+                                    : theme === "dark"
+                                      ? "bg-blue-500 text-white"
+                                      : "bg-blue-100 text-blue-700"
+                                }`}>
+                                  {item.badge}
+                                </span>
+                              )}
+                              <FaChevronRight className={`w-3 h-3 transition-transform duration-200 ${
+                                submenuExpanded ? "rotate-90" : ""
+                              }`} />
+                            </div>
+                          </div>
+                        )}
+                      </button>
                     ) : (
                       <a
                         href={item.href}
                         onClick={closeMobileSidebar}
-                        className={`flex items-center px-2 py-2 lg:py-2.5 rounded-lg lg:rounded-xl transition-all duration-200 group relative
-                          ${theme === "dark" ? "hover:bg-blue-900" : "hover:bg-blue-100"}
-                          ${isActive ? (theme === "dark" ? "bg-blue-900 border-l-4 border-blue-400" : "bg-blue-100 border-l-4 border-blue-600") : ""}
-                          ${isSidebarExpanded ? "justify-start" : "justify-center"}`}
+                        className={`group flex items-center px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium gap-3 relative overflow-hidden ${
+                          active 
+                            ? theme === "dark"
+                              ? "bg-blue-600 text-white shadow-lg"
+                              : "bg-blue-50 text-blue-700 border border-blue-200"
+                            : theme === "dark"
+                              ? "text-slate-300 hover:bg-slate-700 hover:text-white"
+                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
+                        } ${isSidebarExpanded ? "justify-start" : "justify-center"}`}
                         title={!isSidebarExpanded ? item.label : undefined}
                       >
-                        <span className="text-base lg:text-lg">{item.icon}</span>
-                        {isSidebarExpanded && <span className="ml-2 font-semibold text-xs lg:text-sm">{item.label}</span>}
-                        {!isSidebarExpanded && (
-                          <span className="absolute left-full ml-2 bg-blue-700 text-white text-xs rounded px-2 py-1 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                            {item.label}
-                          </span>
+                        {/* Active indicator */}
+                        {active && (
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                            theme === "dark" ? "bg-white" : "bg-blue-600"
+                          }`}></div>
+                        )}
+                        
+                        <span className="text-lg">{item.icon}</span>
+                        
+                        {isSidebarExpanded && (
+                          <div className="flex items-center justify-between w-full">
+                            <span>{item.label}</span>
+                            {item.badge && (
+                              <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                                typeof item.badge === 'number' && item.badge > 0
+                                  ? theme === "dark"
+                                    ? "bg-red-500 text-white"
+                                    : "bg-red-100 text-red-700"
+                                  : theme === "dark"
+                                    ? "bg-blue-500 text-white"
+                                    : "bg-blue-100 text-blue-700"
+                              }`}>
+                                {item.badge}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </a>
                     )}
-                  </li>
+                    
+                    {/* Submenu */}
+                    {item.subItems && submenuExpanded && isSidebarExpanded && (
+                      <div className="ml-6 space-y-1 mt-2">
+                        {item.subItems.map((subItem) => {
+                          const subActive = isActive(subItem.href);
+                          return (
+                            <a
+                              key={subItem.label}
+                              href={subItem.href}
+                              onClick={closeMobileSidebar}
+                              className={`flex items-center px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium gap-3 relative ${
+                                subActive
+                                  ? theme === "dark"
+                                    ? "bg-slate-700 text-white"
+                                    : "bg-slate-100 text-slate-800"
+                                  : theme === "dark"
+                                    ? "text-slate-400 hover:bg-slate-700 hover:text-white"
+                                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
+                              }`}
+                            >
+                              {subActive && (
+                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                                  theme === "dark" ? "bg-blue-400" : "bg-blue-500"
+                                }`}></div>
+                              )}
+                              <span className="text-sm">{subItem.icon}</span>
+                              <span>{subItem.label}</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           </nav>
         </div>
         
         {/* Sidebar Profile/Footer Section */}
-        <div className="p-2 lg:p-3 border-t border-blue-100 dark:border-blue-900 flex flex-col gap-2 lg:gap-3 items-center bg-opacity-80 backdrop-blur-xl">
+        <div className={`p-4 border-t ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`}>
           {userDetails && (
-            <div className="flex flex-col items-center gap-1 mb-1">
-              <Image
-                src={userDetails.employeeImage || "/placeholder-user.jpg"}
-                alt={userDetails.fullName || "Admin User"}
-                width={32}
-                height={32}
-                className="rounded-full border-2 border-blue-200 dark:border-blue-800 shadow lg:w-10 lg:h-10"
-              />
+            <div className={`flex items-center gap-3 mb-4 p-3 rounded-xl ${
+              theme === "dark" ? "bg-slate-800" : "bg-slate-50"
+            }`}>
+              <div className="relative">
+                <Image
+                  src={userDetails.employeeImage || "/placeholder-user.jpg"}
+                  alt={userDetails.fullName || "Admin User"}
+                  width={40}
+                  height={40}
+                  className="rounded-full border-2 border-blue-200 dark:border-blue-600 shadow-lg"
+                />
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+              </div>
               {isSidebarExpanded && (
-                <>
-                  <div className="font-bold text-xs lg:text-sm text-center truncate max-w-full px-1">
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm truncate">
                     {userDetails.fullName || "Admin User"}
                   </div>
-                  <div className="text-xs text-blue-400 dark:text-blue-200 text-center truncate max-w-full px-1">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
                     {userDetails.designation || "Administrator"}
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}
+          
           <button
             onClick={handleLogout}
-            className={`flex items-center w-full px-2 py-1.5 rounded-lg transition-all duration-200 font-semibold text-xs lg:text-sm
-              ${theme === "dark" ? "hover:bg-red-900 text-red-300" : "hover:bg-red-100 text-red-600"}`}
+            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm gap-3 ${
+              theme === "dark"
+                ? "text-red-400 hover:bg-red-900/20 hover:text-red-300"
+                : "text-red-600 hover:bg-red-50 hover:text-red-700"
+            }`}
           >
-            <FaSignOutAlt className="text-red-500 w-3 h-3 lg:w-4 lg:h-4" />
-            {isSidebarExpanded && <span className="ml-2">Logout</span>}
+            <FaSignOutAlt className="w-4 h-4" />
+            {isSidebarExpanded && <span>Sign Out</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <div className={`flex flex-col min-w-0 transition-all duration-300 ease-in-out ${isSidebarExpanded ? "lg:ml-64" : "lg:ml-16"}`}>
+      <div className={`flex flex-col min-w-0 transition-all duration-300 ease-in-out ${isSidebarExpanded ? "lg:ml-72" : "lg:ml-20"}`}>
         {/* Header */}
-        <header className={`sticky top-0 z-20 h-16 lg:h-[70px] flex items-center px-3 lg:px-8 shadow-xl border-b-2 ${theme === "dark" ? "bg-white/10 backdrop-blur-xl border-blue-900" : "bg-white/60 backdrop-blur-xl border-blue-200"} transition-colors duration-200 rounded-b-2xl`} style={{backdropFilter: 'blur(16px)'}}>
+        <header className={`sticky top-0 z-20 h-16 lg:h-20 flex items-center px-4 lg:px-8 shadow-lg border-b ${
+          theme === "dark" 
+            ? "bg-slate-900/80 backdrop-blur-xl border-slate-700" 
+            : "bg-white/80 backdrop-blur-xl border-slate-200"
+        } transition-colors duration-200`}>
           {/* Left: Hamburger for mobile */}
-          <div className="flex items-center gap-2 lg:gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setMobileSidebarOpen((open) => !open)}
-              className={`p-2 rounded-full lg:hidden ${theme === "dark" ? "text-gray-400 hover:text-white hover:bg-blue-900" : "text-blue-600 hover:text-blue-900 hover:bg-blue-100"} transition-all duration-200`}
+              className={`p-2 rounded-lg lg:hidden transition-all duration-200 ${
+                theme === "dark" 
+                  ? "text-slate-400 hover:text-white hover:bg-slate-700" 
+                  : "text-slate-600 hover:text-slate-800 hover:bg-slate-100"
+              }`}
               title="Open sidebar"
             >
               <FaBars className="w-5 h-5" />
             </button>
-            <span className={`text-base lg:text-xl font-bold tracking-tight ${theme === "dark" ? "text-white" : "text-blue-900"} truncate`}>
+            <span className={`text-lg lg:text-xl font-bold tracking-tight ${
+              theme === "dark" ? "text-white" : "text-slate-800"
+            } truncate`}>
               Admin Dashboard
             </span>
           </div>
           
           {/* Right: Actions */}
-          <div className="flex items-center gap-1 lg:gap-6 ml-auto">
+          <div className="flex items-center gap-2 lg:gap-4 ml-auto">
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className={`p-2 rounded-full ${theme === "dark" ? "text-yellow-400 hover:bg-blue-900" : "text-blue-600 hover:bg-blue-200"} transition-all duration-200`}
+              className={`p-2 rounded-lg transition-all duration-200 ${
+                theme === "dark" 
+                  ? "text-yellow-400 hover:bg-slate-700" 
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
               title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
             >
-              {theme === "dark" ? <FaSun className="w-4 h-4 lg:w-5 lg:h-5" /> : <FaMoon className="w-4 h-4 lg:w-5 lg:h-5" />}
+              {theme === "dark" ? <FaSun className="w-5 h-5" /> : <FaMoon className="w-5 h-5" />}
             </button>
             
-            {/* Date/Time - Hidden on small mobile */}
-            <div className={`font-medium text-xs lg:text-sm px-2 lg:px-4 py-1.5 rounded-full border ${theme === "dark" ? "bg-blue-900 text-blue-200 border-blue-800" : "bg-blue-50 text-blue-700 border-blue-200"} hidden sm:block`}>
+            {/* Date/Time */}
+            <div className={`font-medium text-sm px-4 py-2 rounded-lg border ${
+              theme === "dark" 
+                ? "bg-slate-800 text-slate-300 border-slate-600" 
+                : "bg-slate-50 text-slate-700 border-slate-200"
+            } hidden sm:block`}>
               {currentDateTime}
             </div>
             
             {/* Logout Button */}
             <button
               onClick={handleLogout}
-              className={`flex items-center gap-2 px-3 lg:px-4 py-2 rounded-lg font-semibold text-sm lg:text-base transition-all duration-200 ${theme === "dark" ? "bg-red-900 hover:bg-red-800 text-red-300" : "bg-red-100 hover:bg-red-200 text-red-600"}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                theme === "dark" 
+                  ? "bg-red-900/20 hover:bg-red-900/30 text-red-400" 
+                  : "bg-red-50 hover:bg-red-100 text-red-600"
+              }`}
               title="Logout"
             >
-              <FaSignOutAlt className="w-4 h-4 lg:w-5 lg:h-5" />
+              <FaSignOutAlt className="w-4 h-4" />
               <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </header>
         
         {/* Main Content */}
-        <main className={`flex-1 overflow-y-auto overflow-x-hidden p-3 lg:p-6 ${theme === "dark" ? "bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950" : "bg-gradient-to-br from-blue-50 via-white to-blue-100"}`}>
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-8 ${
+          theme === "dark" 
+            ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" 
+            : "bg-gradient-to-br from-slate-50 via-white to-blue-50"
+        }`}>
           {children}
         </main>
       </div>
