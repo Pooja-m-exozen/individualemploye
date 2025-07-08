@@ -271,31 +271,34 @@ function LeaveHistoryContent() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 py-8">
+    <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8 xl:px-10 max-w-7xl mx-auto space-y-6 py-4 md:py-8">
       {/* Header */}
-      <div className={`rounded-xl shadow-lg ${
-        theme === 'dark'
-          ? 'bg-gradient-to-r from-gray-800 to-gray-700'
-          : 'bg-gradient-to-r from-blue-600 to-blue-800'
-      } p-8`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className={`p-3 ${
+      <div
+        className={`rounded-xl shadow-lg ${
+          theme === 'dark'
+            ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+            : 'bg-gradient-to-r from-blue-600 to-blue-800'
+        } px-4 py-5 md:px-8 md:py-8 flex flex-col gap-2 md:gap-0`}
+        style={{ marginTop: 0 }}
+      >
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-0">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className={`p-2 md:p-3 ${
               theme === 'dark' ? 'bg-gray-700/50' : 'bg-white/20'
             } backdrop-blur-sm rounded-xl`}>
-              <FaHistory className="w-8 h-8 text-white" />
+              <FaHistory className="w-7 h-7 md:w-8 md:h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">Leave History</h1>
-              <p className={theme === 'dark' ? 'text-gray-300' : 'text-blue-100'}>
+              <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">Leave History</h1>
+              <p className={theme === 'dark' ? 'text-gray-300 text-sm' : 'text-blue-100 text-sm'}>
                 View and track your leave applications
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3 mt-2 md:mt-0">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`p-2.5 rounded-lg transition-colors ${
+              className={`p-2 md:p-2.5 rounded-lg transition-colors ${
                 theme === 'dark'
                   ? 'bg-gray-700/50 hover:bg-gray-600/50'
                   : 'bg-white/20 hover:bg-white/30'
@@ -306,7 +309,7 @@ function LeaveHistoryContent() {
             </button>
             <button
               onClick={fetchLeaveHistory}
-              className={`p-2.5 rounded-lg transition-colors ${
+              className={`p-2 md:p-2.5 rounded-lg transition-colors ${
                 theme === 'dark'
                   ? 'bg-gray-700/50 hover:bg-gray-600/50'
                   : 'bg-white/20 hover:bg-white/30'
@@ -321,23 +324,26 @@ function LeaveHistoryContent() {
 
       {/* Leave Balance Cards */}
       {leaveData && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
           {Object.entries(leaveData.leaveBalances).map(([type, balance]) => (
-            <div key={type} className={`rounded-xl shadow-sm p-6 border ${
-              theme === 'dark'
-                ? 'bg-gray-800 border-gray-700'
-                : 'bg-white border-gray-200'
-            }`}>
+            <div
+              key={type}
+              className={`rounded-xl shadow-sm p-4 md:p-6 border flex flex-col justify-between h-full ${
+                theme === 'dark'
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className={`text-sm font-medium ${
+                  <p className={`text-xs md:text-sm font-medium ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                   }`}>{getLeaveTypeLabel(type)}</p>
-                  <p className={`text-2xl font-bold mt-1 ${
+                  <p className={`text-xl md:text-2xl font-bold mt-1 ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
                   }`}>{balance}</p>
                 </div>
-                <div className={`p-3 rounded-lg ${
+                <div className={`p-2 md:p-3 rounded-lg ${
                   theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
                 }`}>
                   <FaCalendarAlt className={
@@ -352,12 +358,12 @@ function LeaveHistoryContent() {
 
       {/* Filters Section */}
       {showFilters && (
-        <div className={`rounded-xl shadow-lg border p-6 space-y-4 ${
+        <div className={`rounded-xl shadow-lg border p-4 md:p-6 space-y-4 ${
           theme === 'dark'
             ? 'bg-gray-800 border-gray-700'
             : 'bg-white border-gray-200'
         }`}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
             <div className="flex items-center gap-2">
               <FaFilter className="text-blue-600" />
               <h3 className="text-lg font-semibold text-gray-800">Filters</h3>
@@ -369,9 +375,9 @@ function LeaveHistoryContent() {
               Clear all filters
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Search</label>
               <div className="relative">
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
@@ -379,37 +385,37 @@ function LeaveHistoryContent() {
                   placeholder="Search records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs md:text-sm"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Status</label>
               <div className="relative">
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full appearance-none bg-white pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onChange={e => setStatusFilter(e.target.value)}
+                  className="w-full appearance-none pl-3 pr-8 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs md:text-sm bg-white"
                 >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
+                  <option value="all">All</option>
                   <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
                   <option value="rejected">Rejected</option>
                 </select>
                 <FaChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Time Period</label>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Time Period</label>
               <div className="relative">
                 <select
                   value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  className="w-full appearance-none bg-white pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onChange={e => setDateFilter(e.target.value)}
+                  className="w-full appearance-none pl-3 pr-8 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs md:text-sm bg-white"
                 >
-                  <option value="all">All Time</option>
-                  <option value="last30">Last 30 Days</option>
-                  <option value="last90">Last 90 Days</option>
+                  <option value="all">All</option>
+                  <option value="last30">Last 30 days</option>
+                  <option value="last90">Last 90 days</option>
                   <option value="thisYear">This Year</option>
                 </select>
                 <FaChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -420,25 +426,25 @@ function LeaveHistoryContent() {
       )}
 
       {/* History Section */}
-      <div className={`rounded-xl shadow-lg border overflow-hidden ${
+      <div className={`rounded-xl shadow-lg border overflow-x-auto ${
         theme === 'dark'
           ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-gray-200'
-      }`}>
-        <div className={`p-6 border-b ${
+      }`}
+        style={{ marginTop: 0 }}
+      >
+        <div className={`p-4 md:p-6 border-b ${
           theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
         }`}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-0">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <FaHistory className="w-5 h-5 text-blue-600" />
-              </div>
-              <h2 className="text-lg font-semibold text-gray-800">Leave Applications</h2>
+              <FaHistory className="text-blue-600" />
+              <span className="font-semibold text-base md:text-lg text-gray-800">Leave Applications</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">
-                {filteredHistory.length} {filteredHistory.length === 1 ? 'record' : 'records'} found
-              </span>
+            <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+              {filteredHistory.length > 0 && (
+                <span>{filteredHistory.length} record{filteredHistory.length > 1 ? 's' : ''} found</span>
+              )}
             </div>
           </div>
         </div>
@@ -450,7 +456,7 @@ function LeaveHistoryContent() {
             <FeedbackMessage message={error} type="error" />
             <button
               onClick={fetchLeaveHistory}
-              className="mt-4 px-4 py-2.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors inline-flex items-center gap-2"
+              className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors inline-flex items-center gap-2 text-xs md:text-sm"
             >
               <FaSync className="w-4 h-4" />
               Try Again
@@ -461,11 +467,9 @@ function LeaveHistoryContent() {
             <div className="p-3 bg-gray-50 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
               <FaHistory className="w-8 h-8 text-gray-400" />
             </div>
-            <p className="text-lg font-medium text-gray-800">No leave history found</p>
-            <p className="text-sm mt-1 text-gray-500">
-              {searchQuery || statusFilter !== 'all' || dateFilter !== 'all'
-                ? 'Try adjusting your search filters'
-                : 'Submit a new leave request to see it here'}
+            <p className={`text-lg font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>No leave history found</p>
+            <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}> 
+              Try adjusting your filters or search.
             </p>
             {(searchQuery || statusFilter !== 'all' || dateFilter !== 'all') && (
               <button
@@ -478,128 +482,69 @@ function LeaveHistoryContent() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[700px] text-xs md:text-sm">
               <thead>
-                <tr className={theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}>
-                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                  } uppercase`}>
-                    Leave Type
-                  </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                  } uppercase`}>
-                    Duration
-                  </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                  } uppercase`}>
-                    Days
-                  </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                  } uppercase`}>
-                    Half Day
-                  </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                  } uppercase`}>
-                    Status
-                  </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                  } uppercase`}>
-                    Applied On
-                  </th>
-                  <th className={`px-6 py-3 text-center text-xs font-medium tracking-wider ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                  } uppercase`}>
-                    Actions
-                  </th>
+                <tr className="bg-gray-50">
+                  <th className="px-2 md:px-4 py-2 font-semibold text-gray-700 text-left">LEAVE TYPE</th>
+                  <th className="px-2 md:px-4 py-2 font-semibold text-gray-700 text-left">DURATION</th>
+                  <th className="px-2 md:px-4 py-2 font-semibold text-gray-700 text-left">DAYS</th>
+                  <th className="px-2 md:px-4 py-2 font-semibold text-gray-700 text-left">HALF DAY</th>
+                  <th className="px-2 md:px-4 py-2 font-semibold text-gray-700 text-left">STATUS</th>
+                  <th className="px-2 md:px-4 py-2 font-semibold text-gray-700 text-left">APPLIED ON</th>
+                  <th className="px-2 md:px-4 py-2 font-semibold text-gray-700 text-left">ACTIONS</th>
                 </tr>
               </thead>
-              <tbody className={`divide-y ${
-                theme === 'dark' 
-                  ? 'divide-gray-700 bg-gray-800'
-                  : 'divide-gray-200 bg-white'
-              }`}>
+              <tbody>
                 {filteredHistory.map((item) => (
-                  <tr key={item.leaveId} className={`${
-                    theme === 'dark'
-                      ? 'hover:bg-gray-700/50'
-                      : 'hover:bg-gray-50'
-                  } transition-colors`}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`text-sm font-medium ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
-                      }`}>
-                        {getLeaveTypeLabel(item.leaveType)}
-                      </div>
+                  <tr
+                    key={item.leaveId}
+                    className={`border-b last:border-b-0 hover:bg-blue-50/40 transition-colors ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}
+                  >
+                    <td className={`px-2 md:px-4 py-2 font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>{getLeaveTypeLabel(item.leaveType)}</td>
+                    <td className={`px-2 md:px-4 py-2 flex items-center gap-1 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>
+                      <FaCalendarAlt className="inline-block text-gray-400 mr-1" />
+                      {new Date(item.startDate).toLocaleDateString()} - {new Date(item.endDate).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`text-sm ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
-                      }`}>
-                        <div className="flex items-center gap-1">
-                          <FaCalendarAlt className="w-3 h-3 text-gray-400" />
-                          {new Date(item.startDate).toLocaleDateString()}
-                          {item.startDate !== item.endDate && (
-                            <> - {new Date(item.endDate).toLocaleDateString()}</>
-                          )}
-                        </div>
-                      </div>
+                    <td className={`px-2 md:px-4 py-2 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>{item.numberOfDays}</td>
+                    <td className={`px-2 md:px-4 py-2 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>
+                      {item.isHalfDay && item.halfDayType ? (
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+                          {item.halfDayType} Half
+                        </span>
+                      ) : (
+                        <span>-</span>
+                      )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`text-sm ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
-                      }`}>
-                        {item.numberOfDays}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {item.isHalfDay ? (
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                            {item.halfDayType}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        getStatusBadgeClass(item.status)
-                      }`}>
+                    <td className={`px-2 md:px-4 py-2 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}> 
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(item.status)}`}>
                         {item.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`text-sm ${
-                        theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
-                      }`}>
-                        <div className="flex items-center gap-1">
-                          <FaClock className="w-3 h-3 text-gray-400" />
-                          {new Date(item.appliedOn).toLocaleDateString()}
-                        </div>
-                      </div>
+                    <td className={`px-2 md:px-4 py-2 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}> 
+                      <span className="flex items-center gap-1">
+                        <FaClock className="text-gray-400" />
+                        {new Date(item.appliedOn).toLocaleDateString()}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => setSelectedLeave(item)}
-                          className="p-1.5 text-gray-500 hover:text-blue-600 transition-colors rounded-lg hover:bg-gray-100"
-                          title="View Details"
-                        >
-                          <FaEye className="w-4 h-4" />
-                        </button>
-                        <button
-                          className="p-1.5 text-gray-500 hover:text-blue-600 transition-colors rounded-lg hover:bg-gray-100"
-                          title="Download"
+                    <td className={`px-2 md:px-4 py-2 flex items-center gap-2 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>
+                      <button
+                        className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
+                        title="View Details"
+                        onClick={() => setSelectedLeave(item)}
+                      >
+                        <FaEye className="w-4 h-4" />
+                      </button>
+                      {item.attachments && item.attachments.length > 0 && (
+                        <a
+                          href={item.attachments[0].fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
+                          title="Download Attachment"
                         >
                           <FaDownload className="w-4 h-4" />
-                        </button>
-                      </div>
+                        </a>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -427,26 +427,26 @@ function LeaveViewContent() {
   // };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Header */}
       <div className={`rounded-xl shadow-lg ${
         theme === 'dark'
           ? 'bg-gradient-to-r from-gray-800 to-gray-700'
           : 'bg-gradient-to-r from-blue-600 to-blue-800'
-      } p-8`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-              <FaCalendarCheck className="w-8 h-8 text-white" />
+      } p-4 sm:p-8`}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
+          <div className="flex items-center gap-3 sm:gap-4 w-full">
+            <div className="p-2 sm:p-3 bg-white/20 backdrop-blur-sm rounded-xl flex-shrink-0">
+              <FaCalendarCheck className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white">Leave Balance</h1>
-              <p className="text-white mt-1">View your leave allocation and usage</p>
+            <div className="flex flex-col">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">Leave Balance</h1>
+              <p className="text-white mt-0.5 sm:mt-1 text-sm sm:text-base">View your leave allocation and usage</p>
             </div>
           </div>
           <button
             onClick={fetchLeaveBalance}
-            className="p-2.5 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors rounded-lg"
+            className="mt-4 sm:mt-0 p-2 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors rounded-lg"
             title="Refresh"
           >
             <FaSync className="w-5 h-5" />
@@ -459,27 +459,27 @@ function LeaveViewContent() {
       ) : error ? (
         <ErrorMessage message={error} onRetry={fetchLeaveBalance} />
       ) : leaveBalance ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main Content - Charts and Analytics */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className={`rounded-xl shadow-sm p-6 border ${
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            <div className={`rounded-xl shadow-sm p-4 sm:p-6 border ${
               theme === 'dark'
                 ? 'bg-gray-800 border-gray-700'
                 : 'bg-white border-gray-200'
             }`}>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className={`text-2xl font-bold ${
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
+                <h3 className={`text-xl sm:text-2xl font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
                   Leave Overview
                 </h3>
-                <div className="flex items-center gap-3">
-                  <div className={`flex items-center gap-3 p-1.5 rounded-2xl backdrop-blur-sm mr-4 ${
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                  <div className={`flex items-center gap-2 sm:gap-3 p-1 rounded-2xl backdrop-blur-sm mr-0 sm:mr-4 ${
                     theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
                   }`}>
                     <button
                       onClick={() => setViewType('chart')}
-                      className={`px-4 py-2 rounded-xl transition-all duration-300 ${
+                      className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-base ${
                         viewType === 'chart'
                           ? theme === 'dark'
                             ? 'bg-gray-600 text-white shadow-md scale-105'
@@ -493,7 +493,7 @@ function LeaveViewContent() {
                     </button>
                     <button
                       onClick={() => setViewType('table')}
-                      className={`px-4 py-2 rounded-xl transition-all duration-300 ${
+                      className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-base ${
                         viewType === 'table'
                           ? 'bg-white text-blue-600 shadow-md scale-105'
                           : 'text-gray-600 hover:text-blue-600 hover:bg-white/50'
@@ -503,10 +503,10 @@ function LeaveViewContent() {
                     </button>
                   </div>
                   {viewType === 'chart' && (
-                    <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-2xl backdrop-blur-sm">
+                    <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 p-1 rounded-2xl backdrop-blur-sm mt-2 sm:mt-0">
                       <button
                         onClick={() => setChartType('pie')}
-                        className={`p-3 rounded-xl transition-all duration-300 ${
+                        className={`p-2 sm:p-3 rounded-xl transition-all duration-300 ${
                           chartType === 'pie' 
                             ? 'bg-white text-blue-600 shadow-md scale-105' 
                             : 'text-gray-600 hover:text-blue-600 hover:bg-white/50'
@@ -517,7 +517,7 @@ function LeaveViewContent() {
                       </button>
                       <button
                         onClick={() => setChartType('bar')}
-                        className={`p-3 rounded-xl transition-all duration-300 ${
+                        className={`p-2 sm:p-3 rounded-xl transition-all duration-300 ${
                           chartType === 'bar' 
                             ? 'bg-white text-blue-600 shadow-md scale-105' 
                             : 'text-gray-600 hover:text-blue-600 hover:bg-white/50'
@@ -532,7 +532,7 @@ function LeaveViewContent() {
               </div>
               
               {/* Chart/Table Container */}
-              <div className={`h-[400px] flex items-center justify-center ${
+              <div className={`h-[320px] sm:h-[400px] flex items-center justify-center ${
                 theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
               }`}>
                 {viewType === 'chart' ? (
@@ -662,8 +662,8 @@ function LeaveViewContent() {
             </div>
 
             {/* Quick Stats Cards */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className={`rounded-xl shadow-sm p-6 border ${
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className={`rounded-xl shadow-sm p-4 sm:p-6 border ${
                 theme === 'dark'
                   ? 'bg-gray-800 border-gray-700'
                   : 'bg-white border-gray-200'
@@ -678,7 +678,7 @@ function LeaveViewContent() {
                   </div>
                 </div>
               </div>
-              <div className={`rounded-xl shadow-sm p-6 border ${
+              <div className={`rounded-xl shadow-sm p-4 sm:p-6 border ${
                 theme === 'dark'
                   ? 'bg-gray-800 border-gray-700'
                   : 'bg-white border-gray-200'
@@ -697,8 +697,8 @@ function LeaveViewContent() {
           </div>
 
           {/* Instructions Panel */}
-          <div className={`lg:col-span-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>
-            <div className={`rounded-xl shadow-sm p-6 border space-y-6 sticky top-6 ${
+          <div className={`lg:col-span-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'} mt-4 lg:mt-0`}>
+            <div className={`rounded-xl shadow-sm p-4 sm:p-6 border space-y-4 sm:space-y-6 sticky top-4 sm:top-6 ${
               theme === 'dark'
                 ? 'bg-gray-800 border-gray-700'
                 : 'bg-white border-gray-200'

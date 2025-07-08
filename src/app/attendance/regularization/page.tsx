@@ -285,30 +285,30 @@ function RegularizationContent() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 py-8">
+    <div className="max-w-7xl mx-auto space-y-8 py-4 md:py-8 px-2 sm:px-4">
       {/* Header with dark theme */}
       <div className={`rounded-xl shadow-lg ${
         theme === 'dark'
           ? 'bg-gradient-to-r from-gray-800 to-gray-700'
           : 'bg-gradient-to-r from-blue-600 to-blue-800'
-      } p-8`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-              <FaClipboardCheck className="w-8 h-8 text-white" />
+      } p-4 sm:p-8`}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="p-2 sm:p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+              <FaClipboardCheck className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">Attendance Regularization</h1>
-              <p className="text-white mt-1">Request attendance corrections and track their status</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">Attendance Regularization</h1>
+              <p className="text-white mt-1 text-base sm:text-lg">Request attendance corrections and track their status</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Instructions and Form Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
         {/* Instructions Section */}
-        <div className={`rounded-xl shadow-sm border p-6 h-fit ${
+        <div className={`rounded-xl shadow-sm border p-4 sm:p-6 h-fit ${
           theme === 'dark'
             ? 'bg-gray-800 border-gray-700'
             : 'bg-white border-gray-200'
@@ -389,14 +389,14 @@ function RegularizationContent() {
         </div>
 
         {/* Form Section */}
-        <div className={`rounded-xl shadow-sm border p-6 ${
+        <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${
           theme === 'dark'
             ? 'bg-gray-800 border-gray-700'
             : 'bg-white border-gray-200'
         }`}>
           {/* Form Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2 sm:gap-0">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className={`p-2 ${
                 theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'
               } rounded-lg`}>
@@ -404,14 +404,14 @@ function RegularizationContent() {
                   theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                 } />
               </div>
-              <h2 className={`text-xl font-semibold ${
+              <h2 className={`text-lg sm:text-xl font-semibold ${
                 theme === 'dark' ? 'text-white' : 'text-gray-800'
               }`}>New Request</h2>
             </div>
             {!showForm && (
               <button
                 onClick={() => setShowForm(true)}
-                className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 font-medium ${
+                className={`w-full sm:w-auto px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 font-medium ${
                   theme === 'dark'
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -427,7 +427,7 @@ function RegularizationContent() {
           {showForm ? (
             <form onSubmit={handleRegularizationSubmit} className="space-y-6">
               {/* Form input fields with dark theme */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <label className={`block text-sm font-medium ${
                     theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
@@ -549,18 +549,18 @@ function RegularizationContent() {
                 <FeedbackMessage message={regularizationSuccess} type="success" />
               )}
 
-              <div className="flex justify-end gap-4">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 font-medium"
+                  className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={regularizationLoading}
-                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
                   {regularizationLoading ? (
                     <>
@@ -577,11 +577,11 @@ function RegularizationContent() {
               </div>
             </form>
           ) : (
-            <div className={`text-center py-12 px-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-              <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                <FaClipboardCheck className="w-8 h-8 text-blue-600" />
+            <div className={`text-center py-8 sm:py-12 px-2 sm:px-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                <FaClipboardCheck className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               </div>
-              <h3 className={`text-lg font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>No Active Request</h3>
+              <h3 className={`text-base sm:text-lg font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>No Active Request</h3>
               <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-6`}>Click the New Request button to start a regularization request.</p>
             </div>
           )}
@@ -594,23 +594,23 @@ function RegularizationContent() {
           ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-gray-200'
       }`}>
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <FaHistory className="w-5 h-5 text-blue-600" />
               </div>
-              <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Request History</h2>
+              <h2 className={`text-lg sm:text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Request History</h2>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-              <div className="relative">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+              <div className="relative w-full sm:w-64">
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-700 text-gray-200 placeholder:text-gray-400' : 'text-black'}`}
+                  className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-700 text-gray-200 placeholder:text-gray-400' : 'text-black'} text-sm`}
                 />
               </div>
               <button
@@ -661,22 +661,22 @@ function RegularizationContent() {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[600px] text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-muted">
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                    <th className={`px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                       Date
                     </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                    <th className={`px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                       Time
                     </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                    <th className={`px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                       Regularization Reason
                     </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                    <th className={`px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                       Regularization Date
                     </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                    <th className={`px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                       Status
                     </th>
                   </tr>
@@ -684,26 +684,26 @@ function RegularizationContent() {
                 <tbody className="divide-y divide-gray-200">
                   {paginatedHistory.map((item, index) => (
                     <tr key={index} className="hover:bg-gray-50/80 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{
+                      <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                        <div className={`text-xs sm:text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{
                           item.date ? new Date(item.date).toLocaleDateString() : ''
                         }</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{
+                      <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                        <div className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{
                           (item.punchInTime ? extractTime(item.punchInTime) : '') + ' - ' + (item.punchOutTime ? extractTime(item.punchOutTime) : '')
                         }</div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className={`text-sm max-w-xs truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`} title={item.regularizationReason}>{item.regularizationReason || ''}</div>
+                      <td className="px-2 sm:px-6 py-2 sm:py-4">
+                        <div className={`text-xs sm:text-sm max-w-xs truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`} title={item.regularizationReason}>{item.regularizationReason || ''}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{
+                      <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                        <div className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{
                           item.regularizationDate ? new Date(item.regularizationDate).toLocaleDateString() : ''
                         }</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(item.status)}`}>{item.status}</span>
+                      <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(item.status)}`}>{item.status}</span>
                       </td>
                     </tr>
                   ))}

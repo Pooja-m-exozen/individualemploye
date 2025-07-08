@@ -280,31 +280,31 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
   const totalPages = Math.ceil(filteredActivities.length / recordsPerPage);
 
   return (
-    <div className={`max-w-7xl mx-auto space-y-8 py-8 ${
+    <div className={`max-w-7xl mx-auto space-y-8 py-4 md:py-8 px-2 sm:px-4 ${
       theme === 'dark' ? 'text-gray-100' : 'text-gray-900'
     }`}>
       {/* Header */}
-      <div className={`rounded-2xl p-8 mb-8 shadow-lg ${
+      <div className={`rounded-2xl p-4 sm:p-8 mb-8 shadow-lg ${
         theme === 'dark'
           ? 'bg-gradient-to-r from-gray-800 to-gray-700'
           : 'bg-gradient-to-r from-blue-600 to-indigo-600'
       }`}>
-            <div>
-          <h2 className="text-3xl font-bold text-white">Monthly Overview</h2>
-          <p className="text-white/90 mt-1 text-lg">{format(selectedDate, 'MMMM yyyy')} • {workingDays} Working Days</p>
-            </div>
-            </div>
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-white">Monthly Overview</h2>
+          <p className="text-white/90 mt-1 text-base sm:text-lg">{format(selectedDate, 'MMMM yyyy')} • {workingDays} Working Days</p>
+        </div>
+      </div>
       {/* Main Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
         {/* Left: Graph + Instructions */}
-        <div className={`rounded-xl shadow-sm border p-6 ${
+        <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${
           theme === 'dark'
             ? 'bg-gray-800 border-gray-700'
             : 'bg-white border-gray-200'
         }`}>
           {/* Attendance Distribution Graph */}
           <div className="flex justify-center items-center mb-6">
-            <div className="w-48 h-48">
+            <div className="w-32 h-32 sm:w-48 sm:h-48 mx-auto">
               <CircularProgressbar
                 value={parseFloat(attendanceRate)}
                 text={`${attendanceRate}%`}
@@ -323,11 +323,11 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
           </div>
           <div className={`text-center ${
             theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-          } mb-6`}>
+          } mb-6 text-base sm:text-lg`}>
             Attendance Rate
           </div>
           {/* Instructions */}
-          <div className={`w-full rounded-lg p-4 border ${
+          <div className={`w-full rounded-lg p-3 sm:p-4 border ${
             theme === 'dark'
               ? 'bg-gray-700/50 border-gray-600'
               : 'bg-gray-50 border-gray-200'
@@ -350,42 +350,42 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
               </div>
             </div>
         {/* Right: Calendar */}
-        <div className={`rounded-xl shadow-sm border p-6 ${
+        <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${
           theme === 'dark'
             ? 'bg-gray-800 border-gray-700'
             : 'bg-white border-gray-200'
         }`}>
-          <div className="flex items-center justify-between w-full mb-4">
-            <h3 className={`text-xl font-semibold ${
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full mb-4 gap-2">
+            <h3 className={`text-lg sm:text-xl font-semibold ${
               theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
             }`}>
               {format(selectedDate, 'MMMM yyyy')}
             </h3>
             {/* Calendar controls (prev, today, next) */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <button
-                onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1))}
-                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
-              >
-                &lt;
+                    onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1))}
+                    className="px-2 sm:px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm"
+                  >
+                    &lt;
                   </button>
                   <button
                     onClick={() => setSelectedDate(new Date())}
-                className="px-3 py-1 rounded bg-blue-100 hover:bg-blue-200 text-blue-700"
+                    className="px-2 sm:px-3 py-1 rounded bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm"
                   >
                     Today
                   </button>
                   <button
-                onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1))}
-                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
-              >
-                &gt;
+                    onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1))}
+                    className="px-2 sm:px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm"
+                  >
+                    &gt;
                   </button>
                 </div>
               </div>
-          <div className="w-full" style={{ minWidth: 350, maxWidth: 420 }}>
+          <div className="w-full" style={{ minWidth: 0, maxWidth: 420 }}>
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                 <div key={day} className={`text-center text-xs font-semibold py-2 ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
@@ -395,7 +395,7 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                 ))}
               {getCalendarDays().map((date, idx) => {
                 if (!date) {
-                  return <div key={idx} className="w-14 h-14" />;
+                  return <div key={idx} className="w-10 h-10 sm:w-14 sm:h-14" />;
                 }
                 
                 const activity = activities.find(a => a.date === format(date, 'yyyy-MM-dd'));
@@ -406,7 +406,7 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                   <div
                     key={idx}
                     className={`
-                      relative w-14 h-14 border rounded-lg flex flex-col items-center justify-center
+                      relative w-10 h-10 sm:w-14 sm:h-14 border rounded-lg flex flex-col items-center justify-center
                       ${getDayBackgroundColor(activity, isCurrentMonth)}
                       ${isToday(date) ? 'ring-2 ring-blue-400' : ''}
                       ${!isCurrentMonth ? 'opacity-40' : ''}
@@ -415,14 +415,14 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                     `}
                     onClick={() => activity && setSelectedActivity(activity)}
                   >
-                    <span className={`absolute top-1 left-1 text-xs ${isCurrentMonth ? 'text-gray-700' : 'text-gray-400'}`}>
+                    <span className={`absolute top-0.5 left-1 text-xs ${isCurrentMonth ? 'text-gray-700' : 'text-gray-400'}`}>
                       {format(date, 'd')}
                     </span>
-                    <span className={`mt-2 text-sm font-semibold ${color}`}>
+                    <span className={`mt-1 sm:mt-2 text-xs sm:text-sm font-semibold ${color}`}>
                       {code}
                     </span>
                     {activity?.isLate && (
-                      <div className="absolute bottom-1 right-1 w-2 h-2 bg-amber-400 rounded-full" 
+                      <div className="absolute bottom-0.5 right-1 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-amber-400 rounded-full" 
                            title="Late Arrival" />
                     )}
                     {activity && (
@@ -438,13 +438,13 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
             
                 <button
                   onClick={() => setShowDetailedRecordsModal(true)}
-            className={`mt-8 w-full py-3 rounded-lg font-medium shadow transition-all ${
-                theme === 'dark'
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
-              }`}
+                  className={`mt-6 sm:mt-8 w-full py-2 sm:py-3 rounded-lg font-medium shadow transition-all ${
+                    theme === 'dark'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
+                  }`}
                 >
-            <FaClipboardCheck className="inline mr-2" /> View Detailed Report
+                  <FaClipboardCheck className="inline mr-2" /> View Detailed Report
                 </button>
           </div>
               </div>
@@ -464,19 +464,19 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
       )}
       {/* Detailed Report Modal */}
       {showDetailedRecordsModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-5xl w-full mx-4 relative">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-2 sm:px-0">
+          <div className="bg-white rounded-2xl shadow-2xl p-4 sm:p-8 max-w-5xl w-full mx-0 sm:mx-4 relative overflow-y-auto max-h-[90vh]">
             {/* Modal header */}
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-md">
-                <FaClipboardCheck className="w-6 h-6" />
+            <div className="flex items-center gap-2 sm:gap-3 mb-2">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-md">
+                <FaClipboardCheck className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               <div>
-                <h3 className="text-2xl font-bold text-gray-900">Attendance Records</h3>
-                <p className="text-gray-600">Detailed view of your attendance history</p>
+                <h3 className="text-lg sm:text-2xl font-bold text-gray-900">Attendance Records</h3>
+                <p className="text-gray-600 text-xs sm:text-base">Detailed view of your attendance history</p>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 mt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-4 mt-4">
               <div className="relative w-full sm:w-64">
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
@@ -484,14 +484,14 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                   placeholder="Search records..."
                   value={search}
                   onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black placeholder:text-gray-400"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black placeholder:text-gray-400 text-sm"
                 />
               </div>
               <div className="relative w-full sm:w-48">
                 <select
                   value={statusFilter}
                   onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                  className="w-full appearance-none bg-white pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black"
+                  className="w-full appearance-none bg-white pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-black text-sm"
                 >
                   <option value="all">All Status</option>
                   <option value="present">Present</option>
@@ -503,7 +503,7 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
               </div>
             </div>
             <div className="overflow-x-auto">
-          <table className="w-full bg-white">
+              <table className="w-full bg-white min-w-[600px] text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"><FaCalendarAlt className="inline mr-1 text-blue-500" /> Date</th>
@@ -517,15 +517,15 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {paginatedActivities.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">No records found</td>
-                </tr>
+                      <td colSpan={6} className="px-2 sm:px-6 py-8 sm:py-12 text-center text-gray-500">No records found</td>
+                    </tr>
                   ) : paginatedActivities.map((activity: AttendanceRecord, idx: number) => {
                     const isTodayRow = activity.date === format(new Date(), 'yyyy-MM-dd');
                     return (
                       <tr key={idx} className={`hover:bg-blue-50 transition-all duration-150 ${isTodayRow ? 'ring-2 ring-blue-400 bg-blue-50' : ''}`}>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                           <div className="flex flex-col">
-                            <span className="font-bold text-lg text-black">
+                            <span className="font-bold text-base sm:text-lg text-black">
                               {format(new Date(activity.date), 'dd')}
                             </span>
                             <span className="text-xs font-bold text-black uppercase">
@@ -536,36 +536,36 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                           {activity.status === 'Holiday' ? (
                             <span className="text-blue-600 font-bold">Holiday</span>
                           ) : (activity.punchInUtc && activity.punchOutUtc && activity.totalHoursWorked !== '0') ? (
-                            <span className="font-bold text-base text-black flex items-center gap-2">
+                            <span className="font-bold text-xs sm:text-base text-black flex items-center gap-1 sm:gap-2">
                               <FaClockIcon className="text-indigo-500" /> {activity.totalHoursWorked}
                             </span>
                           ) : <span className="text-gray-400">-</span>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                           {activity.punchInTime ? (
-                            <span className="font-bold text-base text-black">{activity.punchInTime}</span>
+                            <span className="font-bold text-xs sm:text-base text-black">{activity.punchInTime}</span>
                           ) : <span className="text-gray-400">-</span>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                           {activity.punchOutTime ? (
-                            <span className="font-bold text-base text-black">{activity.punchOutTime}</span>
+                            <span className="font-bold text-xs sm:text-base text-black">{activity.punchOutTime}</span>
                           ) : <span className="text-gray-400">-</span>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                           {activity.punchInTime && activity.punchOutTime ? (
-                            <span className="font-bold text-base text-black flex items-center gap-2">
+                            <span className="font-bold text-xs sm:text-base text-black flex items-center gap-1 sm:gap-2">
                               <FaClockIcon className="text-indigo-500" /> {calculateHoursUtc(activity.punchInUtc, activity.punchOutUtc)}
                             </span>
                           ) : <span className="text-gray-400">-</span>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                           <button
                             onClick={() => setSelectedActivity(activity)}
-                            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition font-medium shadow-sm border border-blue-200"
+                            className="px-3 sm:px-4 py-1 sm:py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition font-medium shadow-sm border border-blue-200 text-xs sm:text-base"
                           >
                             View Details
                           </button>
@@ -578,23 +578,23 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
         </div>
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 mt-2">
-                <div className="text-sm text-gray-500">
+              <div className="flex flex-col sm:flex-row items-center justify-between px-2 sm:px-6 py-2 sm:py-4 border-t border-gray-100 mt-2 gap-2 sm:gap-0">
+                <div className="text-xs sm:text-sm text-gray-500 mb-2 sm:mb-0">
                   Showing {((currentPage - 1) * recordsPerPage) + 1} to {Math.min(currentPage * recordsPerPage, filteredActivities.length)} of {filteredActivities.length} records
-      </div>
-                <div className="flex items-center gap-2">
-          <button
+                </div>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <button
                     onClick={() => setCurrentPage(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="p-2 text-gray-600 hover:text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
-          >
+                    className="p-1 sm:p-2 text-gray-600 hover:text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+                  >
                     <FaChevronLeft className="w-4 h-4" />
-          </button>
+                  </button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                         currentPage === page
                           ? 'bg-blue-600 text-white'
                           : 'text-gray-600 hover:bg-gray-100'
@@ -606,44 +606,44 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                   <button
                     onClick={() => setCurrentPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="p-2 text-gray-600 hover:text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+                    className="p-1 sm:p-2 text-gray-600 hover:text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
                   >
                     <FaChevronRight className="w-4 h-4" />
                   </button>
-        </div>
-      </div>
+                </div>
+              </div>
             )}
-            <div className="mt-6 flex justify-end">
-          <button
+            <div className="mt-4 sm:mt-6 flex justify-end">
+              <button
                 onClick={() => setShowDetailedRecordsModal(false)}
-                className="px-6 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-lg hover:from-blue-200 hover:to-indigo-200 transition font-medium shadow-sm"
+                className="px-4 sm:px-6 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-lg hover:from-blue-200 hover:to-indigo-200 transition font-medium shadow-sm text-xs sm:text-base"
               >
                 Close
               </button>
             </div>
             {/* Details Modal */}
             {selectedActivity && (
-              <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4 relative">
+              <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-2 sm:px-0">
+                <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-8 max-w-md w-full mx-0 sm:mx-4 relative">
                   <button
                     onClick={() => setSelectedActivity(null)}
-                    className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-                  <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                    className="absolute top-2 sm:top-4 right-2 sm:right-4 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
+                  >
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
                     <FaClipboardCheck className="text-blue-600" /> Attendance Details
                   </h3>
-              <div className="space-y-4">
-                <div>
+                  <div className="space-y-3 sm:space-y-4">
+                    <div>
                       <span className="block text-xs text-gray-500 mb-1">Date</span>
-                      <span className="font-semibold text-lg text-gray-900">{selectedActivity.displayDate}</span>
-                </div>
-                  <div>
+                      <span className="font-semibold text-base sm:text-lg text-gray-900">{selectedActivity.displayDate}</span>
+                    </div>
+                    <div>
                       <span className="block text-xs text-gray-500 mb-1">Status</span>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                      <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-semibold ${
                         selectedActivity.status.toLowerCase() === 'present' ? 'bg-green-100 text-green-800' :
                         selectedActivity.status.toLowerCase() === 'absent' ? 'bg-red-100 text-red-800' :
                         selectedActivity.status.toLowerCase().includes('holiday') ? 'bg-blue-100 text-blue-800' :
@@ -653,35 +653,35 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                         {selectedActivity.status}
                       </span>
                     </div>
-                  <div>
+                    <div>
                       <span className="block text-xs text-gray-500 mb-1">Punch In Time</span>
                       <span className="font-medium text-gray-900">{selectedActivity.punchInTime || '-'}</span>
-                  </div>
-                <div>
+                    </div>
+                    <div>
                       <span className="block text-xs text-gray-500 mb-1">Punch Out Time</span>
                       <span className="font-medium text-gray-900">{selectedActivity.punchOutTime || '-'}</span>
-                  </div>
-                <div>
+                    </div>
+                    <div>
                       <span className="block text-xs text-gray-500 mb-1">Late?</span>
                       <span className="font-medium text-gray-900">{selectedActivity.isLate ? 'Yes' : 'No'}</span>
-                </div>
+                    </div>
                     {selectedActivity.remarks && (
-                  <div>
+                      <div>
                         <span className="block text-xs text-gray-500 mb-1">Remarks</span>
                         <span className="text-gray-900">{selectedActivity.remarks}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-                  </div>
-                  <div className="mt-6 flex justify-end">
-            <button
+                  <div className="mt-4 sm:mt-6 flex justify-end">
+                    <button
                       onClick={() => setSelectedActivity(null)}
-                      className="px-6 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-lg hover:from-blue-200 hover:to-indigo-200 transition font-medium shadow-sm"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
+                      className="px-4 sm:px-6 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-lg hover:from-blue-200 hover:to-indigo-200 transition font-medium shadow-sm text-xs sm:text-base"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>

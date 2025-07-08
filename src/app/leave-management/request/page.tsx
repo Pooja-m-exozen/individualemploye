@@ -184,21 +184,21 @@ function RequestLeaveContent() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 py-8">
+    <div className="max-w-7xl mx-auto space-y-6 py-3 md:py-8 px-2 sm:px-4">
       {/* Header */}
       <div className={`rounded-xl shadow-lg ${
         theme === 'dark'
           ? 'bg-gradient-to-r from-gray-800 to-gray-700'
           : 'bg-gradient-to-r from-blue-600 to-blue-800'
-      } p-8`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-              <FaPlus className="w-8 h-8 text-white" />
+      } p-3 sm:p-6 md:p-8`}>
+        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 xs:gap-4">
+          <div className="flex items-center gap-2 xs:gap-4">
+            <div className="p-2 xs:p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+              <FaPlus className="w-6 h-6 xs:w-8 xs:h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">Request Leave</h1>
-              <p className="text-white mt-1">Submit and track your leave applications</p>
+              <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold text-white">Request Leave</h1>
+              <p className="text-white mt-1 text-sm xs:text-base sm:text-lg">Submit and track your leave applications</p>
             </div>
           </div>
         </div>
@@ -206,16 +206,16 @@ function RequestLeaveContent() {
 
       {/* Leave Balance Cards */}
       {leaveBalances && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-2 xs:grid-cols-2 md:grid-cols-4 xs:gap-3 md:gap-4">
           {Object.entries(leaveBalances).map(([type, balance]) => (
-            <div key={type} className={`rounded-xl shadow-sm p-6 border ${
+            <div key={type} className={`rounded-xl shadow-sm p-3 xs:p-4 md:p-6 border ${
               theme === 'dark'
                 ? 'bg-gray-800 border-gray-700'
                 : 'bg-white border-gray-200'
             }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className={`text-sm font-medium ${
+                  <p className={`text-xs xs:text-sm font-medium ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                   }`}>
                     {type === 'EL' ? 'Earned Leave' :
@@ -223,11 +223,11 @@ function RequestLeaveContent() {
                      type === 'CL' ? 'Casual Leave' :
                      'Comp Off'}
                   </p>
-                  <p className={`text-2xl font-bold mt-1 ${
+                  <p className={`text-xl xs:text-2xl font-bold mt-1 ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
                   }`}>{balance}</p>
                 </div>
-                <div className={`p-3 rounded-lg ${
+                <div className={`p-2 xs:p-3 rounded-lg ${
                   theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
                 }`}>
                   <FaCalendarAlt className={
@@ -241,15 +241,15 @@ function RequestLeaveContent() {
       )}
 
       {/* Form Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <div className={`rounded-xl shadow-sm p-6 border ${
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
+        <div className="w-full lg:w-2/3 order-2 lg:order-1">
+          <div className={`rounded-xl shadow-sm p-3 xs:p-4 sm:p-6 border ${
             theme === 'dark'
               ? 'bg-gray-800 border-gray-700'
               : 'bg-white border-gray-200'
           }`}>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleSubmit} className="space-y-5 xs:space-y-6">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4 sm:gap-6">
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
                     theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
@@ -450,10 +450,10 @@ function RequestLeaveContent() {
                 {selectedFiles.length > 0 && (
                   <div className="space-y-2">
                     {selectedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={index} className="flex flex-col xs:flex-row items-start xs:items-center justify-between p-2 xs:p-3 bg-gray-50 rounded-lg gap-2 xs:gap-0">
                         <div className="flex items-center gap-2">
                           <FaFileAlt className="text-gray-400" />
-                          <span className="text-sm text-gray-600">{file.name}</span>
+                          <span className="text-xs xs:text-sm text-gray-600 break-all max-w-[140px] xs:max-w-none">{file.name}</span>
                         </div>
                         <button
                           type="button"
@@ -470,18 +470,19 @@ function RequestLeaveContent() {
                 {error && <FeedbackMessage message={error} type="error" />}
                 {success && <FeedbackMessage message={success} type="success" />}
 
-                <div className="flex justify-end mt-4">
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all duration-200 flex items-center gap-1.5 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {loading ? (
-                        <span>Submitting...</span>
-                      ) : (
-                        <span>Submit Request</span>
-                      )}
-                    </button>
+                <div className="flex flex-col xs:flex-row justify-end mt-2 xs:mt-4 gap-2 xs:gap-4">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full xs:w-auto px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all duration-200 flex items-center justify-center gap-1.5 font-medium disabled:opacity-50 disabled:cursor-not-allowed min-h-0"
+                    style={{ minHeight: 'unset', height: '32px' }}
+                  >
+                    {loading ? (
+                      <span>Submitting...</span>
+                    ) : (
+                      <span>Submit Request</span>
+                    )}
+                  </button>
                 </div>
               </div>
             </form>
@@ -489,21 +490,20 @@ function RequestLeaveContent() {
         </div>
 
         {/* Info Panel */}
-        <div className="lg:col-span-1">
-          <div className={`rounded-xl shadow-sm p-6 border space-y-6 ${
+        <div className="w-full lg:w-1/3 order-1 lg:order-2 mb-4 lg:mb-0">
+          <div className={`rounded-xl shadow-sm p-3 xs:p-4 sm:p-6 border space-y-3 xs:space-y-4 sm:space-y-6 ${
             theme === 'dark'
               ? 'bg-gray-800 border-gray-700'
               : 'bg-white border-gray-200'
           }`}>
-            <h3 className={`text-lg font-semibold flex items-center gap-2 ${
+            <h3 className={`text-base xs:text-lg font-semibold flex items-center gap-2 ${
               theme === 'dark' ? 'text-white' : 'text-gray-800'
             }`}>
               <FaInfoCircle className="text-blue-600" />
               Leave Request Guidelines
             </h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
+            <div className="space-y-2 xs:space-y-3 sm:space-y-4">
+              <div className="flex items-start gap-2 xs:gap-3">
                 <div className={`p-2 rounded-lg ${
                   theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
                 }`}>
@@ -512,16 +512,15 @@ function RequestLeaveContent() {
                   } />
                 </div>
                 <div>
-                  <h4 className={`text-sm font-medium ${
+                  <h4 className={`text-xs xs:text-sm font-medium ${
                     theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
                   }`}>Advance Notice</h4>
-                  <p className={`text-sm ${
+                  <p className={`text-xs xs:text-sm ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                   }`}>Submit requests at least 3 days in advance for planned leaves.</p>
                 </div>
               </div>
-
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2 xs:gap-3">
                 <div className={`p-2 rounded-lg ${
                   theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
                 }`}>
@@ -530,12 +529,11 @@ function RequestLeaveContent() {
                   } />
                 </div>
                 <div>
-                  <h4 className="text-sm font-medium text-gray-800">Processing Time</h4>
-                  <p className="text-sm text-gray-600">Requests are typically processed within 24-48 hours.</p>
+                  <h4 className="text-xs xs:text-sm font-medium text-gray-800">Processing Time</h4>
+                  <p className="text-xs xs:text-sm text-gray-600">Requests are typically processed within 24-48 hours.</p>
                 </div>
               </div>
-
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2 xs:gap-3">
                 <div className={`p-2 rounded-lg ${
                   theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
                 }`}>
@@ -544,20 +542,19 @@ function RequestLeaveContent() {
                   } />
                 </div>
                 <div>
-                  <h4 className={`text-sm font-medium ${
+                  <h4 className={`text-xs xs:text-sm font-medium ${
                     theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
                   }`}>Documentation</h4>
-                  <p className={`text-sm ${
+                  <p className={`text-xs xs:text-sm ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                   }`}>Attach relevant documents for sick leave or emergency leave requests.</p>
                 </div>
               </div>
             </div>
-
-            <div className={`border-t pt-4 ${
+            <div className={`border-t pt-2 xs:pt-3 sm:pt-4 ${
               theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
             }`}>
-              <p className={`text-sm ${
+              <p className={`text-xs xs:text-sm ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
               }`}>
                 For any queries regarding leave policies or requests, please contact HR.

@@ -950,7 +950,23 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               {/* Modal for viewing record details */}
               {selectedRecord && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-                  <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-8 max-w-2xl w-full relative animate-fade-in overflow-y-auto max-h-[90vh]`}>
+                  <div
+                    className={`
+                      ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}
+                      rounded-xl shadow-lg relative animate-fade-in overflow-y-auto
+                      max-h-[90vh]
+                      w-full
+                      max-w-2xl
+                      p-4 sm:p-6 md:p-8
+                      mx-2 sm:mx-4
+                      
+                    `}
+                    style={{
+                      width: '100%',
+                      maxWidth: '600px',
+                      minWidth: 0,
+                    }}
+                  >
                     <button
                       onClick={() => setSelectedRecord(null)}
                       className={`absolute top-2 right-2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-800'} text-2xl font-bold`}
@@ -958,35 +974,35 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     >
                       &times;
                     </button>
-                    <h2 className={`text-2xl font-bold mb-6 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'} text-center`}>
+                    <h2 className={`text-xl sm:text-2xl font-bold mb-4 sm:mb-6 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'} text-center`}>
                       Attendance Record Details
                     </h2>
                     <div className="space-y-4">
-                      <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                      <div className={`flex flex-col sm:flex-row justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
                         <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Date:</span>
                         <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
                           {formatDate(selectedRecord.date)}
                         </span>
                       </div>
-                      <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                      <div className={`flex flex-col sm:flex-row justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
                         <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Project Name:</span>
                         <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
                           {selectedRecord.projectName || 'N/A'}
                         </span>
                       </div>
-                      <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                      <div className={`flex flex-col sm:flex-row justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
                         <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Designation:</span>
                         <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
                           {selectedRecord.designation || 'N/A'}
                         </span>
                       </div>
-                      <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                      <div className={`flex flex-col sm:flex-row justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
                         <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch In Time:</span>
                         <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
                           {formatTime(selectedRecord.punchInTime)}
                         </span>
                       </div>
-                      <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
+                      <div className={`flex flex-col sm:flex-row justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
                         <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch Out Time:</span>
                         <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
                           {formatTime(selectedRecord.punchOutTime)}
@@ -998,7 +1014,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                         <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} mb-2`}>
                           Punch In Details:
                         </span>
-                        <div className="ml-4 space-y-2">
+                        <div className="ml-0 sm:ml-4 space-y-2">
                             <div className="flex justify-between">
                                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
                                 <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
@@ -1021,7 +1037,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                         <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} mb-2`}>
                           Punch Out Details:
                         </span>
-                        <div className="ml-4 space-y-2">
+                        <div className="ml-0 sm:ml-4 space-y-2">
                             <div className="flex justify-between">
                                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
                                 <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
@@ -1042,7 +1058,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                       {/* Attendance Photos section remains unchanged */}
                       <div className="flex flex-col items-start border-b pb-2">
                         <span className="font-medium text-gray-500 mb-1">Attendance Photos:</span>
-                        <div className="grid grid-cols-2 gap-4 w-full">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
                           {selectedRecord.punchInPhoto && (
                             <div>
                               <span className="text-sm text-gray-500 block mb-1">Punch In:</span>
@@ -1051,7 +1067,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                                 alt="Punch In"
                                 width={200}
                                 height={200}
-                                className="rounded-lg"
+                                className="rounded-lg w-full max-w-[200px] h-auto object-contain"
                               />
                             </div>
                           )}
@@ -1063,7 +1079,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                                 alt="Punch Out"
                                 width={200}
                                 height={200}
-                                className="rounded-lg"
+                                className="rounded-lg w-full max-w-[200px] h-auto object-contain"
                               />
                             </div>
                           )}

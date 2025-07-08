@@ -328,196 +328,198 @@ function MarkAttendanceContent() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header Section */}
-      <div className={`rounded-2xl shadow-xl p-8 mb-8 ${
-        theme === 'dark'
-          ? 'bg-gradient-to-r from-gray-800 to-gray-700'
-          : 'bg-gradient-to-r from-blue-600 to-blue-800'
-      }`}>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl">
-              <FaUserCheck className="text-3xl text-white" />
-            </div>
-            <div>
-              <h2 className="text-3xl font-bold text-white">Mark Attendance</h2>
-              <p className="text-white mt-1">Welcome to the official attendance management system</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-6 bg-white/10 backdrop-blur-md px-6 py-4 rounded-xl">
-            <div className="flex items-center gap-3">
-              <FaClock className="text-2xl text-white" />
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
+      <div className="w-full max-w-full md:max-w-none mx-auto overflow-y-auto md:overflow-visible" style={{ maxHeight: '100dvh' }}>
+        {/* Header Section */}
+        <div className={`rounded-2xl shadow-xl p-4 sm:p-8 mb-6 sm:mb-8 ${
+          theme === 'dark'
+            ? 'bg-gradient-to-r from-gray-800 to-gray-700'
+            : 'bg-gradient-to-r from-blue-600 to-blue-800'
+        }`}>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-2xl">
+                <FaUserCheck className="text-2xl sm:text-3xl text-white" />
+              </div>
               <div>
-                <p className="text-2xl font-bold text-white">{currentTime}</p>
-                <p className="text-sm text-white">Current Time</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white">Mark Attendance</h2>
+                <p className="text-white mt-1 text-sm sm:text-base">Welcome to the official attendance management system</p>
               </div>
             </div>
-            <div className="w-px h-12 bg-white/20"></div>
-            <div className="flex items-center gap-3">
-              <FaCalendarAlt className="text-2xl text-white" />
-              <div>
-                <p className="font-medium text-white">{currentDate}</p>
-                <p className="text-sm text-white">Today&apos;s Date</p>
+            <div className="flex items-center gap-4 sm:gap-6 bg-white/10 backdrop-blur-md px-4 sm:px-6 py-3 sm:py-4 rounded-xl">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <FaClock className="text-xl sm:text-2xl text-white" />
+                <div>
+                  <p className="text-xl sm:text-2xl font-bold text-white">{currentTime}</p>
+                  <p className="text-xs sm:text-sm text-white">Current Time</p>
+                </div>
+              </div>
+              <div className="w-px h-10 sm:h-12 bg-white/20"></div>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <FaCalendarAlt className="text-xl sm:text-2xl text-white" />
+                <div>
+                  <p className="font-medium text-white text-sm sm:text-base">{currentDate}</p>
+                  <p className="text-xs sm:text-sm text-white">Today&apos;s Date</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content Grid */}
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* Photo Section */}
-        <div className={`rounded-xl shadow-lg p-8 ${
-          theme === 'dark'
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-white border-gray-200'
-        } border`}>
-          <h3 className={`text-xl font-bold mb-6 flex items-center gap-2 ${
-            theme === 'dark' ? 'text-white' : 'text-gray-800'
-          }`}>
-            <FaCamera className="text-blue-500" />
-            Photo Verification
-          </h3>
-          <div className={`rounded-xl p-8 border-2 border-dashed ${
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+          {/* Photo Section */}
+          <div className={`rounded-xl shadow-lg p-4 sm:p-8 ${
             theme === 'dark'
-              ? 'bg-gray-800 border-gray-600'
-              : 'bg-white border-blue-200'
-          } shadow-md`}>
-            <div className="flex flex-col items-center justify-center">
-              {photoPreview ? (
-                <div className="relative group">
-                  <Image
-                    src={photoPreview}
-                    alt="Preview"
-                    width={800}
-                    height={600}
-                    className="w-full h-[400px] object-cover rounded-lg shadow-lg"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
-                    <button
-                      onClick={() => setPhotoPreview(null)}
-                      className="bg-red-500 text-white p-3 rounded-full hover:bg-red-600 transition-colors shadow-lg transform hover:scale-110"
-                      title="Retake photo"
-                    >
-                      <FaStopCircle className="w-6 h-6" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <div className="relative mb-6">
-                    <div className="absolute inset-0 bg-blue-200 rounded-full blur-xl opacity-20"></div>
-                    <div className={`relative rounded-full p-8 inline-block shadow-xl ${
-                      theme === 'dark'
-                        ? 'bg-gradient-to-br from-blue-600 to-blue-700'
-                        : 'bg-gradient-to-br from-blue-500 to-blue-600'
-                    }`}>
-                      <FaCamera className="h-16 w-16 text-white" />
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-gray-200'
+          } border`}>
+            <h3 className={`text-lg sm:text-xl font-bold mb-4 sm:mb-6 flex items-center gap-2 ${
+              theme === 'dark' ? 'text-white' : 'text-gray-800'
+            }`}>
+              <FaCamera className="text-blue-500" />
+              Photo Verification
+            </h3>
+            <div className={`rounded-xl p-4 sm:p-8 border-2 border-dashed ${
+              theme === 'dark'
+                ? 'bg-gray-800 border-gray-600'
+                : 'bg-white border-blue-200'
+            } shadow-md`}>
+              <div className="flex flex-col items-center justify-center">
+                {photoPreview ? (
+                  <div className="relative group">
+                    <Image
+                      src={photoPreview}
+                      alt="Preview"
+                      width={800}
+                      height={600}
+                      className="w-full max-w-xs sm:max-w-full h-48 sm:h-[400px] object-cover rounded-lg shadow-lg"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                      <button
+                        onClick={() => setPhotoPreview(null)}
+                        className="bg-red-500 text-white p-2 sm:p-3 rounded-full hover:bg-red-600 transition-colors shadow-lg transform hover:scale-110"
+                        title="Retake photo"
+                      >
+                        <FaStopCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+                      </button>
                     </div>
                   </div>
-                  <h3 className={`text-xl font-bold mb-3 ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-800'
-                  }`}>Ready to Capture</h3>
-                  <p className={`mb-8 ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                  }`}>
-                    Please ensure you&apos;re in a well-lit area and facing the camera directly
-                  </p>
-                  <button
-                    onClick={() => setShowCameraModal(true)}
-                    className={`inline-flex items-center gap-2 px-8 py-4 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 ${
-                      theme === 'dark'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700'
-                        : 'bg-gradient-to-r from-blue-600 to-blue-700'
-                    } text-white`}
-                  >
-                    <FaCamera className="w-5 h-5" />
-                    <span>Start Camera</span>
-                  </button>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center">
+                    <div className="relative mb-4 sm:mb-6">
+                      <div className="absolute inset-0 bg-blue-200 rounded-full blur-xl opacity-20"></div>
+                      <div className={`relative rounded-full p-6 sm:p-8 inline-block shadow-xl ${
+                        theme === 'dark'
+                          ? 'bg-gradient-to-br from-blue-600 to-blue-700'
+                          : 'bg-gradient-to-br from-blue-500 to-blue-600'
+                      }`}>
+                        <FaCamera className="h-12 w-12 sm:h-16 sm:w-16 text-white" />
+                      </div>
+                    </div>
+                    <h3 className={`text-lg sm:text-xl font-bold mb-2 sm:mb-3 ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-800'
+                    }`}>Ready to Capture</h3>
+                    <p className={`mb-6 sm:mb-8 ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                    } text-sm sm:text-base`}>
+                      Please ensure you&apos;re in a well-lit area and facing the camera directly
+                    </p>
+                    <button
+                      onClick={() => setShowCameraModal(true)}
+                      className={`inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 ${
+                        theme === 'dark'
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-700'
+                          : 'bg-gradient-to-r from-blue-600 to-blue-700'
+                      } text-white text-sm sm:text-base`}
+                    >
+                      <FaCamera className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span>Start Camera</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Status and Action Section */}
-        <div className={`rounded-xl shadow-lg p-8 ${
-          theme === 'dark'
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-white border-gray-200'
-        } border`}>
-          <h3 className={`text-xl font-bold mb-6 flex items-center gap-2 ${
-            theme === 'dark' ? 'text-white' : 'text-gray-800'
-          }`}>
-            <FaMapMarkerAlt className="text-blue-500" />
-            Location Verification
-          </h3>
-          
-          <div className="space-y-6">
-            <div className={`p-4 rounded-xl border ${
-              theme === 'dark'
-                ? 'bg-gray-700 border-gray-600'
-                : 'bg-gray-50 border-gray-100'
+          {/* Status and Action Section */}
+          <div className={`rounded-xl shadow-lg p-4 sm:p-8 ${
+            theme === 'dark'
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-gray-200'
+          } border`}>
+            <h3 className={`text-lg sm:text-xl font-bold mb-4 sm:mb-6 flex items-center gap-2 ${
+              theme === 'dark' ? 'text-white' : 'text-gray-800'
             }`}>
-              <p className={`mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
-                <FaInfoCircle className="inline mr-2 text-blue-500" />
-                Your device&apos;s location will be verified against your registered office location
-              </p>
-              <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                Please ensure your device&apos;s location services are enabled
-              </p>
+              <FaMapMarkerAlt className="text-blue-500" />
+              Location Verification
+            </h3>
+            
+            <div className="space-y-4 sm:space-y-6">
+              <div className={`p-3 sm:p-4 rounded-xl border ${
+                theme === 'dark'
+                  ? 'bg-gray-700 border-gray-600'
+                  : 'bg-gray-50 border-gray-100'
+              }`}>
+                <p className={`mb-1 sm:mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} text-sm sm:text-base`}>
+                  <FaInfoCircle className="inline mr-2 text-blue-500" />
+                  Your device&apos;s location will be verified against your registered office location
+                </p>
+                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  Please ensure your device&apos;s location services are enabled
+                </p>
+              </div>
+
+              <div className="space-y-2 sm:space-y-4">
+                {markAttendanceError && (
+                  <FeedbackMessage message={markAttendanceError} type="error" />
+                )}
+                {markAttendanceSuccess && (
+                  <FeedbackMessage message={markAttendanceSuccess} type="success" />
+                )}
+              </div>
+
+              {/* Add location error message */}
+              {locationError && (
+                <FeedbackMessage message={locationError} type="error" />
+              )}
+
+              <button
+                onClick={handleMarkAttendance}
+                disabled={markingAttendance || !photoPreview}
+                className={`w-full flex items-center justify-center gap-2 sm:gap-3 px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-medium transition-all duration-200 shadow-lg text-sm sm:text-base ${
+                  markingAttendance || !photoPreview
+                    ? theme === 'dark'
+                      ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : theme === 'dark'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-xl transform hover:scale-105'
+                      : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-xl transform hover:scale-105'
+                }`}
+              >
+                {markingAttendance ? (
+                  <>
+                    <FaSpinner className="animate-spin w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaUserCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>Mark Attendance</span>
+                  </>
+                )}
+              </button>
             </div>
-
-            <div className="space-y-4">
-              {markAttendanceError && (
-                <FeedbackMessage message={markAttendanceError} type="error" />
-              )}
-              {markAttendanceSuccess && (
-                <FeedbackMessage message={markAttendanceSuccess} type="success" />
-              )}
-            </div>
-
-            {/* Add location error message */}
-            {locationError && (
-              <FeedbackMessage message={locationError} type="error" />
-            )}
-
-            <button
-              onClick={handleMarkAttendance}
-              disabled={markingAttendance || !photoPreview}
-              className={`w-full flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-medium transition-all duration-200 shadow-lg ${
-                markingAttendance || !photoPreview
-                  ? theme === 'dark'
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : theme === 'dark'
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-xl transform hover:scale-105'
-                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-xl transform hover:scale-105'
-              }`}
-            >
-              {markingAttendance ? (
-                <>
-                  <FaSpinner className="animate-spin w-5 h-5" />
-                  <span>Processing...</span>
-                </>
-              ) : (
-                <>
-                  <FaUserCheck className="w-5 h-5" />
-                  <span>Mark Attendance</span>
-                </>
-              )}
-            </button>
           </div>
         </div>
-      </div>
 
-      {/* Camera Modal */}
-      <CameraModal
-        isOpen={showCameraModal}
-        onClose={() => setShowCameraModal(false)}
-        onCapture={handlePhotoCapture}
-      />
+        {/* Camera Modal */}
+        <CameraModal
+          isOpen={showCameraModal}
+          onClose={() => setShowCameraModal(false)}
+          onCapture={handlePhotoCapture}
+        />
+      </div>
     </div>
   );
 }

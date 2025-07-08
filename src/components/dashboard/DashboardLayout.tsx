@@ -407,23 +407,9 @@ const handleLogout = () => {
 
   return (
     <UserContext.Provider value={userDetails}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-        {/* Overlay for mobile */}
-        {isMobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm lg:hidden z-40"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-        )}
-
-        {/* Sidebar with integrated header */}
-        <aside
-          className={`fixed inset-y-0 left-0 flex flex-col
-            ${isSidebarExpanded ? 'w-72' : 'w-20'}
-            ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}
-            border-r shadow-xl
-            transition-all duration-300 z-30`}
-        >
+      <div className={`min-h-screen flex ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
+        {/* Sidebar (desktop) */}
+        <aside className={`hidden lg:flex flex-col fixed inset-y-0 left-0 w-72 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-r shadow-xl z-30`}>
           {/* Logo and Toggle */}
           <div className={`flex items-center justify-between p-5 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} h-[65px]`}>
             <div className={`flex items-center ${isSidebarExpanded ? 'justify-start' : 'justify-center'} w-full`}>
@@ -435,7 +421,9 @@ const handleLogout = () => {
                 className="rounded-xl shadow-sm"
               />
               {isSidebarExpanded && (
-                <span className={`ml-3 font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} text-2xl tracking-wide`}>Exozen</span>
+                <span className={`ml-3 font-bold text-2xl tracking-wide ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-800'
+                }`}>Exozen</span>
               )}
             </div>
             <button
@@ -455,140 +443,217 @@ const handleLogout = () => {
           </nav>
         </aside>
 
-        {/* Main Content with Header */}
-        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
-          isSidebarExpanded ? 'ml-72' : 'ml-20'
-        }`}>
-          {/* Header */}
-          <header className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} 
-            border-b shadow-lg z-20 sticky top-0 h-[64px] flex items-center transition-colors duration-200`}>
-            <div className="flex items-center justify-between px-4 w-full h-full">
-              {/* Left: Menu Icon & Page Title */}
-              <div className="flex items-center gap-3 min-w-0">
-                <button
-                  onClick={toggleSidebar}
-                  className={`p-2 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-blue-700'} 
-                    transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200`}
-                  title={isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-                >
-                  <FaBars className="w-5 h-5" />
-                </button>
-                <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} tracking-tight truncate`}>
-                  {(() => {
-                    const current = menuItems.find(item => item.href === pathname);
-                    return current ? current.label : '';
-                  })()}
-                </h1>
+        {/* Mobile Sidebar and Overlay */}
+        {isMobileMenuOpen && (
+          <>
+            <div 
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <aside
+              className={`fixed inset-y-0 left-0 z-50 flex flex-col w-64 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-r shadow-xl lg:hidden`}
+            >
+              {/* Logo */}
+              <div className={`flex items-center justify-center p-5 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} h-[65px]`}>
+                <Image
+                  src="/v1/employee/logo-exo .png"
+                  alt="Exozen Logo"
+                  width={40}
+                  height={40}
+                  className="rounded-xl shadow-sm"
+                />
               </div>
-
-              {/* Right: Date/Time, Settings, Notifications, Profile */}
-              <div className="flex items-center gap-2 ml-auto">
-                {/* Theme Toggle */}
-                <button
-                  onClick={toggleTheme}
-                  className={`p-2 rounded-full ${theme === 'dark' ? 'text-yellow-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'} transition-all duration-200`}
-                  title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-                >
-                  {theme === 'dark' ? <FaSun className="w-5 h-5" /> : <FaMoon className="w-5 h-5" />}
-                </button>
-
-                {/* Date and Time */}
-                <div className={`${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-blue-50 text-blue-700 border-blue-100'} font-medium text-sm px-4 py-1.5 rounded-full border min-w-fit`}>
-                  {currentDateTime}
+              {/* Navigation */}
+              <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                <ul className="p-4 space-y-2">
+                  {menuItems.map(renderMenuItem)}
+                </ul>
+              </nav>
+              {/* Profile Dropdown (mobile) */}
+              <div className="p-4 border-t mt-auto">
+                <div className="flex items-center gap-3">
+                  <div className="relative cursor-pointer" onClick={handleProfileImageClick}>
+                    <Image
+                      src={userDetails?.employeeImage || '/placeholder-user.jpg'}
+                      alt={userDetails?.fullName || 'User'}
+                      width={40}
+                      height={40}
+                      className="w-10 h-10 rounded-full object-cover border-2 border-white shadow"
+                    />
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-base font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} truncate`}>{userDetails?.fullName}</p>
+                    <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} truncate`}>{userDetails?.designation}</p>
+                  </div>
                 </div>
+                {/* Profile Dropdown Menu (show below image on click) */}
+                {showProfileDropdown && (
+                  <div className={`mt-3 w-full ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-xl border py-2 z-50`}> 
+                    {getUserRole() === 'Manager-Ops' && (
+                      <button
+                        onClick={handleOpsManagerView}
+                        className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                      >
+                        <FaTasks className="text-blue-500 w-5 h-5" /> Ops-Manager View
+                      </button>
+                    )}
+                    {getUserRole() === 'Manager' && (
+                      <button
+                        onClick={handleManagerView}
+                        className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-green-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                      >
+                        <FaTasks className="text-green-500 w-5 h-5" /> Manager
+                      </button>
+                    )}
+                    <button
+                      onClick={handleEditProfile}
+                      className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                    >
+                      <FaUser className="text-blue-500 w-5 h-5" /> Edit Profile
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                    >
+                      <FaSignOutAlt className="text-red-500 w-5 h-5" /> Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            </aside>
+          </>
+        )}
 
-                {/* Settings Icon */}
-                <button className={`p-2 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-blue-700'} transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200`}>
-                  <FaCog className="w-5 h-5" />
-                </button>
-
-                {/* Notifications */}
-                <button className={`relative p-2 ${theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'} transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200`}>
-                  <FaBell className="w-5 h-5" />
-                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 rounded-full text-[11px] font-bold text-white flex items-center justify-center ring-2 ring-white">3</span>
-                </button>
-
-                {/* User Profile */}
-                <div className="flex items-center relative">
-                  {loading ? (
-                    <div className="animate-pulse flex items-center">
-                      <div className={`w-10 h-10 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+        {/* Main Content */}
+        <div className={`flex-1 flex flex-col min-w-0 lg:ml-72 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+          {/* Header */}
+          <header className={`sticky top-0 z-20 h-16 flex items-center px-4 md:px-8 border-b w-full
+            ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}
+          `}>
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className={`lg:hidden p-2 rounded-md ${
+                theme === 'dark'
+                  ? 'text-gray-400 hover:bg-gray-700'
+                  : 'text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              <FaBars className="w-6 h-6" />
+            </button>
+            {/* Left: Menu Icon & Page Title */}
+            <div className="flex items-center gap-3 min-w-0">
+              <h1 className={`text-xl font-bold tracking-tight truncate ${
+                theme === 'dark' ? 'text-white' : 'text-black'
+              }`}>
+                {
+                  // Find the active menu or submenu label based on pathname
+                  (() => {
+                    let foundLabel = '';
+                    for (const item of menuItems) {
+                      if (item.href && item.href === pathname) {
+                        foundLabel = item.label;
+                        break;
+                      }
+                      if (item.subItems) {
+                        const sub = item.subItems.find(subItem => subItem.href === pathname);
+                        if (sub) {
+                          foundLabel = sub.label;
+                          break;
+                        }
+                      }
+                    }
+                    return foundLabel;
+                  })()
+                }
+              </h1>
+            </div>
+            {/* Right: Date/Time, Settings, Notifications, Profile */}
+            <div className="flex items-center gap-2 ml-auto">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-full ${theme === 'dark' ? 'text-yellow-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'} transition-all duration-200`}
+                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              >
+                {theme === 'dark' ? <FaSun className="w-5 h-5" /> : <FaMoon className="w-5 h-5" />}
+              </button>
+              {/* Date and Time */}
+              <div className={`${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-blue-50 text-blue-700 border-blue-100'} font-medium text-xs px-2 py-1 rounded-full border min-w-fit max-w-[160px] truncate`}>
+                {currentDateTime}
+              </div>
+              {/* Settings and Notifications icons removed as requested */}
+              {/* User Profile */}
+              <div className="flex items-center relative">
+                {loading ? (
+                  <div className="animate-pulse flex items-center">
+                    <div className={`w-10 h-10 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                  </div>
+                ) : (
+                  <div className="relative group flex-shrink-0">
+                    <div className="relative cursor-pointer" onClick={handleProfileImageClick}>
+                      <Image
+                        src={userDetails?.employeeImage || '/placeholder-user.jpg'}
+                        alt={userDetails?.fullName || 'User'}
+                        width={40}
+                        height={40}
+                        className="relative w-10 h-10 rounded-full object-cover border-2 border-white shadow transition-transform duration-200 group-hover:scale-105"
+                      />
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                     </div>
-                  ) : (
-                    <div className="relative group flex-shrink-0">
-                      <div className="relative cursor-pointer" onClick={handleProfileImageClick}>
-                        <Image
-                          src={userDetails?.employeeImage || '/placeholder-user.jpg'}
-                          alt={userDetails?.fullName || 'User'}
-                          width={40}
-                          height={40}
-                          className="relative w-10 h-10 rounded-full object-cover border-2 border-white shadow transition-transform duration-200 group-hover:scale-105"
-                        />
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                      </div>
-                      {/* Profile Dropdown */}
-                      {showProfileDropdown && (
-                        <div className={`absolute right-0 top-full mt-2 w-56 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-xl border py-2 z-50 transform transition-all duration-200 origin-top-right`}>
-                          {/* Add Ops-Manager View option if the role is Manager-Ops */}
-                          {getUserRole() === 'Manager-Ops' && (
-                            <button
-                              onClick={handleOpsManagerView}
-                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
-                            >
-                              <FaTasks className="text-blue-500 w-5 h-5" /> Ops-Manager View
-                            </button>
-                          )}
-                          {/* Add Manager option if the role is Manager */}
-                          {getUserRole() === 'Manager' && (
-                            <button
-                              onClick={handleManagerView}
-                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-green-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
-                            >
-                              <FaTasks className="text-green-500 w-5 h-5" /> Manager
-                            </button>
-                          )}
+                    {/* Profile Dropdown */}
+                    {showProfileDropdown && (
+                      <div className={`absolute right-0 top-full mt-2 w-56 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-xl border py-2 z-50 transform transition-all duration-200 origin-top-right`}>
+                        {/* Add Ops-Manager View option if the role is Manager-Ops */}
+                        {getUserRole() === 'Manager-Ops' && (
                           <button
-                            onClick={handleEditProfile}
+                            onClick={handleOpsManagerView}
                             className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
                           >
-                            <FaUser className="text-blue-500 w-5 h-5" /> Edit Profile
+                            <FaTasks className="text-blue-500 w-5 h-5" /> Ops-Manager View
                           </button>
+                        )}
+                        {/* Add Manager option if the role is Manager */}
+                        {getUserRole() === 'Manager' && (
                           <button
-                            onClick={handleLogout}
-                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                            onClick={handleManagerView}
+                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-green-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
                           >
-                            <FaSignOutAlt className="text-red-500 w-5 h-5" /> Logout
+                            <FaTasks className="text-green-500 w-5 h-5" /> Manager
                           </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {isSidebarExpanded && !loading && userDetails && (
-                    <div className="hidden md:block min-w-0 ml-2">
-                      <p className={`text-base font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} truncate`}>{userDetails.fullName}</p>
-                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} truncate`}>{userDetails.designation}</p>
-                    </div>
-                  )}
-                </div>
+                        )}
+                        <button
+                          onClick={handleEditProfile}
+                          className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                        >
+                          <FaUser className="text-blue-500 w-5 h-5" /> Edit Profile
+                        </button>
+                        <button
+                          onClick={handleLogout}
+                          className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                        >
+                          <FaSignOutAlt className="text-red-500 w-5 h-5" /> Logout
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {isSidebarExpanded && !loading && userDetails && (
+                  <div className="hidden md:block min-w-0 ml-2">
+                    <p className={`text-base font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} truncate`}>{userDetails.fullName}</p>
+                    <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} truncate`}>{userDetails.designation}</p>
+                  </div>
+                )}
               </div>
             </div>
           </header>
 
           {/* Main Content */}
-          <main className={`p-4 md:p-8 min-h-screen overflow-y-auto overflow-x-hidden h-[calc(100vh-64px)] ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+          <main className={`flex-1 p-0 md:p-0 overflow-y-auto w-full ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
             {children}
           </main>
         </div>
-
-        {/* Mobile Menu Toggle */}
-        <button
-          onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
-          className={`fixed bottom-6 right-6 lg:hidden ${theme === 'dark' ? 'bg-gray-800 text-blue-400 border-gray-700' : 'bg-white text-blue-600 border-gray-200'} p-4 rounded-full 
-            shadow-lg border hover:bg-blue-50 transition-all duration-200 z-50`}
-          title="Toggle menu"
-        >
-          {isMobileMenuOpen ? <FaTimes className="w-6 h-6"/> : <FaBars className="w-6 h-6"/>}
-        </button>
 
         {/* Edit Profile Modal */}
         {showEditProfileModal && (

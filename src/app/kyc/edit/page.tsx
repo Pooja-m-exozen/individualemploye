@@ -401,74 +401,76 @@ export default function EditKYC() {
   }
 
   return (
-    <div className={`min-h-screen ${
-      theme === 'dark'
-        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
-        : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'
-    }`}>
-      <div className="mb-8">
-        <div className={`flex items-center gap-6 rounded-2xl px-8 py-8 ${
-          theme === 'dark'
-            ? 'bg-gradient-to-r from-gray-800 to-gray-700'
-            : 'bg-gradient-to-r from-blue-600 to-blue-500'
-        }`}>
-          <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${
-            theme === 'dark' ? 'bg-gray-700/50' : 'bg-blue-500 bg-opacity-30'
-          }`}>
-            <FaIdCard className="w-8 h-8 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white">Edit KYC</h1>
-            <p className={`text-lg ${theme === 'dark' ? 'text-gray-300' : 'text-blue-100'}`}>
-              Update and manage your KYC information
-            </p>
+    <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      {/* Welcome Section (visible on all screens, includes View Reports/My Tickets) */}
+      <div className={`w-full px-4 pt-2 pb-2 lg:pt-4 lg:pb-0`}>
+        <div className={`rounded-2xl shadow p-4 lg:p-6 mb-2 lg:mb-0 flex flex-col gap-1
+          ${theme === 'dark' ? 'bg-gradient-to-r from-gray-800 to-gray-700' : 'bg-gradient-to-r from-blue-600 to-blue-400'}
+        `}>
+          <div className="flex items-center gap-6">
+            <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${
+              theme === 'dark' ? 'bg-gray-700/50' : 'bg-blue-500 bg-opacity-30'
+            }`}>
+              <FaIdCard className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white">Edit KYC</h1>
+              <p className={`text-lg ${theme === 'dark' ? 'text-gray-300' : 'text-blue-100'}`}>
+                Update and manage your KYC information
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Instructions Panel */}
       <div className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-        <div className={`max-w-7xl mx-auto px-4 py-4 rounded-lg border ${
-          theme === 'dark' 
-            ? 'bg-gray-800 border-gray-700' 
-            : 'bg-white border-gray-200'
-        }`}>
-          <div className="flex items-start gap-4">
-            <div className={`p-2 rounded-lg ${
-              theme === 'dark' 
-                ? 'bg-blue-900/20' 
-                : 'bg-blue-600 bg-opacity-10'
-            }`}>
-              <FaInfoCircle className={`w-6 h-6 ${
-                theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-              }`} />
-            </div>
-            <div>
-              <h2 className={`text-lg font-bold ${
-                theme === 'dark' ? 'text-white' : 'text-black'
-              }`}>KYC Information Guidelines</h2>
-              <ul className={`mt-2 space-y-2 text-sm ${
-                theme === 'dark' ? 'text-gray-300' : 'text-black'
+        <div className="max-w-5xl mx-auto px-4 py-4 mt-6 rounded-lg border "
+          style={{marginTop: '1.5rem'}}
+        >
+          <div className={`border ${
+            theme === 'dark' 
+              ? 'bg-gray-800 border-gray-700' 
+              : 'bg-white border-gray-200'
+          } p-0`}
+          >
+            <div className="flex items-start gap-4 p-4">
+              <div className={`p-2 rounded-lg ${
+                theme === 'dark' 
+                  ? 'bg-blue-900/20' 
+                  : 'bg-blue-600 bg-opacity-10'
               }`}>
-                <li className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
-                  }`}></span>
-                  <span className="font-medium">Fill in all required fields marked with an asterisk (*).</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
-                  }`}></span>
-                  <span className="font-medium">Ensure all documents are clear and legible before uploading.</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
-                  }`}></span>
-                  <span className="font-medium">Double-check your bank details to avoid payment issues.</span>
-                </li>
-              </ul>
+                <FaInfoCircle className={`w-6 h-6 ${
+                  theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                }`} />
+              </div>
+              <div>
+                <h2 className={`text-lg font-bold ${
+                  theme === 'dark' ? 'text-white' : 'text-black'
+                }`}>KYC Information Guidelines</h2>
+                <ul className={`mt-2 space-y-2 text-sm ${
+                  theme === 'dark' ? 'text-gray-300' : 'text-black'
+                }`}>
+                  <li className="flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
+                    }`}></span>
+                    <span className="font-medium">Fill in all required fields marked with an asterisk (*).</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
+                    }`}></span>
+                    <span className="font-medium">Ensure all documents are clear and legible before uploading.</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
+                    }`}></span>
+                    <span className="font-medium">Double-check your bank details to avoid payment issues.</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -552,7 +554,7 @@ export default function EditKYC() {
           <div className="flex-1">
             <div className="space-y-6">
               {/* Back Button and Title */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 mt-16">
                 <button
                   onClick={() => router.push('/kyc')}
                   className={`p-2 rounded-xl transition-colors ${
@@ -563,7 +565,7 @@ export default function EditKYC() {
                 >
                   <FaArrowLeft className="w-5 h-5" />
                 </button>
-                <div>
+                <div className="max-w-md">
                   <h1 className={`text-2xl font-bold ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
                   }`}>Edit KYC Information</h1>
