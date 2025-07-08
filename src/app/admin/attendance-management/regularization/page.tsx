@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { FaCalendarAlt, FaFileExport, FaEye, FaCheck, FaTimes } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-import { fetchAllRegularizations, updateRegularizationStatus } from "@/services/regularization";
+import { fetchAllRegularizations} from "@/services/regularization";
 import type { RegularizationRecord } from "@/types/regularization";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";

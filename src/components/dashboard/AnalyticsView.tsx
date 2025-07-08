@@ -277,7 +277,7 @@ export default function AnalyticsView() {
           setPresentCount(null);
           setPresentDate(null);
         }
-      } catch (error) {
+      } catch {
         setPresentCount(null);
         setPresentDate(null);
       }
@@ -686,8 +686,7 @@ export default function AnalyticsView() {
                                 rx={3}
                                 className="transition-all duration-200 hover:opacity-80"
                                 style={{ cursor: 'pointer' }}
-                                onMouseEnter={(e) => {
-                                  const rect = e.currentTarget.getBoundingClientRect();
+                                onMouseEnter={() => {
                                   setTooltipData({
                                     date: trend.date,
                                     submitted: trend.submitted,
@@ -696,8 +695,8 @@ export default function AnalyticsView() {
                                     total
                                   });
                                   setTooltipPosition({
-                                    x: rect.left + rect.width / 2,
-                                    y: rect.top - 10
+                                    x: x + barWidth / 2,
+                                    y: margin.top + height - submittedHeight / 2
                                   });
                                   setShowTooltip(true);
                                 }}
@@ -714,8 +713,7 @@ export default function AnalyticsView() {
                                 rx={3}
                                 className="transition-all duration-200 hover:opacity-80"
                                 style={{ cursor: 'pointer' }}
-                                onMouseEnter={(e) => {
-                                  const rect = e.currentTarget.getBoundingClientRect();
+                                onMouseEnter={() => {
                                   setTooltipData({
                                     date: trend.date,
                                     submitted: trend.submitted,
@@ -724,8 +722,8 @@ export default function AnalyticsView() {
                                     total
                                   });
                                   setTooltipPosition({
-                                    x: rect.left + rect.width / 2,
-                                    y: rect.top - 10
+                                    x: x + barWidth / 2,
+                                    y: margin.top + height - submittedHeight - approvedHeight / 2
                                   });
                                   setShowTooltip(true);
                                 }}
@@ -742,8 +740,7 @@ export default function AnalyticsView() {
                                 rx={3}
                                 className="transition-all duration-200 hover:opacity-80"
                                 style={{ cursor: 'pointer' }}
-                                onMouseEnter={(e) => {
-                                  const rect = e.currentTarget.getBoundingClientRect();
+                                onMouseEnter={() => {
                                   setTooltipData({
                                     date: trend.date,
                                     submitted: trend.submitted,
@@ -752,8 +749,8 @@ export default function AnalyticsView() {
                                     total
                                   });
                                   setTooltipPosition({
-                                    x: rect.left + rect.width / 2,
-                                    y: rect.top - 10
+                                    x: x + barWidth / 2,
+                                    y: margin.top + height - submittedHeight - approvedHeight - rejectedHeight / 2
                                   });
                                   setShowTooltip(true);
                                 }}
@@ -1047,7 +1044,7 @@ export default function AnalyticsView() {
                                   rx={3}
                                   className="transition-all duration-200 hover:opacity-80"
                                   style={{ cursor: 'pointer' }}
-                                  onMouseEnter={e => {
+                                  onMouseEnter={() => {
                                     setTooltipData({
                                       date,
                                       submitted: leaveCount,
@@ -1068,7 +1065,7 @@ export default function AnalyticsView() {
                                   rx={3}
                                   className="transition-all duration-200 hover:opacity-80"
                                   style={{ cursor: 'pointer' }}
-                                  onMouseEnter={e => {
+                                  onMouseEnter={() => {
                                     setTooltipData({
                                       date,
                                       submitted: 0,

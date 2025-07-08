@@ -92,11 +92,9 @@ export default function DescriptiveView() {
           console.log('Attendance data for today:', filtered);
           setEmployeeData(filtered);
         }
-      } catch (err) {
+      } catch {
         setEmployeeDataError('Failed to fetch employee data');
         setEmployeeData([]);
-      } finally {
-        setEmployeeDataLoading(false);
       }
     }
     fetchEmployeeData();
@@ -126,12 +124,11 @@ export default function DescriptiveView() {
       const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${employeeId}`);
       const data = await res.json();
       setKycModalData({ kyc: data.kycData, leave: leaveItem });
-    } catch (err) {
+    } catch {
       setKycModalError('Failed to fetch KYC details');
       setKycModalData(null);
-    } finally {
-      setKycModalLoading(false);
     }
+    setKycModalLoading(false);
   }
   function closeKycModal() {
     setKycModalOpen(false);
@@ -195,9 +192,8 @@ export default function DescriptiveView() {
         return data.results[0].formatted_address;
       }
       return '';
-    } catch {
-      return '';
-    }
+    } catch {}
+    return '';
   }
 
   // Add a helper function at the top of the component (after imports)
@@ -279,11 +275,8 @@ export default function DescriptiveView() {
         const res = await fetch('https://cafm.zenapi.co.in/api/kyc/reports/new-joiners?days=7');
         const data = await res.json();
         setNewJoinersCount(Array.isArray(data.data) ? data.data.length : (data.count ?? 0));
-      } catch {
-        setNewJoinersCount(null);
-      } finally {
-        setNewJoinersLoading(false);
-      }
+      } catch {}
+      setNewJoinersLoading(false);
     }
     async function fetchOnLeaveToday() {
       setOnLeaveTodayLoading(true);
@@ -291,11 +284,8 @@ export default function DescriptiveView() {
         const res = await fetch('https://cafm.zenapi.co.in/api/dashboard/on-leave-today');
         const data = await res.json();
         setOnLeaveTodayCount(Array.isArray(data.onLeave) ? data.onLeave.length : 0);
-      } catch {
-        setOnLeaveTodayCount(null);
-      } finally {
-        setOnLeaveTodayLoading(false);
-      }
+      } catch {}
+      setOnLeaveTodayLoading(false);
     }
     async function fetchActiveToday() {
       setActiveTodayLoading(true);
@@ -303,11 +293,8 @@ export default function DescriptiveView() {
         const res = await fetch('https://cafm.zenapi.co.in/api/attendance/active-today/count');
         const data = await res.json();
         setActiveTodayCount(typeof data.activeCount === 'number' ? data.activeCount : 0);
-      } catch {
-        setActiveTodayCount(null);
-      } finally {
-        setActiveTodayLoading(false);
-      }
+      } catch {}
+      setActiveTodayLoading(false);
     }
     fetchNewJoiners();
     fetchOnLeaveToday();
@@ -574,10 +561,8 @@ export default function DescriptiveView() {
                                   reverseGeocode(todayRecord.punchOutLatitude, todayRecord.punchOutLongitude).then(setPunchOutAddress);
                                 }
                               }
-                            } catch (e) {
+                            } catch {
                               setAttendanceModalError('Failed to fetch attendance details.');
-                            } finally {
-                              setAttendanceModalLoading(false);
                             }
                           }}
                         >
