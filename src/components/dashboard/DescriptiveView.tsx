@@ -565,6 +565,8 @@ export default function DescriptiveView() {
                               }
                             } catch {
                               setAttendanceModalError('Failed to fetch attendance details.');
+                            } finally {
+                              setAttendanceModalLoading(false);
                             }
                           }}
                         >
