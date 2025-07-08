@@ -408,48 +408,24 @@ export default function ViewAllKYCPage() {
         <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg shadow-lg p-6 mt-6`}>
           <div className="relative">
             <div className={`overflow-x-auto overflow-y-auto max-h-[60vh] rounded-lg border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}> 
-              <table className="w-full text-left">
+              <table className="w-full text-left min-w-[600px]">
                 <thead>
-                  <tr className={`
-                    ${theme === 'dark' ? 'bg-blue-950 text-blue-200' : 'bg-blue-100 text-blue-900'}
-                    rounded-t-xl
-                    text-sm font-bold tracking-tight
-                    border-b border-blue-200 dark:border-blue-900
-                    shadow-sm
-                  `}>
-                    <th className="px-3 py-3 whitespace-nowrap rounded-tl-xl tracking-tight cursor-pointer select-none flex items-center gap-1"
-                        onClick={() => {
-                          setSortField("name");
-                          setSortDirection(sortField === "name" && sortDirection === "asc" ? "desc" : "asc");
-                        }}>
+                  <tr>
+                    <th className="px-3 py-3 whitespace-nowrap rounded-tl-xl tracking-tight cursor-pointer select-none">
                       Employee
-                      {sortField === "name" ? (sortDirection === "asc" ? <FaSortUp className="inline w-3 h-3" /> : <FaSortDown className="inline w-3 h-3" />) : <FaSort className="inline w-3 h-3 text-gray-400" />}
                     </th>
-                    <th className="px-3 py-3 whitespace-nowrap tracking-tight cursor-pointer select-none flex items-center gap-1"
-                        onClick={() => {
-                          setSortField("designation");
-                          setSortDirection(sortField === "designation" && sortDirection === "asc" ? "desc" : "asc");
-                        }}>
+                    <th className="px-3 py-3 whitespace-nowrap tracking-tight cursor-pointer select-none">
                       Designation
-                      {sortField === "designation" ? (sortDirection === "asc" ? <FaSortUp className="inline w-3 h-3" /> : <FaSortDown className="inline w-3 h-3" />) : <FaSort className="inline w-3 h-3 text-gray-400" />}
                     </th>
-                    <th className="px-3 py-3 whitespace-nowrap tracking-tight cursor-pointer select-none flex items-center gap-1"
-                        onClick={() => {
-                          setSortField("project");
-                          setSortDirection(sortField === "project" && sortDirection === "asc" ? "desc" : "asc");
-                        }}>
+                    <th className="px-3 py-3 whitespace-nowrap tracking-tight cursor-pointer select-none">
                       Project
-                      {sortField === "project" ? (sortDirection === "asc" ? <FaSortUp className="inline w-3 h-3" /> : <FaSortDown className="inline w-3 h-3" />) : <FaSort className="inline w-3 h-3 text-gray-400" />}
                     </th>
-                    <th className="px-3 py-3 whitespace-nowrap tracking-tight cursor-pointer select-none flex items-center gap-1"
-                        onClick={() => {
-                          setSortField("status");
-                          setSortDirection(sortField === "status" && sortDirection === "asc" ? "desc" : "asc");
-                        }}>
+                    <th className="px-3 py-3 whitespace-nowrap tracking-tight cursor-pointer select-none">
                       Status
-                      {sortField === "status" ? (sortDirection === "asc" ? <FaSortUp className="inline w-3 h-3" /> : <FaSortDown className="inline w-3 h-3" />) : <FaSort className="inline w-3 h-3 text-gray-400" />}
                     </th>
-                    <th className="px-3 py-3 whitespace-nowrap rounded-tr-xl tracking-tight text-center">Actions</th>
+                    <th className="px-3 py-3 whitespace-nowrap rounded-tr-xl tracking-tight text-center">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className={theme === 'dark' ? 'divide-gray-800' : 'divide-gray-200'}>
