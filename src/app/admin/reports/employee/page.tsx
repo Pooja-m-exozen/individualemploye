@@ -188,11 +188,8 @@ export default function ViewAllKYCPage() {
       return matchesProject && matchesDesignation && matchesStatus && matchesSearch;
     })
     .sort((a, b) => {
-      let aValue: string, bValue: string;
-      
-      aValue = a.personalDetails.fullName.toLowerCase();
-      bValue = b.personalDetails.fullName.toLowerCase();
-
+      const aValue = a.personalDetails.fullName.toLowerCase();
+      const bValue = b.personalDetails.fullName.toLowerCase();
       return aValue.localeCompare(bValue);
     });
 
