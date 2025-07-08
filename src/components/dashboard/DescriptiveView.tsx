@@ -95,6 +95,8 @@ export default function DescriptiveView() {
       } catch {
         setEmployeeDataError('Failed to fetch employee data');
         setEmployeeData([]);
+      } finally {
+        setEmployeeDataLoading(false);
       }
     }
     fetchEmployeeData();
