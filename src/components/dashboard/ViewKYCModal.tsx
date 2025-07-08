@@ -406,7 +406,7 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
                     </div>
                     {/* Right side image */}
                     <div className="flex-shrink-0">
-                        <div className={`relative w-32 h-32 rounded-lg overflow-hidden border-4 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-white shadow-md'}`}>
+                        <div className={`relative w-48 h-48 rounded-lg overflow-hidden border-4 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-white shadow-md'}`}>
                         {kycData.personalDetails.employeeImage ? (
                             <Image
                             src={kycData.personalDetails.employeeImage}

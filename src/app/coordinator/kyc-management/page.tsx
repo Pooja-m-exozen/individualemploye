@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import CoordinatorDashboardLayout from "@/components/dashboard/CoordinatorDashboardLayout";
 import { useTheme } from "@/context/ThemeContext";
-import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle, FaPaperclip, FaUpload } from "react-icons/fa";
-import { useRouter } from 'next/navigation';
+import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle, FaUpload } from "react-icons/fa";
+import Image from "next/image";
 
 const sections = [
   { id: "personal", title: "Personal Details", icon: FaUser },
@@ -15,9 +15,11 @@ const sections = [
   { id: "image", title: "Uploads", icon: FaIdCard },
 ];
 
+// Change docUploadComplete state type
+type DocUploadCompleteState = false | "show" | true | "single" | "multiple";
+
 export default function CreateKYCPage() {
   const { theme } = useTheme();
-  const router = useRouter();
   // State for each section
   const [personalDetails, setPersonalDetails] = useState({
     employeeId: "",
@@ -180,6 +182,14 @@ export default function CreateKYCPage() {
     if (e.target.files && e.target.files[0]) setEmployeeImage(e.target.files[0]);
   };
 
+  // Modal state for post-KYC document upload
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [kycCreatedEmployeeId, setKycCreatedEmployeeId] = useState<string | null>(null);
+  const [docUploadComplete, setDocUploadComplete] = useState<DocUploadCompleteState>(false);
+
+  // Add state for review modal
+  const [showReview, setShowReview] = useState(false);
+
   // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,9 +215,11 @@ export default function CreateKYCPage() {
       const data = await res.json();
       if (res.ok) {
         setMessage("KYC details submitted successfully.");
-        // After successful submission, always trigger backend fetch for next ID
+        setKycCreatedEmployeeId(personalDetails.employeeId); // Save for document upload
+        setShowUploadModal(true); // Show modal for document upload
+        // Reset form fields but not employeeIdSeed yet
         setPersonalDetails({
-          employeeId: "", // This will trigger the useEffect to fetch the next ID
+          employeeId: "",
           projectName: "",
           fullName: "",
           fathersName: "",
@@ -245,9 +257,7 @@ export default function CreateKYCPage() {
         setMultiDocStatus(null);
         setMultiDocError(null);
         setMultiDocCustomTypes([""]);
-        setEmployeeIdSeed(seed => seed + 1); // Immediately increment to trigger next ID fetch
-        // Navigate to view KYC page after successful submission
-        router.push('/coordinator/kyc-management/view');
+        // Don't increment employeeIdSeed yet; do it after modal is closed
       } else {
         setError(data.message || "Submission failed.");
       }
@@ -266,8 +276,8 @@ export default function CreateKYCPage() {
   const handleSingleDocUpload = async () => {
     setSingleDocStatus(null);
     setSingleDocError(null);
-    if (!personalDetails.employeeId) {
-      setSingleDocError("Please enter Employee ID in Personal Details first.");
+    if (!kycCreatedEmployeeId) {
+      setSingleDocError("Employee ID is missing. Please try again.");
       return;
     }
     if (!singleDocFile || !singleDocType) {
@@ -278,7 +288,7 @@ export default function CreateKYCPage() {
       const formData = new FormData();
       formData.append("document", singleDocFile);
       formData.append("documentType", singleDocType);
-      const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${personalDetails.employeeId}/upload-document`, {
+      const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${kycCreatedEmployeeId}/upload-document`, {
         method: "POST",
         body: formData,
       });
@@ -299,8 +309,8 @@ export default function CreateKYCPage() {
   const handleMultiDocUpload = async () => {
     setMultiDocStatus(null);
     setMultiDocError(null);
-    if (!personalDetails.employeeId) {
-      setMultiDocError("Please enter Employee ID in Personal Details first.");
+    if (!kycCreatedEmployeeId) {
+      setMultiDocError("Employee ID is missing. Please try again.");
       return;
     }
     if (!multiDocFiles || multiDocFiles.length === 0) {
@@ -317,7 +327,7 @@ export default function CreateKYCPage() {
         formData.append("documents", file);
       });
       formData.append("documentTypes", JSON.stringify(multiDocTypes));
-      const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${personalDetails.employeeId}/upload-multiple-documents`, {
+      const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${kycCreatedEmployeeId}/upload-multiple-documents`, {
         method: "POST",
         body: formData,
       });
@@ -346,30 +356,6 @@ export default function CreateKYCPage() {
             <h1 className="text-3xl font-bold text-white mb-1">Create KYC</h1>
             <p className="text-white text-base opacity-90">Fill in the details to create a new KYC record</p>
           </div>
-        </div>
-        {/* Tabs for Create/View KYC */}
-        <div className="flex gap-2 mb-8 w-full max-w-5xl mx-auto">
-          <button
-            className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
-              theme === 'dark'
-                ? 'bg-gray-800 border-blue-400 text-blue-400'
-                : 'bg-white border-blue-600 text-blue-700'
-            }`}
-            style={{ borderBottomWidth: '3px' }}
-            onClick={() => router.push('/coordinator/kyc-management')}
-          >
-            Create KYC
-          </button>
-          <button
-            className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
-              theme === 'dark'
-                ? 'bg-gray-700 border-transparent text-gray-300 hover:text-blue-300'
-                : 'bg-gray-100 border-transparent text-gray-500 hover:text-blue-700'
-            }`}
-            onClick={() => router.push('/coordinator/kyc-management/view')}
-          >
-            View KYC
-          </button>
         </div>
         {/* Only the content area below header is scrollable */}
         <div className="w-full max-w-5xl mx-auto h-[calc(100vh-64px-48px)] flex flex-col md:flex-row gap-8">
@@ -762,92 +748,6 @@ export default function CreateKYCPage() {
                 <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
                   <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee Image</h2>
                   <input type="file" accept="image/*" onChange={handleImageChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
-
-                  {/* Document Upload Section - only in Uploads section, after employee image */}
-                  <div className="mt-8">
-                    <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}><FaPaperclip /> Upload Documents (Optional)</h2>
-                    {/* Single Document Upload */}
-                    <div className="mb-6">
-                      <div className="flex flex-col md:flex-row gap-4 items-end">
-                        <div className="flex-1">
-                          <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Document File</label>
-                          <input type="file" accept="*" onChange={e => setSingleDocFile(e.target.files ? e.target.files[0] : null)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
-                        </div>
-                        <div className="flex-1">
-                          <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Document Type</label>
-                          <input type="text" value={singleDocType} onChange={e => setSingleDocType(e.target.value)} placeholder="e.g. aadhar, pan, bankStatement" className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
-                        </div>
-                        <button type="button" onClick={handleSingleDocUpload} className="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold flex items-center gap-2 hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"><FaUpload /> Upload</button>
-                      </div>
-                      {singleDocStatus && <div className="text-green-600 mt-2">{singleDocStatus}</div>}
-                      {singleDocError && <div className="text-red-600 mt-2">{singleDocError}</div>}
-                    </div>
-                    {/* Multiple Documents Upload */}
-                    <div>
-                      <div className="flex flex-col gap-4">
-                        <div>
-                          <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Select Multiple Documents</label>
-                          <input type="file" accept="*" multiple onChange={e => {
-                            setMultiDocFiles(e.target.files);
-                            setMultiDocTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
-                            setMultiDocCustomTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
-                          }} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
-                        </div>
-                        {multiDocFiles && multiDocFiles.length > 0 && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {Array.from(multiDocFiles).map((file, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <span className="truncate flex-1">{file.name}</span>
-                                <select
-                                  value={multiDocTypes[idx] === undefined ? "" : (documentTypeOptions.includes(multiDocTypes[idx]) ? multiDocTypes[idx] : "other")}
-                                  onChange={e => {
-                                    const newTypes = [...multiDocTypes];
-                                    if (e.target.value === "other") {
-                                      newTypes[idx] = multiDocCustomTypes[idx] || "";
-                                    } else {
-                                      newTypes[idx] = e.target.value;
-                                    }
-                                    setMultiDocTypes(newTypes);
-                                    if (e.target.value !== "other") {
-                                      const newCustom = [...multiDocCustomTypes];
-                                      newCustom[idx] = "";
-                                      setMultiDocCustomTypes(newCustom);
-                                    }
-                                  }}
-                                  className={`rounded-lg px-2 py-1 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`}
-                                >
-                                  <option value="">Select Type</option>
-                                  {documentTypeOptions.map(opt => (
-                                    <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
-                                  ))}
-                                </select>
-                                {((multiDocTypes[idx] && !documentTypeOptions.includes(multiDocTypes[idx])) || (multiDocTypes[idx] === "" && multiDocCustomTypes[idx])) && (
-                                  <input
-                                    type="text"
-                                    placeholder="Custom Type"
-                                    value={multiDocCustomTypes[idx] || ""}
-                                    onChange={e => {
-                                      const newCustom = [...multiDocCustomTypes];
-                                      newCustom[idx] = e.target.value;
-                                      setMultiDocCustomTypes(newCustom);
-                                      // Also update multiDocTypes to use the custom value
-                                      const newTypes = [...multiDocTypes];
-                                      newTypes[idx] = e.target.value;
-                                      setMultiDocTypes(newTypes);
-                                    }}
-                                    className={`rounded-lg px-2 py-1 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`}
-                                  />
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <button type="button" onClick={handleMultiDocUpload} className="px-6 py-3 rounded-xl bg-green-600 text-white font-bold flex items-center gap-2 hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed"><FaUpload /> Upload Multiple</button>
-                        {multiDocStatus && <div className="text-green-600 mt-2">{multiDocStatus}</div>}
-                        {multiDocError && <div className="text-red-600 mt-2">{multiDocError}</div>}
-                      </div>
-                    </div>
-                  </div>
                 </section>
               )}
 
@@ -879,9 +779,10 @@ export default function CreateKYCPage() {
                     </button>
                   ) : (
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={() => setShowReview(true)}
                       className={`px-8 py-3 rounded-xl text-white font-medium bg-blue-600 hover:bg-blue-700 transition-all ${theme === "dark" ? "bg-gray-700 hover:bg-gray-600" : "bg-blue-600 hover:bg-blue-700"}`}
-                      disabled={loading}
+                      disabled={loading || !employeeImage}
                     >
                       {loading ? <span className="flex items-center gap-2"><FaSpinner className="animate-spin" /> Submitting...</span> : "Create KYC"}
                     </button>
@@ -892,6 +793,287 @@ export default function CreateKYCPage() {
               {message && <div className={`text-blue-600 font-medium mt-2 text-center ${theme === "dark" ? "text-blue-300" : ""}`}>{message}</div>}
               {error && <div className={`text-red-600 font-medium mt-2 text-center ${theme === "dark" ? "text-red-300" : ""}`}>{error}</div>}
             </form>
+            {/* Modal for document upload after KYC creation */}
+            {showUploadModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className={`rounded-2xl p-8 w-full max-w-lg shadow-xl border ${theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-white border-blue-200"}`}>
+                  {/* Modal State Management */}
+                  {(!docUploadComplete || docUploadComplete === "single" || docUploadComplete === "multiple") ? (
+                    <>
+                      <h2 className={`text-2xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Successfully created KYC{kycCreatedEmployeeId ? ` for Employee ID: ${kycCreatedEmployeeId}` : ""}</h2>
+                      <p className={`mb-6 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Would you like to upload documents now?</p>
+                      {/* Show upload options only if not in upload mode */}
+                      {docUploadComplete === false && (
+                        <div className="flex flex-col md:flex-row gap-4 mb-6">
+                          <button
+                            className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700"
+                            onClick={() => setDocUploadComplete("single")}
+                          >
+                            Upload Single Document
+                          </button>
+                          <button
+                            className="px-6 py-2 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700"
+                            onClick={() => setDocUploadComplete("multiple")}
+                          >
+                            Upload Multiple Documents
+                          </button>
+                          <button
+                            className="px-6 py-2 rounded-xl bg-gray-300 text-gray-800 font-bold hover:bg-gray-400"
+                            onClick={() => {
+                              setShowUploadModal(false);
+                              setDocUploadComplete(false);
+                              setKycCreatedEmployeeId(null);
+                              setEmployeeIdSeed(seed => seed + 1);
+                              setActiveSection("personal");
+                            }}
+                          >
+                            No, Start New KYC
+                          </button>
+                        </div>
+                      )}
+                      {/* Single Document Upload UI */}
+                      {docUploadComplete === "single" && (
+                        <div className="space-y-6">
+                          <div>
+                            <h3 className="font-semibold mb-2">Single Document Upload</h3>
+                            <div className="flex flex-col md:flex-row gap-4 items-end">
+                              <div className="flex-1">
+                                <input type="file" accept="*" onChange={e => setSingleDocFile(e.target.files ? e.target.files[0] : null)} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
+                              </div>
+                              <div className="flex-1">
+                                <input type="text" value={singleDocType} onChange={e => setSingleDocType(e.target.value)} placeholder="e.g. aadhar, pan, bankStatement" className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
+                              </div>
+                              <button type="button" onClick={async () => {
+                                await handleSingleDocUpload();
+                                if (!singleDocError) setDocUploadComplete(true);
+                              }} className="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold flex items-center gap-2 hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"><FaUpload /> Upload</button>
+                            </div>
+                            {singleDocStatus && <div className="text-green-600 mt-2">{singleDocStatus}</div>}
+                            {singleDocError && <div className="text-red-600 mt-2">{singleDocError}</div>}
+                          </div>
+                          <button
+                            className="mt-6 px-6 py-2 rounded-xl bg-gray-300 text-gray-800 font-bold hover:bg-gray-400"
+                            onClick={() => {
+                              setShowUploadModal(false);
+                              setDocUploadComplete(false);
+                              setKycCreatedEmployeeId(null);
+                              setEmployeeIdSeed(seed => seed + 1);
+                              setActiveSection("personal");
+                            }}
+                          >
+                            Done, Start New KYC
+                          </button>
+                        </div>
+                      )}
+                      {/* Multiple Documents Upload UI */}
+                      {docUploadComplete === "multiple" && (
+                        <div className="space-y-6">
+                          <div>
+                            <h3 className="font-semibold mb-2">Multiple Documents Upload</h3>
+                            <input type="file" accept="*" multiple onChange={e => {
+                              setMultiDocFiles(e.target.files);
+                              setMultiDocTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
+                              setMultiDocCustomTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
+                            }} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`} />
+                            {multiDocFiles && multiDocFiles.length > 0 && (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                {Array.from(multiDocFiles).map((file, idx) => (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    <span className="truncate flex-1">{file.name}</span>
+                                    <select
+                                      value={multiDocTypes[idx] === undefined ? "" : (documentTypeOptions.includes(multiDocTypes[idx]) ? multiDocTypes[idx] : "other")}
+                                      onChange={e => {
+                                        const newTypes = [...multiDocTypes];
+                                        if (e.target.value === "other") {
+                                          newTypes[idx] = multiDocCustomTypes[idx] || "";
+                                        } else {
+                                          newTypes[idx] = e.target.value;
+                                        }
+                                        setMultiDocTypes(newTypes);
+                                        if (e.target.value !== "other") {
+                                          const newCustom = [...multiDocCustomTypes];
+                                          newCustom[idx] = "";
+                                          setMultiDocCustomTypes(newCustom);
+                                        }
+                                      }}
+                                      className={`rounded-lg px-2 py-1 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`}
+                                    >
+                                      <option value="">Select Type</option>
+                                      {documentTypeOptions.map(opt => (
+                                        <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
+                                      ))}
+                                    </select>
+                                    {((multiDocTypes[idx] && !documentTypeOptions.includes(multiDocTypes[idx])) || (multiDocTypes[idx] === "" && multiDocCustomTypes[idx])) && (
+                                      <input
+                                        type="text"
+                                        placeholder="Custom Type"
+                                        value={multiDocCustomTypes[idx] || ""}
+                                        onChange={e => {
+                                          const newCustom = [...multiDocCustomTypes];
+                                          newCustom[idx] = e.target.value;
+                                          setMultiDocCustomTypes(newCustom);
+                                          // Also update multiDocTypes to use the custom value
+                                          const newTypes = [...multiDocTypes];
+                                          newTypes[idx] = e.target.value;
+                                          setMultiDocTypes(newTypes);
+                                        }}
+                                        className={`rounded-lg px-2 py-1 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700" : "border-gray-300 text-black"}`}
+                                      />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <button type="button" onClick={async () => {
+                              await handleMultiDocUpload();
+                              if (!multiDocError) setDocUploadComplete(true);
+                            }} className="px-6 py-3 rounded-xl bg-green-600 text-white font-bold flex items-center gap-2 hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed mt-2"><FaUpload /> Upload Multiple</button>
+                            {multiDocStatus && <div className="text-green-600 mt-2">{multiDocStatus}</div>}
+                            {multiDocError && <div className="text-red-600 mt-2">{multiDocError}</div>}
+                          </div>
+                          <button
+                            className="mt-6 px-6 py-2 rounded-xl bg-gray-300 text-gray-800 font-bold hover:bg-gray-400"
+                            onClick={() => {
+                              setShowUploadModal(false);
+                              setDocUploadComplete(false);
+                              setKycCreatedEmployeeId(null);
+                              setEmployeeIdSeed(seed => seed + 1);
+                              setActiveSection("personal");
+                            }}
+                          >
+                            Done, Start New KYC
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <FaCheckCircle className="w-12 h-12 text-green-500 mb-4" />
+                      <p className="text-lg font-bold mb-4">Documents uploaded successfully!</p>
+                      <button
+                        className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700"
+                        onClick={() => {
+                          setShowUploadModal(false);
+                          setDocUploadComplete(false);
+                          setKycCreatedEmployeeId(null);
+                          setEmployeeIdSeed(seed => seed + 1);
+                          setActiveSection("personal");
+                        }}
+                      >
+                        Start New KYC
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {/* Review Modal */}
+            {showReview && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className={`rounded-2xl w-full max-w-3xl shadow-xl border flex flex-col ${theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-white border-blue-200"}`}> 
+                  {/* Header */}
+                  <div className="px-8 pt-8 pb-4 border-b flex items-center gap-4">
+                    <FaCheckCircle className="w-8 h-8 text-blue-600 dark:text-blue-300" />
+                    <div>
+                      <h2 className={`text-2xl font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Review KYC Details</h2>
+                      <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Please confirm all information before submitting.</p>
+                    </div>
+                  </div>
+                  {/* Body */}
+                  <div className="overflow-y-auto px-8 py-6 max-h-[60vh] space-y-6">
+                    {/* Employee Image and Key Info */}
+                    <div className="flex flex-col items-center mb-4">
+                      {employeeImage ? (
+                        <Image
+                          src={URL.createObjectURL(employeeImage)}
+                          alt="Employee"
+                          width={112}
+                          height={112}
+                          className="w-28 h-28 object-cover rounded-full border-4 border-blue-200 shadow"
+                        />
+                      ) : (
+                        <div className="w-28 h-28 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 text-4xl">?</div>
+                      )}
+                      <div className="mt-3 text-lg font-bold text-blue-700 dark:text-blue-200">{personalDetails.fullName || <span className="text-gray-400">No Name</span>}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Employee ID: <span className="font-semibold">{personalDetails.employeeId || "-"}</span></div>
+                    </div>
+                    {/* Section Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Personal Details */}
+                      <div className={`rounded-xl p-4 shadow border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-blue-50 border-blue-200"}`}>
+                        <div className="flex items-center gap-2 mb-2"><FaUser className="text-blue-500" /><span className="font-semibold">Personal Details</span></div>
+                        <div className="grid grid-cols-1 gap-x-4 gap-y-1">
+                          {Object.entries(personalDetails).filter(([, v]) => v).map(([key, value]) => (
+                            <div key={key} className="flex justify-between text-sm"><span className="text-gray-500 dark:text-gray-400">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span><span className="font-medium">{value as string}</span></div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Address Details */}
+                      <div className={`rounded-xl p-4 shadow border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-blue-50 border-blue-200"}`}>
+                        <div className="flex items-center gap-2 mb-2"><FaMapMarkerAlt className="text-blue-500" /><span className="font-semibold">Address Details</span></div>
+                        <div className="mb-2 text-xs text-gray-400">Current Address</div>
+                        <div className="grid grid-cols-1 gap-x-4 gap-y-1 mb-2">
+                          {Object.entries(addressDetails.currentAddress).filter(([, v]) => v).map(([key, value]) => (
+                            <div key={key} className="flex justify-between text-sm"><span className="text-gray-500 dark:text-gray-400">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span><span className="font-medium">{value as string}</span></div>
+                          ))}
+                        </div>
+                        <div className="mb-2 text-xs text-gray-400">Permanent Address</div>
+                        <div className="grid grid-cols-1 gap-x-4 gap-y-1">
+                          {Object.entries(addressDetails.permanentAddress).filter(([, v]) => v).map(([key, value]) => (
+                            <div key={key} className="flex justify-between text-sm"><span className="text-gray-500 dark:text-gray-400">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span><span className="font-medium">{value as string}</span></div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Bank Details */}
+                      <div className={`rounded-xl p-4 shadow border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-blue-50 border-blue-200"}`}>
+                        <div className="flex items-center gap-2 mb-2"><FaMoneyCheckAlt className="text-blue-500" /><span className="font-semibold">Bank Details</span></div>
+                        <div className="grid grid-cols-1 gap-x-4 gap-y-1">
+                          {Object.entries(bankDetails).filter(([, v]) => v).map(([key, value]) => (
+                            <div key={key} className="flex justify-between text-sm"><span className="text-gray-500 dark:text-gray-400">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span><span className="font-medium">{value as string}</span></div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Identification Details */}
+                      <div className={`rounded-xl p-4 shadow border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-blue-50 border-blue-200"}`}>
+                        <div className="flex items-center gap-2 mb-2"><FaIdCard className="text-blue-500" /><span className="font-semibold">Identification Details</span></div>
+                        <div className="grid grid-cols-1 gap-x-4 gap-y-1">
+                          {Object.entries(identificationDetails).filter(([, v]) => v).map(([key, value]) => (
+                            <div key={key} className="flex justify-between text-sm"><span className="text-gray-500 dark:text-gray-400">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span><span className="font-medium">{value as string}</span></div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Emergency Contact */}
+                      <div className={`rounded-xl p-4 shadow border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-blue-50 border-blue-200"}`}>
+                        <div className="flex items-center gap-2 mb-2"><FaPhoneVolume className="text-blue-500" /><span className="font-semibold">Emergency Contact</span></div>
+                        <div className="grid grid-cols-1 gap-x-4 gap-y-1">
+                          {Object.entries(emergencyContact).filter(([, v]) => v).map(([key, value]) => (
+                            <div key={key} className="flex justify-between text-sm"><span className="text-gray-500 dark:text-gray-400">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span><span className="font-medium">{value as string}</span></div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Sticky Footer */}
+                  <div className="sticky bottom-0 left-0 w-full bg-inherit px-8 py-4 border-t flex justify-end gap-4 z-10">
+                    <button
+                      className="px-6 py-2 rounded-xl bg-gray-300 text-gray-800 font-bold hover:bg-gray-400"
+                      onClick={() => setShowReview(false)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700"
+                      onClick={() => {
+                        setShowReview(false);
+                        handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+                      }}
+                    >
+                      Submit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </main>
         </div>
       </div>
