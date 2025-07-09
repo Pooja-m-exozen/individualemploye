@@ -164,20 +164,20 @@ export default function PayrollCreatePage() {
     <ManagerDashboardLayout>
       <div className={`min-h-screen flex flex-col items-center transition-colors duration-200 ${theme === "dark" ? "bg-gray-900" : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"}`}>
         {/* Modern Payroll Header */}
-        <div className={`rounded-2xl mb-4 p-6 flex items-center gap-5 shadow-lg w-full max-w-5xl mx-auto ${theme === "dark" ? "bg-[#323a48]" : "bg-gradient-to-r from-blue-600 to-blue-400"}`}>
-          <div className={`rounded-xl p-4 flex items-center justify-center ${theme === "dark" ? "bg-[#232a36]" : "bg-blue-600 bg-opacity-30"}`}>
-            <FaMoneyBillWave className="w-10 h-10 text-white" />
+        <div className={`rounded-2xl mb-4 p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-5 shadow-lg w-full max-w-5xl mx-auto ${theme === "dark" ? "bg-[#323a48]" : "bg-gradient-to-r from-blue-600 to-blue-400"}`}>
+          <div className={`rounded-xl p-3 md:p-4 flex items-center justify-center ${theme === "dark" ? "bg-[#232a36]" : "bg-blue-600 bg-opacity-30"}`}>
+            <FaMoneyBillWave className="w-8 h-8 md:w-10 md:h-10 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Payroll Creation</h1>
-            <p className="text-white text-base opacity-90">Create and manage employee payrolls</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Payroll Creation</h1>
+            <p className="text-white text-base md:text-lg opacity-90">Create and manage employee payrolls</p>
           </div>
         </div>
         {/* Main Content Area with fixed guidelines and scrollable response data */}
-        <div className="w-full max-w-5xl mx-auto flex flex-col lg:flex-row gap-8" style={{ minHeight: '60vh' }}>
+        <div className="w-full max-w-5xl mx-auto flex flex-col lg:flex-row gap-4 md:gap-8" style={{ minHeight: '60vh' }}>
           {/* Guidelines Sidebar - sticky only within content, not fixed */}
-          <aside className="lg:w-80 flex-shrink-0 flex flex-col gap-6 h-full">
-            <div className={`rounded-xl p-6 border shadow ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-blue-100"} sticky top-4`} style={{zIndex: 10}}>
+          <aside className="lg:w-80 w-full flex-shrink-0 flex flex-col gap-6 h-full mb-4 lg:mb-0">
+            <div className={`rounded-xl p-4 md:p-6 border shadow ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-blue-100"} sticky top-4`} style={{zIndex: 10}}>
               <div className="flex items-center gap-3 mb-4">
                 <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-50 text-blue-600"}`}>
                   <FaInfoCircle className="w-5 h-5" />
@@ -209,7 +209,7 @@ export default function PayrollCreatePage() {
               className={`rounded-xl shadow-sm overflow-hidden mb-6 border transition-colors duration-300 ${theme === "dark" ? "bg-[#232a36] border-gray-800" : "bg-white border-gray-200"}`}
             >
               {/* Stepper */}
-              <div className="flex justify-between items-center w-full px-6 pt-6">
+              <div className="flex flex-col md:flex-row justify-between items-center w-full px-4 md:px-6 pt-4 md:pt-6 gap-2 md:gap-0">
                 {steps.map((step, idx) => (
                   <div key={step.id} className="flex items-center flex-1 last:flex-none">
                     <div className="flex flex-col items-center relative">
@@ -281,10 +281,10 @@ export default function PayrollCreatePage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className={`rounded-2xl p-6 border transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}
+                  className={`rounded-2xl p-4 md:p-6 border transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}
                 >
                   {/* Filters Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-2 md:gap-4 mb-6">
                     <div className="relative">
                       <FaUser className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
@@ -292,14 +292,14 @@ export default function PayrollCreatePage() {
                         placeholder="Search by name, project, designation, or ID..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
+                        className={`w-full pl-10 md:pl-12 pr-4 py-2 md:py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
                       />
                     </div>
                     <div>
                       <select
                         value={projectFilter}
                         onChange={e => { setProjectFilter(e.target.value); setEmployeeFilter(""); }}
-                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-[#232a36] border-gray-700 text-blue-200 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
+                        className={`w-full px-4 py-2 md:py-3 border rounded-lg focus:ring-2 focus:border-transparent text-xs md:text-sm transition-colors duration-200 ${theme === "dark" ? "bg-[#232a36] border-gray-700 text-blue-200 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                       >
                         <option value="">All Projects</option>
                         {projectOptions.map((p: string) => <option key={p} value={p}>{p}</option>)}
@@ -309,7 +309,7 @@ export default function PayrollCreatePage() {
                       <select
                         value={designationFilter}
                         onChange={e => { setDesignationFilter(e.target.value); setEmployeeFilter(""); }}
-                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-[#232a36] border-gray-700 text-blue-200 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
+                        className={`w-full px-4 py-2 md:py-3 border rounded-lg focus:ring-2 focus:border-transparent text-xs md:text-sm transition-colors duration-200 ${theme === "dark" ? "bg-[#232a36] border-gray-700 text-blue-200 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                       >
                         <option value="">All Designations</option>
                         {designationOptions.map((d: string) => <option key={d} value={d}>{d}</option>)}
@@ -319,7 +319,7 @@ export default function PayrollCreatePage() {
                       <select
                         value={employeeFilter}
                         onChange={e => setEmployeeFilter(e.target.value)}
-                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-[#232a36] border-gray-700 text-blue-200 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
+                        className={`w-full px-4 py-2 md:py-3 border rounded-lg focus:ring-2 focus:border-transparent text-xs md:text-sm transition-colors duration-200 ${theme === "dark" ? "bg-[#232a36] border-gray-700 text-blue-200 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                       >
                         <option value="">All Employees</option>
                         {employeeOptions.map(emp => (
@@ -331,7 +331,7 @@ export default function PayrollCreatePage() {
                       <select
                         value={monthFilter}
                         onChange={e => setMonthFilter(e.target.value)}
-                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-[#232a36] border-gray-700 text-blue-200 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
+                        className={`w-full px-4 py-2 md:py-3 border rounded-lg focus:ring-2 focus:border-transparent text-xs md:text-sm transition-colors duration-200 ${theme === "dark" ? "bg-[#232a36] border-gray-700 text-blue-200 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                       >
                         <option value="">All Months</option>
                         {projectOptions.map(m => <option key={m} value={m}>{m}</option>)}
@@ -389,7 +389,7 @@ export default function PayrollCreatePage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className={`rounded-2xl p-6 border transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}
+                  className={`rounded-2xl p-4 md:p-6 border transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}
                 >
                   <button
                     className={`mb-4 flex items-center gap-2 hover:underline transition-colors duration-200 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`}
@@ -445,7 +445,7 @@ export default function PayrollCreatePage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className={`rounded-2xl p-6 border transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}
+                  className={`rounded-2xl p-4 md:p-6 border transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}
                 >
                   <div className="flex items-center gap-4 mb-6">
                     <FaCheckCircle className="w-10 h-10 text-green-500" />
@@ -505,7 +505,7 @@ export default function PayrollCreatePage() {
                   exit={{ opacity: 0, y: -20 }}
                   className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4"
                 >
-                  <div className={`rounded-2xl shadow-2xl max-w-lg w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+                  <div className={`rounded-2xl shadow-2xl max-w-lg w-full p-6 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
                     <button
                       className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
                       onClick={() => setShowCreateDetails(false)}

@@ -147,10 +147,10 @@ export default function UniformReportPage() {
 					: "bg-gradient-to-br from-indigo-50 via-white to-blue-50"
 			}`}
 		>
-			<div className="p-6">
+			<div className="p-2 md:p-6">
 				{/* Header */}
 				<div
-					className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${
+					className={`rounded-2xl mb-4 md:mb-8 p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-5 shadow-lg ${
 						theme === "dark"
 							? "bg-[#323a48]"
 							: "bg-gradient-to-r from-blue-500 to-blue-800"
@@ -159,31 +159,27 @@ export default function UniformReportPage() {
 					<div
 						className={`$${
 							theme === "dark" ? "bg-[#232a36]" : "bg-blue-600 bg-opacity-30"
-						} rounded-xl p-4 flex items-center justify-center`}
+						} rounded-xl p-3 md:p-4 flex items-center justify-center`}
 					>
-						<FaTshirt className="w-10 h-10 text-white" />
+						<FaTshirt className="w-8 h-8 md:w-10 md:h-10 text-white" />
 					</div>
 					<div>
-						<h1 className="text-3xl font-bold text-white mb-1">
+						<h1 className="text-2xl md:text-3xl font-bold text-white mb-1">
 							Uniform Report
 						</h1>
-						<p className={theme === "dark" ? "text-blue-200 text-base" : "text-white text-base opacity-90"}>
+						<p className={theme === "dark" ? "text-blue-200 text-base md:text-lg" : "text-white text-base md:text-lg opacity-90"}>
 							View and export uniform issuance details for employees.
 						</p>
 					</div>
 				</div>
 				{/* Filters, Search, Export */}
-				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-					<div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
-						<div className="relative w-40 min-w-[140px]">
+				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4 mb-4 md:mb-6 w-full">
+					<div className="flex flex-col md:flex-row flex-wrap gap-2 items-stretch w-full md:w-auto">
+						<div className="relative w-full md:w-40 min-w-[140px]">
 							<select
 								value={projectFilter}
 								onChange={(e) => setProjectFilter(e.target.value)}
-								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
-								}`}
+								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100" : "bg-white border-gray-200 text-black"}`}
 							>
 								{projectOptions.map((project) => (
 									<option key={project} value={project}>
@@ -192,15 +188,11 @@ export default function UniformReportPage() {
 								))}
 							</select>
 						</div>
-						<div className="relative w-44 min-w-[130px]">
+						<div className="relative w-full md:w-44 min-w-[130px]">
 							<select
 								value={designationFilter}
 								onChange={(e) => setDesignationFilter(e.target.value)}
-								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
-								}`}
+								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100" : "bg-white border-gray-200 text-black"}`}
 							>
 								{designationOptions.map((designation) => (
 									<option key={designation} value={designation}>
@@ -209,15 +201,11 @@ export default function UniformReportPage() {
 								))}
 							</select>
 						</div>
-						<div className="relative w-40 min-w-[120px]">
+						<div className="relative w-full md:w-40 min-w-[120px]">
 							<select
 								value={statusFilter}
 								onChange={(e) => setStatusFilter(e.target.value)}
-								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
-								}`}
+								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100" : "bg-white border-gray-200 text-black"}`}
 							>
 								{statusOptions.map((status) => (
 									<option key={status} value={status}>
@@ -226,61 +214,40 @@ export default function UniformReportPage() {
 								))}
 							</select>
 						</div>
-						<div className="relative flex-1 min-w-[180px] max-w-xs">
+						<div className="relative w-full md:flex-1 min-w-[180px] max-w-xs">
 							<FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
 							<input
 								type="text"
 								placeholder="Search employee name or ID..."
 								value={search}
 								onChange={(e) => setSearch(e.target.value)}
-								className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
-									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
-								}`}
+								className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 text-xs md:text-base ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100" : "bg-white border-gray-200 text-black"}`}
 							/>
 						</div>
 					</div>
-					<div className="flex gap-2 justify-end">
+					<div className="flex flex-col md:flex-row gap-2 w-full md:w-auto justify-end">
 						<button
 							onClick={() => downloadExcel(filteredRecords)}
-							className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-								theme === "dark"
-									? "bg-green-700 text-white hover:bg-green-800"
-									: "bg-green-500 text-white hover:bg-green-600"
-							}`}
+							className={`w-full md:w-auto px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-xs md:text-base ${theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-500 text-white hover:bg-green-600"}`}
 						>
 							<FaFileExport /> Export Excel
 						</button>
 						<button
 							onClick={() => downloadPDF(filteredRecords)}
-							className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-								theme === "dark"
-									? "bg-red-700 text-white hover:bg-red-800"
-									: "bg-red-500 text-white hover:bg-red-600"
-							}`}
+							className={`w-full md:w-auto px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-xs md:text-base ${theme === "dark" ? "bg-red-700 text-white hover:bg-red-800" : "bg-red-500 text-white hover:bg-red-600"}`}
 						>
 							<FaFileExport /> Export PDF
 						</button>
 					</div>
 				</div>
 				{/* Table */}
-				<div
-					className={`rounded-xl border shadow-xl ${
-						theme === "dark" ? "border-gray-700 bg-gray-900" : "border-blue-100 bg-white"
-					}`}
-				>
+				<div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === "dark" ? "border-gray-700 bg-gray-900" : "border-blue-100 bg-white"}`}>
 					{loading ? (
 						<div className="p-8 text-center text-blue-500">Loading...</div>
 					) : error ? (
 						<div className="p-8 text-center text-red-500">{error}</div>
 					) : (
-						<div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-							<table
-								className={`min-w-full divide-y ${
-									theme === "dark" ? "divide-gray-700" : "divide-blue-100"
-								}`}
-							>
+						<table className={`min-w-full divide-y text-xs md:text-base ${theme === "dark" ? "divide-gray-700" : "divide-blue-100"}`}>
 								<thead
 									className={
 										theme === "dark"
@@ -358,24 +325,23 @@ export default function UniformReportPage() {
 									)}
 								</tbody>
 							</table>
-						</div>
-					)}
-				</div>
+						)}
+					</div>
 				{/* Pagination Controls */}
 				{totalPages > 1 && (
-					<div className="flex justify-end items-center gap-2 mt-4">
+					<div className="flex flex-col md:flex-row justify-center items-center gap-2 mt-4">
 						<button
 							disabled={currentPage === 1}
 							onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-							className="px-3 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+							className={`w-full md:w-auto px-3 py-1 rounded text-xs md:text-base ${currentPage === 1 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : theme === 'dark' ? 'bg-blue-900 text-white hover:bg-blue-800' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
 						>
 							Prev
 						</button>
-						<span className="px-2">Page {currentPage} of {totalPages}</span>
+						<span className="px-2 text-xs md:text-sm font-medium">Page {currentPage} of {totalPages}</span>
 						<button
 							disabled={currentPage === totalPages}
 							onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-							className="px-3 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+							className={`w-full md:w-auto px-3 py-1 rounded text-xs md:text-base ${currentPage === totalPages ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : theme === 'dark' ? 'bg-blue-900 text-white hover:bg-blue-800' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
 						>
 							Next
 						</button>

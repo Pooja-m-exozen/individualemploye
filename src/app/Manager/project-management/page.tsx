@@ -337,24 +337,24 @@ export default function ProjectManagementPage() {
             : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
         }`}
       >
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Header */}
-          <div className={`rounded-2xl mb-8 p-8 flex items-center gap-6 shadow-lg ${theme === 'dark' 
+          <div className={`rounded-2xl mb-8 p-4 sm:p-8 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 shadow-lg ${theme === 'dark' 
             ? 'bg-[#2d3748]' 
             : 'bg-gradient-to-r from-[#2563eb] to-[#1d3bb8]'} `}>
-            <div className={`rounded-xl p-5 flex items-center justify-center ${theme === 'dark' ? 'bg-gray-800 bg-opacity-60' : 'bg-blue-600 bg-opacity-30'}`}>
-              <FaProjectDiagram className="w-12 h-12 text-white" />
+            <div className={`rounded-xl p-4 sm:p-5 flex items-center justify-center ${theme === 'dark' ? 'bg-gray-800 bg-opacity-60' : 'bg-blue-600 bg-opacity-30'}`}>
+              <FaProjectDiagram className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-1">Project Management</h1>
-              <p className="text-white text-base opacity-90">View and manage all projects and their manpower details.</p>
+            <div className="flex-1 text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Project Management</h1>
+              <p className="text-white text-sm sm:text-base opacity-90">View and manage all projects and their manpower details.</p>
             </div>
           </div>
           {/* Filters and Search */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
+          <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 w-full sm:flex-row sm:gap-2 sm:w-auto">
               {/* Project Dropdown */}
-              <div className="relative w-44 min-w-[130px]">
+              <div className="relative w-full sm:w-44 min-w-[130px]">
                 <select
                   value={projectFilter}
                   onChange={e => setProjectFilter(e.target.value)}
@@ -370,7 +370,7 @@ export default function ProjectManagementPage() {
                 </select>
               </div>
               {/* Designation Dropdown */}
-              <div className="relative w-44 min-w-[130px]">
+              <div className="relative w-full sm:w-44 min-w-[130px]">
                 <select
                   value={designationFilter}
                   onChange={e => setDesignationFilter(e.target.value)}
@@ -405,7 +405,7 @@ export default function ProjectManagementPage() {
           <div className="flex justify-end mb-4">
             <button
               onClick={() => setShowModal(true)}
-              className={`font-semibold px-6 py-2 rounded-lg shadow transition-colors flex items-center gap-2 ${
+              className={`font-semibold px-4 sm:px-6 py-2 rounded-lg shadow transition-colors flex items-center gap-2 text-sm sm:text-base ${
                 theme === "dark"
                   ? "bg-blue-700 hover:bg-blue-800 text-white"
                   : "bg-blue-600 hover:bg-blue-700 text-white"
@@ -531,34 +531,34 @@ export default function ProjectManagementPage() {
               <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
             ) : (
               <>
-                <table className="min-w-full divide-y">
+                <table className="min-w-full divide-y text-xs sm:text-sm">
                   <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                     <tr>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project Name</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Address</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Total Manpower</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation-wise Count</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Last Updated</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>
+                      <th className={`px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project Name</th>
+                      <th className={`px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Address</th>
+                      <th className={`px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Total Manpower</th>
+                      <th className={`px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation-wise Count</th>
+                      <th className={`px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Last Updated</th>
+                      <th className={`px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>
                     </tr>
                   </thead>
                   <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
                     {paginatedProjects.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No projects found</td>
+                        <td colSpan={6} className={`px-2 sm:px-4 py-8 sm:py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No projects found</td>
                       </tr>
                     ) : paginatedProjects.map((project, idx) => (
                       <tr key={project._id || idx} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                        <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{project.projectName}</td>
-                        <td className="px-4 py-3 max-w-xs break-words">{project.address}</td>
-                        <td className="px-4 py-3">{project.totalManpower}</td>
-                        <td className="px-4 py-3">
+                        <td className={`px-2 sm:px-4 py-2 sm:py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{project.projectName}</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 max-w-[120px] sm:max-w-xs break-words">{project.address}</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3">{project.totalManpower}</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3">
                           {Object.entries(project.designationWiseCount || {})
                             .map(([designation, count]) => `${designation}: ${count}`)
                             .join(", ")}
                         </td>
-                        <td className="px-4 py-3">{new Date(project.updatedDate).toLocaleDateString()}</td>
-                        <td className="px-4 py-3 flex gap-2">
+                        <td className="px-2 sm:px-4 py-2 sm:py-3">{new Date(project.updatedDate).toLocaleDateString()}</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 flex gap-2">
                           <button
                             onClick={() => openEditModal(project)}
                             className="text-blue-500 hover:text-blue-700 p-1"
@@ -580,11 +580,11 @@ export default function ProjectManagementPage() {
                 </table>
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
-                  <div className="flex justify-end items-center gap-2 px-4 py-4">
+                  <div className="flex flex-col sm:flex-row justify-end items-center gap-2 px-2 sm:px-4 py-4">
                     <button
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className={`px-3 py-1 rounded border text-sm font-medium transition-colors ${
+                      className={`px-3 py-1 rounded border text-xs sm:text-sm font-medium transition-colors ${
                         currentPage === 1
                           ? "opacity-50 cursor-not-allowed"
                           : theme === "dark"
@@ -594,13 +594,13 @@ export default function ProjectManagementPage() {
                     >
                       Previous
                     </button>
-                    <span className="text-sm font-semibold">
+                    <span className="text-xs sm:text-sm font-semibold">
                       Page {currentPage} of {totalPages}
                     </span>
                     <button
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
-                      className={`px-3 py-1 rounded border text-sm font-medium transition-colors ${
+                      className={`px-3 py-1 rounded border text-xs sm:text-sm font-medium transition-colors ${
                         currentPage === totalPages
                           ? "opacity-50 cursor-not-allowed"
                           : theme === "dark"

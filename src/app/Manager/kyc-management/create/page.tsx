@@ -346,23 +346,32 @@ export default function CreateKYCPage() {
 
   return (
     <ManagerDashboardLayout>
-      <div className={`min-h-screen flex flex-col items-center justify-center py-8 transition-colors duration-200 ${theme === "dark" ? "bg-gray-900" : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"}`}>
+      <div
+        className={`min-h-screen flex flex-col items-center justify-center py-4 md:py-8 transition-colors duration-200 ${theme === "dark" ? "bg-gray-900" : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"}`}
+      >
         {/* Modern KYC Header */}
-        <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg w-full max-w-5xl mx-auto ${theme === "dark" ? "bg-gradient-to-r from-gray-800 to-gray-900" : "bg-gradient-to-r from-blue-500 to-blue-800"}`}>
-          <div className={`rounded-xl p-4 flex items-center justify-center ${theme === "dark" ? "bg-gray-700" : "bg-blue-600 bg-opacity-30"}`}>
-            <FaIdCard className="w-10 h-10 text-white" />
+        <div
+          className={`rounded-2xl mb-4 md:mb-8 p-4 md:p-6 flex flex-col sm:flex-row items-center gap-4 md:gap-5 shadow-lg w-full max-w-full md:max-w-5xl mx-auto ${theme === "dark" ? "bg-gradient-to-r from-gray-800 to-gray-900" : "bg-gradient-to-r from-blue-500 to-blue-800"}`}
+        >
+          <div
+            className={`rounded-xl p-3 md:p-4 flex items-center justify-center ${theme === "dark" ? "bg-gray-700" : "bg-blue-600 bg-opacity-30"}`}
+          >
+            <FaIdCard className="w-8 h-8 md:w-10 md:h-10 text-white" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Create KYC</h1>
-            <p className="text-white text-base opacity-90">Fill in the details to create a new KYC record</p>
+          <div className="flex flex-col items-center sm:items-start">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Create KYC</h1>
+            <p className="text-white text-sm md:text-base opacity-90">Fill in the details to create a new KYC record</p>
           </div>
         </div>
         {/* Only the content area below header is scrollable */}
-        <div className="w-full max-w-5xl mx-auto h-[calc(100vh-64px-48px)] flex flex-col md:flex-row gap-8">
+        <div className="w-full max-w-full md:max-w-5xl mx-auto flex flex-col md:flex-row gap-4 md:gap-8 h-auto md:h-[calc(100vh-64px-48px)]">
           {/* Side Navigation */}
-          <aside className="md:w-64 flex-shrink-0 flex flex-col gap-6 h-full overflow-y-auto">
-            <div className={`rounded-2xl p-4 sticky top-8 border shadow ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
-              <nav className="space-y-1">
+          <aside className="w-full md:w-64 flex-shrink-0 flex flex-col gap-4 md:gap-6 h-auto md:h-full overflow-y-auto">
+            <div
+              className={`rounded-2xl p-3 md:p-4 border shadow sticky md:top-8 w-full md:w-auto ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}
+              style={{ minWidth: 0 }}
+            >
+              <nav className="flex flex-col gap-2 md:gap-1 w-full">
                 {sections.map((section) => {
                   const isActive = activeSection === section.id;
                   const isCompleted = completedSections.includes(section.id);
@@ -370,7 +379,7 @@ export default function CreateKYCPage() {
                     <button
                       key={section.id}
                       onClick={() => setActiveSection(section.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors ${
+                      className={`w-full flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 md:py-3 rounded-xl text-left transition-colors text-xs md:text-base ${
                         isActive
                           ? theme === "dark" ? "bg-gray-700 text-blue-300" : "bg-blue-50 text-blue-700"
                           : isCompleted
@@ -378,40 +387,42 @@ export default function CreateKYCPage() {
                           : theme === "dark" ? "text-gray-400 hover:bg-gray-700" : "text-gray-600 hover:bg-blue-50"
                       }`}
                     >
-                      <section.icon className={`w-5 h-5 ${isActive ? (theme === "dark" ? "text-blue-300" : "text-blue-700") : isCompleted ? "text-green-500" : theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
-                      <span className="font-medium">{section.title}</span>
-                      {isCompleted && <FaCheckCircle className="w-4 h-4 text-green-500 ml-auto" />}
+                      <section.icon className={`w-4 h-4 md:w-5 md:h-5 ${isActive ? (theme === "dark" ? "text-blue-300" : "text-blue-700") : isCompleted ? "text-green-500" : theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
+                      <span className="font-medium truncate">{section.title}</span>
+                      {isCompleted && <FaCheckCircle className="w-3 h-3 md:w-4 md:h-4 text-green-500 ml-auto" />}
                     </button>
                   );
                 })}
               </nav>
               {/* Progress Bar */}
-              <div className="mt-6 pt-6 border-t border-blue-100 dark:border-gray-700">
-                <div className="flex items-center justify-between text-sm">
+              <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-blue-100 dark:border-gray-700">
+                <div className="flex items-center justify-between text-xs md:text-sm">
                   <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>Completion</span>
                   <span className={theme === "dark" ? "text-blue-300" : "text-blue-700"}>{progress}%</span>
                 </div>
-                <div className={`mt-2 h-2 rounded-full overflow-hidden ${theme === "dark" ? "bg-gray-700" : "bg-blue-100"}`}>
+                <div className={`mt-1 md:mt-2 h-1 md:h-2 rounded-full overflow-hidden ${theme === "dark" ? "bg-gray-700" : "bg-blue-100"}`}>
                   <div className={`h-full rounded-full transition-all duration-500 ${theme === "dark" ? "bg-blue-900" : "bg-blue-600"}`} style={{ width: `${progress}%` }}></div>
                 </div>
               </div>
             </div>
             {/* Instructions/Notes Card - NOT sticky, scrolls with sidebar */}
-            <div className={`relative rounded-2xl p-6 border shadow-xl flex flex-col gap-3 items-start transition-all duration-300 hover:shadow-2xl ${theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-blue-50 border-blue-200"}`}>
+            <div className={`relative rounded-2xl p-4 md:p-6 border shadow-xl flex flex-col gap-2 md:gap-3 items-start transition-all duration-300 hover:shadow-2xl w-full md:w-auto ${theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-blue-50 border-blue-200"}`}
+              style={{ minWidth: 0 }}
+            >
               <button
                 onClick={() => setShowInstructions(false)}
-                className={`absolute top-3 right-3 ${theme === "dark" ? "text-blue-300 hover:text-blue-500 bg-gray-800" : "text-blue-400 hover:text-blue-700 bg-white"} rounded-full p-1 shadow-sm`}
+                className={`absolute top-2 md:top-3 right-2 md:right-3 ${theme === "dark" ? "text-blue-300 hover:text-blue-500 bg-gray-800" : "text-blue-400 hover:text-blue-700 bg-white"} rounded-full p-1 shadow-sm`}
                 title="Dismiss instructions"
               >
                 <FaChevronRight className="w-4 h-4 rotate-180" />
               </button>
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`p-2 rounded-xl flex items-center justify-center ${theme === "dark" ? "bg-gray-800" : "bg-blue-100"}`}>
-                  <FaInfoCircle className={`w-6 h-6 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`} />
+              <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
+                <div className={`p-1 md:p-2 rounded-xl flex items-center justify-center ${theme === "dark" ? "bg-gray-800" : "bg-blue-100"}`}>
+                  <FaInfoCircle className={`w-5 h-5 md:w-6 md:h-6 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`} />
                 </div>
-                <h3 className={`text-lg font-bold tracking-tight ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Instructions & Notes</h3>
+                <h3 className={`text-base md:text-lg font-bold tracking-tight ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Instructions & Notes</h3>
               </div>
-              <ul className={`space-y-2 text-sm pl-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
+              <ul className={`space-y-1 md:space-y-2 text-xs md:text-sm pl-1 md:pl-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
                 <li>• Please complete all sections for a successful KYC submission.</li>
                 <li>• Ensure all uploaded documents are clear and legible.</li>
                 <li>• Double-check your details before submitting the form.</li>
@@ -420,7 +431,7 @@ export default function CreateKYCPage() {
             </div>
           </aside>
           {/* Main Content */}
-          <main className="flex-1 h-full overflow-y-auto">
+          <main className="flex-1 h-auto md:h-full overflow-y-visible md:overflow-y-auto">
             {/* Instructions/Notes Card below timeline */}
 
             {/* Instructions Panel */}

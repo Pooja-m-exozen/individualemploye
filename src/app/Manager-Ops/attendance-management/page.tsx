@@ -355,6 +355,19 @@ const AttendanceManagementPage = () => {
     );
   });
 
+  // Pagination state
+  const [attendancePage, setAttendancePage] = useState(1);
+  const [regularizationPage, setRegularizationPage] = useState(1);
+  const rowsPerPage = 8;
+
+  // Reset page when filters change
+  useEffect(() => { setAttendancePage(1); }, [searchQuery, fromDate, toDate]);
+  useEffect(() => { setRegularizationPage(1); }, [searchQuery, fromDate, toDate]);
+
+  // Paginated data
+  const paginatedAttendanceRecords = filteredAttendanceRecords.slice((attendancePage - 1) * rowsPerPage, attendancePage * rowsPerPage);
+  const paginatedRegularizationRequests = filteredRegularizationRequests.slice((regularizationPage - 1) * rowsPerPage, regularizationPage * rowsPerPage);
+
   useEffect(() => {
     if (!fromDate) {
       const now = new Date();
@@ -396,20 +409,23 @@ const AttendanceManagementPage = () => {
         </div>
 
         {/* Tabs */}
-        <div className="mx-6 flex gap-4 mb-6">
-          {["View Attendance", "Attendance Regularization Requests"].map((tab) => (
+        <div className="mx-2 md:mx-6 flex flex-col md:flex-row gap-2 md:gap-4 mb-4 md:mb-6">
+          {[
+            "View Attendance",
+            "Attendance Regularization Requests"
+          ].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === tab
+              className={`w-full md:w-auto px-4 md:px-6 py-2 rounded-lg font-medium transition-colors text-sm md:text-base mt-1 md:mt-0
+                ${activeTab === tab
                   ? theme === 'dark'
                     ? 'bg-blue-600 text-white shadow-lg'
                     : 'bg-blue-600 text-white shadow-lg'
                   : theme === 'dark'
                     ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
                     : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-              }`}
+                }`}
             >
               {tab}
             </button>
@@ -418,12 +434,12 @@ const AttendanceManagementPage = () => {
 
         {/* Filters */}
         {activeTab === "View Attendance" && (
-          <div className={`mx-6 mb-6 ${
+          <div className={`mx-2 md:mx-6 mb-4 md:mb-6 ${
             theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-          } rounded-lg p-6 shadow-lg`}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          } rounded-lg p-4 md:p-6 shadow-lg`}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
               <div>
-                <label className={`block text-sm font-medium mb-2 ${
+                <label className={`block text-xs md:text-sm font-medium mb-2 ${
                   theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
                 }`}>Search</label>
                 <input
@@ -431,7 +447,7 @@ const AttendanceManagementPage = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by ID or Name"
-                  className={`w-full px-4 py-2 rounded-lg border ${
+                  className={`w-full px-3 md:px-4 py-2 rounded-lg border text-sm md:text-base ${
                     theme === 'dark' 
                       ? 'bg-gray-700 text-white border-gray-600' 
                       : 'bg-white text-gray-900 border-gray-200'
@@ -439,14 +455,14 @@ const AttendanceManagementPage = () => {
                 />
               </div>
               <div>
-                <label className={`block text-sm font-medium mb-2 ${
+                <label className={`block text-xs md:text-sm font-medium mb-2 ${
                   theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
                 }`}>From Date</label>
                 <input
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className={`w-full px-4 py-2 rounded-lg border ${
+                  className={`w-full px-3 md:px-4 py-2 rounded-lg border text-sm md:text-base ${
                     theme === 'dark' 
                       ? 'bg-gray-700 text-white border-gray-600' 
                       : 'bg-white text-gray-900 border-gray-200'
@@ -454,14 +470,14 @@ const AttendanceManagementPage = () => {
                 />
               </div>
               <div>
-                <label className={`block text-sm font-medium mb-2 ${
+                <label className={`block text-xs md:text-sm font-medium mb-2 ${
                   theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
                 }`}>To Date</label>
                 <input
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className={`w-full px-4 py-2 rounded-lg border ${
+                  className={`w-full px-3 md:px-4 py-2 rounded-lg border text-sm md:text-base ${
                     theme === 'dark' 
                       ? 'bg-gray-700 text-white border-gray-600' 
                       : 'bg-white text-gray-900 border-gray-200'
@@ -470,11 +486,11 @@ const AttendanceManagementPage = () => {
               </div>
             </div>
             {/* Export Button */}
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex flex-col md:flex-row justify-end gap-2">
               <button
                 onClick={exportAttendanceData}
                 disabled={loading || !fromDate || !toDate}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg w-full md:w-auto ${
                   theme === 'dark'
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -489,76 +505,65 @@ const AttendanceManagementPage = () => {
 
         {/* Tab Content */}
         {activeTab === "View Attendance" && (
-          <div className={`mx-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg p-6`}>
-            <div className="flex justify-between items-center mb-6">
+          <div className={`mx-2 md:mx-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg p-2 md:p-6`}>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 md:mb-6 gap-2 md:gap-0">
               <div>
-                <h2 className={`text-2xl font-bold ${
+                <h2 className={`text-xl md:text-2xl font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-black'
                 }`}>Attendance Records</h2>
-                <div className="flex gap-2">
-                  {/* Export button is above */}
-                </div>
               </div>
             </div>
 
             {loading ? (
-              <div className="flex justify-center items-center min-h-[300px]">
-                <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${
+              <div className="flex justify-center items-center min-h-[200px] md:min-h-[300px]">
+                <div className={`animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-b-2 ${
                   theme === 'dark' ? 'border-blue-400' : 'border-blue-600'
                 }`}></div>
               </div>
             ) : (
-              <div className={`overflow-x-auto`}>
-                <table className="w-full">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px] md:min-w-0">
                   <thead className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}`}>
                     <tr>
-                      <th className={`px-6 py-4 text-left text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Employee</th>
-                      <th className={`px-6 py-4 text-left text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Employee ID</th>
-                      <th className={`px-6 py-4 text-left text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Project</th>
-                      <th className={`px-6 py-4 text-left text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Date</th>
-                      <th className={`px-6 py-4 text-left text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Status</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-left text-xs md:text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Employee</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-left text-xs md:text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Employee ID</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-left text-xs md:text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Project</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-left text-xs md:text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Date</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-left text-xs md:text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Status</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {filteredAttendanceRecords
+                    {paginatedAttendanceRecords
                       .slice()
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                       .map((record, index) => {
                         const employee = employees.find(emp => emp.employeeId === record.employeeId);
                         return (
                           <tr key={index} className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center gap-4">
+                            <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-2 md:gap-4">
                                 <Image
                                   src={employee?.employeeImage || "/default-avatar.png"}
                                   alt={employee?.fullName || "Employee"}
                                   width={40}
                                   height={40}
-                                  className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200"
+                                  className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ring-2 ring-gray-200"
                                 />
                                 <div>
-                                  <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{employee?.fullName}</p>
-                                  <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>{employee?.designation}</p>
+                                  <p className={`font-medium text-xs md:text-base ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{employee?.fullName}</p>
+                                  <p className={`text-xs md:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>{employee?.designation}</p>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-2 md:px-6 py-2 md:py-4">
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                 {record.employeeId}
                               </span>
                             </td>
-                            <td className={`px-6 py-4 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>
-                              {record.projectName.replace(' - FMS', '')}
-                            </td>
-                            <td className={`px-6 py-4 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>
-                              {new Date(record.date).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            <td className={`px-2 md:px-6 py-2 md:py-4 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>{record.projectName.replace(' - FMS', '')}</td>
+                            <td className={`px-2 md:px-6 py-2 md:py-4 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>{new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
+                            <td className="px-2 md:px-6 py-2 md:py-4">
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs md:text-sm font-medium ${
                                 record.status === 'Present'
                                   ? theme === 'dark' 
                                     ? 'bg-green-900/30 text-green-400' 
@@ -575,36 +580,52 @@ const AttendanceManagementPage = () => {
                       })}
                   </tbody>
                 </table>
+                {/* Pagination Controls */}
+                {filteredAttendanceRecords.length > rowsPerPage && (
+                  <div className="flex justify-center items-center gap-2 mt-4">
+                    <button
+                      onClick={() => setAttendancePage((p) => Math.max(1, p - 1))}
+                      disabled={attendancePage === 1}
+                      className="px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >Prev</button>
+                    <span className="text-sm font-medium">Page {attendancePage} of {Math.ceil(filteredAttendanceRecords.length / rowsPerPage)}</span>
+                    <button
+                      onClick={() => setAttendancePage((p) => Math.min(Math.ceil(filteredAttendanceRecords.length / rowsPerPage), p + 1))}
+                      disabled={attendancePage === Math.ceil(filteredAttendanceRecords.length / rowsPerPage)}
+                      className="px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >Next</button>
+                  </div>
+                )}
               </div>
             )}
             {/* Empty state */}
             {!loading && filteredAttendanceRecords.length === 0 && (
-              <div className={`text-center py-12 ${
+              <div className={`text-center py-8 md:py-12 ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
               }`}>
-                <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="mx-auto h-10 w-10 md:h-12 md:w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <h3 className={`mt-2 text-sm font-medium ${
+                <h3 className={`mt-2 text-xs md:text-sm font-medium ${
                   theme === 'dark' ? 'text-gray-200' : 'text-black'
                 }`}>No records found</h3>
-                <p className="mt-1 text-sm">Try adjusting your search or filter criteria.</p>
+                <p className="mt-1 text-xs md:text-sm">Try adjusting your search or filter criteria.</p>
               </div>
             )}
           </div>
         )}
 
         {activeTab === "Attendance Regularization Requests" && (
-          <div className={`mx-6 ${
+          <div className={`mx-2 md:mx-6 ${
             theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-          } rounded-lg shadow-lg p-6 overflow-x-auto`}>
-            <div className="flex justify-between items-center mb-6">
+          } rounded-lg shadow-lg p-2 md:p-6 overflow-x-auto`}>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 md:mb-6 gap-2 md:gap-0">
               <div>
-                <h2 className={`text-2xl font-bold ${
+                <h2 className={`text-xl md:text-2xl font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-black'
                 }`}>Regularization Requests</h2>
-                <p className={`text-sm mt-1 ${
+                <p className={`text-xs md:text-sm mt-1 ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-700'
                 }`}>Review and manage attendance regularization requests</p>
               </div>
@@ -614,52 +635,52 @@ const AttendanceManagementPage = () => {
               <div className={`overflow-x-auto rounded-lg border ${
                 theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
               }`}>
-                <table className="w-full text-left">
+                <table className="w-full min-w-[900px] md:min-w-0 text-left">
                   <thead className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}`}> 
                     <tr>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Employee</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Employee ID</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Project</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Date</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch In (UTC)</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch Out (UTC)</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Reason</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Remarks</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Status</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Regularized By</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Actions</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Employee</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Employee ID</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Project</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Date</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch In (UTC)</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch Out (UTC)</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Reason</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Remarks</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Status</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Regularized By</th>
+                      <th className={`px-2 md:px-6 py-2 md:py-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Actions</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}> 
-                    {filteredRegularizationRequests.map((request: RegularizationRequest, index) => (
+                    {paginatedRegularizationRequests.map((request: RegularizationRequest, index) => (
                       <tr key={index} className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors duration-200`}>
-                        <td className="px-6 py-4 text-center align-middle">
-                          <div className="flex items-center gap-3 justify-center">
+                        <td className="px-2 md:px-6 py-2 md:py-4 text-center align-middle">
+                          <div className="flex items-center gap-2 md:gap-3 justify-center">
                             <Image
                               src={request.employeeImage || "/default-avatar.png"}
                               alt={request.fullName}
                               width={40}
                               height={40}
-                              className="w-10 h-10 rounded-full object-cover ring-2 ring-blue-400"
+                              className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ring-2 ring-blue-400"
                             />
                             <div className="text-left">
-                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{request.fullName}</p>
+                              <p className={`font-medium text-xs md:text-base ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{request.fullName}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-center align-middle">
+                        <td className="px-2 md:px-6 py-2 md:py-4 text-center align-middle">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             {request.employeeId}
                           </span>
                         </td>
-                        <td className={`px-6 py-4 text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{request.projectName.replace(' - FMS', '')}</td>
-                        <td className={`px-6 py-4 text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{request.date}</td>
-                        <td className={`px-6 py-4 text-center align-middle whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{extractTime(request.punchInTime)}</td>
-                        <td className={`px-6 py-4 text-center align-middle whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{extractTime(request.punchOutTime)}</td>
-                        <td className={`px-6 py-4 max-w-xs truncate text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`} title={request.reason}>{request.reason}</td>
-                        <td className={`px-6 py-4 max-w-xs truncate text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`} title={request.remarks}>{request.remarks}</td>
-                        <td className="px-6 py-4 text-center align-middle">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        <td className={`px-2 md:px-6 py-2 md:py-4 text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{request.projectName.replace(' - FMS', '')}</td>
+                        <td className={`px-2 md:px-6 py-2 md:py-4 text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{request.date}</td>
+                        <td className={`px-2 md:px-6 py-2 md:py-4 text-center align-middle whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{extractTime(request.punchInTime)}</td>
+                        <td className={`px-2 md:px-6 py-2 md:py-4 text-center align-middle whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{extractTime(request.punchOutTime)}</td>
+                        <td className={`px-2 md:px-6 py-2 md:py-4 max-w-xs truncate text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`} title={request.reason}>{request.reason}</td>
+                        <td className={`px-2 md:px-6 py-2 md:py-4 max-w-xs truncate text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`} title={request.remarks}>{request.remarks}</td>
+                        <td className="px-2 md:px-6 py-2 md:py-4 text-center align-middle">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs md:text-sm font-medium ${
                             request.status === "Approved"
                               ? theme === 'dark'
                                 ? 'bg-green-900/30 text-green-400'
@@ -675,13 +696,13 @@ const AttendanceManagementPage = () => {
                             {request.status}
                           </span>
                         </td>
-                        <td className={`px-6 py-4 text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{request.regularizedBy || '-'}</td>
-                        <td className="px-6 py-4 text-center align-middle">
+                        <td className={`px-2 md:px-6 py-2 md:py-4 text-center align-middle ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{request.regularizedBy || '-'}</td>
+                        <td className="px-2 md:px-6 py-2 md:py-4 text-center align-middle">
                           {request.status === "Pending" ? (
-                            <div className="flex gap-2 justify-center">
+                            <div className="flex flex-col md:flex-row gap-2 justify-center">
                               <button
                                 onClick={() => handleApprove(request.requestId)}
-                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                className={`px-3 py-1.5 rounded-md text-xs md:text-sm font-medium transition-colors w-full md:w-auto ${
                                   theme === 'dark'
                                     ? 'bg-green-600 hover:bg-green-700 text-white'
                                     : 'bg-black hover:bg-gray-800 text-white'
@@ -691,7 +712,7 @@ const AttendanceManagementPage = () => {
                               </button>
                               <button
                                 onClick={() => handleReject(request.requestId)}
-                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                className={`px-3 py-1.5 rounded-md text-xs md:text-sm font-medium transition-colors w-full md:w-auto ${
                                   theme === 'dark'
                                     ? 'bg-red-600 hover:bg-red-700 text-white'
                                     : 'bg-gray-800 hover:bg-black text-white'
@@ -701,24 +722,40 @@ const AttendanceManagementPage = () => {
                               </button>
                             </div>
                           ) : (
-                            <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>No actions available</span>
+                            <span className={`text-xs md:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>No actions available</span>
                           )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {/* Pagination Controls */}
+                {filteredRegularizationRequests.length > rowsPerPage && (
+                  <div className="flex justify-center items-center gap-2 mt-4">
+                    <button
+                      onClick={() => setRegularizationPage((p) => Math.max(1, p - 1))}
+                      disabled={regularizationPage === 1}
+                      className="px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >Prev</button>
+                    <span className="text-sm font-medium">Page {regularizationPage} of {Math.ceil(filteredRegularizationRequests.length / rowsPerPage)}</span>
+                    <button
+                      onClick={() => setRegularizationPage((p) => Math.min(Math.ceil(filteredRegularizationRequests.length / rowsPerPage), p + 1))}
+                      disabled={regularizationPage === Math.ceil(filteredRegularizationRequests.length / rowsPerPage)}
+                      className="px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >Next</button>
+                  </div>
+                )}
               </div>
 
               {/* Empty state with theme support */}
               {filteredRegularizationRequests.length === 0 && (
-                <div className="text-center py-12">
-                  <svg className={`mx-auto h-12 w-12 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="text-center py-8 md:py-12">
+                  <svg className={`mx-auto h-10 w-10 md:h-12 md:w-12 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <h3 className={`mt-2 text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>No regularization requests found</h3>
-                  <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Try adjusting your search or filter criteria.</p>
+                  <h3 className={`mt-2 text-xs md:text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>No regularization requests found</h3>
+                  <p className={`mt-1 text-xs md:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Try adjusting your search or filter criteria.</p>
                 </div>
               )}
             </div>
@@ -727,16 +764,16 @@ const AttendanceManagementPage = () => {
 
         {/* Toast Notification */}
         {toast && (
-          <div className={`fixed top-6 right-6 z-50 px-6 py-3 rounded-lg shadow-lg text-white transition-all duration-300 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>{toast.message}</div>
+          <div className={`fixed top-4 right-2 left-2 md:top-6 md:right-6 md:left-auto z-50 px-4 md:px-6 py-2 md:py-3 rounded-lg shadow-lg text-white transition-all duration-300 text-xs md:text-base ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>{toast.message}</div>
         )}
         {/* Reject Modal */}
         {showRejectModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg p-8 w-full max-w-md mx-4`}>
-              <h3 className={`text-lg font-semibold mb-4 ${
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg p-4 md:p-8 w-full max-w-xs md:max-w-md mx-2 md:mx-4`}>
+              <h3 className={`text-base md:text-lg font-semibold mb-4 ${
                 theme === 'dark' ? 'text-white' : 'text-gray-900'
               }`}>Reject Regularization Request</h3>
-              <label className={`block text-sm font-medium mb-2 ${
+              <label className={`block text-xs md:text-sm font-medium mb-2 ${
                 theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
               }`}>Reason for rejection</label>
               <input
@@ -744,17 +781,17 @@ const AttendanceManagementPage = () => {
                 type="text"
                 value={rejectionReason}
                 onChange={e => setRejectionReason(e.target.value)}
-                className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 ${
+                className={`w-full px-3 md:px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 text-xs md:text-base ${
                   theme === 'dark' 
                     ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' 
                     : 'bg-white text-gray-900 border-gray-300 placeholder-gray-500'
                 }`}
                 placeholder="Enter reason..."
               />
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-col md:flex-row justify-end gap-2">
                 <button
                   onClick={() => setShowRejectModal(false)}
-                  className={`px-4 py-2 rounded-md transition-colors ${
+                  className={`px-4 py-2 rounded-md transition-colors text-xs md:text-base w-full md:w-auto ${
                     theme === 'dark'
                       ? 'bg-gray-600 text-gray-200 hover:bg-gray-700'
                       : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
@@ -763,7 +800,7 @@ const AttendanceManagementPage = () => {
                 <button
                   onClick={submitRejection}
                   disabled={!rejectionReason.trim()}
-                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs md:text-base w-full md:w-auto"
                 >Reject</button>
               </div>
             </div>

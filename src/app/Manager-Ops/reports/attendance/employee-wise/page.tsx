@@ -866,7 +866,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
           ) : (
             <div>
               {/* Filters and Actions */}
-              <div className={`flex flex-wrap gap-4 items-center justify-between p-4 ${
+              <div className={`flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between p-4 ${
                 theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'
               } rounded-xl mb-6`}>
                 <div className="flex gap-4">
@@ -905,7 +905,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
               </div>
 
               {/* Employee Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {employees.map((employee) => (
                   <div
                     key={employee.employeeId}
@@ -966,23 +966,23 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
                 <div className={`overflow-x-auto rounded-xl border ${
                   theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
                 }`}>
-                  <div className={`flex justify-between items-center p-4 ${
+                  <div className={`flex flex-col sm:flex-row justify-between items-stretch sm:items-center p-4 ${
                     theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'
                   }`}>
-                    <h2 className="text-xl font-semibold text-gray-800">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
                       Attendance Details
                     </h2>
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 mt-2 sm:mt-0">
                       <button
                         onClick={downloadExcel}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base"
                       >
                         <FaFileExcel className="w-4 h-4" />
                         Export Excel
                       </button>
                       <button
                         onClick={downloadPDF}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm sm:text-base"
                       >
                         <FaFilePdf className="w-4 h-4" />
                         Export PDF
@@ -1000,7 +1000,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
                     </p>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full bg-white rounded-lg shadow-md overflow-hidden">
+                      <table className="w-full min-w-[700px] bg-white rounded-lg shadow-md overflow-hidden">
                         <thead className={`${
                           theme === 'dark'
                             ? 'bg-gray-700 text-gray-200'
@@ -1107,6 +1107,44 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
                           })}
                         </tbody>
                       </table>
+                      {/* Optionally, add a card view for mobile */}
+                      <div className="sm:hidden mt-4 space-y-4">
+                        {attendance.map((record, index) => {
+                          const dayType = getDayType(record.date, year, month);
+                          const status = getAttendanceStatus(record, dayType);
+                          let hoursWorked = dayType !== 'Working Day' ? '-' : '0h 0m';
+                          if (record.punchInTime && record.punchOutTime) {
+                            const inTime = new Date(record.punchInTime);
+                            const outTime = new Date(record.punchOutTime);
+                            const diffMs = outTime.getTime() - inTime.getTime();
+                            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                            hoursWorked = `${hours}h ${minutes}m`;
+                          }
+                          return (
+                            <div key={record._id} className={`rounded-lg shadow p-4 ${theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}`}> 
+                              <div className="flex justify-between mb-2">
+                                <span className="font-semibold">{new Date(record.date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
+                                <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">{status}</span>
+                              </div>
+                              <div className="text-sm">
+                                <div><span className="font-medium">Project:</span> {record.projectName || 'N/A'}</div>
+                                <div><span className="font-medium">Check-In:</span> {formatTime(record.punchInTime)}</div>
+                                <div><span className="font-medium">Check-Out:</span> {formatTime(record.punchOutTime)}</div>
+                                <div><span className="font-medium">Hours Worked:</span> {hoursWorked}</div>
+                                <div><span className="font-medium">Day Type:</span> {dayType}</div>
+                                <button
+                                  onClick={() => setSelectedRecord(record)}
+                                  className={`mt-2 w-full ${theme === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 justify-center`}
+                                >
+                                  <FaEye className="w-4 h-4" />
+                                  View
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1115,7 +1153,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
               {/* Modal for viewing record details */}
               {selectedRecord && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-                  <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-8 max-w-2xl w-full relative animate-fade-in overflow-y-auto max-h-[90vh]`}>
+                  <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-4 sm:p-8 max-w-full sm:max-w-2xl w-full relative animate-fade-in overflow-y-auto max-h-[90vh]`}>
                     {/* Close button */}
                     <button
                       onClick={() => setSelectedRecord(null)}

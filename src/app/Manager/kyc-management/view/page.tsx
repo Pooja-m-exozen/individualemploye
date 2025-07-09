@@ -328,29 +328,29 @@ export default function ViewAllKYCPage() {
     <ManagerDashboardLayout>
       <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'} flex flex-col py-8 pt-20`}>
         {/* Modern KYC Header */}
-        <div className={`rounded-2xl mb-8 p-6 flex items-center justify-between shadow-lg w-full max-w-7xl mx-auto
+        <div className={`rounded-2xl mb-8 p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between shadow-lg w-full max-w-7xl mx-auto
           ${theme === 'dark' ? 'bg-gradient-to-r from-gray-800 to-gray-700' : 'bg-gradient-to-r from-blue-500 to-blue-800'}`}
         >
-          <div className="flex items-center gap-5">
-            <div className={`rounded-xl p-4 flex items-center justify-center
+          <div className="flex items-center gap-4 sm:gap-5 mb-4 sm:mb-0">
+            <div className={`rounded-xl p-3 sm:p-4 flex items-center justify-center
               ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-blue-600 bg-opacity-30'}`}
             >
-              <FaIdCard className="w-10 h-10 text-white" />
+              <FaIdCard className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white mb-1">KYC Records</h1>
-              <p className="text-white text-base opacity-90">Comprehensive employee KYC records and management</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">KYC Records</h1>
+              <p className="text-white text-sm sm:text-base opacity-90">Comprehensive employee KYC records and management</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+            <button className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md w-full sm:w-auto
               ${theme === 'dark' ? 'bg-gray-800 text-blue-200 hover:bg-gray-700' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
               onClick={handleExportToExcel}
             >
               <FaDownload className="w-4 h-4" />
               Export Data
             </button>
-            <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md
+            <button className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md w-full sm:w-auto
               ${theme === 'dark' ? 'bg-gray-800 text-blue-200 hover:bg-gray-700' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
               onClick={handleExportToPDF}
             >
@@ -361,17 +361,17 @@ export default function ViewAllKYCPage() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 px-6">
+        <div className="flex-1 px-2 sm:px-6">
           <div className="max-w-7xl mx-auto">
             {/* Toast Notification */}
             {toast && (
-              <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-xl shadow-2xl text-white text-sm flex items-center gap-3 max-w-md animate-slide-in
+              <div className={`fixed top-4 right-4 z-50 px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl text-white text-xs sm:text-sm flex items-center gap-2 sm:gap-3 max-w-xs sm:max-w-md animate-slide-in
                 ${toast.type === "success" ? 'bg-emerald-500' : 'bg-red-500'}`}
               >
-                {toast.type === "success" ? <FaCheckCircle className="w-5 h-5" /> : <FaTimesCircle className="w-5 h-5" />}
+                {toast.type === "success" ? <FaCheckCircle className="w-4 h-4 sm:w-5 sm:h-5" /> : <FaTimesCircle className="w-4 h-4 sm:w-5 sm:h-5" />}
                 <span className="font-medium">{toast.message}</span>
                 <button onClick={() => setToast(null)} className="ml-auto">
-                  <FaTimesCircle className="w-4 h-4 opacity-70 hover:opacity-100" />
+                  <FaTimesCircle className="w-3 h-3 sm:w-4 sm:h-4 opacity-70 hover:opacity-100" />
                 </button>
               </div>
             )}
@@ -380,15 +380,15 @@ export default function ViewAllKYCPage() {
             <div className={`rounded-xl shadow-sm border overflow-hidden
               ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
             >
-              {/* Filter Row - Match Employee Management Page */}
-              <div className="flex flex-row flex-wrap gap-2 px-6 py-4 border-b items-center w-full
-                ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}">
+              {/* Filter Row - Responsive */}
+              <div className={`flex flex-col sm:flex-row flex-wrap gap-2 px-2 sm:px-6 py-3 sm:py-4 border-b items-stretch sm:items-center w-full
+                ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
                 {/* Project Dropdown */}
-                <div className="flex-1 min-w-[180px] max-w-xs">
+                <div className="flex-1 min-w-[140px] max-w-xs">
                   <select
                     value={projectFilter}
                     onChange={e => { setProjectFilter(e.target.value); setCurrentPage(1); }}
-                    className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full appearance-none pl-3 pr-8 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-xs sm:text-base ${
                       theme === "dark"
                         ? "bg-gray-800 border-blue-900 text-white"
                         : "bg-white border-gray-200 text-black"
@@ -400,11 +400,11 @@ export default function ViewAllKYCPage() {
                   </select>
                 </div>
                 {/* Designation Dropdown */}
-                <div className="relative w-44 min-w-[130px]">
+                <div className="w-full sm:w-44 min-w-[110px]">
                   <select
                     value={designationFilter}
                     onChange={e => { setDesignationFilter(e.target.value); setCurrentPage(1); }}
-                    className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full appearance-none pl-3 pr-8 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-xs sm:text-base ${
                       theme === "dark"
                         ? "bg-gray-800 border-blue-900 text-white"
                         : "bg-white border-gray-200 text-black"
@@ -416,8 +416,8 @@ export default function ViewAllKYCPage() {
                   </select>
                 </div>
                 {/* Search Bar */}
-                <div className="relative flex-1 min-w-[180px] max-w-xs">
-                  <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+                <div className="relative flex-1 min-w-[140px] max-w-xs">
+                  <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4`} />
                   <input
                     type="text"
                     placeholder="Search employee name or ID..."
@@ -436,7 +436,7 @@ export default function ViewAllKYCPage() {
                         }
                       }
                     }}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+                    className={`w-full pl-9 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 text-xs sm:text-base ${
                       theme === "dark"
                         ? "bg-gray-800 border-blue-900 text-white"
                         : "bg-white border-gray-200 text-black"
@@ -444,10 +444,10 @@ export default function ViewAllKYCPage() {
                   />
                 </div>
                 {/* New Joiners Button */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => setModal({ type: 'joiner', data: null })}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 w-full sm:w-auto
                       ${modal?.type === 'joiner'
                         ? theme === 'dark' ? 'bg-blue-900 text-blue-200 border border-blue-700' : 'bg-blue-100 text-blue-700 border border-blue-200'
                         : theme === 'dark' ? 'bg-gray-800 text-blue-200 border border-gray-700 hover:bg-gray-700' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'}
@@ -503,9 +503,9 @@ export default function ViewAllKYCPage() {
                 </div>
               ) : (
                 <>
-                  {/* KYC Records Table */}
-                  <div className="w-full max-h-[500px] overflow-y-auto">
-                    <table className={`min-w-max w-full text-sm divide-y
+                  {/* KYC Records Table - Responsive */}
+                  <div className="w-full overflow-x-auto max-h-[500px]">
+                    <table className={`min-w-max w-full text-xs sm:text-sm divide-y
                       ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}
                     >
                       <thead className={theme === 'dark' ? 'bg-gray-900 sticky top-0 z-10' : 'bg-gray-50 sticky top-0 z-10'}>
@@ -718,40 +718,40 @@ export default function ViewAllKYCPage() {
         {/* Modal Rendering */}
         {modal && (
           <>
-            {/* New Joiners Modal */}
+            {/* New Joiners Modal - Responsive */}
             {modal.type === 'joiner' && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg sm:max-w-4xl max-h-[95vh] overflow-hidden flex flex-col">
                   {/* Modal Header */}
-                  <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 rounded-t-2xl">
+                  <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-4 sm:px-6 py-3 sm:py-4 rounded-t-2xl">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="bg-blue-500 bg-opacity-30 rounded-xl p-3">
-                          <FaUsers className="w-6 h-6 text-white" />
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="bg-blue-500 bg-opacity-30 rounded-xl p-2 sm:p-3">
+                          <FaUsers className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                         </div>
                         <div>
-                          <h2 className="text-xl font-bold text-white">New Joiners Report</h2>
-                          <p className="text-blue-100 text-sm">Employees who joined in the last {timeFrame} days</p>
+                          <h2 className="text-lg sm:text-xl font-bold text-white">New Joiners Report</h2>
+                          <p className="text-blue-100 text-xs sm:text-sm">Employees who joined in the last {timeFrame} days</p>
                         </div>
                       </div>
                       <button
                         onClick={() => setModal(null)}
                         className="text-white hover:text-blue-100 transition-colors duration-200"
                       >
-                        <FaTimes className="w-6 h-6" />
+                        <FaTimes className="w-5 h-5 sm:w-6 sm:h-6" />
                       </button>
                     </div>
                   </div>
 
                   {/* Modal Content */}
-                  <div className="p-6">
+                  <div className="p-3 sm:p-6 flex-1 overflow-y-auto">
                     {/* Time Frame Selector */}
-                    <div className="mb-6">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Time Frame</label>
+                    <div className="mb-4 sm:mb-6">
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1 sm:mb-2">Time Frame</label>
                       <select
                         value={timeFrame}
                         onChange={(e) => setTimeFrame(Number(e.target.value))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs sm:text-base"
                       >
                         <option value={7}>Last 7 days</option>
                         <option value={15}>Last 15 days</option>
@@ -762,21 +762,21 @@ export default function ViewAllKYCPage() {
                     </div>
 
                     {/* Search */}
-                    <div className="mb-6">
+                    <div className="mb-4 sm:mb-6">
                       <div className="relative">
-                        <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <FaSearch className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                         <input
                           type="text"
                           placeholder="Search new joiners..."
                           value={newJoinersSearch}
                           onChange={(e) => setNewJoinersSearch(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full pl-9 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs sm:text-base"
                         />
                       </div>
                     </div>
 
                     {/* New Joiners List */}
-                    <div className="max-h-96 overflow-y-auto">
+                    <div className="max-h-60 sm:max-h-96 overflow-y-auto">
                       {newJoinersLoading ? (
                         <div className="flex items-center justify-center py-8">
                           <FaSpinner className="animate-spin text-blue-600 w-8 h-8" />

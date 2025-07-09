@@ -152,39 +152,40 @@ export default function CreateShiftsPage() {
 
   return (
     <ManagerDashboardLayout>
-      <div className={`min-h-screen flex flex-col items-center py-8 ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
+      <div className={`min-h-screen flex flex-col items-center py-4 md:py-8 ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
         {/* Modern Header */}
-        <div className={`rounded-2xl mb-8 p-8 flex items-center gap-6 shadow-lg w-full max-w-5xl mx-auto ${theme === 'dark' ? 'bg-[#2d3748]' : 'bg-gradient-to-r from-blue-500 to-blue-800'}`}>
-          <div className={`${theme === 'dark' ? 'bg-gray-800 bg-opacity-60' : 'bg-blue-600 bg-opacity-30'} rounded-xl p-4 flex items-center justify-center`}>
-            <FaCalendarAlt className="w-10 h-10 text-white" />
+        <div className={`rounded-2xl mb-4 md:mb-8 p-4 md:p-8 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 shadow-lg w-full max-w-5xl mx-auto ${theme === 'dark' ? 'bg-[#2d3748]' : 'bg-gradient-to-r from-blue-500 to-blue-800'}`}>
+          <div className={`${theme === 'dark' ? 'bg-gray-800 bg-opacity-60' : 'bg-blue-600 bg-opacity-30'} rounded-xl p-3 md:p-4 flex items-center justify-center`}>
+            <FaCalendarAlt className="w-8 h-8 md:w-10 md:h-10 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Create Shifts</h1>
-            <p className="text-white text-base opacity-90">Define and manage shift timings for employees</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Create Shifts</h1>
+            <p className="text-base md:text-lg text-white opacity-90">Define and manage shift timings for employees</p>
           </div>
         </div>
-        <div className="w-full max-w-5xl mx-auto flex flex-col md:flex-row gap-8">
+        <div className="w-full max-w-5xl mx-auto flex flex-col md:flex-row gap-4 md:gap-8">
           {/* Sidebar Navigation */}
-          <aside className="md:w-64 flex-shrink-0 flex flex-col gap-6">
-            <div className={`rounded-2xl p-4 sticky top-8 border shadow ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'}`}>
-              <nav className="space-y-1">
+          <aside className="md:w-64 flex-shrink-0 flex flex-col gap-4 md:gap-6 mb-4 md:mb-0 w-full">
+            {/* Navigation */}
+            <div className={`rounded-2xl p-3 md:p-4 sticky top-8 border shadow w-full ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'}`}> 
+              <nav className="space-y-1 flex flex-row md:flex-col gap-2 md:gap-0 w-full">
                 <button
                   onClick={() => setActiveSection("addShift")}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors font-medium text-lg ${activeSection === "addShift" ? (theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700') : (theme === 'dark' ? 'text-blue-200 hover:bg-blue-900' : 'text-gray-600 hover:bg-blue-50')}`}
+                  className={`w-full flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 md:py-3 rounded-xl text-left transition-colors font-medium text-base md:text-lg ${activeSection === "addShift" ? (theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700') : (theme === 'dark' ? 'text-blue-200 hover:bg-blue-900' : 'text-gray-600 hover:bg-blue-50')}`}
                 >
                   <FaCalendarAlt className="w-5 h-5" />
                   <span>Add Shift</span>
                 </button>
                 <button
                   onClick={() => setActiveSection("mapShift")}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors font-medium text-lg ${activeSection === "mapShift" ? (theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700') : (theme === 'dark' ? 'text-blue-200 hover:bg-blue-900' : 'text-gray-600 hover:bg-blue-50')}`}
+                  className={`w-full flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 md:py-3 rounded-xl text-left transition-colors font-medium text-base md:text-lg ${activeSection === "mapShift" ? (theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700') : (theme === 'dark' ? 'text-blue-200 hover:bg-blue-900' : 'text-gray-600 hover:bg-blue-50')}`}
                 >
                   <FaProjectDiagram className="w-5 h-5" />
                   <span>Map Shift</span>
                 </button>
                 <button
                   onClick={() => setActiveSection("updateWeekoff")}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors font-medium text-lg ${activeSection === "updateWeekoff" ? (theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700') : (theme === 'dark' ? 'text-blue-200 hover:bg-blue-900' : 'text-gray-600 hover:bg-blue-50')}`}
+                  className={`w-full flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 md:py-3 rounded-xl text-left transition-colors font-medium text-base md:text-lg ${activeSection === "updateWeekoff" ? (theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700') : (theme === 'dark' ? 'text-blue-200 hover:bg-blue-900' : 'text-gray-600 hover:bg-blue-50')}`}
                 >
                   <FaCalendarAlt className="w-5 h-5" />
                   <span>Update Weekoffs</span>
@@ -192,37 +193,37 @@ export default function CreateShiftsPage() {
               </nav>
             </div>
             {/* Instructions/Info Card */}
-            <div className={`relative rounded-2xl p-6 border shadow-xl flex flex-col gap-3 items-start transition-all duration-300 hover:shadow-2xl ${theme === 'dark' ? 'bg-gray-700 bg-opacity-80 border-blue-900' : 'bg-blue-50 border-blue-200'}`}>
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'} p-2 rounded-xl flex items-center justify-center`}>
-                  <FaInfoCircle className="w-6 h-6 text-blue-600" />
+            <div className={`relative rounded-2xl p-4 md:p-6 border shadow-xl flex flex-col gap-2 md:gap-3 items-start transition-all duration-300 hover:shadow-2xl w-full ${theme === 'dark' ? 'bg-gray-700 bg-opacity-80 border-blue-900' : 'bg-blue-50 border-blue-200'}`}> 
+              <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
+                <div className={`${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'} p-1 md:p-2 rounded-xl flex items-center justify-center`}>
+                  <FaInfoCircle className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                 </div>
-                <h3 className={`text-lg font-bold tracking-tight ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Instructions & Notes</h3>
+                <h3 className={`text-base md:text-lg font-bold tracking-tight ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Instructions & Notes</h3>
               </div>
-              <ul className={`space-y-2 text-sm pl-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
+              <ul className={`space-y-1 md:space-y-2 text-xs md:text-sm pl-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}> 
                 <li>• Use the sidebar to switch between adding shifts, mapping shifts, and updating weekoffs.</li>
                 <li>• Fill all required fields before submitting.</li>
                 <li>• All fields marked with * are mandatory.</li>
               </ul>
-              <div className={`mt-8 p-4 rounded-xl border text-blue-700 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-700 bg-opacity-80 border-blue-900 text-blue-200' : 'bg-blue-50 border-blue-100 text-blue-700'}`}>
-                <div className="flex items-center gap-2 mb-2">
+              <div className={`mt-4 md:mt-8 p-2 md:p-4 rounded-xl border text-blue-700 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-700 bg-opacity-80 border-blue-900 text-blue-200' : 'bg-blue-50 border-blue-100 text-blue-700'}`}> 
+                <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
                   <FaInfoCircle className="w-4 h-4" />
                   <span className="font-semibold">Need Help?</span>
                 </div>
-                <p className="text-sm">Contact <span className="font-medium">support@yourdomain.com</span> for support.</p>
+                <p className="text-xs md:text-sm">Contact <span className="font-medium">support@yourdomain.com</span> for support.</p>
               </div>
             </div>
           </aside>
           {/* Main Content */}
-          <main className="flex-1 space-y-8">
+          <main className="flex-1 space-y-6 md:space-y-8">
             {activeSection === "addShift" && (
-              <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-8 border shadow-xl`}>
+              <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-4 md:p-8 border shadow-xl`}>
                 <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Add New Shift</h2>
                 {/* API feedback */}
                 {apiError && <div className="mb-4 text-red-600 font-semibold">{apiError}</div>}
                 {apiSuccess && <div className="mb-4 text-green-600 font-semibold">{apiSuccess}</div>}
-                <form className="flex flex-col gap-6" onSubmit={handleAddShift}>
-                  <div className="flex flex-col md:flex-row gap-4">
+                <form className="flex flex-col gap-4 md:gap-6" onSubmit={handleAddShift}>
+                  <div className="flex flex-col md:flex-row gap-3 md:gap-4">
                     <div className="flex-1">
                       <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Shift Name*</label>
                       <input
@@ -256,7 +257,7 @@ export default function CreateShiftsPage() {
                       />
                     </div>
                   </div>
-                  <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex flex-col md:flex-row gap-3 md:gap-4">
                     <div className="flex-1">
                       <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Location</label>
                       <input
@@ -288,7 +289,7 @@ export default function CreateShiftsPage() {
                       />
                     </div>
                   </div>
-                  <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex flex-col md:flex-row gap-3 md:gap-4">
                     <div className="flex-1">
                       <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Start Time*</label>
                       <input
@@ -345,15 +346,15 @@ export default function CreateShiftsPage() {
                   </div>
                   <button
                     type="submit"
-                    className="self-end px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="self-end w-full md:w-auto px-6 md:px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400"
                     disabled={loading}
                   >
                     {loading ? "Adding..." : "Add Shift"}
                   </button>
                 </form>
-                <div className="mt-8">
-                  <h3 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Existing Shifts</h3>
-                  <table className={`min-w-full divide-y ${theme === 'dark' ? 'divide-gray-800' : 'divide-blue-100'}`}> 
+                <div className="mt-6 md:mt-8 overflow-x-auto">
+                  <h3 className={`text-base md:text-lg font-bold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Existing Shifts</h3>
+                  <table className={`min-w-full divide-y text-xs md:text-base ${theme === 'dark' ? 'divide-gray-800' : 'divide-blue-100'}`}> 
                     <thead className={theme === 'dark' ? 'bg-blue-950' : 'bg-blue-50'}>
                       <tr>
                         <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Shift Name</th>
@@ -380,10 +381,10 @@ export default function CreateShiftsPage() {
               </section>
             )}
             {activeSection === "mapShift" && (
-              <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-8 border shadow-xl`}>
+              <section className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'} rounded-2xl p-4 md:p-8 border shadow-xl`}>
                 <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Map Shift to Project, Designation & Employee</h2>
-                <form className="flex flex-col gap-6 mb-6">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <form className="flex flex-col gap-4 md:gap-6 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4">
                     <div>
                       <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Project</label>
                       <select
@@ -446,19 +447,19 @@ export default function CreateShiftsPage() {
                       </select>
                     </div>
                   </div>
-                  <button type="submit" className="self-end px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400">Map Shift</button>
+                  <button type="submit" className="self-end w-full md:w-auto px-6 md:px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400">Map Shift</button>
                 </form>
-                <div>
-                  <h3 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Existing Mappings</h3>
+                <div className="overflow-x-auto">
+                  <h3 className={`text-base md:text-lg font-bold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Existing Mappings</h3>
                   {/* ...existing code for mappings table (if any, or leave empty) ... */}
                 </div>
               </section>
             )}
             {activeSection === "updateWeekoff" && (
-              <section className="bg-white rounded-2xl p-8 border border-blue-100 shadow-xl">
+              <section className="bg-white rounded-2xl p-4 md:p-8 border border-blue-100 shadow-xl">
                 <h2 className="text-xl font-bold text-blue-700 mb-4">Update Weekoffs</h2>
-                <form className="flex flex-col gap-6 mb-8">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <form className="flex flex-col gap-4 md:gap-6 mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4">
                     <div>
                       <label className="block text-blue-800 font-semibold mb-1">Project</label>
                       <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
@@ -479,11 +480,11 @@ export default function CreateShiftsPage() {
                       <input type="text" placeholder="Search by Employee ID" className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                     </div>
                   </div>
-                  <button type="button" className="self-end px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400">Search</button>
+                  <button type="button" className="self-end w-full md:w-auto px-6 md:px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400">Search</button>
                 </form>
-                <div>
-                  <h3 className="text-lg font-bold text-blue-700 mb-2">Employee Weekoff List</h3>
-                  <table className="min-w-full divide-y divide-blue-100">
+                <div className="overflow-x-auto">
+                  <h3 className="text-base md:text-lg font-bold text-blue-700 mb-2">Employee Weekoff List</h3>
+                  <table className="min-w-full divide-y divide-blue-100 text-xs md:text-base">
                     <thead className="bg-blue-50">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Employee ID</th>

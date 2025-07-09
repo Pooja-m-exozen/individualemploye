@@ -165,7 +165,7 @@ export default function StoreRequestsPage() {
         </dialog>
       )}
       <div
-        className={`min-h-screen flex flex-col py-8 transition-colors duration-300 ${
+        className={`min-h-screen flex flex-col py-4 md:py-8 transition-colors duration-300 ${
           theme === "dark"
             ? "bg-gradient-to-br from-gray-900 via-gray-950 to-blue-950"
             : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"
@@ -173,31 +173,31 @@ export default function StoreRequestsPage() {
       >
         {/* Header */}
         <div
-          className={`rounded-2xl mb-8 p-6 flex items-center justify-between shadow-lg w-full max-w-7xl mx-auto transition-colors duration-300 ${
+          className={`rounded-2xl mb-4 md:mb-8 p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 shadow-lg w-full max-w-7xl mx-auto transition-colors duration-300 ${
             theme === "dark"
               ? "bg-[#2d3748]"
               : "bg-gradient-to-r from-blue-500 to-blue-800"
           }`}
         >
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-4 md:gap-5">
             <div
-              className={`rounded-xl p-4 flex items-center justify-center ${
+              className={`rounded-xl p-3 md:p-4 flex items-center justify-center ${
                 theme === "dark"
                   ? "bg-[#232b38]"
                   : "bg-blue-100"
               }`}
             >
-              <FaStore className={`w-10 h-10 ${theme === "dark" ? "text-white" : "text-blue-700"}`} />
+              <FaStore className={`w-8 h-8 md:w-10 md:h-10 ${theme === "dark" ? "text-white" : "text-blue-700"}`} />
             </div>
             <div>
-              <h1 className={`text-3xl font-bold mb-1 ${theme === "dark" ? "text-white" : "text-white"}`}>Store Requests</h1>
-              <p className={`text-base opacity-90 ${theme === "dark" ? "text-white" : "text-white"}`}>View and manage store requests</p>
+              <h1 className={`text-2xl md:text-3xl font-bold mb-1 ${theme === "dark" ? "text-white" : "text-white"}`}>Store Requests</h1>
+              <p className={`text-base md:text-lg opacity-90 ${theme === "dark" ? "text-white" : "text-white"}`}>View and manage store requests</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4 mt-4 md:mt-0 w-full md:w-auto justify-end">
             <button
               onClick={exportToCSV}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md w-full md:w-auto ${
                 theme === "dark"
                   ? "bg-gray-900 text-blue-200 hover:bg-blue-900"
                   : "bg-white text-blue-600 hover:bg-blue-50 border border-blue-200"
@@ -209,7 +209,7 @@ export default function StoreRequestsPage() {
           </div>
         </div>
         {/* Main Content Area */}
-        <div className="flex-1 px-6">
+        <div className="flex-1 px-2 md:px-6">
           <div className="max-w-7xl mx-auto">
             <div
               className={`rounded-xl shadow-sm border overflow-hidden transition-colors duration-300 ${
@@ -257,8 +257,8 @@ export default function StoreRequestsPage() {
               ) : (
                 <>
                   {/* Search and Filter Section */}
-                  <div className={`px-6 py-4 border-b transition-colors duration-300 ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                    <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+                  <div className={`px-2 md:px-6 py-3 md:py-4 border-b transition-colors duration-300 ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                    <div className="flex flex-col lg:flex-row gap-2 md:gap-4 items-stretch lg:items-center">
                       <div className="flex-1 min-w-0">
                         <div className="relative">
                           <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
@@ -267,14 +267,14 @@ export default function StoreRequestsPage() {
                             placeholder="Search by employee ID, name, project, or uniform type..."
                             value={search}
                             onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
-                            className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
+                            className={`w-full pl-10 md:pl-12 pr-4 py-2 md:py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
                           />
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
                         <button
                           onClick={() => setShowFilters(!showFilters)}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${
+                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 border w-full md:w-auto ${
                             showFilters
                               ? theme === "dark"
                                 ? "bg-blue-900 text-blue-200 border-blue-800"
@@ -294,7 +294,7 @@ export default function StoreRequestsPage() {
                     </div>
                     {/* Advanced Filters Panel */}
                     {showFilters && (
-                      <div className={`mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-4 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                      <div className={`mt-2 md:mt-4 pt-2 md:pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
                         {/* Status Filter */}
                         <div>
                           <label className={`block text-xs font-semibold uppercase tracking-wide mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
@@ -335,7 +335,7 @@ export default function StoreRequestsPage() {
                   </div>
                   {/* Requests Table */}
                   <div className="overflow-x-auto">
-                    <table className={`min-w-full divide-y transition-colors duration-300 ${theme === "dark" ? "divide-gray-800" : "divide-gray-200"}`}>
+                    <table className={`min-w-full divide-y text-xs md:text-base transition-colors duration-300 ${theme === "dark" ? "divide-gray-800" : "divide-gray-200"}`}>
                       <thead className={theme === "dark" ? "bg-gray-900" : "bg-gray-50"}>
                         <tr>
                           <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Employee ID</th>
@@ -378,8 +378,8 @@ export default function StoreRequestsPage() {
                   </div>
                   {/* Pagination Controls */}
                   {totalPages > 1 && (
-                    <div className={`px-6 py-4 border-t transition-colors duration-300 ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                      <div className="flex flex-col items-center justify-center gap-2">
+                    <div className={`px-2 md:px-6 py-3 md:py-4 border-t transition-colors duration-300 ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                      <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4">
                         <div className={theme === "dark" ? "text-sm text-gray-300" : "text-sm text-gray-600"}>
                           Showing <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
                           <span className={theme === "dark" ? "font-semibold text-gray-100" : "font-semibold text-gray-900"}>

@@ -106,6 +106,7 @@ const PIE_COLORS = [
   '#6366f1', '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6', '#fb7185', '#facc15', '#4ade80', '#2dd4bf', '#38bdf8', '#818cf8', '#f59e42', '#eab308', '#84cc16', '#14b8a6', '#0ea5e9', '#a3e635', '#f43f5e'
 ];
 
+
 export default function ManagerDashboardPage() {
   const { theme } = useTheme();
 
@@ -130,6 +131,9 @@ export default function ManagerDashboardPage() {
   const [showLegend, setShowLegend] = useState(false);
   const [onLeaveToday, setOnLeaveToday] = useState<OnLeaveTodayItem[]>([]);
   const [onLeaveTodayLoading, setOnLeaveTodayLoading] = useState(true);
+
+  // Helper for responsive padding
+  const sectionPad = "px-2 sm:px-4 md:px-0";
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -423,69 +427,69 @@ export default function ManagerDashboardPage() {
   }
 
   return (
-    <div>
+    <div className={`w-full max-w-7xl mx-auto ${sectionPad}`}>
       {/* Header */}
       <div
-        className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r ${
+        className={`rounded-2xl mb-6 p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 shadow-lg bg-gradient-to-r ${
           theme === "dark"
             ? "from-gray-900 to-gray-800"
             : "from-blue-500 to-blue-800"
         }`}
       >
         <div
-          className={`rounded-xl p-4 flex items-center justify-center ${
+          className={`rounded-xl p-3 sm:p-4 flex items-center justify-center ${
             theme === "dark" ? "bg-gray-900 bg-opacity-80" : "bg-blue-600 bg-opacity-30"
           }`}
         >
-          <FaChartBar className="w-10 h-10 text-white" />
+          <FaChartBar className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-white mb-1">Manager Dashboard</h1>
-          <p className="text-white text-base opacity-90">Overview of employees, projects, and activities.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Manager Dashboard</h1>
+          <p className="text-white text-sm sm:text-base opacity-90">Overview of employees, projects, and activities.</p>
         </div>
       </div>
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
         {summary.map((item) => (
           <div
             key={item.label}
-            className={`rounded-2xl shadow p-6 flex items-center gap-4 border ${
+            className={`rounded-2xl shadow p-4 sm:p-6 flex items-center gap-3 sm:gap-4 border ${
               theme === "dark"
                 ? "bg-gray-800 border-blue-900"
                 : "bg-white border-blue-100"
             }`}
           >
             <div
-              className={`rounded-xl p-3 flex items-center justify-center ${
+              className={`rounded-xl p-2 sm:p-3 flex items-center justify-center ${
                 theme === "dark" ? "bg-gray-900" : "bg-blue-100"
               }`}
             >
               {/* Render icon with blue color in light theme, white in dark theme */}
-              {item.label === "Total Employees" && <FaUsers className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
-              {item.label === "Active Projects" && <FaProjectDiagram className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
-              {item.label === "Pending KYC" && <FaFileAlt className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
-              {item.label === "Approved Leaves" && <FaCheckCircle className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
+              {item.label === "Total Employees" && <FaUsers className="w-6 h-6 sm:w-7 sm:h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
+              {item.label === "Active Projects" && <FaProjectDiagram className="w-6 h-6 sm:w-7 sm:h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
+              {item.label === "Pending KYC" && <FaFileAlt className="w-6 h-6 sm:w-7 sm:h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
+              {item.label === "Approved Leaves" && <FaCheckCircle className="w-6 h-6 sm:w-7 sm:h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
             </div>
             <div>
-              <div className={`text-2xl font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
+              <div className={`text-xl sm:text-2xl font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
                 {loading || item.value === null ? <span className="animate-pulse">...</span> : item.value}
               </div>
-              <div className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>{item.label}</div>
+              <div className={`text-xs sm:text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>{item.label}</div>
             </div>
           </div>
         ))}
       </div>
       {/* Graphs + Recent Activities */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+      <div className="flex flex-col md:grid md:grid-cols-3 gap-6 sm:gap-8 mb-6">
         {/* Attendance Bar Graph */}
         <div
-          className={`rounded-2xl shadow p-6 border col-span-2 flex flex-col ${
+          className={`rounded-2xl shadow p-4 sm:p-6 border col-span-2 flex flex-col ${
             theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
           }`}
         >
-          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Attendance Trend (Last 6 Months)</div>
+          <div className={`font-bold mb-2 sm:mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Attendance Trend (Last 6 Months)</div>
           <div className="overflow-x-auto">
-            <div className="relative min-w-max mt-8" style={{ width: Math.max(attendanceTrend.length * 80, 480) }}>
+            <div className="relative min-w-max mt-4 sm:mt-8" style={{ width: Math.max(attendanceTrend.length * 80, 320) }}>
               {attendanceLoading ? (
                 <div className="w-full text-center animate-pulse">Loading...</div>
               ) : attendanceTrend.length === 0 ? (
@@ -498,16 +502,16 @@ export default function ManagerDashboardPage() {
         </div>
         {/* Project Distribution Pie Chart */}
         <div
-          className={`rounded-2xl shadow p-6 border flex flex-col items-center ${
+          className={`rounded-2xl shadow p-4 sm:p-6 border flex flex-col items-center mt-6 md:mt-0 ${
             theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
           }`}
           onMouseEnter={() => setShowLegend(true)}
           onMouseLeave={() => setShowLegend(false)}
         >
-          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Project Distribution</div>
-          <svg width={220} height={220} viewBox="0 0 220 220" className="mb-4">
+          <div className={`font-bold mb-2 sm:mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Project Distribution</div>
+          <svg width={180} height={180} viewBox="0 0 220 220" className="mb-2 sm:mb-4">
             {(() => {
-              const r = 90;
+              const r = 80;
               let acc = 0;
               return projectDistribution.map((p, i) => {
                 const start = acc;
@@ -530,10 +534,10 @@ export default function ManagerDashboardPage() {
               });
             })()}
           </svg>
-          {showLegend && (
+          {(showLegend || window.innerWidth < 768) && (
             <div className="flex flex-wrap gap-2 justify-center">
               {projectDistribution.map((p, i) => (
-                <span key={p._id} className="flex items-center gap-2 text-sm">
+                <span key={p._id} className="flex items-center gap-2 text-xs sm:text-sm">
                   <span className="w-3 h-3 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}></span>
                   <span className={theme === "dark" ? "text-gray-200" : "text-gray-700"}>{p._id}</span>
                   <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>({p.count})</span>
@@ -544,20 +548,20 @@ export default function ManagerDashboardPage() {
         </div>
       </div>
       {/* Leave Trend and Recent Activities in the same row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+      <div className="flex flex-col md:grid md:grid-cols-2 gap-6 sm:gap-8 mb-6">
         {/* Leave Trend Line Chart (Scrollable) */}
         <div
-          className={`rounded-2xl shadow p-6 border flex flex-col ${
+          className={`rounded-2xl shadow p-4 sm:p-6 border flex flex-col ${
             theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
           }`}
         >
-          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Leave Trend (Last 6 Months)</div>
+          <div className={`font-bold mb-2 sm:mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Leave Trend (Last 6 Months)</div>
           <div className="overflow-x-auto">
-            <div className="relative" style={{ minWidth: Math.max(leaveTrend.length * 80, 480) }}>
+            <div className="relative" style={{ minWidth: Math.max(leaveTrend.length * 80, 320) }}>
                 {leaveLoading ? (
-                    <div className="w-full text-center animate-pulse h-[220px] flex items-center justify-center">Loading...</div>
+                    <div className="w-full text-center animate-pulse h-[180px] sm:h-[220px] flex items-center justify-center">Loading...</div>
                 ) : leaveTrend.length === 0 ? (
-                    <div className="w-full text-center text-gray-400 h-[220px] flex items-center justify-center">No data</div>
+                    <div className="w-full text-center text-gray-400 h-[180px] sm:h-[220px] flex items-center justify-center">No data</div>
                 ) : (
                     leaveTrendLineSVG
                 )}
@@ -566,23 +570,23 @@ export default function ManagerDashboardPage() {
         </div>
         {/* Recent Activities */}
         <div
-          className={`rounded-2xl shadow p-6 border flex flex-col ${
+          className={`rounded-2xl shadow p-4 sm:p-6 border flex flex-col ${
             theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
           }`}
         >
-          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Recent Activities</div>
-          <ul className="space-y-4">
+          <div className={`font-bold mb-2 sm:mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Recent Activities</div>
+          <ul className="space-y-3 sm:space-y-4">
             {recentLoading ? (
               <li className="text-center text-gray-400">Loading...</li>
             ) : (
               <>
                 {recentAttendance.slice(0, 3).map((act) => (
-                  <li key={act._id} className="flex items-center gap-3">
-                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-gray-900" : "bg-blue-50"}`}>
+                  <li key={act._id} className="flex items-center gap-2 sm:gap-3">
+                    <span className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-gray-900" : "bg-blue-50"}`}>
                       <FaBell className="text-blue-500" />
                     </span>
                     <div className="flex-1">
-                      <div className={theme === "dark" ? "text-gray-200 text-sm" : "text-gray-700 text-sm"}>
+                      <div className={theme === "dark" ? "text-gray-200 text-xs sm:text-sm" : "text-gray-700 text-xs sm:text-sm"}>
                         <b>{act.employeeId}</b> ({act.designation}) punched in at <b>{act.projectName}</b>
                       </div>
                       <div className={theme === "dark" ? "text-xs text-gray-400" : "text-xs text-gray-400"}>{act.punchInTime ? new Date(act.punchInTime).toLocaleTimeString() : ''} on {act.date ? new Date(act.date).toLocaleDateString() : ''}</div>
@@ -590,12 +594,12 @@ export default function ManagerDashboardPage() {
                   </li>
                 ))}
                 {recentLeaves.slice(0, 2).map((leave) => (
-                  <li key={leave._id} className="flex items-center gap-3">
-                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-gray-900" : "bg-green-50"}`}>
+                  <li key={leave._id} className="flex items-center gap-2 sm:gap-3">
+                    <span className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-gray-900" : "bg-green-50"}`}>
                       <FaCheckCircle className="text-green-500" />
                     </span>
                     <div className="flex-1">
-                      <div className={theme === "dark" ? "text-gray-200 text-sm" : "text-gray-700 text-sm"}>
+                      <div className={theme === "dark" ? "text-gray-200 text-xs sm:text-sm" : "text-gray-700 text-xs sm:text-sm"}>
                         <b>{leave.employeeId}</b> leave ({leave.leaveType}) <b>{leave.status}</b>
                       </div>
                       <div className={theme === "dark" ? "text-xs text-gray-400" : "text-xs text-gray-400"}>{leave.startDate ? new Date(leave.startDate).toLocaleDateString() : ''}</div>
@@ -603,12 +607,12 @@ export default function ManagerDashboardPage() {
                   </li>
                 ))}
                 {recentKYC.slice(0, 1).map((kyc) => (
-                  <li key={kyc._id} className="flex items-center gap-3">
-                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-gray-900" : "bg-yellow-50"}`}>
+                  <li key={kyc._id} className="flex items-center gap-2 sm:gap-3">
+                    <span className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-gray-900" : "bg-yellow-50"}`}>
                       <FaFileAlt className="text-yellow-500" />
                     </span>
                     <div className="flex-1">
-                      <div className={theme === "dark" ? "text-gray-200 text-sm" : "text-gray-700 text-sm"}>
+                      <div className={theme === "dark" ? "text-gray-200 text-xs sm:text-sm" : "text-gray-700 text-xs sm:text-sm"}>
                         KYC update for <b>{
                           typeof kyc.personalDetails?.employeeId === 'string' || typeof kyc.personalDetails?.employeeId === 'number'
                             ? kyc.personalDetails.employeeId
@@ -627,38 +631,38 @@ export default function ManagerDashboardPage() {
         </div>
       </div>
       {/* Pending Approvals Table */}
-      <div className={`rounded-2xl shadow p-6 border ${theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"}`}>
-        <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Pending Approvals</div>
+      <div className={`rounded-2xl shadow p-4 sm:p-6 border ${theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"}`}>
+        <div className={`font-bold mb-2 sm:mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Pending Approvals</div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y">
+          <table className="min-w-[520px] w-full divide-y text-xs sm:text-sm">
             <thead className={theme === "dark" ? "bg-blue-900" : "bg-blue-50"}>
               <tr>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Leave Type</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Date</th>
+                <th className={`px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
+                <th className={`px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name</th>
+                <th className={`px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Leave Type</th>
+                <th className={`px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
+                <th className={`px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Date</th>
               </tr>
             </thead>
             <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
               {onLeaveTodayLoading ? (
                 <tr>
-                  <td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Loading...</td>
+                  <td colSpan={5} className={`px-2 sm:px-4 py-8 sm:py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Loading...</td>
                 </tr>
               ) : onLeaveToday.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No pending approvals</td>
+                  <td colSpan={5} className={`px-2 sm:px-4 py-8 sm:py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No pending approvals</td>
                 </tr>
               ) : (
                 onLeaveToday.map((item) => (
                   <tr key={item._id} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                    <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{item.employeeId}</td>
-                    <td className="px-4 py-3">{item.name || '-'}</td>
-                    <td className="px-4 py-3">{item.leaveType || '-'}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${theme === "dark" ? "bg-yellow-900 text-yellow-200" : "bg-yellow-100 text-yellow-800"}`}>{item.status || '-'}</span>
+                    <td className={`px-2 sm:px-4 py-2 sm:py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{item.employeeId}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-3">{item.name || '-'}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-3">{item.leaveType || '-'}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-3">
+                      <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${theme === "dark" ? "bg-yellow-900 text-yellow-200" : "bg-yellow-100 text-yellow-800"}`}>{item.status || '-'}</span>
                     </td>
-                    <td className="px-4 py-3">{item.date ? new Date(item.date).toLocaleDateString() : '-'}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-3">{item.date ? new Date(item.date).toLocaleDateString() : '-'}</td>
                   </tr>
                 ))
               )}

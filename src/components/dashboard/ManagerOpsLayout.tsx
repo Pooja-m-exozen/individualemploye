@@ -35,6 +35,7 @@ interface MenuItem {
 
 const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
   const [isSidebarExpanded, setSidebarExpanded] = useState(true);
+  const [isSidebarOpenMobile, setSidebarOpenMobile] = useState(false); // NEW: for mobile sidebar
   const [currentDateTime, setCurrentDateTime] = useState<string>("");
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [userDetails, setUserDetails] = useState<{
@@ -89,7 +90,11 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
   }, []);
 
   const toggleSidebar = () => {
-    setSidebarExpanded(!isSidebarExpanded);
+    if (window.innerWidth < 768) {
+      setSidebarOpenMobile((prev) => !prev);
+    } else {
+      setSidebarExpanded(!isSidebarExpanded);
+    }
   };
 
   const handleLogout = () => {
@@ -166,15 +171,29 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
   ];
 
   return (
-    <div className={`min-h-screen flex ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"} transition-colors duration-200`}>
+    <div className={`h-screen flex ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"} transition-colors duration-200`}>
       {/* Sidebar */}
+      {/* Overlay for mobile */}
+      <div
+        className={`fixed inset-0 z-40 bg-black bg-opacity-40 transition-opacity md:hidden ${isSidebarOpenMobile ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        onClick={() => setSidebarOpenMobile(false)}
+        aria-hidden={!isSidebarOpenMobile}
+      />
       <aside
-        className={`fixed inset-y-0 left-0 flex flex-col ${
-          isSidebarExpanded ? "w-72" : "w-20"
-        } ${theme === "dark" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-800"} transition-all duration-300 shadow-lg`}
+        className={`fixed top-0 left-0 h-screen flex flex-col justify-between z-50
+          ${isSidebarExpanded ? "w-72" : "w-20"}
+          ${theme === "dark" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-800"}
+          transition-all duration-300 shadow-lg
+          md:relative md:translate-x-0
+          ${isSidebarOpenMobile ? "translate-x-0" : "-translate-x-full"} md:translate-x-0
+          overflow-hidden
+        `}
+        style={{
+          transitionProperty: 'width, left, right, background, color, transform',
+        }}
       >
         {/* Logo and Toggle */}
-        <div className={`flex items-center justify-between p-5 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-300"}`}>
+        <div className={`flex items-center justify-between h-14 px-4 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-300"}`}>
           <div
             className={`flex items-center ${
               isSidebarExpanded ? "justify-start" : "justify-center"
@@ -183,9 +202,10 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
             <Image
               src="/v1/employee/logo-exo .png"
               alt="Exozen Logo"
-              width={40}
-              height={40}
+              width={isSidebarExpanded ? 40 : 32}
+              height={isSidebarExpanded ? 40 : 32}
               className="rounded-xl shadow-sm"
+              style={{ minWidth: isSidebarExpanded ? 40 : 32 }}
             />
             {isSidebarExpanded && (
               <span className={`ml-3 font-bold ${theme === "dark" ? "text-white" : "text-gray-900"} text-2xl tracking-wide`}>
@@ -195,7 +215,14 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
           </div>
           <button
             onClick={toggleSidebar}
-            className={`p-2 rounded-xl ${theme === "dark" ? "text-gray-400 hover:bg-gray-700 hover:text-white" : "text-gray-500 hover:bg-gray-200 hover:text-gray-800"} transition-all duration-200 ml-auto flex-shrink-0`}
+            className={`p-2 rounded-xl ${theme === "dark" ? "text-gray-400 hover:bg-gray-700 hover:text-white" : "text-gray-500 hover:bg-gray-200 hover:text-gray-800"} transition-all duration-200 ml-auto flex-shrink-0 md:hidden`}
+            title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            {isSidebarOpenMobile ? <FaChevronLeft className="w-5 h-5" /> : <FaBars className="w-5 h-5" />}
+          </button>
+          <button
+            onClick={toggleSidebar}
+            className={`p-2 rounded-xl ${theme === "dark" ? "text-gray-400 hover:bg-gray-700 hover:text-white" : "text-gray-500 hover:bg-gray-200 hover:text-gray-800"} transition-all duration-200 ml-auto flex-shrink-0 hidden md:block`}
             title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
           >
             {isSidebarExpanded ? (
@@ -207,7 +234,7 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <nav className="flex-1">
           <ul className="p-4 space-y-2">
             {menuItems.map((item) => (
               <li key={item.label}>
@@ -293,26 +320,47 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
             ))}
           </ul>
         </nav>
+        {/* Sidebar Profile Section */}
+        <div className={`p-4 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"} flex flex-col items-center gap-2`}>
+          <Image
+            src={userDetails?.employeeImage || "/placeholder-user.jpg"}
+            alt={userDetails?.fullName || "User"}
+            width={48}
+            height={48}
+            className="w-12 h-12 rounded-full object-cover border-2 border-white shadow"
+          />
+          <div className="text-center">
+            <div className={`font-semibold text-sm ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{userDetails?.fullName || "User"}</div>
+            <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{userDetails?.designation || ""}</div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className={`mt-2 px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 w-full justify-center ${theme === "dark" ? "bg-red-700 text-white hover:bg-red-800" : "bg-red-100 text-red-700 hover:bg-red-200"}`}
+          >
+            <FaSignOutAlt className="w-4 h-4" /> Logout
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
       <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
-          isSidebarExpanded ? "ml-72" : "ml-20"
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out md:ml-0 ${
+          isSidebarExpanded ? "md:ml-72" : "md:ml-20"
         }`}
+        style={{ background: 'none', marginLeft: 0, paddingLeft: 0 }}
       >
         {/* Header */}
         <header
-          className={`${
+          className={`h-14 flex items-center px-2 md:px-4 sticky top-0 z-30 border-b shadow-lg transition-colors duration-200 ${
             theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
-          } border-b shadow-lg sticky top-0 h-[64px] flex items-center px-4 transition-colors duration-200`}
+          }`}
         >
           <div className="flex items-center justify-between w-full">
             {/* Left: Menu Icon & Page Title */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={toggleSidebar}
-                className={`p-2 rounded-full ${
+                className={`p-2 rounded-full md:hidden ${
                   theme === "dark"
                     ? "text-gray-400 hover:text-white hover:bg-gray-700"
                     : "text-gray-500 hover:text-blue-700 hover:bg-gray-100"
@@ -322,7 +370,7 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
                 <FaBars className="w-5 h-5" />
               </button>
               <h1
-                className={`text-xl font-bold ${
+                className={`text-lg md:text-xl font-bold ${
                   theme === "dark" ? "text-white" : "text-gray-900"
                 }`}
               >
@@ -330,8 +378,8 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
               </h1>
             </div>
 
-            {/* Right: Date/Time, Theme Toggle, Notifications, Profile */}
-            <div className="flex items-center gap-4">
+            {/* Right: Date/Time, Theme Toggle, Profile */}
+            <div className="flex items-center gap-2 md:gap-4">
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
@@ -349,31 +397,17 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
                 )}
               </button>
 
-              {/* Date and Time */}
+              {/* Date and Time - reduced width and font size */}
               <div
-                className={`font-medium text-sm px-4 py-1.5 rounded-full border ${
+                className={`font-medium text-xs md:text-sm px-2 md:px-4 py-1.5 rounded-full border max-w-[110px] md:max-w-[180px] truncate text-center ${
                   theme === "dark"
                     ? "bg-gray-700 text-gray-200 border-gray-600"
                     : "bg-blue-50 text-blue-700 border-blue-100"
                 }`}
+                style={{ minWidth: 0 }}
               >
                 {currentDateTime}
               </div>
-
-              {/* Notifications */}
-              <button
-                className={`relative p-2 rounded-full ${
-                  theme === "dark"
-                    ? "text-blue-400 hover:text-blue-300"
-                    : "text-blue-600 hover:text-blue-800"
-                } transition-all duration-200`}
-                title="Notifications"
-              >
-                <FaBell className="w-5 h-5" />
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 rounded-full text-[11px] font-bold text-white flex items-center justify-center">
-                  3
-                </span>
-              </button>
 
               {/* User Profile */}
               <div className="flex items-center relative">
@@ -409,7 +443,7 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
         </header>
 
         {/* Main Content */}
-        <main className={`p-4 md:p-8 min-h-screen overflow-y-auto overflow-x-hidden ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"}`}>
+        <main className={`p-2 md:p-4 min-h-screen overflow-y-auto overflow-x-hidden ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"}`}>
           {children}
         </main>
       </div>

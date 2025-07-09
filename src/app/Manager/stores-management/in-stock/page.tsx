@@ -78,7 +78,7 @@ export default function StoreInStockPage() {
   return (
     <ManagerDashboardLayout>
       <div
-        className={`min-h-screen flex flex-col py-8 transition-colors duration-300 ${
+        className={`min-h-screen flex flex-col py-4 md:py-8 transition-colors duration-300 ${
           theme === "dark"
             ? "bg-gradient-to-br from-gray-900 via-gray-950 to-blue-950"
             : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"
@@ -86,32 +86,32 @@ export default function StoreInStockPage() {
       >
         {/* Header */}
         <div
-          className={`rounded-2xl mb-12 p-6 flex items-center gap-6 shadow-lg w-full max-w-7xl mx-auto transition-colors duration-300 ${
+          className={`rounded-2xl mb-4 md:mb-12 p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 shadow-lg w-full max-w-7xl mx-auto transition-colors duration-300 ${
             theme === "dark"
               ? "bg-[#2d3748]"
               : "bg-gradient-to-r from-blue-500 to-blue-800"
           }`}
         >
           <div
-            className={`rounded-xl p-4 flex items-center justify-center ${
+            className={`rounded-xl p-3 md:p-4 flex items-center justify-center ${
               theme === "dark"
                 ? "bg-[#232b38]"
                 : "bg-blue-600 bg-opacity-30"
             }`}
           >
-            <FaStore className="w-10 h-10 text-white" />
+            <FaStore className="w-8 h-8 md:w-10 md:h-10 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white mb-1">In Stock</h1>
-            <p className="text-white text-base opacity-90 mt-3">View and manage in-stock items</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">In Stock</h1>
+            <p className="text-white text-base md:text-lg opacity-90 mt-2 md:mt-3">View and manage in-stock items</p>
           </div>
         </div>
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-8 px-4 pt-4">
+        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-4 md:gap-8 px-2 md:px-4 pt-2 md:pt-4">
           {/* Left Panel - Info/Guidelines */}
-          <div className="lg:w-1/3 w-full">
+          <div className="lg:w-1/3 w-full mb-4 lg:mb-0">
             <div
-              className={`rounded-xl p-6 border shadow-sm sticky top-8 transition-colors duration-300 ${
+              className={`rounded-xl p-4 md:p-6 border shadow-sm sticky top-8 transition-colors duration-300 ${
                 theme === "dark"
                   ? "bg-gray-900 border-blue-900"
                   : "bg-white border-blue-100"
@@ -141,9 +141,9 @@ export default function StoreInStockPage() {
             </div>
           </div>
           {/* Right Panel - Search, Filter, Stock Cards */}
-          <div className="flex-1 flex flex-col gap-6">
+          <div className="flex-1 flex flex-col gap-4 md:gap-6">
             {/* Search and Filter Row */}
-            <div className="flex flex-col md:flex-row gap-4 mb-2 items-start md:items-center">
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4 mb-2 items-stretch md:items-center">
               <div className="relative w-full md:w-1/2">
                 <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
                 <input
@@ -151,7 +151,7 @@ export default function StoreInStockPage() {
                   placeholder="Search by item or category..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
+                  className={`w-full pl-10 md:pl-12 pr-4 py-2 md:py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
                 />
               </div>
               <div className="flex items-center gap-2 w-full md:w-auto">
@@ -159,7 +159,7 @@ export default function StoreInStockPage() {
                 <select
                   value={categoryFilter}
                   onChange={e => setCategoryFilter(e.target.value)}
-                  className={`px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
+                  className={`w-full md:w-auto px-4 py-2 md:py-3 border rounded-lg focus:ring-2 focus:border-transparent text-xs md:text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                 >
                   <option value="">All Categories</option>
                   {categories.map(cat => (
@@ -169,7 +169,7 @@ export default function StoreInStockPage() {
               </div>
             </div>
             {/* Stock Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 max-h-[70vh] overflow-y-auto">
               {loading ? (
                 <div className={`col-span-full text-center py-12 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Loading...</div>
               ) : error ? (
@@ -242,8 +242,8 @@ export default function StoreInStockPage() {
             </div>
             {/* Modal for item details */}
             {modalOpen && selectedItem && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                <div className={`bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-lg w-full p-6 relative`}>
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 px-2 md:px-0">
+                <div className={`bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-lg w-full p-4 md:p-6 relative`}>
                   <button
                     className="absolute top-2 right-3 text-2xl text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                     onClick={() => setModalOpen(false)}

@@ -296,21 +296,21 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
           ? 'bg-gradient-to-br from-indigo-50 via-white to-blue-50' 
           : 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
       }`}>
-        <div className="p-6">
+        <div className="p-2 sm:p-4 md:p-6">
           {/* Header */}
-          <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${
+          <div className={`rounded-2xl mb-8 p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 shadow-lg ${
             theme === 'light'
               ? 'bg-gradient-to-r from-blue-500 to-blue-800'
               : 'bg-gradient-to-r from-gray-800 to-gray-700'
           }`}>
-            <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
-              <FaIdCard className="w-10 h-10 text-white" />
+            <div className="bg-blue-600 bg-opacity-30 rounded-xl p-3 sm:p-4 flex items-center justify-center">
+              <FaIdCard className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white mb-1">
+              <h1 className="text-xl sm:text-3xl font-bold text-white mb-1">
                 Employee-wise Leave Report
               </h1>
-              <p className="text-white text-base opacity-90">
+              <p className="text-white text-sm sm:text-base opacity-90">
                 View leave details for employees in the &quot;Exozen - Ops&quot; project.
               </p>
             </div>
@@ -318,37 +318,37 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
 
           {/* Content */}
           {loading ? (
-            <div className="flex justify-center items-center min-h-[300px]">
+            <div className="flex justify-center items-center min-h-[200px] sm:min-h-[300px]">
               <FaSpinner className={`animate-spin ${
                 theme === 'light' ? 'text-blue-600' : 'text-blue-400'
-              } w-12 h-12`} />
+              } w-10 h-10 sm:w-12 sm:h-12`} />
             </div>
           ) : employees.length === 0 ? (
             <div className={`${
               theme === 'light' 
                 ? 'bg-yellow-50 text-yellow-600' 
                 : 'bg-yellow-900 bg-opacity-20 text-yellow-400'
-            } p-6 rounded-2xl flex items-center gap-3 max-w-lg mx-auto shadow-lg`}>
-              <FaIdCard className="w-6 h-6 flex-shrink-0" />
-              <p className="text-lg font-medium">
+            } p-4 sm:p-6 rounded-2xl flex items-center gap-2 sm:gap-3 max-w-lg mx-auto shadow-lg`}>
+              <FaIdCard className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+              <p className="text-base sm:text-lg font-medium">
                 No employees found for the project &quot;Exozen - Ops&quot;.
               </p>
             </div>
           ) : (
             <div>
-              <div className="overflow-x-auto">
-                <div className="flex gap-6">
+              <div className="overflow-x-auto pb-2">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 min-w-[260px]">
                   {employees.map((employee) => (
                     <div
                       key={employee.employeeId}
-                      className={`min-w-[300px] rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow ${
+                      className={`w-full sm:min-w-[300px] rounded-lg shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow ${
                         theme === 'light' 
                           ? 'bg-white' 
                           : 'bg-gray-800'
                       }`}
                     >
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center overflow-hidden ${
+                      <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center overflow-hidden ${
                           theme === 'light' ? 'bg-blue-100' : 'bg-blue-900'
                         }`}>
                           {employee.employeeImage ? (
@@ -360,18 +360,18 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                               height={64}
                             />
                           ) : (
-                            <FaUser className={`w-8 h-8 ${
+                            <FaUser className={`w-7 h-7 sm:w-8 sm:h-8 ${
                               theme === 'light' ? 'text-blue-500' : 'text-blue-400'
                             }`} />
                           )}
                         </div>
                         <div>
-                          <h3 className={`text-lg font-semibold ${
+                          <h3 className={`text-base sm:text-lg font-semibold ${
                             theme === 'light' ? 'text-gray-900' : 'text-gray-100'
                           }`}>
                             {employee.fullName}
                           </h3>
-                          <p className={`text-sm ${
+                          <p className={`text-xs sm:text-sm ${
                             theme === 'light' ? 'text-gray-500' : 'text-gray-400'
                           }`}>
                             {employee.employeeId}
@@ -391,7 +391,7 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                           setSelectedEmployee(employee.employeeId);
                           fetchLeaveDetails(employee.employeeId);
                         }}
-                        className={`w-full py-2 rounded-lg transition-colors ${
+                        className={`w-full py-2 rounded-lg transition-colors text-sm sm:text-base ${
                           theme === 'light'
                             ? 'bg-blue-500 text-white hover:bg-blue-600'
                             : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -406,23 +406,23 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
 
               {/* Leave Details */}
               {selectedEmployee && (
-                <div className="mt-8">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className={`text-2xl font-bold ${
+                <div className="mt-6 sm:mt-8">
+                  <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 sm:mb-6 gap-3 md:gap-0">
+                    <h2 className={`text-lg sm:text-2xl font-bold ${
                       theme === 'light' ? 'text-gray-800' : 'text-gray-100'
                     }`}>
                       Leave Details for {selectedEmployee}
                     </h2>
-                    <div className="flex gap-4">
+                    <div className="flex gap-2 sm:gap-4 flex-wrap">
                       <button
                         onClick={downloadExcel}
-                        className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+                        className="flex items-center gap-2 bg-green-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-green-600 transition-colors text-xs sm:text-base"
                       >
                         <FaFileExcel /> Download Excel
                       </button>
                       <button
                         onClick={downloadPDF}
-                        className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+                        className="flex items-center gap-2 bg-red-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-red-600 transition-colors text-xs sm:text-base"
                       >
                         <FaFilePdf /> Download PDF
                       </button>
@@ -433,21 +433,21 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                     <div className="flex justify-center items-center">
                       <FaSpinner className={`animate-spin ${
                         theme === 'light' ? 'text-blue-600' : 'text-blue-400'
-                      } w-12 h-12`} />
+                      } w-10 h-10 sm:w-12 sm:h-12`} />
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
                       {/* Leave Balance Card */}
-                      <div className={`rounded-lg shadow-lg p-6 ${
+                      <div className={`rounded-lg shadow-lg p-4 sm:p-6 ${
                         theme === 'light' ? 'bg-white' : 'bg-gray-800'
                       }`}>
-                        <div className="mb-4">
-                          <h3 className={`text-lg font-semibold flex items-center gap-2 ${
+                        <div className="mb-3 sm:mb-4">
+                          <h3 className={`text-base sm:text-lg font-semibold flex items-center gap-2 ${
                             theme === 'light' ? 'text-gray-800' : 'text-gray-100'
                           }`}>
                             <FaIdCard className="text-blue-500" /> Leave Balance
                           </h3>
-                          <p className={`text-sm ${
+                          <p className={`text-xs sm:text-sm ${
                             theme === 'light' ? 'text-gray-500' : 'text-gray-400'
                           }`}>
                             Overview of leave allocation and usage.
@@ -457,7 +457,7 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                         leaveBalance.balances &&
                         Object.keys(leaveBalance.balances).length > 0 ? (
                           <div className="overflow-x-auto">
-                            <table className={`w-full rounded-lg overflow-hidden shadow-sm ${
+                            <table className={`min-w-[500px] w-full rounded-lg overflow-hidden shadow-sm text-xs sm:text-sm ${
                               theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'
                             }`}>
                               <thead className={`${
@@ -466,27 +466,27 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                                   : 'bg-gradient-to-r from-gray-700 to-gray-800'
                               } text-white`}>
                                 <tr>
-                                  <th className="p-4 text-left font-semibold">
+                                  <th className="p-2 sm:p-4 text-left font-semibold">
                                     <span className="flex items-center gap-2">
                                       <FaIdCard className="text-white" /> Leave Type
                                     </span>
                                   </th>
-                                  <th className="p-4 text-left font-semibold">
+                                  <th className="p-2 sm:p-4 text-left font-semibold">
                                     <span className="flex items-center gap-2">
                                       <FaUser className="text-white" /> Allocated
                                     </span>
                                   </th>
-                                  <th className="p-4 text-left font-semibold">
+                                  <th className="p-2 sm:p-4 text-left font-semibold">
                                     <span className="flex items-center gap-2">
                                       <FaUser className="text-white" /> Used
                                     </span>
                                   </th>
-                                  <th className="p-4 text-left font-semibold">
+                                  <th className="p-2 sm:p-4 text-left font-semibold">
                                     <span className="flex items-center gap-2">
                                       <FaUser className="text-white" /> Remaining
                                     </span>
                                   </th>
-                                  <th className="p-4 text-left font-semibold">
+                                  <th className="p-2 sm:p-4 text-left font-semibold">
                                     <span className="flex items-center gap-2">
                                       <FaUser className="text-white" /> Pending
                                     </span>
@@ -504,27 +504,27 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                                           : index % 2 === 0 ? "bg-gray-800" : "bg-gray-700"
                                       } hover:bg-opacity-80 transition-colors`}
                                     >
-                                      <td className={`p-4 font-medium ${
+                                      <td className={`p-2 sm:p-4 font-medium ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-200'
                                       }`}>
                                         {type}
                                       </td>
-                                      <td className={`p-4 ${
+                                      <td className={`p-2 sm:p-4 ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'
                                       }`}>
                                         {balance.allocated}
                                       </td>
-                                      <td className={`p-4 ${
+                                      <td className={`p-2 sm:p-4 ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'
                                       }`}>
                                         {balance.used}
                                       </td>
-                                      <td className={`p-4 ${
+                                      <td className={`p-2 sm:p-4 ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'
                                       }`}>
                                         {balance.remaining}
                                       </td>
-                                      <td className={`p-4 ${
+                                      <td className={`p-2 sm:p-4 ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'
                                       }`}>
                                         {balance.pending}
@@ -536,7 +536,7 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                             </table>
                           </div>
                         ) : (
-                          <div className={`text-center py-8 ${
+                          <div className={`text-center py-6 sm:py-8 ${
                             theme === 'light' ? 'text-gray-500' : 'text-gray-400'
                           }`}>
                             No leave balance data available.
@@ -545,16 +545,16 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                       </div>
 
                       {/* Leave History Card */}
-                      <div className={`rounded-lg shadow-lg p-6 ${
+                      <div className={`rounded-lg shadow-lg p-4 sm:p-6 ${
                         theme === 'light' ? 'bg-white' : 'bg-gray-800'
                       }`}>
-                        <div className="mb-4">
-                          <h3 className={`text-lg font-semibold flex items-center gap-2 ${
+                        <div className="mb-3 sm:mb-4">
+                          <h3 className={`text-base sm:text-lg font-semibold flex items-center gap-2 ${
                             theme === 'light' ? 'text-gray-800' : 'text-gray-100'
                           }`}>
                             <FaIdCard className="text-blue-500" /> Leave History
                           </h3>
-                          <p className={`text-sm ${
+                          <p className={`text-xs sm:text-sm ${
                             theme === 'light' ? 'text-gray-500' : 'text-gray-400'
                           }`}>
                             List of all leave applications.
@@ -562,7 +562,7 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                         </div>
                         {leaveHistory && leaveHistory.length > 0 ? (
                           <div className="overflow-x-auto">
-                            <table className={`w-full rounded-lg overflow-hidden shadow-sm ${
+                            <table className={`min-w-[600px] w-full rounded-lg overflow-hidden shadow-sm text-xs sm:text-sm ${
                               theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'
                             }`}>
                               <thead className={`${
@@ -571,12 +571,12 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                                   : 'bg-gradient-to-r from-gray-700 to-gray-800'
                               } text-white`}>
                                 <tr>
-                                  <th className="p-4 text-left font-semibold">Leave Type</th>
-                                  <th className="p-4 text-left font-semibold">Start Date</th>
-                                  <th className="p-4 text-left font-semibold">End Date</th>
-                                  <th className="p-4 text-left font-semibold">Days</th>
-                                  <th className="p-4 text-left font-semibold">Status</th>
-                                  <th className="p-4 text-left font-semibold">Reason</th>
+                                  <th className="p-2 sm:p-4 text-left font-semibold">Leave Type</th>
+                                  <th className="p-2 sm:p-4 text-left font-semibold">Start Date</th>
+                                  <th className="p-2 sm:p-4 text-left font-semibold">End Date</th>
+                                  <th className="p-2 sm:p-4 text-left font-semibold">Days</th>
+                                  <th className="p-2 sm:p-4 text-left font-semibold">Status</th>
+                                  <th className="p-2 sm:p-4 text-left font-semibold">Reason</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -586,19 +586,19 @@ const EmployeeWiseLeavePage = (): JSX.Element => {
                                       ? idx % 2 === 0 ? 'bg-white' : 'bg-gray-100'
                                       : idx % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700'
                                   }`}>
-                                    <td className={`p-4 font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>{record.leaveType}</td>
-                                    <td className={`p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{new Date(record.startDate).toLocaleDateString()}</td>
-                                    <td className={`p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{new Date(record.endDate).toLocaleDateString()}</td>
-                                    <td className={`p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{record.numberOfDays}</td>
-                                    <td className={`p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{record.status}</td>
-                                    <td className={`p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{record.reason}</td>
+                                    <td className={`p-2 sm:p-4 font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>{record.leaveType}</td>
+                                    <td className={`p-2 sm:p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{new Date(record.startDate).toLocaleDateString()}</td>
+                                    <td className={`p-2 sm:p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{new Date(record.endDate).toLocaleDateString()}</td>
+                                    <td className={`p-2 sm:p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{record.numberOfDays}</td>
+                                    <td className={`p-2 sm:p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{record.status}</td>
+                                    <td className={`p-2 sm:p-4 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{record.reason}</td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
                           </div>
                         ) : (
-                          <div className={`text-center py-8 ${
+                          <div className={`text-center py-6 sm:py-8 ${
                             theme === 'light' ? 'text-gray-500' : 'text-gray-400'
                           }`}>
                             No leave history data available.

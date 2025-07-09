@@ -493,26 +493,26 @@ const OverallSummaryPage = (): JSX.Element => {
           ? 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-500' 
           : 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-200'
       }`}>
-        <div className="p-6">
+        <div className="p-2 sm:p-6">
           {/* Header */}
-          <div className={`rounded-2xl p-6 shadow-lg ${
+          <div className={`rounded-2xl p-4 sm:p-6 shadow-lg ${
             theme === 'light' 
               ? 'bg-gradient-to-r from-blue-500 to-blue-800' 
               : 'bg-gradient-to-r from-gray-700 to-gray-800'
           }`}>
-            <h1 className="text-3xl font-bold text-white">Attendance Summary</h1>
-            <p className="text-white text-sm mt-2 opacity-90">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Attendance Summary</h1>
+            <p className="text-white text-xs sm:text-sm mt-2 opacity-90">
               View detailed attendance and leave summaries for all employees.
             </p>
           </div>
 
           {/* Filters */}
-          <div className="my-4 flex justify-between items-center">
-            <div className="flex gap-4">
+          <div className="my-4 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-0">
+            <div className="flex gap-2 sm:gap-4">
               <select
                 value={month}
                 onChange={(e) => setMonth(Number(e.target.value))}
-                className={`border rounded-lg p-2 ${
+                className={`border rounded-lg p-2 text-xs sm:text-base ${
                   theme === 'dark'
                     ? 'bg-gray-700 text-white border-gray-600'
                     : 'bg-white text-black border-gray-300'
@@ -527,7 +527,7 @@ const OverallSummaryPage = (): JSX.Element => {
               <select
                 value={year}
                 onChange={(e) => setYear(Number(e.target.value))}
-                className={`border rounded-lg p-2 ${
+                className={`border rounded-lg p-2 text-xs sm:text-base ${
                   theme === 'dark'
                     ? 'bg-gray-700 text-white border-gray-600'
                     : 'bg-white text-black border-gray-300'
@@ -538,12 +538,12 @@ const OverallSummaryPage = (): JSX.Element => {
                 ))}
               </select>
             </div>
-            <div className="flex gap-4">
-              <button onClick={downloadExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+            <div className="flex gap-2 sm:gap-4 mt-2 sm:mt-0">
+              <button onClick={downloadExcel} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-base">
                   <FaFileExcel />
                   <span>Excel</span>
               </button>
-              <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+              <button onClick={downloadPDF} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-base">
                   <FaFilePdf />
                   <span>PDF</span>
               </button>
@@ -552,35 +552,32 @@ const OverallSummaryPage = (): JSX.Element => {
 
           {/* Table */}
           {loading ? (
-            <div className="flex justify-center items-center min-h-[300px]">
+            <div className="flex justify-center items-center min-h-[200px] sm:min-h-[300px]">
               <FaSpinner className={`animate-spin ${
                 theme === 'light' ? 'text-blue-600' : 'text-blue-400'
-              } w-12 h-12`} />
+              } w-8 h-8 sm:w-12 sm:h-12`} />
             </div>
           ) : (
-            <div className={`rounded-lg shadow-lg p-4 overflow-x-auto ${
-              theme === 'light' ? 'bg-white' : 'bg-gray-800'
-            }`}>
-              <table className="w-full text-left border-collapse">
-                <thead className={`sticky top-0 ${
+            <div className={`rounded-lg shadow-lg p-2 sm:p-4 overflow-x-auto w-full` + (theme === 'light' ? ' bg-white' : ' bg-gray-800')}>
+              <table className="w-full min-w-[700px] text-left border-collapse text-xs sm:text-sm">
+                <thead className={`sticky top-0 z-10 ${
                   theme === 'light'
                     ? 'bg-gray-50 text-gray-700'
                     : 'bg-gray-800 text-gray-200'
                 }`}>
                   <tr>
-                    <th className="p-3 text-left">Employee</th>
-                    <th className="p-3 text-center">Total Days</th>
-                    <th className="p-3 text-center">Present</th>
-                    <th className="p-3 text-center">Absent</th>
-                    {/* Removed Week Offs column */}
-                    <th className="p-3 text-center">Holidays</th>
-                    <th className="p-3 text-center">CF</th>
-                    <th className="p-3 text-center">EL</th>
-                    <th className="p-3 text-center">CL</th>
-                    <th className="p-3 text-center">SL</th>
-                    {/* Removed LOP column */}
-                    <th className="p-3 text-center">CompOff Used</th>
-                    <th className="p-3 text-center">Payable Days</th>
+                    <th className="p-2 sm:p-3 text-left">Employee</th>
+                    <th className="p-2 sm:p-3 text-center">Total Days</th>
+                    <th className="p-2 sm:p-3 text-center">Present</th>
+                    <th className="p-2 sm:p-3 text-center">Absent</th>
+                    {/* Hide Holidays, CF, EL, CL, SL, CompOff Used columns on xs screens for clarity */}
+                    <th className="p-2 sm:p-3 text-center hidden xs:table-cell">Holidays</th>
+                    <th className="p-2 sm:p-3 text-center hidden xs:table-cell">CF</th>
+                    <th className="p-2 sm:p-3 text-center hidden md:table-cell">EL</th>
+                    <th className="p-2 sm:p-3 text-center hidden md:table-cell">CL</th>
+                    <th className="p-2 sm:p-3 text-center hidden md:table-cell">SL</th>
+                    <th className="p-2 sm:p-3 text-center hidden sm:table-cell">CompOff Used</th>
+                    <th className="p-2 sm:p-3 text-center">Payable Days</th>
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${
@@ -592,7 +589,7 @@ const OverallSummaryPage = (): JSX.Element => {
                     if (loading && empAttendance.length === 0) {
                       return (
                         <tr key={employee.employeeId}>
-                          <td colSpan={12} className="p-3 text-center">Loading summary for {employee.fullName}...</td>
+                          <td colSpan={12} className="p-2 sm:p-3 text-center">Loading summary for {employee.fullName}...</td>
                         </tr>
                       );
                     }
@@ -614,23 +611,17 @@ const OverallSummaryPage = (): JSX.Element => {
                     const cfCount = getCount('CF');
                     const present = presentDays;
                     let holiday = holidayCount;
-                    // Removed: let weekOff = weekOffData[employee.employeeId] ?? 0;
                     const cf = cfCount;
                     const el = elCount;
                     const cl = clCount;
                     const sl = slCount;
                     const compOff = compOffUsed;
-                    // For EFMS3254, set week off and holidays to 0
                     if (employee.employeeId === "EFMS3254") {
-                      // Removed: weekOff = 0;
                       holiday = 0;
                     }
                     const payableDays = present + holiday + el + sl + cl + cf + compOff;
                     const { absent } = getPayableDays(empAttendance, compOff, daysInMonth);
-                    // Removed: const { absent, cfRemain } = getPayableDays(empAttendance, compOff, daysInMonth);
-
                     let displayPayableDays = payableDays;
-                    // If selected month is June (6), apply the override for employee 3254 only (not EFMS3254)
                     if (
                       employee.employeeId === "3254" &&
                       payableDays === 0 &&
@@ -648,51 +639,47 @@ const OverallSummaryPage = (): JSX.Element => {
                             : 'hover:bg-gray-700'
                         }`}
                       >
-                        <td className="p-3">
-                          <div className="flex items-center gap-3">
+                        <td className="p-2 sm:p-3">
+                          <div className="flex items-center gap-2 sm:gap-3">
                           <Image
                             src={employee.imageUrl}
                             alt={employee.fullName}
-                              width={40}
-                              height={40}
-                              className="w-10 h-10 rounded-full object-cover"
-                          />
+                              width={32} height={32} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"/>
                             <div>
-                                <div className="font-bold">{employee.fullName}</div>
-                                <div className="text-xs opacity-70">{employee.employeeId}</div>
+                                <div className="font-bold text-xs sm:text-base">{employee.fullName}</div>
+                                <div className="text-[10px] sm:text-xs opacity-70">{employee.employeeId}</div>
                             </div>
                           </div>
                         </td>
-                        <td className={`p-3 border text-center ${
+                        <td className={`p-2 sm:p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
                         }`}>{daysInMonth}</td>
-                        <td className={`p-3 border text-center ${
+                        <td className={`p-2 sm:p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
                         }`}>{present}</td>
-                        <td className={`p-3 border text-center ${
+                        <td className={`p-2 sm:p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
                         }`}>{absent}</td>
-                        {/* Removed Week Offs cell */}
-                        <td className={`p-3 border text-center ${
+                        {/* Hide Holidays, CF, EL, CL, SL, CompOff Used cells on xs/sm screens for clarity */}
+                        <td className={`p-2 sm:p-3 border text-center hidden xs:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
                         }`}>{holiday}</td>
-                        <td className={`p-3 border text-center ${
+                        <td className={`p-2 sm:p-3 border text-center hidden xs:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
                         }`}>{cf}</td>
-                        <td className={`p-3 border text-center ${
+                        <td className={`p-2 sm:p-3 border text-center hidden md:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
                         }`}>{el}</td>
-                        <td className={`p-3 border text-center ${
+                        <td className={`p-2 sm:p-3 border text-center hidden md:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
                         }`}>{cl}</td>
-                        <td className={`p-3 border text-center ${
+                        <td className={`p-2 sm:p-3 border text-center hidden md:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
                         }`}>{sl}</td>
-                        {/* Removed LOP cell */}
-                        <td className={`p-3 border text-center ${
+                        <td className={`p-2 sm:p-3 border text-center hidden sm:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
                         }`}>{compOff}</td>
-                        <td className={`p-3 border text-center font-bold ${
+                        <td className={`p-2 sm:p-3 border text-center font-bold ${
                           theme === 'light' ? 'border-gray-200 text-blue-600' : 'border-gray-700 text-blue-400'
                         }`}>{displayPayableDays}</td>
                       </tr>
@@ -700,6 +687,7 @@ const OverallSummaryPage = (): JSX.Element => {
                   })}
                 </tbody>
               </table>
+              <div className="text-xs text-gray-400 mt-2 block sm:hidden">Scroll right to see more columns.</div>
             </div>
           )}
         </div>

@@ -365,24 +365,24 @@ export default function AttendanceViewPage() {
 
   return (
     <ManagerDashboardLayout>
-      <div className={`p-4 md:p-8 min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gray-100'}`}>
+      <div className={`p-2 md:p-8 min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gray-100'}`}>
         {/* Header */}
-        <div className={`${theme === 'dark' ? 'bg-[#2d3748] text-blue-100' : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white'} rounded-2xl p-8 mb-8 flex items-center gap-6 shadow-lg`}>
-          <div className={`${theme === 'dark' ? 'bg-gray-800 text-blue-400' : 'bg-white text-blue-600'} p-6 rounded-full flex items-center justify-center shadow-md`}>
-            <FaClock className="text-3xl" />
+        <div className={`${theme === 'dark' ? 'bg-[#2d3748] text-blue-100' : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white'} rounded-2xl p-4 md:p-8 mb-4 md:mb-8 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 shadow-lg`}>
+          <div className={`${theme === 'dark' ? 'bg-gray-800 text-blue-400' : 'bg-white text-blue-600'} p-4 md:p-6 rounded-full flex items-center justify-center shadow-md`}>
+            <FaClock className="text-2xl md:text-3xl" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Attendance Management</h1>
-            <p className="text-lg">Manage attendance and regularization requests for employees.</p>
+            <h1 className="text-2xl md:text-3xl font-bold">Attendance Management</h1>
+            <p className="text-base md:text-lg">Manage attendance and regularization requests for employees.</p>
           </div>
         </div>
         {/* Tabs */}
-        <div className="flex gap-4 mb-6">
-          {["View Attendance", "Project Wise Attendance"].map((tab) => (
+        <div className="flex flex-col sm:flex-row gap-2 md:gap-4 mb-4 md:mb-6">
+          {['View Attendance', 'Project Wise Attendance'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-lg font-medium transition ${
+              className={`px-4 md:px-6 py-2 rounded-lg font-medium transition text-sm md:text-base ${
                 activeTab === tab
                   ? theme === 'dark'
                     ? 'bg-blue-800 text-white shadow-lg'
@@ -397,62 +397,44 @@ export default function AttendanceViewPage() {
           ))}
         </div>
         {/* Filters */}
-        <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} p-4 rounded-lg shadow flex items-center gap-4`}>
-          <div className="flex-1">
-            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>Search</label>
+        <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} p-3 md:p-4 rounded-lg shadow flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4`}>
+          <div className="flex-1 min-w-0">
+            <label className={`block text-xs md:text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>Search</label>
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search by Employee ID, Project, or Date"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-black border-gray-300 focus:ring-blue-600 placeholder-gray-400'}`}
+                className={`w-full px-3 md:px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 text-xs md:text-base ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-black border-gray-300 focus:ring-blue-600 placeholder-gray-400'}`}
               />
               <FaClock className={`${theme === 'dark' ? 'text-blue-400' : 'text-gray-400'} absolute right-3 top-2.5`} />
             </div>
           </div>
-          <div className="flex-1">
-            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>From Date</label>
+          <div className="flex-1 min-w-0">
+            <label className={`block text-xs md:text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>From Date</label>
             <div className="relative">
               <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white border-gray-300 focus:ring-blue-600 placeholder-gray-400'}`}
+                className={`w-full px-3 md:px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 text-xs md:text-base ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white border-gray-300 focus:ring-blue-600 placeholder-gray-400'}`}
                 style={theme === 'dark' ? {} : { color: '#000' }}
               />
               <FaRegCalendarAlt
                 className={`absolute right-3 top-2.5 pointer-events-none ${theme === 'dark' ? 'text-blue-400' : 'text-gray-400'}`}
                 size={18}
               />
-              <style jsx global>{`
-                input[type="date"]::-webkit-calendar-picker-indicator {
-                  opacity: 0;
-                  display: none;
-                }
-                input[type="date"]::-ms-input-placeholder {
-                  color: transparent;
-                }
-                input[type="date"]::-moz-placeholder {
-                  color: transparent;
-                }
-                input[type="date"]:-ms-input-placeholder {
-                  color: transparent;
-                }
-                input[type="date"]::placeholder {
-                  color: transparent;
-                }
-              `}</style>
             </div>
           </div>
-          <div className="flex-1">
-            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>To Date</label>
+          <div className="flex-1 min-w-0">
+            <label className={`block text-xs md:text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>To Date</label>
             <div className="relative">
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white border-gray-300 focus:ring-blue-600 placeholder-gray-400'}`}
+                className={`w-full px-3 md:px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 text-xs md:text-base ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white border-gray-300 focus:ring-blue-600 placeholder-gray-400'}`}
                 style={theme === 'dark' ? {} : { color: '#000' }}
               />
               <FaRegCalendarAlt
@@ -463,12 +445,12 @@ export default function AttendanceViewPage() {
           </div>
           {/* Project Filter only for Project Wise Attendance tab */}
           {activeTab === "Project Wise Attendance" && (
-            <div className="flex-1">
-              <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>Project</label>
+            <div className="flex-1 min-w-0">
+              <label className={`block text-xs md:text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>Project</label>
               <select
                 value={projectFilter}
                 onChange={e => setProjectFilter(e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-black border-gray-300 focus:ring-blue-600'}`}
+                className={`w-full px-3 md:px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 text-xs md:text-base ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-black border-gray-300 focus:ring-blue-600'}`}
               >
                 {/* No 'All Projects' option, only list unique projects */}
                 {uniqueProjects.map(project => (
@@ -480,13 +462,13 @@ export default function AttendanceViewPage() {
         </div>
         {/* Tab Content */}
         {activeTab === "View Attendance" && (
-          <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg shadow-lg p-6`}> {/* removed overflow-x-auto from here */}
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-blue-100' : 'text-gray-800'}`}>Attendance Records</h2>
+          <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg shadow-lg p-2 md:p-6`}> {/* removed overflow-x-auto from here */}
+            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center mb-4 md:mb-6 gap-2 md:gap-0">
+              <h2 className={`text-xl md:text-2xl font-bold ${theme === 'dark' ? 'text-blue-100' : 'text-gray-800'}`}>Attendance Records</h2>
               <div className="flex gap-2">
-                <button className={`${theme === 'dark' ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'} px-4 py-2 rounded-lg transition-colors flex items-center gap-2`}>Export</button>
+                <button className={`${theme === 'dark' ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'} px-3 md:px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-xs md:text-base`}>Export</button>
                 <button
-                  className={`${theme === 'dark' ? 'bg-blue-800 text-white hover:bg-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700'} px-4 py-2 rounded-lg transition-colors flex items-center gap-2`}
+                  className={`${theme === 'dark' ? 'bg-blue-800 text-white hover:bg-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700'} px-3 md:px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-xs md:text-base`}
                   onClick={fetchAttendance}
                   disabled={loading}
                 >
@@ -497,7 +479,7 @@ export default function AttendanceViewPage() {
             {error && <div className="text-red-500 mb-4">{error}</div>}
             <div className="relative">
               <div className={`overflow-x-auto overflow-y-auto max-h-[60vh] rounded-lg border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}> {/* table scrolls vertically */}
-                <table className="w-full text-left">
+                <table className="w-full text-left text-xs md:text-base">
                   <thead>
                     <tr className={theme === 'dark' ? 'bg-blue-950' : 'bg-gray-50'}>
                       <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Employee ID</th>
@@ -531,16 +513,16 @@ export default function AttendanceViewPage() {
           </div>
         )}
         {activeTab === "Project Wise Attendance" && (
-          <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg shadow-lg p-6`}>
-            <div className="flex justify-between items-center mb-6">
+          <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg shadow-lg p-2 md:p-6`}>
+            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center mb-4 md:mb-6 gap-2 md:gap-0">
               <div>
-                <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-blue-100' : 'text-gray-800'}`}>Project Wise Attendance</h2>
-                <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-blue-300' : 'text-gray-500'}`}>Review and manage project wise attendance</p>
+                <h2 className={`text-xl md:text-2xl font-bold ${theme === 'dark' ? 'text-blue-100' : 'text-gray-800'}`}>Project Wise Attendance</h2>
+                <p className={`text-xs md:text-sm mt-1 ${theme === 'dark' ? 'text-blue-300' : 'text-gray-500'}`}>Review and manage project wise attendance</p>
               </div>
             </div>
             <div className="relative">
-              <div className={`overflow-x-auto overflow-y-auto max-h-[60vh] rounded-lg border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
-                <table className="w-full text-left">
+              <div className={`overflow-x-auto overflow-y-auto max-h-[60vh] rounded-lg border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}> 
+                <table className="w-full text-left text-xs md:text-base">
                   <thead>
                     <tr className={theme === 'dark' ? 'bg-blue-950' : 'bg-gray-50'}>
                       <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Employee ID</th>
@@ -589,7 +571,7 @@ export default function AttendanceViewPage() {
         )}
         {selectedRecord && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-8 max-w-2xl w-full relative animate-fade-in overflow-y-auto max-h-[90vh]`}>
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-4 md:p-8 max-w-xs sm:max-w-lg md:max-w-2xl w-full relative animate-fade-in overflow-y-auto max-h-[90vh]`}>
               <button
                 onClick={() => setSelectedRecord(null)}
                 className={`absolute top-2 right-2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-800'} text-2xl font-bold`}

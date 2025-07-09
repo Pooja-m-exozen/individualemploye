@@ -156,10 +156,10 @@ export default function AttendanceReportPage() {
                     : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"
             }`}
         >
-            <div className="p-6">
+            <div className="p-2 md:p-6">
                 {/* Header */}
                 <div
-                    className={`rounded-2xl mb-8 p-8 flex items-center gap-6 shadow-lg ${
+                    className={`rounded-2xl mb-4 md:mb-8 p-4 md:p-8 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 shadow-lg ${
                         theme === "dark"
                             ? "bg-[#2d3748]"
                             : "bg-gradient-to-r from-blue-500 to-blue-800"
@@ -168,26 +168,26 @@ export default function AttendanceReportPage() {
                     <div
                         className={`${
                             theme === "dark" ? "bg-gray-800" : "bg-blue-600 bg-opacity-30"
-                        } rounded-xl p-4 flex items-center justify-center`}
+                        } rounded-xl p-3 md:p-4 flex items-center justify-center`}
                     >
-                        <FaCalendarAlt className="w-10 h-10 text-white" />
+                        <FaCalendarAlt className="w-8 h-8 md:w-10 md:h-10 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold mb-1 text-white">Attendance Regulization</h1>
-                        <p className="text-base opacity-90 text-white">Manage and regularize employee attendance records, including correction of missed punches and shift adjustments.</p>
+                        <h1 className="text-2xl md:text-3xl font-bold mb-1 text-white">Attendance Regulization</h1>
+                        <p className="text-base md:text-lg opacity-90 text-white">Manage and regularize employee attendance records, including correction of missed punches and shift adjustments.</p>
                     </div>
                 </div>
                 {/* Filters, Search, Export */}
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                    <div className="flex flex-row flex-wrap gap-2 mb-6 items-center w-full">
-                        <div className="relative flex-1 min-w-[180px] max-w-xs">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4 mb-4 md:mb-6">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2 mb-2 md:mb-0 items-stretch w-full">
+                        <div className="relative flex-1 min-w-[140px] max-w-xs">
                             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                             <input
                                 type="text"
                                 placeholder="Search employee name or ID..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+                                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 text-xs md:text-base ${
                                     theme === "dark"
                                         ? "bg-gray-800 border-gray-700 text-gray-100"
                                         : "bg-white border-gray-200 text-black"
@@ -195,16 +195,16 @@ export default function AttendanceReportPage() {
                             />
                         </div>
                     </div>
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end">
                         <button
                             onClick={downloadExcel}
-                            className={`px-4 py-2 min-w-[140px] rounded-lg flex items-center justify-center gap-2 transition-colors ${theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-500 text-white hover:bg-green-600"}`}
+                            className={`px-4 py-2 min-w-[120px] md:min-w-[140px] rounded-lg flex items-center justify-center gap-2 transition-colors text-xs md:text-base ${theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-500 text-white hover:bg-green-600"}`}
                         >
                             <FaFileExport /> Export Excel
                         </button>
                         <button
                             onClick={downloadPDF}
-                            className={`px-4 py-2 min-w-[140px] rounded-lg flex items-center justify-center gap-2 transition-colors ${theme === "dark" ? "bg-red-700 text-white hover:bg-red-800" : "bg-red-500 text-white hover:bg-red-600"}`}
+                            className={`px-4 py-2 min-w-[120px] md:min-w-[140px] rounded-lg flex items-center justify-center gap-2 transition-colors text-xs md:text-base ${theme === "dark" ? "bg-red-700 text-white hover:bg-red-800" : "bg-red-500 text-white hover:bg-red-600"}`}
                         >
                             <FaFileExport /> Export PDF
                         </button>
@@ -217,7 +217,7 @@ export default function AttendanceReportPage() {
                     }`}
                 >
                     <table
-                        className={`min-w-full divide-y ${
+                        className={`min-w-full divide-y text-xs md:text-base ${
                             theme === "dark" ? "divide-gray-700" : "divide-blue-100"
                         }`}
                     >
@@ -299,7 +299,7 @@ export default function AttendanceReportPage() {
             {/* Modal for View */}
             {viewRecord && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                    <div className={`rounded-xl shadow-2xl p-6 w-full max-w-md ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
+                    <div className={`rounded-xl shadow-2xl p-4 md:p-6 w-full max-w-xs sm:max-w-md ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Regularization Details</h2>
                             <button onClick={() => setViewRecord(null)} className="text-2xl font-bold hover:text-red-500">&times;</button>
@@ -325,7 +325,7 @@ export default function AttendanceReportPage() {
             {/* Reject Modal */}
             {showRejectModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                    <div className={`rounded-xl shadow-2xl p-6 w-full max-w-md ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
+                    <div className={`rounded-xl shadow-2xl p-4 md:p-6 w-full max-w-xs sm:max-w-md ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Reject Regularization</h2>
                             <button onClick={() => setShowRejectModal(false)} className="text-2xl font-bold hover:text-red-500">&times;</button>

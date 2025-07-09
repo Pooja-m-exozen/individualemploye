@@ -107,7 +107,7 @@ export default function StoreDCPage() {
   return (
     <ManagerDashboardLayout>
       <div
-        className={`min-h-screen flex flex-col py-8 transition-colors duration-300 ${
+        className={`min-h-screen flex flex-col py-4 md:py-8 transition-colors duration-300 ${
           theme === "dark"
             ? "bg-gradient-to-br from-gray-900 via-gray-950 to-blue-950"
             : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"
@@ -115,25 +115,25 @@ export default function StoreDCPage() {
       >
         {/* Header */}
         <div
-          className={`rounded-2xl mb-8 p-6 flex items-center gap-6 shadow-lg w-full max-w-7xl mx-auto ${
+          className={`rounded-2xl mb-4 md:mb-8 p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 shadow-lg w-full max-w-7xl mx-auto ${
             theme === "dark"
               ? "bg-gray-900"
               : "bg-gradient-to-r from-blue-500 to-blue-800"
           }`}
         >
           <div
-            className={`rounded-xl p-4 flex items-center justify-center ${
+            className={`rounded-xl p-3 md:p-4 flex items-center justify-center ${
               theme === "dark" ? "bg-[#232e3e]" : "bg-blue-600 bg-opacity-30"
             }`}
           >
-            <FaStore className="w-10 h-10 text-white" />
+            <FaStore className="w-8 h-8 md:w-10 md:h-10 text-white" />
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-white mb-1">Delivery Challans (DC)</h1>
-            <p className="text-white text-base opacity-90">View and manage DC records</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Delivery Challans (DC)</h1>
+            <p className="text-white text-base md:text-lg opacity-90">View and manage DC records</p>
           </div>
           <button
-            className={`flex items-center gap-2 px-5 py-3 rounded-lg text-base font-semibold shadow transition border-2 ${theme === "dark" ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" : "bg-blue-600 text-white border-blue-700 hover:bg-blue-700"}`}
+            className={`flex items-center gap-2 px-4 md:px-5 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold shadow transition border-2 w-full md:w-auto mt-4 md:mt-0 ${theme === "dark" ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" : "bg-blue-600 text-white border-blue-700 hover:bg-blue-700"}`}
             onClick={() => setShowCreate(true)}
           >
             <FaPlus className="w-4 h-4" />
@@ -141,11 +141,11 @@ export default function StoreDCPage() {
           </button>
         </div>
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-8 px-4">
+        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-4 md:gap-8 px-2 md:px-4">
           {/* Left Panel - Info/Guidelines */}
-          <div className="lg:w-1/3 w-full">
+          <div className="lg:w-1/3 w-full mb-4 lg:mb-0">
             <div
-              className={`rounded-xl p-6 border shadow-sm sticky top-8 transition-colors duration-300 ${
+              className={`rounded-xl p-4 md:p-6 border shadow-sm sticky top-8 transition-colors duration-300 ${
                 theme === "dark"
                   ? "bg-gray-900 border-blue-900"
                   : "bg-white border-blue-100"
@@ -175,9 +175,9 @@ export default function StoreDCPage() {
             </div>
           </div>
           {/* Right Panel - Search, Filter, DC Table */}
-          <div className="flex-1 flex flex-col gap-6">
+          <div className="flex-1 flex flex-col gap-4 md:gap-6">
             {/* Search and Filter Row */}
-            <div className="flex flex-col md:flex-row gap-4 mb-2 items-start md:items-center">
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4 mb-2 items-stretch md:items-center">
               <div className="relative w-full md:w-1/2">
                 <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
                 <input
@@ -185,7 +185,7 @@ export default function StoreDCPage() {
                   placeholder="Search by DC number, item, or issued to..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
+                  className={`w-full pl-10 md:pl-12 pr-4 py-2 md:py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
                 />
               </div>
               <div className="flex items-center gap-2 w-full md:w-auto">
@@ -193,7 +193,7 @@ export default function StoreDCPage() {
                 <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
-                  className={`px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
+                  className={`w-full md:w-auto px-4 py-2 md:py-3 border rounded-lg focus:ring-2 focus:border-transparent text-xs md:text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                 >
                   <option value="">All Status</option>
                   {statusOptions.map(status => (
@@ -205,7 +205,7 @@ export default function StoreDCPage() {
             {/* DC Table */}
             <div className="w-full rounded-2xl border shadow-xl transition-colors duration-300">
               <div className="w-full overflow-x-auto">
-                <table className={`min-w-max table-fixed divide-y ${theme === "dark" ? "divide-blue-900" : "divide-blue-100"}`}>
+                <table className={`min-w-max table-fixed divide-y text-xs md:text-base ${theme === "dark" ? "divide-blue-900" : "divide-blue-100"}`}>
                   <thead className={theme === "dark" ? "bg-blue-950" : "bg-blue-50"}>
                     <tr>
                       <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Number</th>
@@ -257,8 +257,8 @@ export default function StoreDCPage() {
             </div>
             {/* DC Details Modal */}
             {selectedDC && (
-              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-                <div className={`rounded-2xl shadow-2xl max-w-lg w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-2 md:p-4">
+                <div className={`rounded-2xl shadow-2xl max-w-lg w-full p-4 md:p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
                   <button
                     className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
                     onClick={() => setSelectedDC(null)}
@@ -290,8 +290,8 @@ export default function StoreDCPage() {
         </div>
         {/* Create DC Modal */}
         {showCreate && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className={`rounded-2xl shadow-2xl max-w-lg w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-2 md:p-4">
+            <div className={`rounded-2xl shadow-2xl max-w-lg w-full p-4 md:p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
               <button
                 className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
                 onClick={() => setShowCreate(false)}
@@ -305,28 +305,28 @@ export default function StoreDCPage() {
               <form className="space-y-4">
                 <div>
                   <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-black"}`}>Item</label>
-                  <input type="text" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-200 text-black placeholder-black"}`} placeholder="Item name" />
+                  <input type="text" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-200 text-black placeholder-black"}`} placeholder="Item name" />
                 </div>
                 <div>
                   <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-black"}`}>Quantity</label>
-                  <input type="number" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-200 text-black placeholder-black"}`} placeholder="Quantity" />
+                  <input type="number" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-200 text-black placeholder-black"}`} placeholder="Quantity" />
                 </div>
                 <div>
                   <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-black"}`}>Issued To</label>
-                  <input type="text" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-200 text-black placeholder-black"}`} placeholder="Employee name" />
+                  <input type="text" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-200 text-black placeholder-black"}`} placeholder="Employee name" />
                 </div>
                 <div>
                   <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-black"}`}>Date</label>
-                  <input type="date" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-200 text-black placeholder-black"}`} placeholder="dd-mm-yyyy" />
+                  <input type="date" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-200 text-black placeholder-black"}`} placeholder="dd-mm-yyyy" />
                 </div>
                 <div>
                   <label className={`block text-sm font-medium mb-1 ${theme === "dark" ? "text-gray-300" : "text-black"}`}>Status</label>
-                  <select className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100" : "border-gray-200 text-black"}`}>
+                  <select className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 text-xs md:text-base ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100" : "border-gray-200 text-black"}`}>
                     <option value="Issued">Issued</option>
                     <option value="Pending">Pending</option>
                   </select>
                 </div>
-                <button type="button" className={`w-full mt-4 px-4 py-2 rounded-lg font-semibold text-base transition ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`}>Create DC</button>
+                <button type="button" className={`w-full mt-4 px-4 py-2 rounded-lg font-semibold text-sm md:text-base transition ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`}>Create DC</button>
               </form>
             </div>
           </div>

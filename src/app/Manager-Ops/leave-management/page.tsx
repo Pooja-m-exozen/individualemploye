@@ -142,12 +142,18 @@ const LeaveManagementPage = (): JSX.Element => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6">
-          {["All", "Approved", "Rejected", "Canceled", "Pending"].map((tab) => (
+        <div className="flex flex-col md:flex-row gap-2 md:gap-4 mb-6 w-full">
+          {[
+            "All",
+            "Approved",
+            "Rejected",
+            "Canceled",
+            "Pending"
+          ].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-lg font-medium transition ${
+              className={`w-full md:w-auto px-6 py-2 rounded-lg font-medium transition ${
                 activeTab === tab
                   ? theme === 'light'
                     ? 'bg-blue-600 text-white shadow-lg'
@@ -163,8 +169,8 @@ const LeaveManagementPage = (): JSX.Element => {
         </div>
 
         {/* Search Bar */}
-        <div className="mb-6 flex flex-col md:flex-row items-center gap-4">
-          <div className="flex-grow relative">
+        <div className="mb-6 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 w-full">
+          <div className="w-full md:flex-grow relative">
             <input
               type="text"
               placeholder="Search by name, date, or leave type..."
@@ -187,11 +193,11 @@ const LeaveManagementPage = (): JSX.Element => {
               </button>
             )}
           </div>
-          <div>
+          <div className="w-full md:w-auto">
             <select
               value={filterLeaveType}
               onChange={(e) => setFilterLeaveType(e.target.value)}
-              className={`px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm ${
+              className={`w-full md:w-auto px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm ${
                 theme === 'light'
                   ? 'bg-white border border-gray-200 text-gray-900'
                   : 'bg-gray-800 border-gray-700 text-white'
@@ -210,37 +216,83 @@ const LeaveManagementPage = (): JSX.Element => {
             <FaSpinner className={`animate-spin ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'} w-12 h-12`} />
           </div>
         ) : (
-          <div className={`rounded-xl shadow-lg p-6 overflow-x-auto ${theme === 'light' ? 'bg-white' : 'bg-gray-800'}`}>
-            <div className="min-w-[1200px]">
-              <table className="w-full">
-                <thead>
-                  <tr className={`border-b-2 ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'}`}>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Employee</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Employee ID</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Designation</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Leave Type</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Start Date</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>End Date</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Days</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Status</th>
-                    <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Reason</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${theme === 'light' ? 'divide-gray-200' : 'divide-gray-700'}`}>
-                  {filteredLeaveRecords.map((leave, idx) => (
-                    <tr key={leave.leaveId || idx} className={`${theme === 'light' ? 'hover:bg-gray-50 text-gray-900' : 'hover:bg-gray-750 text-gray-300'} transition-colors duration-200`}>
-                      <td className="p-4 flex items-center space-x-2">
-                        <Image src={leave.employeeImage || "/default-profile.png"} alt={leave.fullName || "Employee"} width={32} height={32} className="w-8 h-8 rounded-full object-cover border-2" />
-                        <span className={theme === 'light' ? 'text-gray-900' : 'text-gray-300'}>{leave.fullName || "N/A"}</span>
-                      </td>
-                      <td className="p-4">{leave.employeeId}</td>
-                      <td className="p-4">{leave.designation}</td>
-                      <td className="p-4">{leave.leaveType}</td>
-                      <td className="p-4">{new Date(leave.startDate).toLocaleDateString()}</td>
-                      <td className="p-4">{new Date(leave.endDate).toLocaleDateString()}</td>
-                      <td className="p-4">{leave.numberOfDays}</td>
-                      <td className="p-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+          <>
+            {/* Desktop Table View */}
+            <div className={`rounded-xl shadow-lg p-6 overflow-x-auto ${theme === 'light' ? 'bg-white' : 'bg-gray-800'} hidden md:block`}>
+              <div className="min-w-[1200px]">
+                <table className="w-full">
+                  <thead>
+                    <tr className={`border-b-2 ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'}`}>
+                      <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Employee</th>
+                      <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Employee ID</th>
+                      <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Designation</th>
+                      <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Leave Type</th>
+                      <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Start Date</th>
+                      <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>End Date</th>
+                      <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Days</th>
+                      <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Status</th>
+                      <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${theme === 'light' ? 'divide-gray-200' : 'divide-gray-700'}`}>
+                    {filteredLeaveRecords.map((leave, idx) => (
+                      <tr key={leave.leaveId || idx} className={`${theme === 'light' ? 'hover:bg-gray-50 text-gray-900' : 'hover:bg-gray-750 text-gray-300'} transition-colors duration-200`}>
+                        <td className="p-4 flex items-center space-x-2">
+                          <Image src={leave.employeeImage || "/default-profile.png"} alt={leave.fullName || "Employee"} width={32} height={32} className="w-8 h-8 rounded-full object-cover border-2" />
+                          <span className={theme === 'light' ? 'text-gray-900' : 'text-gray-300'}>{leave.fullName || "N/A"}</span>
+                        </td>
+                        <td className="p-4">{leave.employeeId}</td>
+                        <td className="p-4">{leave.designation}</td>
+                        <td className="p-4">{leave.leaveType}</td>
+                        <td className="p-4">{new Date(leave.startDate).toLocaleDateString()}</td>
+                        <td className="p-4">{new Date(leave.endDate).toLocaleDateString()}</td>
+                        <td className="p-4">{leave.numberOfDays}</td>
+                        <td className="p-4">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            theme === 'light'
+                              ? leave.status === "Approved"
+                                ? "bg-green-100 text-green-800"
+                                : leave.status === "Rejected"
+                                ? "bg-red-100 text-red-800"
+                                : leave.status === "Pending"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-gray-100 text-gray-800"
+                              : leave.status === "Approved"
+                                ? "bg-green-900 text-green-100"
+                                : leave.status === "Rejected"
+                                ? "bg-red-900 text-red-100"
+                                : leave.status === "Pending"
+                                ? "bg-yellow-900 text-yellow-100"
+                                : "bg-gray-700 text-gray-100"
+                          }`}>
+                            {leave.status}
+                          </span>
+                        </td>
+                        <td className="p-4">{leave.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {/* Mobile Card/List View */}
+            <div className={`md:hidden space-y-4`}>
+              {filteredLeaveRecords.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">No leave records found.</div>
+              ) : (
+                filteredLeaveRecords.map((leave, idx) => (
+                  <div
+                    key={leave.leaveId || idx}
+                    className={`rounded-xl shadow-lg p-4 flex flex-col gap-2 ${theme === 'light' ? 'bg-white' : 'bg-gray-800'}`}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Image src={leave.employeeImage || "/default-profile.png"} alt={leave.fullName || "Employee"} width={40} height={40} className="w-10 h-10 rounded-full object-cover border-2" />
+                      <div>
+                        <div className="font-semibold text-base">{leave.fullName || "N/A"}</div>
+                        <div className="text-xs text-gray-500">{leave.designation}</div>
+                      </div>
+                      <div className="ml-auto">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                           theme === 'light'
                             ? leave.status === "Approved"
                               ? "bg-green-100 text-green-800"
@@ -259,14 +311,35 @@ const LeaveManagementPage = (): JSX.Element => {
                         }`}>
                           {leave.status}
                         </span>
-                      </td>
-                      <td className="p-4">{leave.reason}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-sm">
+                      <div>
+                        <span className="font-medium">Emp ID:</span> {leave.employeeId}
+                      </div>
+                      <div>
+                        <span className="font-medium">Type:</span> {leave.leaveType}
+                      </div>
+                      <div>
+                        <span className="font-medium">Days:</span> {leave.numberOfDays}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-sm">
+                      <div>
+                        <span className="font-medium">Start:</span> {new Date(leave.startDate).toLocaleDateString()}
+                      </div>
+                      <div>
+                        <span className="font-medium">End:</span> {new Date(leave.endDate).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="text-sm mt-1">
+                      <span className="font-medium">Reason:</span> {leave.reason}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          </div>
+          </>
         )}
       </div>
     </ManagerOpsLayout>

@@ -273,28 +273,28 @@ export default function ViewIDCardsPage() {
   return (
     <ManagerDashboardLayout>
       <div className={`min-h-screen font-sans ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-200' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'}`}>
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-8">
           {/* Header */}
-          <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg w-full max-w-5xl mx-auto ${theme === "dark" ? "bg-gradient-to-r from-gray-800 to-gray-900" : "bg-gradient-to-r from-blue-500 to-blue-800"}`}>
-            <div className={`rounded-xl p-4 flex items-center justify-center ${theme === "dark" ? "bg-gray-700" : "bg-blue-600 bg-opacity-30"}`}>
-              <FaIdCard className="w-10 h-10 text-white" />
+          <div className={`rounded-2xl mb-8 p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 shadow-lg w-full max-w-5xl mx-auto ${theme === "dark" ? "bg-gradient-to-r from-gray-800 to-gray-900" : "bg-gradient-to-r from-blue-500 to-blue-800"}`}>
+            <div className={`rounded-xl p-3 sm:p-4 flex items-center justify-center ${theme === "dark" ? "bg-gray-700" : "bg-blue-600 bg-opacity-30"}`}>
+              <FaIdCard className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white mb-1">View ID Cards</h1>
-              <p className="text-white text-base opacity-90">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">View ID Cards</h1>
+              <p className="text-white text-sm sm:text-base opacity-90">
                 Browse and manage generated employee ID cards.
               </p>
             </div>
           </div>
 
           {/* Search and Table */}
-          <div className={`rounded-2xl p-8 border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} shadow-sm ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
+          <div className={`rounded-2xl p-4 sm:p-8 border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} shadow-sm ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
             {/* Project Filter Dropdown */}
-            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
               <select
                 value={projectFilter}
                 onChange={e => setProjectFilter(e.target.value)}
-                className={`rounded-xl px-4 py-2 border text-sm font-semibold transition
+                className={`rounded-xl px-3 py-2 border text-xs sm:text-sm font-semibold transition
                   ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-200' : 'bg-white border-blue-100 text-blue-700'}`}
               >
                 <option value="All Projects">All Projects</option>
@@ -305,7 +305,7 @@ export default function ViewIDCardsPage() {
               <select
                 value={designationFilter}
                 onChange={e => setDesignationFilter(e.target.value)}
-                className={`rounded-xl px-4 py-2 border text-sm font-semibold transition
+                className={`rounded-xl px-3 py-2 border text-xs sm:text-sm font-semibold transition
                   ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-200' : 'bg-white border-blue-100 text-blue-700'}`}
               >
                 <option value="All Designations">All Designations</option>
@@ -315,13 +315,13 @@ export default function ViewIDCardsPage() {
               </select>
               <div className="flex-1 w-full">
                 <div className="relative">
-                  <FaSearch className={`absolute left-4 top-1/2 -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`} />
+                  <FaSearch className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`} />
                   <input
                     type="text"
                     placeholder="Search by name or employee ID..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full pl-12 pr-4 py-3 rounded-lg transition border focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                    className={`w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 rounded-lg transition border focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
                   />
                 </div>
               </div>
@@ -339,18 +339,18 @@ export default function ViewIDCardsPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full rounded-xl overflow-hidden border divide-y divide-gray-200 dark:divide-gray-700">
+                <table className="min-w-[600px] sm:min-w-full rounded-xl overflow-hidden border divide-y divide-gray-200 dark:divide-gray-700 text-xs sm:text-sm">
                   <thead className={`${theme === 'dark' ? 'bg-gray-900 text-gray-200' : 'bg-blue-50 text-blue-900'}`}>
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Employee</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Designation</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Project</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Issued Date</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Actions</th>
+                      <th className="px-2 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-bold uppercase tracking-wider">Employee</th>
+                      <th className="px-2 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-bold uppercase tracking-wider">Designation</th>
+                      <th className="px-2 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-bold uppercase tracking-wider">Project</th>
+                      <th className="px-2 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-bold uppercase tracking-wider">Status</th>
+                      <th className="px-2 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-bold uppercase tracking-wider">Issued Date</th>
+                      <th className="px-2 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-bold uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className={`text-sm ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
+                  <tbody className={`text-xs sm:text-sm ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
                     {paginatedCards.map((card, idx) => (
                       <tr
                         key={card._id}
@@ -364,31 +364,31 @@ export default function ViewIDCardsPage() {
                               : 'bg-gray-50 hover:bg-blue-100'
                         }`}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-4">
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2 sm:gap-4">
                             <Image
                               src={card.employeeImage || '/placeholder-user.jpg'}
                               alt={card.fullName}
-                              width={48}
-                              height={48}
-                              className="rounded-full object-cover border border-gray-300 dark:border-gray-700"
+                              width={40}
+                              height={40}
+                              className="rounded-full object-cover border border-gray-300 dark:border-gray-700 w-10 h-10 sm:w-12 sm:h-12"
                               style={{ aspectRatio: '1 / 1' }}
                               loader={({ src }) => src.startsWith('http') ? src : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${src}`}
                               unoptimized={card.employeeImage?.startsWith('http')}
                             />
                             <div>
                               <div className={`font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{card.fullName}</div>
-                              <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{card.employeeId}</div>
+                              <div className={`text-[10px] sm:text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{card.employeeId}</div>
                             </div>
                           </div>
                         </td>
-                        <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{card.designation}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{card.projectName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className={`px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{card.designation}</td>
+                        <td className={`px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{card.projectName}</td>
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${getStatusColor(card.status)}`}>{card.status === 'Issued' && <FaCheckCircle className="w-3 h-3 mr-1" />}{card.status}</span>
                         </td>
-                        <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{card.issuedDate ? new Date(card.issuedDate).toLocaleDateString() : 'N/A'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap font-medium">
+                        <td className={`px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{card.issuedDate ? new Date(card.issuedDate).toLocaleDateString() : 'N/A'}</td>
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap font-medium">
                           <div className="flex items-center gap-4">
                             <button onClick={() => setSelectedCard(card)} className={`flex items-center gap-2 ${theme === 'dark' ? 'text-blue-400 hover:text-blue-200' : 'text-blue-600 hover:text-blue-800'} transition`}>
                               <FaEye /> View
@@ -461,63 +461,63 @@ export default function ViewIDCardsPage() {
       
       {selectedCard && (
         <div className={
-          `fixed inset-0 flex items-center justify-center z-50 p-4 transition-colors duration-200 animate-fade-in ` +
+          `fixed inset-0 flex items-center justify-center z-50 p-1 sm:p-4 transition-colors duration-200 animate-fade-in ` +
           (theme === 'dark' ? 'bg-gray-900 bg-opacity-90' : 'bg-blue-50 bg-opacity-80')
         }>
-          <div className={`relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-md w-full max-h-[95vh] overflow-y-auto border-2 ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'} flex flex-col items-center px-0 sm:px-0`}
+          <div className={`relative bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-xs sm:max-w-md max-h-[98vh] overflow-y-auto border-2 ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'} flex flex-col items-center px-0 sm:px-0`}
             style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)' }}
           >
             {/* Floating Close Button */}
             <button
               onClick={() => setSelectedCard(null)}
-              className="absolute top-4 right-4 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow hover:bg-red-100 dark:hover:bg-red-900 transition-all duration-200 z-10"
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow hover:bg-red-100 dark:hover:bg-red-900 transition-all duration-200 z-10"
               aria-label="Close"
             >
               <FaTimes className="w-5 h-5 text-red-500" />
             </button>
             {/* Card Header: Logo */}
-            <div className="w-full flex flex-col items-center pt-8 pb-2">
-              <Image src="/v1/employee/exozen_logo1.png" alt="Exozen Logo" width={90} height={36} className="object-contain mb-2" />
-              <div className={`text-xs font-semibold px-3 py-1 rounded-lg ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-blue-50 text-blue-700'} shadow`}>{new Date().toLocaleString()}</div>
+            <div className="w-full flex flex-col items-center pt-6 sm:pt-8 pb-2">
+              <Image src="/v1/employee/exozen_logo1.png" alt="Exozen Logo" width={70} height={28} className="object-contain mb-2 sm:w-[90px] sm:h-[36px]" />
+              <div className={`text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-1 rounded-lg ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-blue-50 text-blue-700'} shadow`}>{new Date().toLocaleString()}</div>
             </div>
             {/* Card Body: Photo, QR, Details */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full px-6 py-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 w-full px-2 sm:px-6 py-2 sm:py-4">
               {/* Left: Photo & QR */}
-              <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center gap-2 sm:gap-4">
                 <Image
                   src={selectedCard.employeeImage || '/placeholder-user.jpg'}
                   alt={selectedCard.fullName}
-                  width={100}
-                  height={100}
-                  className="rounded-xl object-cover border-4 border-blue-200 dark:border-blue-700 shadow-lg"
+                  width={80}
+                  height={80}
+                  className="rounded-xl object-cover border-4 border-blue-200 dark:border-blue-700 shadow-lg w-20 h-20 sm:w-[100px] sm:h-[100px]"
                   loader={({ src }) => src.startsWith('http') ? src : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${src}`}
                   unoptimized={selectedCard.employeeImage?.startsWith('http')}
                 />
-                <div className="w-[90px] h-[90px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-inner">
+                <div className="w-[70px] h-[70px] sm:w-[90px] sm:h-[90px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-inner">
                   {qrLoading ? (
-                    <FaSpinner className="animate-spin text-blue-600 w-8 h-8" />
+                    <FaSpinner className="animate-spin text-blue-600 w-6 h-6 sm:w-8 sm:h-8" />
                   ) : qrCodeData ? (
                     <QRCodeSVG
                       value={JSON.stringify(qrCodeData)}
-                      size={80}
+                      size={60}
                       className="rounded-xl"
                       bgColor={theme === 'dark' ? '#1f2937' : '#ffffff'}
                       fgColor={theme === 'dark' ? '#ffffff' : '#000000'}
                     />
                   ) : (
-                    <p className="text-gray-400 text-xs text-center">No QR</p>
+                    <p className="text-gray-400 text-[10px] sm:text-xs text-center">No QR</p>
                   )}
                 </div>
-                <div className={`text-xs font-mono ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'} flex items-center justify-center gap-1`}><FaIdCard className="inline-block mr-1" />{selectedCard.employeeId}</div>
+                <div className={`text-[10px] sm:text-xs font-mono ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'} flex items-center justify-center gap-1`}><FaIdCard className="inline-block mr-1" />{selectedCard.employeeId}</div>
               </div>
               {/* Right: Details */}
-              <div className="flex-1 flex flex-col gap-2 min-w-[180px]">
-                <div className={`text-xl font-extrabold tracking-tight mb-1 ${theme === 'dark' ? 'text-white' : 'text-blue-900'}`}>{selectedCard.fullName}</div>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border-2 shadow transition-all duration-200 ${selectedCard.status === 'Issued' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-100 text-gray-800 border-gray-300'}`}>{selectedCard.status === 'Issued' && <FaCheckCircle className="w-3 h-3 mr-1" />}{selectedCard.status}</span>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${theme === 'dark' ? 'bg-blue-900 text-blue-200 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{selectedCard.designation}</span>
+              <div className="flex-1 flex flex-col gap-1 sm:gap-2 min-w-[120px] sm:min-w-[180px]">
+                <div className={`text-lg sm:text-xl font-extrabold tracking-tight mb-1 ${theme === 'dark' ? 'text-white' : 'text-blue-900'}`}>{selectedCard.fullName}</div>
+                <div className="flex flex-wrap gap-1 sm:gap-2 mb-1 sm:mb-2">
+                  <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold border-2 shadow transition-all duration-200 ${selectedCard.status === 'Issued' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-100 text-gray-800 border-gray-300'}`}>{selectedCard.status === 'Issued' && <FaCheckCircle className="w-3 h-3 mr-1" />}{selectedCard.status}</span>
+                  <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold border transition-all duration-200 ${theme === 'dark' ? 'bg-blue-900 text-blue-200 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{selectedCard.designation}</span>
                 </div>
-                <div className="grid grid-cols-1 gap-y-1 text-sm">
+                <div className="grid grid-cols-1 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm">
                   <div><span className="font-semibold">Project:</span> {selectedCard.projectName}</div>
                   <div><span className="font-semibold">Gender:</span> {selectedCard.gender}</div>
                   <div><span className="font-semibold">Blood Group:</span> {selectedCard.bloodGroup}</div>
@@ -528,7 +528,7 @@ export default function ViewIDCardsPage() {
             </div>
             {/* Download Button */}
             <button
-              className={`mt-4 mb-8 w-11/12 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition-all duration-200 ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+              className={`mt-2 sm:mt-4 mb-4 sm:mb-8 w-11/12 flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-bold text-base sm:text-lg shadow-lg transition-all duration-200 ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
               onClick={() => handleDownload(selectedCard)}
               disabled={downloading}
             >

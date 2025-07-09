@@ -171,16 +171,16 @@ export default function AttendanceReportPage() {
 					</div>
 				</div>
 				{/* Filters, Search, Export */}
-				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-					<div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
-						<div className="relative w-40 min-w-[140px]">
+				<div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center md:justify-between">
+					<div className="flex flex-col gap-2 w-full md:flex-row md:items-center md:w-auto md:flex-wrap md:gap-2">
+						<div className="relative w-full min-w-[140px] md:w-40">
 							<select
 								value={projectFilter}
 								onChange={(e) => setProjectFilter(e.target.value)}
 								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
 									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
+									? "bg-gray-800 border-gray-700 text-gray-100"
+									: "bg-white border-gray-200 text-black"
 								}`}
 							>
 								<option value="All Projects">All Projects</option>
@@ -191,14 +191,14 @@ export default function AttendanceReportPage() {
 								))}
 							</select>
 						</div>
-						<div className="relative w-44 min-w-[130px]">
+						<div className="relative w-full min-w-[130px] md:w-44">
 							<select
 								value={designationFilter}
 								onChange={(e) => setDesignationFilter(e.target.value)}
 								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
 									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
+									? "bg-gray-800 border-gray-700 text-gray-100"
+									: "bg-white border-gray-200 text-black"
 								}`}
 							>
 								<option value="All Designations">All Designations</option>
@@ -209,14 +209,14 @@ export default function AttendanceReportPage() {
 								))}
 							</select>
 						</div>
-						<div className="relative w-40 min-w-[120px]">
+						<div className="relative w-full min-w-[120px] md:w-40">
 							<select
 								value={statusFilter}
 								onChange={(e) => setStatusFilter(e.target.value)}
 								className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
 									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
+									? "bg-gray-800 border-gray-700 text-gray-100"
+									: "bg-white border-gray-200 text-black"
 								}`}
 							>
 								<option value="All Statuses">All Statuses</option>
@@ -227,7 +227,7 @@ export default function AttendanceReportPage() {
 								))}
 							</select>
 						</div>
-						<div className="relative flex-1 min-w-[180px] max-w-xs">
+						<div className="relative w-full min-w-[180px] max-w-full md:flex-1 md:max-w-xs">
 							<FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
 							<input
 								type="text"
@@ -236,16 +236,16 @@ export default function AttendanceReportPage() {
 								onChange={(e) => setSearch(e.target.value)}
 								className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
 									theme === "dark"
-										? "bg-gray-800 border-gray-700 text-gray-100"
-										: "bg-white border-gray-200 text-black"
+									? "bg-gray-800 border-gray-700 text-gray-100"
+									: "bg-white border-gray-200 text-black"
 								}`}
 							/>
 						</div>
 					</div>
-					<div className="flex gap-2 justify-end">
+					<div className="flex flex-col gap-2 w-full sm:flex-row sm:justify-end sm:items-center sm:w-auto">
 						<button
 							onClick={downloadExcel}
-							className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+							className={`w-full sm:w-auto px-4 py-2 rounded-lg flex items-center gap-2 justify-center transition-colors ${
 								theme === "dark"
 									? "bg-green-700 text-white hover:bg-green-800"
 									: "bg-green-500 text-white hover:bg-green-600"
@@ -255,7 +255,7 @@ export default function AttendanceReportPage() {
 						</button>
 						<button
 							onClick={downloadPDF}
-							className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+							className={`w-full sm:w-auto px-4 py-2 rounded-lg flex items-center gap-2 justify-center transition-colors ${
 								theme === "dark"
 									? "bg-red-700 text-white hover:bg-red-800"
 									: "bg-red-500 text-white hover:bg-red-600"
@@ -278,7 +278,7 @@ export default function AttendanceReportPage() {
 					) : (
 						<div className="overflow-x-auto max-h-[500px] overflow-y-auto">
 							<table
-								className={`min-w-full divide-y ${
+								className={`min-w-[600px] sm:min-w-full divide-y ${
 									theme === "dark" ? "divide-gray-700" : "divide-blue-100"
 								}`}
 							>

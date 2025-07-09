@@ -803,28 +803,28 @@ export default function PayrollUpdatePage() {
     <ManagerDashboardLayout>
       <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
         {/* Modern Blue Gradient Header (like KYC Edit) */}
-        <div className="mb-8">
-          <div className={`flex items-center gap-6 rounded-2xl px-8 py-8 ${theme === 'dark' ? 'bg-[#323a48]' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}>
-            <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${theme === 'dark' ? 'bg-[#232a36]' : 'bg-blue-500 bg-opacity-30'}`}>
+        <div className="mb-4 md:mb-8">
+          <div className={`flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 rounded-2xl px-4 md:px-8 py-4 md:py-8 ${theme === 'dark' ? 'bg-[#323a48]' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}> 
+            <div className={`flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-xl ${theme === 'dark' ? 'bg-[#232a36]' : 'bg-blue-500 bg-opacity-30'}`}> 
               <FaMoneyBillWave className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">Update Payroll</h1>
-              <p className={`text-lg ${theme === 'dark' ? 'text-blue-200' : 'text-blue-100'}`}>Update payroll details and view attendance for employees</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-white">Update Payroll</h1>
+              <p className={`text-base md:text-lg ${theme === 'dark' ? 'text-blue-200' : 'text-blue-100'}`}>Update payroll details and view attendance for employees</p>
             </div>
           </div>
         </div>
-        <div className="flex-1 flex flex-col lg:flex-row">
+        <div className="flex-1 flex flex-col lg:flex-row gap-4 md:gap-0">
           {/* Sidebar Stepper with Instructions/Notes */}
-          <div className={`lg:w-96 w-full lg:h-auto h-28 flex flex-col gap-4 p-4 border-r shadow-lg ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-blue-100'}`}>
+          <div className={`lg:w-96 w-full lg:h-auto flex flex-col gap-4 p-2 md:p-4 border-r shadow-lg mb-4 lg:mb-0 ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-blue-100'}`}> 
             {/* Instructions/Notes Card */}
-            <div className={`rounded-xl p-5 flex items-start gap-4 border ${theme === 'dark' ? 'bg-[#232a36] border-gray-800' : 'bg-blue-50 border-blue-100'}`}>
-              <div className={`p-3 rounded-xl flex items-center justify-center ${theme === 'dark' ? 'bg-[#323a48]' : 'bg-blue-100'}`}>
-                <FaInfoCircle className={`w-6 h-6 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-600'}`} />
+            <div className={`rounded-xl p-4 md:p-5 flex items-start gap-4 border ${theme === 'dark' ? 'bg-[#232a36] border-gray-800' : 'bg-blue-50 border-blue-100'}`}> 
+              <div className={`p-2 md:p-3 rounded-xl flex items-center justify-center ${theme === 'dark' ? 'bg-[#323a48]' : 'bg-blue-100'}`}> 
+                <FaInfoCircle className={`w-5 h-5 md:w-6 md:h-6 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-600'}`} />
               </div>
               <div>
                 <h3 className={`font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Instructions</h3>
-                <ul className={`list-disc ml-5 text-sm space-y-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
+                <ul className={`list-disc ml-5 text-xs md:text-sm space-y-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}> 
                   <li>Select the employee, month, and year to update payroll and view attendance.</li>
                   <li>Ensure the employee details are correct before proceeding.</li>
                   <li>Attendance for the selected month will be shown in the next step.</li>
@@ -861,7 +861,7 @@ export default function PayrollUpdatePage() {
             </div>
           </div>
           {/* Main Content */}
-          <div className="flex-1 p-6 flex flex-col gap-8 max-w-3xl mx-auto overflow-y-auto" style={{ maxHeight: 'calc(100vh - 48px)' }}>
+          <div className="flex-1 p-2 md:p-6 flex flex-col gap-8 max-w-3xl mx-auto overflow-y-auto" style={{ maxHeight: 'calc(100vh - 48px)' }}>
             {/* Step Content */}
             <div className="flex-1">
               {activeStep === 0 && renderSelectEmployee()}

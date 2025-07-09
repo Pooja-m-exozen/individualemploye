@@ -39,6 +39,8 @@ interface Attendance {
   punchOutTime: string | null;
 }
 
+const GOOGLE_MAPS_API_KEY = 'AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4';
+
 const AsyncMarker = ({ position, imageUrl, children }: { position: [number, number], imageUrl: string, children: React.ReactNode }) => {
   const [icon, setIcon] = useState<DivIcon | null>(null);
   useEffect(() => {
@@ -85,7 +87,7 @@ const OperationsManagerDashboard = (): JSX.Element => {
 
     try {
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`
       );
       const data = await response.json();
       
@@ -227,7 +229,7 @@ const OperationsManagerDashboard = (): JSX.Element => {
           : 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
       }`}>
         {/* Header */}
-        <div className={`rounded-2xl p-6 mb-6 flex items-center gap-6 shadow-lg ${
+        <div className={`rounded-2xl p-4 sm:p-6 mb-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 shadow-lg ${
           theme === 'light' 
             ? 'bg-gradient-to-r from-blue-500 to-blue-800' 
             : 'bg-gradient-to-r from-gray-700 to-gray-800'
@@ -236,31 +238,31 @@ const OperationsManagerDashboard = (): JSX.Element => {
             theme === 'light' 
               ? 'bg-white text-blue-600' 
               : 'bg-gray-800 text-blue-400'
-          } p-6 rounded-full flex items-center justify-center shadow-md`}>
-            <FaUsers className="text-3xl" />
+          } p-4 sm:p-6 rounded-full flex items-center justify-center shadow-md`}>
+            <FaUsers className="text-2xl sm:text-3xl" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white">Operations Manager Dashboard</h1>
-            <p className="text-white text-lg opacity-90">
+          <div className="text-center sm:text-left">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Operations Manager Dashboard</h1>
+            <p className="text-white text-base sm:text-lg opacity-90">
               Manage your team&apos;s attendance, leave, and performance metrics.
             </p>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6">
-          {["Overview", "Attendance", "Leave Requests", "Performance"].map((tab) => (
+        <div className="flex flex-wrap gap-2 sm:gap-4 mb-6 justify-center sm:justify-start">
+          {['Overview', 'Attendance', 'Leave Requests', 'Performance'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-lg font-medium transition ${
-                activeTab === tab
+              className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition text-sm sm:text-base
+                ${activeTab === tab
                   ? `${theme === 'dark' ? 'bg-blue-700' : 'bg-blue-600'} text-white shadow-lg`
                   : `${theme === 'dark' 
                       ? 'bg-gray-800 text-gray-300 hover:bg-blue-700' 
                       : 'bg-gray-200 text-gray-600 hover:bg-blue-500'
                     } hover:text-white`
-              }`}
+                }`}
             >
               {tab}
             </button>
@@ -269,167 +271,167 @@ const OperationsManagerDashboard = (): JSX.Element => {
 
         {/* Tab Content */}
         {activeTab === "Overview" && (
-          <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow p-6`}>
+          <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow p-2 sm:p-6`}>
             <>
-              <h2 className={`text-xl font-bold mb-4 ${
+              <h2 className={`text-lg sm:text-xl font-bold mb-4 ${
                 theme === 'dark' ? 'text-white' : 'text-gray-900'
               }`}>Today&apos;s Attendance</h2>
               {loading ? (
-                <div className="flex justify-center items-center min-h-[300px]">
+                <div className="flex justify-center items-center min-h-[200px] sm:min-h-[300px]">
                   <FaSpinner className={`animate-spin ${
                     theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                  } w-12 h-12`} />
+                  } w-8 h-8 sm:w-12 sm:h-12`} />
                 </div>
               ) : employees.length === 0 ? (
                 <div className={`${
                   theme === 'dark' 
                     ? 'bg-yellow-900/50 text-yellow-300' 
                     : 'bg-yellow-50 text-yellow-600'
-                  } p-6 rounded-2xl flex items-center gap-3 max-w-lg mx-auto shadow-lg`}>
-                  <FaUsers className="w-6 h-6 flex-shrink-0" />
-                  <p className="text-lg font-medium">
+                  } p-4 sm:p-6 rounded-2xl flex items-center gap-3 max-w-full sm:max-w-lg mx-auto shadow-lg`}>
+                  <FaUsers className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                  <p className="text-base sm:text-lg font-medium">
                     No employees found in the &apos;Exozen-Ops&apos; project.
                   </p>
                 </div>
               ) : (
                 typeof window !== 'undefined' ? (
-                  <MapContainer
-                    key={JSON.stringify(boundaryCoordinates())} // Use a unique key to force re-render
-                    bounds={boundaryCoordinates().length > 0 ? boundaryCoordinates() : undefined}
-                    style={{ height: "500px", width: "100%" }}
-                  >
-                    <TileLayer
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    />
-                    {employees.map((employee) => {
-                      const attendance = attendanceData[employee.employeeId] || [];
-                      return attendance.map((entry, idx) => {
-                        const punchInPosition =
-                          entry.punchInLatitude && entry.punchInLongitude
-                            ? [entry.punchInLatitude, entry.punchInLongitude]
-                            : null;
+                  <div className="w-full overflow-x-auto">
+                    <MapContainer
+                      key={JSON.stringify(boundaryCoordinates())}
+                      bounds={boundaryCoordinates().length > 0 ? boundaryCoordinates() : undefined}
+                      style={{ height: "400px", minHeight: "300px", width: "100%", maxWidth: "100vw" }}
+                    >
+                      <TileLayer
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      />
+                      {employees.map((employee) => {
+                        const attendance = attendanceData[employee.employeeId] || [];
+                        return attendance.map((entry, idx) => {
+                          const punchInPosition =
+                            entry.punchInLatitude && entry.punchInLongitude
+                              ? [entry.punchInLatitude, entry.punchInLongitude]
+                              : null;
 
-                        const punchOutPosition =
-                          entry.punchOutLatitude && entry.punchOutLongitude
-                            ? [entry.punchOutLatitude, entry.punchOutLongitude]
-                            : null;
+                          const punchOutPosition =
+                            entry.punchOutLatitude && entry.punchOutLongitude
+                              ? [entry.punchOutLatitude, entry.punchOutLongitude]
+                              : null;
 
-                        return (
-                          <React.Fragment key={`${employee.employeeId}-${idx}`}>
-                            {punchInPosition && (
-                              <AsyncMarker
-                                position={punchInPosition as [number, number]}
-                                imageUrl={entry.punchInPhoto || employee.employeeImage}
-                              >
-                                <Popup>
-                                  <div style={{ width: "260px", padding: "12px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid #e5e7eb" }}>
-                                      <div style={{ position: "relative" }}>
-                                        <Image 
-                                          src={employee.employeeImage} 
-                                          alt={employee.fullName}
-                                          width={64}
-                                          height={64}
-                                          style={{ width: "64px", height: "64px", borderRadius: "50%", objectFit: "cover", border: "2px solid #3b82f6" }}
-                                        />
-                                        <div style={{ position: "absolute", bottom: "-4px", right: "-4px", width: "16px", height: "16px", backgroundColor: "#22c55e", borderRadius: "50%", border: "2px solid white" }}></div>
-                                      </div>
-                                      <div>
-                                        <h3 style={{ fontSize: "16px", fontWeight: "600", color: "#1f2937" }}>{employee.fullName}</h3>
-                                        <p style={{ fontSize: "13px", color: "#4b5563" }}>{employee.designation}</p>
-                                        <p style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>ID: {employee.employeeId}</p>
-                                      </div>
-                                    </div>
-                                    
-                                    <div style={{ marginBottom: "12px" }}>
-                                        <span style={{ backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "500", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>Punched In</span>
-                                    </div>
-                                    
-                                    <div style={{ backgroundColor: "#eff6ff", padding: "10px", borderRadius: "8px" }}>
-                                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-                                        <div style={{ width: "7px", height: "7px", backgroundColor: "#3b82f6", borderRadius: "50%" }}></div>
-                                        <h4 style={{ fontSize: "13px", fontWeight: "500", color: "#1e40af" }}>Punch-In Location</h4>
-                                      </div>
-                                      <p style={{ fontSize: "13px", color: "#4b5563", lineHeight: "1.4" }}>
-                                        {entry.punchInAddress}
-                                      </p>
-                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTime(entry.punchInTime)}</p>
-                                      {entry.punchInPhoto && (
-                                        <div style={{ marginTop: "6px" }}>
+                          return (
+                            <React.Fragment key={`${employee.employeeId}-${idx}`}>
+                              {punchInPosition && (
+                                <AsyncMarker
+                                  position={punchInPosition as [number, number]}
+                                  imageUrl={entry.punchInPhoto || employee.employeeImage}
+                                >
+                                  <Popup>
+                                    <div style={{ width: "100%", maxWidth: "260px", padding: "12px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
+                                      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "12px", marginBottom: "12px", paddingBottom: "12px", borderBottom: "1px solid #e5e7eb" }}>
+                                        <div style={{ position: "relative" }}>
                                           <Image 
-                                            src={entry.punchInPhoto} 
-                                            alt="Punch-in verification" 
-                                            width={300}
-                                            height={100}
-                                            style={{ width: "100%", height: "100px", objectFit: "cover", borderRadius: "6px" }}
+                                            src={employee.employeeImage} 
+                                            alt={employee.fullName}
+                                            width={48}
+                                            height={48}
+                                            style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover", border: "2px solid #3b82f6" }}
                                           />
+                                          <div style={{ position: "absolute", bottom: "-4px", right: "-4px", width: "12px", height: "12px", backgroundColor: "#22c55e", borderRadius: "50%", border: "2px solid white" }}></div>
                                         </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </Popup>
-                              </AsyncMarker>
-                            )}
-                            {punchOutPosition && (
-                              <AsyncMarker
-                                position={punchOutPosition as [number, number]}
-                                imageUrl={entry.punchOutPhoto || employee.employeeImage}
-                              >
-                                <Popup>
-                                  <div style={{ width: "260px", padding: "12px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid #e5e7eb" }}>
-                                      <div style={{ position: "relative" }}>
-                                        <Image 
-                                          src={employee.employeeImage} 
-                                          alt={employee.fullName}
-                                          width={64}
-                                          height={64}
-                                          style={{ width: "64px", height: "64px", borderRadius: "50%", objectFit: "cover", border: "2px solid #22c55e" }}
-                                        />
-                                        <div style={{ position: "absolute", bottom: "-4px", right: "-4px", width: "16px", height: "16px", backgroundColor: "#ef4444", borderRadius: "50%", border: "2px solid white" }}></div>
+                                        <div>
+                                          <h3 style={{ fontSize: "15px", fontWeight: 600, color: "#1f2937" }}>{employee.fullName}</h3>
+                                          <p style={{ fontSize: "12px", color: "#4b5563" }}>{employee.designation}</p>
+                                          <p style={{ fontSize: "10px", color: "#6b7280", marginTop: "2px" }}>ID: {employee.employeeId}</p>
+                                        </div>
                                       </div>
-                                      <div>
-                                        <h3 style={{ fontSize: "16px", fontWeight: "600", color: "#1f2937" }}>Welcome {employee.fullName}</h3>
-                                        <p style={{ fontSize: "13px", color: "#4b5563" }}>{employee.designation.replace("'", "&apos;")}</p>
-                                        <p style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>ID: {employee.employeeId}</p>
+                                      <div style={{ marginBottom: "10px" }}>
+                                          <span style={{ backgroundColor: "#dbeafe", color: "#1e40af", padding: "3px 7px", borderRadius: "4px", fontSize: "10px", fontWeight: 500, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>Punched In</span>
+                                      </div>
+                                      <div style={{ backgroundColor: "#eff6ff", padding: "8px", borderRadius: "8px" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: "5px" }}>
+                                          <div style={{ width: "6px", height: "6px", backgroundColor: "#3b82f6", borderRadius: "50%" }}></div>
+                                          <h4 style={{ fontSize: "12px", fontWeight: 500, color: "#1e40af" }}>Punch-In Location</h4>
+                                        </div>
+                                        <p style={{ fontSize: "12px", color: "#4b5563", lineHeight: 1.4 }}>
+                                          {entry.punchInAddress === "Address not found" && entry.punchInLatitude && entry.punchInLongitude
+                                            ? "Fetching address..."
+                                            : entry.punchInAddress}
+                                        </p>
+                                        <p style={{ fontSize: "11px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTime(entry.punchInTime)}</p>
+                                        {entry.punchInPhoto && (
+                                          <div style={{ marginTop: "5px" }}>
+                                            <Image 
+                                              src={entry.punchInPhoto} 
+                                              alt="Punch-in verification" 
+                                              width={300}
+                                              height={80}
+                                              style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px" }}
+                                            />
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
-                                    
-                                    <div style={{ marginBottom: "12px" }}>
-                                        <span style={{ backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "500", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>Punched Out</span>
-                                    </div>
-
-                                    <div style={{ backgroundColor: "#f0fdf4", padding: "10px", borderRadius: "8px" }}>
-                                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-                                        <div style={{ width: "7px", height: "7px", backgroundColor: "#22c55e", borderRadius: "50%" }}></div>
-                                        <h4 style={{ fontSize: "13px", fontWeight: "500", color: "#166534" }}>Punch-Out Location</h4>
-                                      </div>
-                                      <p style={{ fontSize: "13px", color: "#4b5563", lineHeight: "1.4" }}>
-                                        {entry.punchOutAddress}
-                                      </p>
-                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTime(entry.punchOutTime)}</p>
-                                      {entry.punchOutPhoto && (
-                                        <div style={{ marginTop: "6px" }}>
+                                  </Popup>
+                                </AsyncMarker>
+                              )}
+                              {punchOutPosition && (
+                                <AsyncMarker
+                                  position={punchOutPosition as [number, number]}
+                                  imageUrl={entry.punchOutPhoto || employee.employeeImage}
+                                >
+                                  <Popup>
+                                    <div style={{ width: "100%", maxWidth: "260px", padding: "12px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
+                                      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "12px", marginBottom: "12px", paddingBottom: "12px", borderBottom: "1px solid #e5e7eb" }}>
+                                        <div style={{ position: "relative" }}>
                                           <Image 
-                                            src={entry.punchOutPhoto} 
-                                            alt="Punch-out verification" 
-                                            width={300}
-                                            height={100}
-                                            style={{ width: "100%", height: "100px", objectFit: "cover", borderRadius: "6px" }}
+                                            src={employee.employeeImage} 
+                                            alt={employee.fullName}
+                                            width={48}
+                                            height={48}
+                                            style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover", border: "2px solid #22c55e" }}
                                           />
+                                          <div style={{ position: "absolute", bottom: "-4px", right: "-4px", width: "12px", height: "12px", backgroundColor: "#ef4444", borderRadius: "50%", border: "2px solid white" }}></div>
                                         </div>
-                                      )}
+                                        <div>
+                                          <h3 style={{ fontSize: "15px", fontWeight: 600, color: "#1f2937" }}>Welcome {employee.fullName}</h3>
+                                          <p style={{ fontSize: "12px", color: "#4b5563" }}>{employee.designation.replace("'", "&apos;")}</p>
+                                          <p style={{ fontSize: "10px", color: "#6b7280", marginTop: "2px" }}>ID: {employee.employeeId}</p>
+                                        </div>
+                                      </div>
+                                      <div style={{ marginBottom: "10px" }}>
+                                          <span style={{ backgroundColor: "#fee2e2", color: "#991b1b", padding: "3px 7px", borderRadius: "4px", fontSize: "10px", fontWeight: 500, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>Punched Out</span>
+                                      </div>
+                                      <div style={{ backgroundColor: "#f0fdf4", padding: "8px", borderRadius: "8px" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: "5px" }}>
+                                          <div style={{ width: "6px", height: "6px", backgroundColor: "#22c55e", borderRadius: "50%" }}></div>
+                                          <h4 style={{ fontSize: "12px", fontWeight: 500, color: "#166534" }}>Punch-Out Location</h4>
+                                        </div>
+                                        <p style={{ fontSize: "12px", color: "#4b5563", lineHeight: 1.4 }}>
+                                          {entry.punchOutAddress}
+                                        </p>
+                                        <p style={{ fontSize: "11px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTime(entry.punchOutTime)}</p>
+                                        {entry.punchOutPhoto && (
+                                          <div style={{ marginTop: "5px" }}>
+                                            <Image 
+                                              src={entry.punchOutPhoto} 
+                                              alt="Punch-out verification" 
+                                              width={300}
+                                              height={80}
+                                              style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px" }}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                </Popup>
-                              </AsyncMarker>
-                            )}
-                          </React.Fragment>
-                        );
-                      });
-                    })}
-                  </MapContainer>
+                                  </Popup>
+                                </AsyncMarker>
+                              )}
+                            </React.Fragment>
+                          );
+                        });
+                      })}
+                    </MapContainer>
+                  </div>
                 ) : null
               )}
             </>
@@ -443,18 +445,18 @@ const OperationsManagerDashboard = (): JSX.Element => {
                 ? 'bg-gray-800' 
                 : 'bg-gradient-to-r from-blue-600 to-blue-700'
             } rounded-t-lg shadow p-4 mb-0`}>
-              <h2 className="text-xl font-semibold text-white">
+              <h2 className="text-lg sm:text-xl font-semibold text-white">
                 Attendance Records
               </h2>
             </div>
-            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-b-lg shadow p-6`}>
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-b-lg shadow p-2 sm:p-6`}>
               <AttendanceScreen />
             </div>
           </div>
         )}
 
         {activeTab === "Leave Requests" && (
-          <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow p-6`}>
+          <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow p-2 sm:p-6`}>
             <div className={`${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
               <LeaveRequestsScreen />
             </div>
@@ -462,7 +464,7 @@ const OperationsManagerDashboard = (): JSX.Element => {
         )}
 
         {activeTab === "Performance" && (
-          <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow p-6`}>
+          <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow p-2 sm:p-6`}>
             <div className={`${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
               <PerformanceScreen />
             </div>

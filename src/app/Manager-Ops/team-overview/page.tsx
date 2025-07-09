@@ -247,17 +247,17 @@ const TeamOverviewPage = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {/* Employee Details Cards */}
               <div className={`${
                 theme === 'dark' 
                   ? 'bg-gray-800 shadow-lg' 
                   : 'bg-white shadow-lg'
-              } rounded-lg p-6`}>
-                <h2 className={`text-2xl font-bold mb-6 ${
+              } rounded-lg p-4 md:p-6`}>
+                <h2 className={`text-lg md:text-2xl font-bold mb-4 md:mb-6 ${
                   theme === 'dark' ? 'text-white' : 'text-gray-800'
                 }`}>Employee Details</h2>
-                <div className="grid grid-cols-1 gap-4 max-h-[600px] overflow-y-auto pr-2">
+                <div className="grid grid-cols-1 gap-3 md:gap-4 max-h-[400px] md:max-h-[600px] overflow-y-auto pr-1 md:pr-2">
                   {employees.map((employee) => (
                     <div
                       key={employee.employeeId}
@@ -265,14 +265,14 @@ const TeamOverviewPage = () => {
                         theme === 'dark'
                           ? 'bg-gray-700 border-gray-600'
                           : 'bg-white border-gray-200'
-                      } rounded-xl border p-4 transition-all duration-200 hover:shadow-md ${
+                      } rounded-xl border p-3 md:p-4 transition-all duration-200 hover:shadow-md ${
                         selectedEmployee?.employeeId === employee.employeeId
                           ? 'ring-2 ring-blue-500'
                           : ''
                       }`}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-16 h-16 rounded-full overflow-hidden ${
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div className={`w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden ${
                           theme === 'dark' ? 'bg-gray-600' : 'bg-gray-100'
                         } flex-shrink-0`}>
                           {employee.employeeImage ? (
@@ -285,15 +285,15 @@ const TeamOverviewPage = () => {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-blue-100">
-                              <FaUser className="w-8 h-8 text-blue-500" />
+                              <FaUser className="w-6 h-6 md:w-8 md:h-8 text-blue-500" />
                             </div>
                           )}
                         </div>
                         <div className="flex-grow">
-                          <h3 className={`text-lg font-semibold ${
+                          <h3 className={`text-base md:text-lg font-semibold ${
                             theme === 'dark' ? 'text-white' : 'text-gray-800'
                           }`}>{employee.fullName}</h3>
-                          <p className={`text-sm ${
+                          <p className={`text-xs md:text-sm ${
                             theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                           }`}>{employee.designation}</p>
                           <p className={`text-xs ${
@@ -305,7 +305,7 @@ const TeamOverviewPage = () => {
                             setSelectedEmployee(employee);
                             fetchGraphData(employee.employeeId, selectedMonth);
                           }}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          className={`px-3 py-2 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors w-full md:w-auto mt-2 md:mt-0 ${
                             selectedEmployee?.employeeId === employee.employeeId
                               ? 'bg-blue-600 text-white'
                               : theme === 'dark'
@@ -326,12 +326,12 @@ const TeamOverviewPage = () => {
                 theme === 'dark' 
                   ? 'bg-gray-800 shadow-lg' 
                   : 'bg-white shadow-lg'
-              } rounded-lg p-6 flex flex-col items-center`}>
+              } rounded-lg p-4 md:p-6 flex flex-col items-center`}>
                 {/* Month Selector - Improved styling */}
-                <div className="w-full mb-6">
+                <div className="w-full mb-4 md:mb-6">
                   <label
                     htmlFor="month-select"
-                    className={`block text-lg font-medium mb-2 ${
+                    className={`block text-base md:text-lg font-medium mb-1 md:mb-2 ${
                       theme === 'dark' ? 'text-white' : 'text-gray-700'
                     }`}
                   >
@@ -341,7 +341,7 @@ const TeamOverviewPage = () => {
                     id="month-select"
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className={`w-full px-4 py-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 md:px-4 md:py-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       theme === 'dark' 
                         ? 'bg-gray-700 text-white border-gray-600' 
                         : 'bg-white text-gray-900 border-gray-200'
@@ -363,10 +363,10 @@ const TeamOverviewPage = () => {
                 </div>
 
                 {selectedEmployee && graphData ? (
-                  <div className="flex flex-col gap-6 w-full">
+                  <div className="flex flex-col gap-4 md:gap-6 w-full">
                     {/* Employee Image Section */}
-                    <div className="flex justify-center mb-4">
-                      <div className="w-24 h-24 rounded-full overflow-hidden shadow-lg border-4 border-blue-500">
+                    <div className="flex justify-center mb-2 md:mb-4">
+                      <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-lg border-4 border-blue-500">
                         {selectedEmployee.employeeImage ? (
                           <Image
                             src={selectedEmployee.employeeImage}
@@ -376,26 +376,26 @@ const TeamOverviewPage = () => {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <FaUser className="w-24 h-24 text-blue-500" />
+                          <FaUser className="w-20 h-20 md:w-24 md:h-24 text-blue-500" />
                         )}
                       </div>
                     </div>
 
                     {/* Graphs Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
                       {/* Punctuality Issues - Enhanced styling */}
-                      <div className={`rounded-xl p-6 ${
+                      <div className={`rounded-xl p-4 md:p-6 ${
                         theme === 'dark' 
                           ? 'bg-gray-700' 
                           : 'bg-white'
                       } shadow-lg`}>
-                        <h3 className={`text-xl font-bold mb-4 text-center ${
+                        <h3 className={`text-lg md:text-xl font-bold mb-2 md:mb-4 text-center ${
                           theme === 'dark' ? 'text-white' : 'text-gray-800'
                         }`}>
                           Punctuality Stats
                         </h3>
                         <div className="flex justify-center items-center">
-                          <div className="relative w-40 h-40">
+                          <div className="relative w-32 h-32 md:w-40 md:h-40">
                             <svg className="transform -rotate-90 w-full h-full">
                               <circle
                                 cx="80"
@@ -418,7 +418,7 @@ const TeamOverviewPage = () => {
                               />
                             </svg>
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <span className={`text-2xl font-bold ${
+                              <span className={`text-xl md:text-2xl font-bold ${
                                 theme === 'dark' ? 'text-white' : 'text-gray-800'
                               }`}>
                                 {graphData.attendanceRate}
@@ -428,7 +428,7 @@ const TeamOverviewPage = () => {
                         </div>
                         
                         {/* Punctuality Details */}
-                        <div className={`mt-4 grid grid-cols-1 gap-2 text-sm ${
+                        <div className={`mt-3 md:mt-4 grid grid-cols-1 gap-1 md:gap-2 text-xs md:text-sm ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                         }`}>
                           <p>Late Arrivals: {graphData.punctualityIssues.lateArrivals}</p>
@@ -438,64 +438,64 @@ const TeamOverviewPage = () => {
                       </div>
 
                       {/* Attendance Summary - Simple list format */}
-                      <div className={`rounded-xl p-6 ${
+                      <div className={`rounded-xl p-4 md:p-6 ${
                         theme === 'dark' 
                           ? 'bg-gray-700' 
                           : 'bg-white'
                       } shadow-lg`}>
-                        <h3 className={`text-xl font-bold mb-4 ${
+                        <h3 className={`text-lg md:text-xl font-bold mb-2 md:mb-4 ${
                           theme === 'dark' ? 'text-white' : 'text-gray-800'
                         }`}>
                           Attendance Summary
                         </h3>
-                        <div className="space-y-3">
-                          <div className={`flex justify-between items-center py-2 border-b ${
+                        <div className="space-y-2 md:space-y-3">
+                          <div className={`flex justify-between items-center py-1 md:py-2 border-b ${
                             theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
                           }`}>
                             <span className={`font-medium ${
                               theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                             }`}>Total Days</span>
-                            <span className={`text-lg font-bold ${
+                            <span className={`text-base md:text-lg font-bold ${
                               theme === 'dark' ? 'text-white' : 'text-gray-800'
                             }`}>{graphData.totalDays}</span>
                           </div>
-                          <div className={`flex justify-between items-center py-2 border-b ${
+                          <div className={`flex justify-between items-center py-1 md:py-2 border-b ${
                             theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
                           }`}>
                             <span className={`font-medium ${
                               theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                             }`}>Present</span>
-                            <span className={`text-lg font-bold ${
+                            <span className={`text-base md:text-lg font-bold ${
                               theme === 'dark' ? 'text-white' : 'text-gray-800'
                             }`}>{graphData.presentDays}</span>
                           </div>
-                          <div className={`flex justify-between items-center py-2 border-b ${
+                          <div className={`flex justify-between items-center py-1 md:py-2 border-b ${
                             theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
                           }`}>
                             <span className={`font-medium ${
                               theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                             }`}>Half Days</span>
-                            <span className={`text-lg font-bold ${
+                            <span className={`text-base md:text-lg font-bold ${
                               theme === 'dark' ? 'text-white' : 'text-gray-800'
                             }`}>{graphData.halfDays}</span>
                           </div>
-                          <div className={`flex justify-between items-center py-2 border-b ${
+                          <div className={`flex justify-between items-center py-1 md:py-2 border-b ${
                             theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
                           }`}>
                             <span className={`font-medium ${
                               theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                             }`}>Partially Absent</span>
-                            <span className={`text-lg font-bold ${
+                            <span className={`text-base md:text-lg font-bold ${
                               theme === 'dark' ? 'text-white' : 'text-gray-800'
                             }`}>{graphData.partiallyAbsentDays}</span>
                           </div>
-                          <div className={`flex justify-between items-center py-2 ${
+                          <div className={`flex justify-between items-center py-1 md:py-2 ${
                             theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
                           }`}>
                             <span className={`font-medium ${
                               theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                             }`}>Week Offs</span>
-                            <span className={`text-lg font-bold ${
+                            <span className={`text-base md:text-lg font-bold ${
                               theme === 'dark' ? 'text-white' : 'text-gray-800'
                             }`}>{graphData.weekOffs}</span>
                           </div>
@@ -504,7 +504,7 @@ const TeamOverviewPage = () => {
                     </div>
                   </div>
                 ) : (
-                  <p className={`text-center ${
+                  <p className={`text-center text-sm md:text-base ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                   }`}>
                     Select an employee to view attendance details

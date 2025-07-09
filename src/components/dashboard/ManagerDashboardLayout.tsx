@@ -93,8 +93,11 @@ const menuItems = [
   },
 ];
 
+
 const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
   const [isSidebarExpanded, setSidebarExpanded] = useState(true);
+  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openMobileSubmenu, setOpenMobileSubmenu] = useState<string | null>(null); // NEW: for mobile submenu
   const [currentDateTime, setCurrentDateTime] = useState<string>("");
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [userDetails, setUserDetails] = useState<{ fullName: string; employeeImage: string; designation: string } | null>(null);
@@ -137,14 +140,16 @@ const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
   }, []);
 
   const toggleSidebar = () => setSidebarExpanded(!isSidebarExpanded);
+  const handleMobileMenuOpen = () => setMobileMenuOpen(true);
+  const handleMobileMenuClose = () => setMobileMenuOpen(false);
   const handleLogout = () => { logout(); window.location.href = "/login"; };
 
   return (
     <div className={`min-h-screen flex ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"} transition-colors duration-200`}>
-      {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 flex flex-col ${isSidebarExpanded ? "w-72" : "w-20"} ${theme === "dark" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-800"} transition-all duration-300 shadow-lg`}>
-        {/* Logo and Toggle */}
-        <div className={`flex items-center justify-between p-5 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-300"}`}>
+      {/* Sidebar (desktop) */}
+      <aside className={`hidden lg:flex flex-col fixed left-0 top-0 h-full transition-all duration-300 ${isSidebarExpanded ? 'w-72' : 'w-20'} ${theme === 'dark' ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-100 text-gray-800 border-gray-200'} border-r shadow-xl z-30`}>
+        {/* Logo and Toggle - match header height */}
+        <div className={`flex items-center justify-between h-16 px-4 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-300"}`} style={{ minHeight: '48px', maxHeight: '64px' }}>
           <div className={`flex items-center ${isSidebarExpanded ? "justify-start" : "justify-center"} w-full`}>
             <Image src="/v1/employee/logo-exo .png" alt="Exozen Logo" width={40} height={40} className="rounded-xl shadow-sm" />
             {isSidebarExpanded && (
@@ -200,41 +205,134 @@ const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
           </ul>
         </nav>
       </aside>
-      {/* Main Content */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${isSidebarExpanded ? "ml-72" : "ml-20"}`}>
-        {/* Header */}
-        <header className={`${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"} border-b shadow-lg sticky top-0 h-[64px] flex items-center px-4 transition-colors duration-200`}>
-          <div className="flex items-center justify-between w-full">
-            {/* Left: Menu Icon & Page Title */}
-            <div className="flex items-center gap-3">
-              <button onClick={toggleSidebar} className={`p-2 rounded-full ${theme === "dark" ? "text-gray-400 hover:text-white hover:bg-gray-700" : "text-gray-500 hover:text-blue-700 hover:bg-gray-100"} transition-all duration-200`} title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}>
+
+      {/* Mobile Sidebar and Overlay */}
+      {/* Mobile Sidebar and Overlay: Only one menu, show sidebar only when menu is open */}
+      {isMobileMenuOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden" onClick={handleMobileMenuClose} />
+          <aside className={`fixed inset-y-0 left-0 z-50 flex flex-col w-56 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'} border-r shadow-xl lg:hidden`}>
+            {/* Logo and Close Button */}
+            <div className="flex items-center justify-between p-4 border-b h-14">
+              <Image src="/v1/employee/logo-exo .png" alt="Exozen Logo" width={32} height={32} className="rounded-xl shadow-sm" />
+              <button onClick={handleMobileMenuClose} className="p-2 ml-2 rounded-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <FaBars className="w-5 h-5" />
               </button>
-              <h1 className={`text-xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Manager Dashboard</h1>
             </div>
-            {/* Right: Date/Time, Theme Toggle, Notifications, Profile */}
-            <div className="flex items-center gap-4">
-              {/* Theme Toggle */}
-              <button onClick={toggleTheme} className={`p-2 rounded-full ${theme === "dark" ? "text-yellow-400 hover:bg-gray-700" : "text-gray-500 hover:bg-gray-100"} transition-all duration-200`} title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
-                {theme === "dark" ? <FaSun className="w-5 h-5" /> : <FaMoon className="w-5 h-5" />}
-              </button>
-              {/* Date and Time */}
-              <div className={`font-medium text-sm px-4 py-1.5 rounded-full border ${theme === "dark" ? "bg-gray-700 text-gray-200 border-gray-600" : "bg-blue-50 text-blue-700 border-blue-100"}`}>{currentDateTime}</div>
-              {/* User Profile */}
-              <div className="flex items-center relative">
+            {/* Mobile menu: expandable submenus */}
+            <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <ul className="p-2 space-y-1">
+                {menuItems.map((item) => (
+                  <li key={item.label}>
+                    {item.subItems ? (
+                      <>
+                        <button
+                          onClick={() => setOpenMobileSubmenu(openMobileSubmenu === item.label ? null : item.label)}
+                          className={`flex items-center w-full px-3 py-2 rounded-lg transition-all duration-200 text-base font-medium gap-2 ${theme === 'dark' ? 'text-white hover:bg-gray-700' : 'text-gray-800 hover:bg-gray-200'}`}
+                        >
+                          <span className="text-lg">{item.icon}</span>
+                          {item.label}
+                          <FaChevronRight className={`ml-auto transition-transform ${openMobileSubmenu === item.label ? 'rotate-90' : ''}`} />
+                        </button>
+                        {openMobileSubmenu === item.label && (
+                          <ul className="pl-7 py-1 space-y-1">
+                            {item.subItems.map((sub) => (
+                              <li key={sub.label}>
+                                <Link href={sub.href} onClick={handleMobileMenuClose}>
+                                  <span className={`flex items-center px-2 py-2 rounded-lg transition-all duration-200 text-sm gap-2 ${theme === 'dark' ? 'text-white hover:bg-gray-700' : 'text-gray-800 hover:bg-gray-200'}`}>
+                                    <FaChevronRight className="text-xs" />
+                                    {sub.label}
+                                  </span>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    ) : (
+                      <Link href={item.href || "#"} onClick={handleMobileMenuClose}>
+                        <span className={`flex items-center px-3 py-2 rounded-lg transition-all duration-200 text-base font-medium gap-2 ${theme === 'dark' ? 'text-white hover:bg-gray-700' : 'text-gray-800 hover:bg-gray-200'}`}>
+                          <span className="text-lg">{item.icon}</span>
+                          {item.label}
+                        </span>
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+            {/* Profile (mobile) */}
+            <div className="p-3 border-t mt-auto">
+              <div className="flex items-center gap-2">
                 <div className="relative cursor-pointer" onClick={() => setShowProfileDropdown(!showProfileDropdown)}>
-                  <Image src={userDetails?.employeeImage || "/placeholder-user.jpg"} alt={userDetails?.fullName || "User"} width={40} height={40} className="relative w-10 h-10 rounded-full object-cover border-2 border-white shadow" />
+                  <Image src={userDetails?.employeeImage || '/placeholder-user.jpg'} alt={userDetails?.fullName || 'User'} width={36} height={36} className="w-9 h-9 rounded-full object-cover border-2 border-blue-500 shadow" />
                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                 </div>
-                {showProfileDropdown && (
-                  <div className={`absolute right-0 top-full mt-2 w-56 ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"} rounded-xl shadow-xl border py-2 z-50`}>
-                    <button onClick={handleLogout} className={`w-full text-left px-4 py-2 ${theme === "dark" ? "hover:bg-gray-700 text-gray-200" : "hover:bg-red-50 text-gray-700"} flex items-center gap-2 rounded-lg text-base`}>
-                      <FaSignOutAlt className="text-red-500 w-5 h-5" /> Logout
-                    </button>
-                  </div>
-                )}
+                <div className="min-w-0">
+                  <p className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} truncate`}>{userDetails?.fullName}</p>
+                  <p className={`text-xs font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} truncate`}>{userDetails?.designation}</p>
+                </div>
               </div>
+              {showProfileDropdown && (
+                <div className={`mt-2 w-full ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-xl border py-2 z-50`}>
+                  <button onClick={handleLogout} className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}>
+                    <FaSignOutAlt className="text-red-500 w-5 h-5" /> Logout
+                  </button>
+                </div>
+              )}
             </div>
+          </aside>
+        </>
+      )}
+
+      {/* Main Content */}
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${isSidebarExpanded ? 'lg:ml-72' : 'lg:ml-20'} ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        {/* Header */}
+        <header className={`${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"} border-b shadow-lg sticky top-0 h-16 flex items-center px-3 md:px-6 transition-colors duration-200 z-20 w-full`}>
+          {/* Mobile menu button: only one menu icon for mobile */}
+          <button
+            onClick={handleMobileMenuOpen}
+            className={`lg:hidden p-2 rounded-md ${theme === 'dark' ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'}`}
+            aria-label="Open menu"
+          >
+            <FaBars className="w-6 h-6" />
+          </button>
+          {/* Left: Menu Icon & Page Title */}
+          <div className="flex items-center gap-2 min-w-0">
+            <button onClick={toggleSidebar} className={`hidden lg:inline-flex p-2 rounded-full ${theme === "dark" ? "text-gray-400 hover:text-white hover:bg-gray-700" : "text-gray-500 hover:text-blue-700 hover:bg-gray-100"} transition-all duration-200`} title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}>
+              <FaBars className="w-4 h-4" />
+            </button>
+            <h1 className={`text-base font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Manager Dashboard</h1>
+          </div>
+          {/* Right: Date/Time, Theme Toggle, Profile, and Mobile Menu */}
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Theme Toggle */}
+            <button onClick={toggleTheme} className={`p-2 rounded-full ${theme === "dark" ? "text-yellow-400 hover:bg-gray-700" : "text-gray-500 hover:bg-gray-100"} transition-all duration-200`} title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
+              {theme === "dark" ? <FaSun className="w-4 h-4" /> : <FaMoon className="w-4 h-4" />}
+            </button>
+            {/* Date and Time (more visible, responsive) */}
+            <div className={`font-medium text-xs md:text-sm px-2 md:px-4 py-1 rounded-full border ${theme === "dark" ? "bg-gray-700 text-gray-200 border-gray-600" : "bg-blue-50 text-blue-700 border-blue-100"} max-w-[180px] md:max-w-[260px] truncate text-center`} title={currentDateTime}>
+              {currentDateTime}
+            </div>
+            {/* User Profile (more visible) */}
+            <div className="flex items-center relative">
+              <div className="relative cursor-pointer flex items-center gap-2" onClick={() => setShowProfileDropdown(!showProfileDropdown)}>
+                <Image src={userDetails?.employeeImage || "/placeholder-user.jpg"} alt={userDetails?.fullName || "User"} width={36} height={36} className="w-9 h-9 rounded-full object-cover border-2 border-blue-500 shadow" />
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                <div className="hidden sm:flex flex-col min-w-0 ml-2">
+                  <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} truncate`}>{userDetails?.fullName}</span>
+                  <span className={`text-xs font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} truncate`}>{userDetails?.designation}</span>
+                </div>
+              </div>
+              {showProfileDropdown && (
+                <div className={`absolute right-0 top-full mt-2 w-56 ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"} rounded-xl shadow-xl border py-2 z-50`}>
+                  <button onClick={handleLogout} className={`w-full text-left px-4 py-2 ${theme === "dark" ? "hover:bg-gray-700 text-gray-200" : "hover:bg-red-50 text-gray-700"} flex items-center gap-2 rounded-lg text-base`}>
+                    <FaSignOutAlt className="text-red-500 w-5 h-5" /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          {/* Remove duplicate mobile menu button */}
           </div>
         </header>
         {/* Main Content */}

@@ -121,28 +121,28 @@ export default function PayrollViewPage() {
     <ManagerDashboardLayout>
       <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
         {/* Modern Blue Gradient Header (like Payroll Update) */}
-        <div className="mb-8">
-          <div className={`flex items-center gap-6 rounded-2xl px-8 py-8 ${theme === 'dark' ? 'bg-[#323a48]' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}>
-            <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${theme === 'dark' ? 'bg-[#232a36]' : 'bg-blue-500 bg-opacity-30'}`}>
+        <div className="mb-4 md:mb-8">
+          <div className={`flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 rounded-2xl px-4 md:px-8 py-4 md:py-8 ${theme === 'dark' ? 'bg-[#323a48]' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}>
+            <div className={`flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-xl ${theme === 'dark' ? 'bg-[#232a36]' : 'bg-blue-500 bg-opacity-30'}`}>
               <FaMoneyBillWave className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">View Payroll</h1>
-              <p className={`text-lg ${theme === 'dark' ? 'text-blue-200' : 'text-blue-100'}`}>View payroll records for employees</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-white">View Payroll</h1>
+              <p className={`text-base md:text-lg ${theme === 'dark' ? 'text-blue-200' : 'text-blue-100'}`}>View payroll records for employees</p>
             </div>
           </div>
         </div>
         <div className="flex-1 flex flex-col items-center">
-          <section className={`rounded-2xl p-8 border shadow-xl w-full max-w-4xl mx-auto ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'}`}>
-            <h2 className={`text-xl font-bold mb-6 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Payroll Records</h2>
+          <section className={`rounded-2xl p-4 md:p-8 border shadow-xl w-full max-w-4xl mx-auto ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-blue-100'}`}>
+            <h2 className={`text-lg md:text-xl font-bold mb-4 md:mb-6 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Payroll Records</h2>
             {/* Filters and Search */}
-            <div className="flex flex-row flex-wrap gap-2 mb-6 items-center w-full">
+            <div className="flex flex-col md:flex-row flex-wrap gap-2 md:gap-4 mb-4 md:mb-6 items-stretch md:items-center w-full">
               {/* Project Dropdown */}
-              <div className="relative w-40 min-w-[140px]">
+              <div className="relative w-full md:w-40 min-w-[140px]">
                 <select
                   value={projectFilter}
                   onChange={e => { setProjectFilter(e.target.value); setCurrentPage(1); }}
-                  className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
+                  className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-xs md:text-base ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
                 >
                   {projectOptions.map((project) => (
                     <option key={project} value={project}>{project}</option>
@@ -150,11 +150,11 @@ export default function PayrollViewPage() {
                 </select>
               </div>
               {/* Month Dropdown */}
-              <div className="relative w-32 min-w-[110px]">
+              <div className="relative w-full md:w-32 min-w-[110px]">
                 <select
                   value={monthFilter}
                   onChange={e => { setMonthFilter(e.target.value); setCurrentPage(1); }}
-                  className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
+                  className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-xs md:text-base ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
                 >
                   {monthOptions.map((month) => (
                     <option key={month} value={month}>{month}</option>
@@ -162,11 +162,11 @@ export default function PayrollViewPage() {
                 </select>
               </div>
               {/* Designation Dropdown */}
-              <div className="relative w-44 min-w-[130px]">
+              <div className="relative w-full md:w-44 min-w-[130px]">
                 <select
                   value={designationFilter}
                   onChange={e => { setDesignationFilter(e.target.value); setCurrentPage(1); }}
-                  className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
+                  className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-xs md:text-base ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
                 >
                   {designationOptions.map((designation) => (
                     <option key={designation} value={designation}>{designation}</option>
@@ -174,11 +174,11 @@ export default function PayrollViewPage() {
                 </select>
               </div>
               {/* Status Dropdown */}
-              <div className="relative w-48 min-w-[120px]">
+              <div className="relative w-full md:w-48 min-w-[120px]">
                 <select
                   value={statusFilter}
                   onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                  className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
+                  className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-xs md:text-base ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
                 >
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>{status}</option>
@@ -186,20 +186,20 @@ export default function PayrollViewPage() {
                 </select>
               </div>
               {/* Search Input */}
-              <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <div className="relative w-full md:flex-1 min-w-[180px] max-w-xs">
                 <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`} />
                 <input
                   type="text"
                   placeholder="Search employee, month, year, amount..."
                   value={search}
                   onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 text-xs md:text-base ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
                 />
               </div>
             </div>
             {/* Table */}
             <div className={`overflow-x-auto rounded-xl border ${theme === 'dark' ? 'border-gray-700' : 'border-blue-100'}`}>
-              <table className={`min-w-full divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-blue-100'}`}>
+              <table className={`min-w-full divide-y text-xs md:text-base ${theme === 'dark' ? 'divide-gray-700' : 'divide-blue-100'}`}>
                 <thead className={theme === 'dark' ? 'bg-blue-950 sticky top-0 z-10' : 'bg-blue-50 sticky top-0 z-10'}>
                   <tr>
                     <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Employee</th>
@@ -248,11 +248,11 @@ export default function PayrollViewPage() {
             </div>
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className={`flex items-center justify-between px-6 py-4 border-t mt-2 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
-                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              <div className={`flex flex-col md:flex-row items-center justify-between px-2 md:px-6 py-2 md:py-4 border-t mt-2 gap-2 md:gap-0 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
+                <div className={`text-xs md:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                   Showing {((currentPage - 1) * recordsPerPage) + 1} to {Math.min(currentPage * recordsPerPage, totalRecords)} of {totalRecords} records
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 md:gap-2">
                   <button
                     onClick={() => setCurrentPage(currentPage - 1)}
                     disabled={currentPage === 1}

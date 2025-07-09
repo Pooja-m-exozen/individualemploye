@@ -519,22 +519,22 @@ const OverallAttendancePage = (): JSX.Element => {
   return (
     <ManagerOpsLayout>
       <div className={`min-h-screen font-sans ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
-        <div className="p-6">
-          <div className={`rounded-2xl p-6 shadow-lg mb-6 ${
-              theme === 'light' 
-                ? 'bg-gradient-to-r from-blue-500 to-blue-800' 
-                : 'bg-gradient-to-r from-gray-700 to-gray-800'
-            }`}>
-              <h1 className="text-3xl font-bold text-white">Overall Attendance Summary</h1>
-              <p className="text-white text-sm mt-2 opacity-90">
-                View detailed attendance and leave summaries for all employees.
-              </p>
-            </div>
-          <div className="flex gap-4 mb-6 items-center flex-wrap">
+        <div className="p-2 sm:p-6">
+          <div className={`rounded-2xl p-4 sm:p-6 shadow-lg mb-4 sm:mb-6 ${
+            theme === 'light' 
+              ? 'bg-gradient-to-r from-blue-500 to-blue-800' 
+              : 'bg-gradient-to-r from-gray-700 to-gray-800'
+          }`}>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Overall Attendance Summary</h1>
+            <p className="text-white text-xs sm:text-sm mt-1 sm:mt-2 opacity-90">
+              View detailed attendance and leave summaries for all employees.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6 items-stretch sm:items-center flex-wrap">
             <select
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              className={`border rounded-lg p-2 min-w-[120px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
+              className={`border rounded-lg p-2 w-full sm:w-auto min-w-[120px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
             >
               {Array.from({ length: 12 }, (_, i) => (
                 <option key={i + 1} value={i + 1}>
@@ -545,7 +545,7 @@ const OverallAttendancePage = (): JSX.Element => {
             <select
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className={`border rounded-lg p-2 min-w-[100px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
+              className={`border rounded-lg p-2 w-full sm:w-auto min-w-[100px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
             >
               {[2025, 2024, 2023].map((yr) => (
                 <option key={yr} value={yr}>
@@ -554,27 +554,25 @@ const OverallAttendancePage = (): JSX.Element => {
               ))}
             </select>
           </div>
-
-          <div className="flex justify-end gap-4 mb-6 items-center flex-wrap">
+          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 mb-4 sm:mb-6 items-stretch sm:items-center flex-wrap">
             <button
               onClick={downloadExcel}
-              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 w-full sm:w-auto"
               title="Download as Excel"
             >
               <FaFileExcel /> Excel
             </button>
             <button
               onClick={downloadPDF}
-              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2 w-full sm:w-auto"
               title="Download as PDF"
             >
               <FaFilePdf /> PDF
             </button>
           </div>
-
-          <div className={`mb-4 p-4 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'}`}>
-            <h3 className="font-semibold mb-2">Attendance Legend:</h3>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <div className={`mb-4 p-2 sm:p-4 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'}`}> 
+            <h3 className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">Attendance Legend:</h3>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm">
               <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-700'}`}>P</span><span>Present</span></div>
               <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700'}`}>A</span><span>Absent</span></div>
               <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>H</span><span>Holiday</span></div>
@@ -583,31 +581,30 @@ const OverallAttendancePage = (): JSX.Element => {
               <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>-</span><span>Future</span></div>
             </div>
           </div>
-
           {loading ? (
             <LoadingSkeleton />
           ) : employees.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-md" style={{ maxHeight: '70vh' }}>
-              <table className={`w-full min-w-[1200px] rounded-lg overflow-hidden text-sm ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-700'}`}>
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-md max-w-full sm:max-w-none" style={{ maxHeight: '70vh' }}>
+              <table className={`w-full min-w-[900px] sm:min-w-[1200px] rounded-lg overflow-hidden text-xs sm:text-sm ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-700'}`}> 
                 <thead className={`sticky top-0 z-10 ${theme === 'dark' ? 'bg-gray-700/80 backdrop-blur-sm' : 'bg-blue-600/90 backdrop-blur-sm'} text-white`}>
                   <tr>
-                    <th className="py-3 pl-4 pr-8 text-left font-semibold sticky left-0 bg-inherit z-20 w-64">Employee</th>
+                    <th className="py-2 sm:py-3 pl-2 sm:pl-4 pr-2 sm:pr-8 text-left font-semibold sticky left-0 bg-inherit z-20 w-40 sm:w-64">Employee</th>
                     {Array.from({ length: getDaysInMonth(year, month) }, (_, i) => (
-                      <th key={i + 1} className="p-3 text-center font-semibold">
+                      <th key={i + 1} className="p-2 sm:p-3 text-center font-semibold">
                         {new Date(year, month - 1, i + 1).toLocaleDateString("en-US", { day: "2-digit", month: "short" })}
                       </th>
                     ))}
-                    <th className="p-3 text-center font-semibold bg-green-600">P</th>
-                    <th className="p-3 text-center font-semibold bg-red-600">A</th>
-                    <th className="p-3 text-center font-semibold bg-purple-600">H</th>
-                    <th className="p-3 text-center font-semibold bg-cyan-600">CF</th>
-                    <th className="p-3 text-center font-semibold bg-yellow-600">EL</th>
-                    <th className="p-3 text-center font-semibold bg-yellow-600">SL</th>
-                    <th className="p-3 text-center font-semibold bg-yellow-600">CL</th>
-                    <th className="p-3 text-center font-semibold bg-cyan-800">CompOff Used</th>
-                    <th className="p-3 text-center font-semibold bg-blue-600">Payable</th>
+                    <th className="p-2 sm:p-3 text-center font-semibold bg-green-600">P</th>
+                    <th className="p-2 sm:p-3 text-center font-semibold bg-red-600">A</th>
+                    <th className="p-2 sm:p-3 text-center font-semibold bg-purple-600">H</th>
+                    <th className="p-2 sm:p-3 text-center font-semibold bg-cyan-600">CF</th>
+                    <th className="p-2 sm:p-3 text-center font-semibold bg-yellow-600">EL</th>
+                    <th className="p-2 sm:p-3 text-center font-semibold bg-yellow-600">SL</th>
+                    <th className="p-2 sm:p-3 text-center font-semibold bg-yellow-600">CL</th>
+                    <th className="p-2 sm:p-3 text-center font-semibold bg-cyan-800">CompOff Used</th>
+                    <th className="p-2 sm:p-3 text-center font-semibold bg-blue-600">Payable</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -644,12 +641,12 @@ const OverallAttendancePage = (): JSX.Element => {
 
                     return (
                       <tr key={employee.employeeId} className={`transition-colors duration-150 ${theme === 'dark' ? 'hover:bg-gray-700/50' : 'hover:bg-blue-50/50'}`}>
-                        <td className={`py-3 pl-4 pr-8 sticky left-0 bg-inherit z-10 whitespace-nowrap ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-                          <div className="flex items-center gap-3">
-                            <Image src={employee.imageUrl} alt={employee.fullName} width={40} height={40} className="rounded-full object-cover" />
+                        <td className={`py-2 sm:py-3 pl-2 sm:pl-4 pr-2 sm:pr-8 sticky left-0 bg-inherit z-10 whitespace-nowrap ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}> 
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <Image src={employee.imageUrl} alt={employee.fullName} width={32} height={32} className="rounded-full object-cover sm:w-10 sm:h-10 w-8 h-8" />
                             <div>
-                              <div className="font-bold">{employee.fullName}</div>
-                              <div className="text-xs opacity-70">{employee.employeeId}</div>
+                              <div className="font-bold text-xs sm:text-base">{employee.fullName}</div>
+                              <div className="text-[10px] sm:text-xs opacity-70">{employee.employeeId}</div>
                             </div>
                           </div>
                         </td>
@@ -667,20 +664,20 @@ const OverallAttendancePage = (): JSX.Element => {
                           else badgeColor = theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500';
                           
                           return (
-                            <td key={i + 1} className="p-3 text-center font-semibold">
-                              <span className={`inline-block rounded-full w-8 py-1 text-xs font-bold shadow-sm ${badgeColor}`}>{status || '-'}</span>
+                            <td key={i + 1} className="p-2 sm:p-3 text-center font-semibold">
+                              <span className={`inline-block rounded-full w-6 sm:w-8 py-1 text-[10px] sm:text-xs font-bold shadow-sm ${badgeColor}`}>{status || '-'}</span>
                             </td>
                           );
                         })}
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-green-900' : 'bg-green-100'}`}>{presentCount}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-red-900' : 'bg-red-100'}`}>{absent}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-purple-900' : 'bg-purple-100'}`}>{holidayCount}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{cfCount}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{elCount}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{slCount}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{clCount}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{compOffUsed}</td>
-                        <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{payableDays}</td>
+                        <td className={`p-2 sm:p-3 text-center font-bold ${theme === 'dark' ? 'bg-green-900' : 'bg-green-100'}`}>{presentCount}</td>
+                        <td className={`p-2 sm:p-3 text-center font-bold ${theme === 'dark' ? 'bg-red-900' : 'bg-red-100'}`}>{absent}</td>
+                        <td className={`p-2 sm:p-3 text-center font-bold ${theme === 'dark' ? 'bg-purple-900' : 'bg-purple-100'}`}>{holidayCount}</td>
+                        <td className={`p-2 sm:p-3 text-center font-bold ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{cfCount}</td>
+                        <td className={`p-2 sm:p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{elCount}</td>
+                        <td className={`p-2 sm:p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{slCount}</td>
+                        <td className={`p-2 sm:p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{clCount}</td>
+                        <td className={`p-2 sm:p-3 text-center font-bold ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{compOffUsed}</td>
+                        <td className={`p-2 sm:p-3 text-center font-bold ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{payableDays}</td>
                       </tr>
                     );
                   })}

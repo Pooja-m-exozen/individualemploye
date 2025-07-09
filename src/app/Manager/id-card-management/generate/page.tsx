@@ -777,7 +777,7 @@ export default function GenerateIDCardPage() {
         theme === 'dark'
           ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
           : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50'
-      } p-6`}>
+      } p-6 sm:p-6 xs:p-2`}> {/* Add xs:p-2 for extra small screens, keep p-6 for desktop */}
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -785,15 +785,15 @@ export default function GenerateIDCardPage() {
               theme === 'dark'
                 ? 'bg-gradient-to-r from-gray-800 to-gray-700'
                 : 'bg-gradient-to-r from-blue-600 to-blue-500'
-            }`}>
+            } xs:flex-col xs:items-start xs:gap-4 xs:px-4 xs:py-6`}> {/* Only mobile override */}
               <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${
                 theme === 'dark' ? 'bg-gray-700/50' : 'bg-blue-500 bg-opacity-30'
-              }`}>
-                <FaIdCard className="w-8 h-8 text-white" />
+              } xs:w-12 xs:h-12`}> {/* Only mobile override */}
+                <FaIdCard className="w-8 h-8 text-white xs:w-7 xs:h-7" /> {/* Only mobile override */}
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-white">ID Card Management</h1>
-                <p className={`text-lg ${theme === 'dark' ? 'text-gray-300' : 'text-blue-100'}`}>
+                <h1 className="text-3xl font-bold text-white xs:text-2xl">ID Card Management</h1> {/* Only mobile override */}
+                <p className={`text-lg ${theme === 'dark' ? 'text-gray-300' : 'text-blue-100'} xs:text-base`}> {/* Only mobile override */}
                   Generate and manage employee identification cards
                 </p>
               </div>
@@ -803,8 +803,8 @@ export default function GenerateIDCardPage() {
           {/* Tab Navigation */}
           <div className={`rounded-3xl p-2 mb-6 ${
             theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-          } border border-gray-200 shadow-lg`}>
-            <div className="flex space-x-1">
+          } border border-gray-200 shadow-lg`}> {/* Only mobile override */}
+            <div className="flex flex-col sm:flex-row sm:space-x-1 space-y-1 sm:space-y-0"> {/* Only mobile override */}
               {tabs.map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -819,9 +819,8 @@ export default function GenerateIDCardPage() {
                         : theme === 'dark'
                           ? 'text-gray-300 hover:bg-gray-700 hover:text-gray-200'
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    <tab.icon className="w-5 h-5" />
+                    } xs:gap-2 xs:px-4 xs:py-3 xs:text-sm`}> {/* Only mobile override */}
+                    <tab.icon className="w-5 h-5 xs:w-4 xs:h-4" /> {/* Only mobile override */}
                     {tab.title}
                   </button>
                 );
@@ -896,7 +895,7 @@ export default function GenerateIDCardPage() {
                 </div>
 
                 {/* Generation Form */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start xs:gap-4"> {/* Only mobile override */}
                   <div>
                     <label
                       htmlFor="employee"
@@ -977,7 +976,7 @@ export default function GenerateIDCardPage() {
                       </div>
                     )}
                   </div>
-                  <div className="mt-6">
+                  <div className="mt-6 xs:mt-4"> {/* Only mobile override */}
                     <button
                       onClick={handleGenerateRequest}
                       disabled={loading || !selectedEmployee}
@@ -1396,15 +1395,15 @@ export default function GenerateIDCardPage() {
                    
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
+                    <div className="overflow-x-auto w-full"> {/* Only mobile override */}
+                      <table className="min-w-full divide-y divide-gray-200 xs:min-w-[600px] xs:text-xs"> {/* Only mobile override */}
                         <thead className={`${
                           theme === 'dark'
                             ? 'bg-gray-700'
                             : 'bg-gradient-to-r from-gray-50 to-gray-100'
                         }`}>
                           <tr>
-                            <th className="px-8 py-4 text-left">
+                            <th className="px-8 py-4 text-left xs:px-2 xs:py-2"> {/* Only mobile override */}
                               <input
                                 type="checkbox"
                                 checked={selectedRequests.length === getTabRequests().length && getTabRequests().length > 0}
@@ -1442,8 +1441,8 @@ export default function GenerateIDCardPage() {
                               index % 2 === 0
                                 ? theme === 'dark' ? 'bg-gray-800' : 'bg-white'
                                 : theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
-                            }`}>
-                              <td className="px-8 py-6 whitespace-nowrap">
+                            } xs:text-xs`}>
+                              <td className="px-8 py-6 whitespace-nowrap xs:px-2 xs:py-3"> {/* Only mobile override */}
                                 <input
                                   type="checkbox"
                                   checked={selectedRequests.includes(request._id)}
@@ -1453,8 +1452,8 @@ export default function GenerateIDCardPage() {
                                   }`}
                                 />
                               </td>
-                              <td className="px-8 py-6 whitespace-nowrap">
-                                <div>
+                              <td className="px-8 py-6 whitespace-nowrap xs:px-2 xs:py-3"> {/* Only mobile override */}
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 xs:flex-col xs:items-start xs:gap-2"> {/* Only mobile override */}
                                   <div className={`font-semibold text-lg ${
                                     theme === 'dark' ? 'text-white' : 'text-gray-900'
                                   }`}>{request.fullName}</div>
@@ -1463,28 +1462,28 @@ export default function GenerateIDCardPage() {
                                   }`}>{request.employeeId}</div>
                                 </div>
                               </td>
-                              <td className="px-8 py-6 whitespace-nowrap">
+                              <td className="px-8 py-6 whitespace-nowrap xs:px-2 xs:py-3"> {/* Only mobile override */}
                                 <span className={`font-medium ${
                                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                                 }`}>{request.designation}</span>
                               </td>
-                              <td className="px-8 py-6 whitespace-nowrap">
+                              <td className="px-8 py-6 whitespace-nowrap xs:px-2 xs:py-3"> {/* Only mobile override */}
                                 <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
                                   {request.projectName}
                                 </span>
                               </td>
-                              <td className="px-8 py-6 whitespace-nowrap">
+                              <td className="px-8 py-6 whitespace-nowrap xs:px-2 xs:py-3"> {/* Only mobile override */}
                                 <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border transition-all duration-200 ${getStatusColor(request.status)}`}>
                                   {request.status === 'Issued' && <FaCheckCircle className="w-4 h-4 mr-2" />}
                                   {request.status}
                                 </span>
                               </td>
-                              <td className="px-8 py-6 whitespace-nowrap">
+                              <td className="px-8 py-6 whitespace-nowrap xs:px-2 xs:py-3"> {/* Only mobile override */}
                                 <div className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>
                                   {new Date(request.requestDate).toLocaleDateString()}
                                 </div>
                               </td>
-                              <td className="px-8 py-6 whitespace-nowrap">
+                              <td className="px-8 py-6 whitespace-nowrap xs:px-2 xs:py-3"> {/* Only mobile override */}
                                 <div className="flex items-center gap-3">
                                   {request.status === 'Requested' && (
                                     <>

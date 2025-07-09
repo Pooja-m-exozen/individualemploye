@@ -197,13 +197,13 @@ export default function LeaveManagementViewPage() {
         </div>
       )}
       <div
-        className={`p-4 md:p-8 min-h-screen transition-colors duration-300 ${
+        className={`p-2 md:p-8 min-h-screen transition-colors duration-300 ${
           theme === "dark" ? "bg-gray-900" : "bg-gray-50"
         }`}
       >
         {/* Header */}
         <div
-          className={`rounded-2xl mb-8 p-8 flex items-center gap-6 shadow-lg ${
+          className={`rounded-2xl mb-4 md:mb-8 p-4 md:p-8 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 shadow-lg ${
             theme === "dark"
               ? "bg-[#2d3748]"
               : "bg-gradient-to-r from-blue-600 to-blue-800 text-white"
@@ -214,22 +214,22 @@ export default function LeaveManagementViewPage() {
               theme === "dark"
                 ? "bg-gray-800 text-blue-200"
                 : "bg-white text-blue-600"
-            } p-6 rounded-full flex items-center justify-center shadow-md`}
+            } p-4 md:p-6 rounded-full flex items-center justify-center shadow-md`}
           >
-            <FaUserAlt className="text-3xl text-white" />
+            <FaUserAlt className="text-2xl md:text-3xl text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Employee Leave Report</h1>
-            <p className="text-lg">Easily manage leave details for employees in your projects.</p>
+            <h1 className="text-2xl md:text-3xl font-bold">Employee Leave Report</h1>
+            <p className="text-base md:text-lg">Easily manage leave details for employees in your projects.</p>
           </div>
         </div>
         {/* Tabs for Filtering */}
-        <div className="flex gap-4 mb-6">
-          {["All", "Approved", "Rejected", "Pending"].map((tab) => (
+        <div className="flex flex-col sm:flex-row gap-2 md:gap-4 mb-4 md:mb-6">
+          {['All', 'Approved', 'Rejected', 'Pending'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-lg font-medium transition ${
+              className={`px-4 md:px-6 py-2 rounded-lg font-medium transition text-sm md:text-base ${
                 activeTab === tab
                   ? theme === "dark"
                     ? "bg-blue-700 text-white shadow-lg"
@@ -244,14 +244,14 @@ export default function LeaveManagementViewPage() {
           ))}
         </div>
         {/* Search Bar with Filters */}
-        <div className="mb-6 flex flex-col md:flex-row items-center gap-4">
+        <div className="mb-4 md:mb-6 flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-4">
           <div className="flex-grow relative">
             <input
               type="text"
               placeholder="Search by name, date, or leave type..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 shadow-sm transition-colors duration-300 ${
+              className={`w-full px-3 md:px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 shadow-sm transition-colors duration-300 text-xs md:text-base ${
                 theme === "dark"
                   ? "bg-gray-800 border-gray-700 text-gray-100 focus:ring-blue-800 placeholder-gray-400"
                   : "bg-white border-gray-300 text-gray-900 focus:ring-blue-600 placeholder-gray-400"
@@ -274,7 +274,7 @@ export default function LeaveManagementViewPage() {
             <select
               value={filterLeaveType}
               onChange={(e) => setFilterLeaveType(e.target.value)}
-              className={`px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 shadow-sm transition-colors duration-300 ${
+              className={`px-3 md:px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 shadow-sm transition-colors duration-300 text-xs md:text-base ${
                 theme === "dark"
                   ? "bg-gray-800 border-gray-700 text-gray-100 focus:ring-blue-800"
                   : "bg-white border-gray-300 text-gray-900 focus:ring-blue-600"
@@ -288,7 +288,7 @@ export default function LeaveManagementViewPage() {
           </div>
         </div>
         <div
-          className={`rounded-xl shadow-lg p-6 overflow-x-auto transition-colors duration-300 ${
+          className={`rounded-xl shadow-lg p-2 md:p-6 overflow-x-auto transition-colors duration-300 ${
             theme === "dark" ? "bg-gray-800" : "bg-white"
           }`}
         >
@@ -299,8 +299,8 @@ export default function LeaveManagementViewPage() {
           ) : error ? (
             <div className="text-red-500 text-center py-8">{error}</div>
           ) : (
-            <div className="min-w-[1200px]">
-              <table className="w-full">
+            <div className="min-w-[900px] md:min-w-[1200px]">
+              <table className="w-full text-xs md:text-base">
                 <thead>
                   <tr className={theme === "dark" ? "border-b-2 border-gray-700" : "border-b-2 border-gray-200"}>
                     <th className={`p-4 text-sm font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Employee</th>
@@ -411,7 +411,7 @@ export default function LeaveManagementViewPage() {
               </table>
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center mt-6 gap-2">
+              <div className="flex flex-wrap justify-center items-center mt-4 md:mt-6 gap-2">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}

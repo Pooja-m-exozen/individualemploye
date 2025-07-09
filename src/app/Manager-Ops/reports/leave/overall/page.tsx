@@ -125,26 +125,26 @@ const OverallLeavePage = (): JSX.Element => {
           ? 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'
           : 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
       }`}>
-        <div className="p-6">
+        <div className="p-2 sm:p-4 md:p-6">
           {/* Header */}
-          <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${
+          <div className={`rounded-2xl mb-8 p-3 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-5 shadow-lg ${
             theme === 'light'
               ? 'bg-gradient-to-r from-blue-500 to-blue-800'
               : 'bg-gradient-to-r from-gray-800 to-gray-700'
           }`}>
-            <h1 className="text-3xl font-bold text-white">Overall Leave Report</h1>
+            <h1 className="text-lg sm:text-3xl font-bold text-white">Overall Leave Report</h1>
           </div>
 
           {/* Leave Table */}
           {loading ? (
-            <div className="flex justify-center items-center min-h-[300px]">
+            <div className="flex justify-center items-center min-h-[200px] sm:min-h-[300px]">
               <FaSpinner className={`animate-spin ${
                 theme === 'light' ? 'text-blue-600' : 'text-blue-400'
-              } w-12 h-12`} />
+              } w-10 h-10 sm:w-12 sm:h-12`} />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className={`w-full rounded-lg shadow-md overflow-hidden ${
+            <div className="overflow-x-auto w-full">
+              <table className={`min-w-[600px] w-full rounded-lg shadow-md overflow-hidden ${
                 theme === 'light' ? 'bg-white' : 'bg-gray-800'
               }`}>
                 <thead className={`${
@@ -153,14 +153,14 @@ const OverallLeavePage = (): JSX.Element => {
                     : 'bg-gradient-to-r from-gray-700 to-gray-800'
                 } text-white`}>
                   <tr>
-                    <th className="p-4 text-left font-semibold">Employee Image</th>
-                    <th className="p-4 text-left font-semibold">Employee ID</th>
-                    <th className="p-4 text-left font-semibold">Employee Name</th>
-                    <th className="p-4 text-center font-semibold">EL</th>
-                    <th className="p-4 text-center font-semibold">SL</th>
-                    <th className="p-4 text-center font-semibold">CL</th>
-                    <th className="p-4 text-center font-semibold">CompOff</th>
-                    <th className="p-4 text-center font-semibold">Actions</th>
+                    <th className="p-2 sm:p-4 text-left font-semibold text-xs sm:text-base">Employee Image</th>
+                    <th className="p-2 sm:p-4 text-left font-semibold text-xs sm:text-base">Employee ID</th>
+                    <th className="p-2 sm:p-4 text-left font-semibold text-xs sm:text-base">Employee Name</th>
+                    <th className="p-2 sm:p-4 text-center font-semibold text-xs sm:text-base">EL</th>
+                    <th className="p-2 sm:p-4 text-center font-semibold text-xs sm:text-base">SL</th>
+                    <th className="p-2 sm:p-4 text-center font-semibold text-xs sm:text-base">CL</th>
+                    <th className="p-2 sm:p-4 text-center font-semibold text-xs sm:text-base">CompOff</th>
+                    <th className="p-2 sm:p-4 text-center font-semibold text-xs sm:text-base">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -170,40 +170,40 @@ const OverallLeavePage = (): JSX.Element => {
                         ? 'hover:bg-gray-100 border-gray-200' 
                         : 'hover:bg-gray-700 border-gray-700'
                     }`}>
-                      <td className="p-4">
+                      <td className="p-2 sm:p-4">
                         <Image
                           src={employee.imageUrl}
                           alt={employee.fullName}
-                          width={48}
-                          height={48}
-                          className="w-12 h-12 rounded-full border border-gray-300 object-cover"
+                          width={40}
+                          height={40}
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-gray-300 object-cover"
                         />
                       </td>
-                      <td className={`p-4 font-medium ${
+                      <td className={`p-2 sm:p-4 font-medium ${
                         theme === 'light' ? 'text-gray-700' : 'text-gray-200'
-                      }`}>{employee.employeeId}</td>
-                      <td className={`p-4 font-medium ${
+                      } text-xs sm:text-base`}>{employee.employeeId}</td>
+                      <td className={`p-2 sm:p-4 font-medium ${
                         theme === 'light' ? 'text-gray-700' : 'text-gray-200'
-                      }`}>{employee.fullName}</td>
+                      } text-xs sm:text-base`}>{employee.fullName}</td>
                       {["EL", "SL", "CL", "CompOff"].map((type) => (
-                        <td key={type} className="p-4 text-center">
+                        <td key={type} className="p-2 sm:p-4 text-center">
                           <div className={theme === 'light' ? 'text-gray-700' : 'text-gray-300'}>
-                            <span className="block font-semibold">
+                            <span className="block font-semibold text-xs sm:text-sm">
                               Allocated: {leaveBalances[employee.employeeId]?.[type]?.allocated || 0}
                             </span>
-                            <span className="block font-semibold">
+                            <span className="block font-semibold text-xs sm:text-sm">
                               Used: {leaveBalances[employee.employeeId]?.[type]?.used || 0}
                             </span>
-                            <span className="block font-semibold">
+                            <span className="block font-semibold text-xs sm:text-sm">
                               Remaining: {leaveBalances[employee.employeeId]?.[type]?.remaining || 0}
                             </span>
                           </div>
                         </td>
                       ))}
-                      <td className="p-4 text-center">
+                      <td className="p-2 sm:p-4 text-center">
                         <button
                           onClick={() => fetchLeaveHistory(employee)}
-                          className={`px-4 py-2 rounded-lg transition-colors ${
+                          className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors text-xs sm:text-base ${
                             theme === 'light'
                               ? 'bg-blue-500 text-white hover:bg-blue-600'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -223,35 +223,34 @@ const OverallLeavePage = (): JSX.Element => {
 
       {/* Modal */}
       {showModal && selectedEmployee && (
-        <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex justify-center items-center z-10">
-          <div className={`rounded-lg shadow-lg p-6 w-full max-w-2xl relative ${
+        <div className="fixed inset-0 w-full h-full bg-black bg-opacity-50 flex justify-center items-center z-10 px-2 sm:px-0">
+          <div className={`rounded-lg shadow-lg p-3 sm:p-6 w-full max-w-xs sm:max-w-2xl relative ${
             theme === 'light' ? 'bg-white' : 'bg-gray-800'
           }`}>
             <button
               onClick={() => setShowModal(false)}
-              className={`absolute top-4 right-4 ${
+              className={`absolute top-2 right-2 sm:top-4 sm:right-4 ${
                 theme === 'light' ? 'text-gray-500 hover:text-gray-700' : 'text-gray-400 hover:text-gray-200'
-              } text-xl`
-            }
+              } text-lg sm:text-xl`}
             >
               ✖
             </button>
 
-            <div className="mb-6">
-              <h2 className={`text-2xl font-bold ${
+            <div className="mb-4 sm:mb-6">
+              <h2 className={`text-lg sm:text-2xl font-bold ${
                 theme === 'light' ? 'text-gray-800' : 'text-gray-100'
               }`}>
                 Leave History for {selectedEmployee.fullName}
               </h2>
-              <p className={`text-sm ${
+              <p className={`text-xs sm:text-sm ${
                 theme === 'light' ? 'text-gray-500' : 'text-gray-400'
               }`}>
                 Employee ID: {selectedEmployee.employeeId}
               </p>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className={`w-full rounded-lg shadow-md ${
+            <div className="overflow-x-auto w-full">
+              <table className={`min-w-[500px] w-full rounded-lg shadow-md ${
                 theme === 'light' ? 'bg-white' : 'bg-gray-800'
               }`}>
                 <thead className={`${
@@ -260,12 +259,12 @@ const OverallLeavePage = (): JSX.Element => {
                     : 'bg-gradient-to-r from-gray-700 to-gray-800'
                 } text-white`}>
                   <tr>
-                    <th className="p-4 text-left font-semibold">Leave Type</th>
-                    <th className="p-4 text-left font-semibold">Start Date</th>
-                    <th className="p-4 text-left font-semibold">End Date</th>
-                    <th className="p-4 text-left font-semibold">Days</th>
-                    <th className="p-4 text-left font-semibold">Status</th>
-                    <th className="p-4 text-left font-semibold">Reason</th>
+                    <th className="p-2 sm:p-4 text-left font-semibold text-xs sm:text-base">Leave Type</th>
+                    <th className="p-2 sm:p-4 text-left font-semibold text-xs sm:text-base">Start Date</th>
+                    <th className="p-2 sm:p-4 text-left font-semibold text-xs sm:text-base">End Date</th>
+                    <th className="p-2 sm:p-4 text-left font-semibold text-xs sm:text-base">Days</th>
+                    <th className="p-2 sm:p-4 text-left font-semibold text-xs sm:text-base">Status</th>
+                    <th className="p-2 sm:p-4 text-left font-semibold text-xs sm:text-base">Reason</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -276,19 +275,19 @@ const OverallLeavePage = (): JSX.Element => {
                           ? 'hover:bg-gray-100 border-gray-200'
                           : 'hover:bg-gray-700 border-gray-700'
                       }`}>
-                        <td className={`p-4 ${
+                        <td className={`p-2 sm:p-4 ${
                           theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                        }`}>{leave.leaveType}</td>
-                        <td className={`p-4 ${
+                        } text-xs sm:text-base`}>{leave.leaveType}</td>
+                        <td className={`p-2 sm:p-4 ${
                           theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                        }`}>{new Date(leave.startDate).toLocaleDateString()}</td>
-                        <td className={`p-4 ${
+                        } text-xs sm:text-base`}>{new Date(leave.startDate).toLocaleDateString()}</td>
+                        <td className={`p-2 sm:p-4 ${
                           theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                        }`}>{new Date(leave.endDate).toLocaleDateString()}</td>
-                        <td className={`p-4 ${
+                        } text-xs sm:text-base`}>{new Date(leave.endDate).toLocaleDateString()}</td>
+                        <td className={`p-2 sm:p-4 ${
                           theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                        }`}>{leave.numberOfDays}</td>
-                        <td className={`p-4 font-semibold ${
+                        } text-xs sm:text-base`}>{leave.numberOfDays}</td>
+                        <td className={`p-2 sm:p-4 font-semibold text-xs sm:text-base ${
                           leave.status === "Approved"
                             ? theme === 'light' ? 'text-green-600' : 'text-green-400'
                             : leave.status === "Pending"
@@ -297,14 +296,14 @@ const OverallLeavePage = (): JSX.Element => {
                         }`}>
                           {leave.status}
                         </td>
-                        <td className={`p-4 ${
+                        <td className={`p-2 sm:p-4 ${
                           theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                        }`}>{leave.reason}</td>
+                        } text-xs sm:text-base`}>{leave.reason}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className={`p-4 text-center ${
+                      <td colSpan={6} className={`p-2 sm:p-4 text-center text-xs sm:text-base ${
                         theme === 'light' ? 'text-gray-500' : 'text-gray-400'
                       }`}>
                         No leave history available.
@@ -315,10 +314,10 @@ const OverallLeavePage = (): JSX.Element => {
               </table>
             </div>
 
-            <div className="mt-6 flex justify-end">
+            <div className="mt-4 sm:mt-6 flex justify-end">
               <button
                 onClick={() => setShowModal(false)}
-                className={`px-6 py-2 rounded-lg transition-colors ${
+                className={`px-4 py-1.5 sm:px-6 sm:py-2 rounded-lg transition-colors text-xs sm:text-base ${
                   theme === 'light'
                     ? 'bg-blue-500 text-white hover:bg-blue-600'
                     : 'bg-blue-600 text-white hover:bg-blue-700'

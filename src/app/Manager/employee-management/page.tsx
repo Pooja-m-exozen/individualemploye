@@ -392,92 +392,95 @@ export default function EmployeeManagementPage() {
           : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
       }`}
     >
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {/* Header */}
         <div
-          className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r ${
+          className={`rounded-2xl mb-8 p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-5 shadow-lg bg-gradient-to-r ${
             theme === "dark"
               ? "from-gray-900 to-gray-800"
               : "from-blue-500 to-blue-800"
           }`}
         >
           <div
-            className={`rounded-xl p-4 flex items-center justify-center ${
+            className={`rounded-xl p-3 sm:p-4 flex items-center justify-center ${
               theme === "dark" ? "bg-[#232e3e]" : "bg-blue-600 bg-opacity-30"
             }`}
           >
-            <FaUsers className="w-10 h-10 text-white" />
+            <FaUsers className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Employee Management</h1>
-            <p className="text-white text-base opacity-90">Search and manage individual employee workflows.</p>
+          <div className="flex-1 text-center sm:text-left">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Employee Management</h1>
+            <p className="text-white text-sm sm:text-base opacity-90">Search and manage individual employee workflows.</p>
           </div>
         </div>
         {/* Search, Designation Filters */}
-        <div className="flex flex-row flex-wrap gap-2 mb-6 items-center w-full">
-          {/* Project Dropdown */}
-          <div className="flex-1 min-w-[180px] max-w-xs">
-            <select
-              value={projectFilter}
-              onChange={e => setProjectFilter(e.target.value)}
-              className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                theme === "dark"
-                  ? "bg-gray-800 border-blue-900 text-white"
-                  : "bg-white border-gray-200 text-black"
-              }`}
-            >
-              {projectOptions.map((project) => (
-                <option key={project} value={project}>{project}</option>
-              ))}
-            </select>
-          </div>
-          {/* Designation Dropdown */}
-          <div className="relative w-44 min-w-[130px]">
-            <select
-              value={designationFilter}
-              onChange={e => setDesignationFilter(e.target.value)}
-              className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                theme === "dark"
-                  ? "bg-gray-800 border-blue-900 text-white"
-                  : "bg-white border-gray-200 text-black"
-              }`}
-            >
-              {designationOptions.map((designation) => (
-                <option key={designation} value={designation}>{designation}</option>
-              ))}
-            </select>
-          </div>
-          {/* Search Bar */}
-          <div className="relative flex-1 min-w-[180px] max-w-xs">
-            <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
-            <input
-              type="text"
-              placeholder="Search employee name or ID..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  const found = filteredEmployees.find(emp =>
-                    emp.employeeId.toLowerCase() === search.toLowerCase() ||
-                    emp.fullName.toLowerCase() === search.toLowerCase()
-                  );
-                  if (found) {
-                    setSelectedEmployee(found);
-                    const idx = filteredEmployees.findIndex(emp => emp.employeeId === found.employeeId);
-                    setCurrentPage(Math.floor(idx / pageSize) + 1);
+        <div className="flex flex-col gap-2 mb-6 w-full sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex flex-col gap-2 w-full sm:flex-row sm:gap-2 sm:w-auto">
+            {/* Project Dropdown */}
+            <div className="relative w-full sm:w-44 min-w-[130px]">
+              <select
+                value={projectFilter}
+                onChange={e => setProjectFilter(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              >
+                {projectOptions.map((project) => (
+                  <option key={project} value={project}>{project}</option>
+                ))}
+              </select>
+            </div>
+            {/* Designation Dropdown */}
+            <div className="relative w-full sm:w-44 min-w-[130px]">
+              <select
+                value={designationFilter}
+                onChange={e => setDesignationFilter(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              >
+                {designationOptions.map((designation) => (
+                  <option key={designation} value={designation}>{designation}</option>
+                ))}
+              </select>
+            </div>
+            {/* Search Bar */}
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+              <input
+                type="text"
+                placeholder="Search employee name or ID..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const found = filteredEmployees.find(emp =>
+                      emp.employeeId.toLowerCase() === search.toLowerCase() ||
+                      emp.fullName.toLowerCase() === search.toLowerCase()
+                    );
+                    if (found) {
+                      setSelectedEmployee(found);
+                      const idx = filteredEmployees.findIndex(emp => emp.employeeId === found.employeeId);
+                      setCurrentPage(Math.floor(idx / pageSize) + 1);
+                    }
                   }
-                }
-              }}
-              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
-                theme === "dark"
-                  ? "bg-gray-800 border-blue-900 text-white"
-                  : "bg-white border-gray-200 text-black"
-              }`}
-            />
+                }}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              />
+            </div>
           </div>
         </div>
-        {/* Table */}
-        <div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+        {/* Responsive Table & Mobile Card List */}
+        {/* Desktop/tablet table: hidden on mobile */}
+        <div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"} hidden sm:block`}>
           {loading ? (
             <div className="py-12 text-center text-lg font-semibold">Loading employees...</div>
           ) : error ? (
@@ -579,6 +582,99 @@ export default function EmployeeManagementPage() {
               </div>
             )}
             </>
+          )}
+        </div>
+        {/* Mobile card list: only visible on mobile */}
+        <div className="block sm:hidden">
+          {loading ? (
+            <div className="py-12 text-center text-lg font-semibold">Loading employees...</div>
+          ) : error ? (
+            <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
+          ) : paginatedEmployees.length === 0 ? (
+            <div className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No employees found</div>
+          ) : (
+            <div className="flex flex-col gap-4 py-2">
+              {paginatedEmployees.map((emp, idx) => (
+                <div key={idx} className={`rounded-xl shadow border p-4 flex flex-col gap-2 ${theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"}`}>
+                  <div className="flex items-center gap-3">
+                    {/* Employee image if available */}
+                    {emp.personalDetails?.employeeImage && (
+                      <Image src={emp.personalDetails.employeeImage} alt="Employee" width={48} height={48} className="w-12 h-12 rounded-full object-cover border border-gray-300" />
+                    )}
+                    <div className="flex-1">
+                      <div className={`font-bold text-base ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{emp.fullName}</div>
+                      <div className="text-xs text-gray-500">ID: {emp.employeeId}</div>
+                      <div className="text-xs text-gray-500">{emp.designation}</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {workflowSteps.map((step, i) => (
+                      <button
+                        key={step.key}
+                        type="button"
+                        className={`rounded-full p-2 focus:outline-none cursor-pointer transition ring-0 text-xs flex items-center gap-1 ${emp.workflow[step.key]
+                          ? theme === "dark"
+                            ? 'bg-green-900 text-green-300'
+                            : 'bg-green-100 text-green-700'
+                          : theme === "dark"
+                            ? 'bg-yellow-900 text-yellow-300'
+                            : 'bg-yellow-100 text-yellow-700'
+                        } hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
+                        onClick={() => {
+                          setSelectedEmployee(emp);
+                          setSelectedStep(step.key);
+                        }}
+                        title={`View ${step.label} details`}
+                        tabIndex={0}
+                      >
+                        {step.icon}
+                        <span className="hidden xs:inline">{step.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setSelectedEmployee(emp)}
+                    className={`mt-2 px-4 py-2 rounded-lg font-semibold shadow w-full ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+                  >
+                    View Workflow
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Pagination Controls for mobile */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 px-4 py-4">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1 rounded border text-xs font-medium transition-colors ${
+                  currentPage === 1
+                    ? "opacity-50 cursor-not-allowed"
+                    : theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white hover:bg-blue-900"
+                    : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                }`}
+              >
+                Previous
+              </button>
+              <span className="text-xs font-semibold">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1 rounded border text-xs font-medium transition-colors ${
+                  currentPage === totalPages
+                    ? "opacity-50 cursor-not-allowed"
+                    : theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white hover:bg-blue-900"
+                    : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                }`}
+              >
+                Next
+              </button>
+            </div>
           )}
         </div>
         {/* Workflow Modal */}

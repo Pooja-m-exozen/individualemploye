@@ -176,9 +176,9 @@ export default function PayrollReportPage() {
           </div>
         </div>
         {/* Filters, Search, Export */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
-            <div className="relative w-40 min-w-[140px]">
+        <div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-2 w-full md:flex-row md:items-center md:w-auto md:flex-wrap md:gap-2">
+            <div className="relative w-full min-w-[140px] md:w-40">
               <select
                 value={projectFilter}
                 onChange={e => setProjectFilter(e.target.value)}
@@ -189,7 +189,7 @@ export default function PayrollReportPage() {
                 ))}
               </select>
             </div>
-            <div className="relative w-44 min-w-[130px]">
+            <div className="relative w-full min-w-[130px] md:w-44">
               <select
                 value={designationFilter}
                 onChange={e => setDesignationFilter(e.target.value)}
@@ -200,7 +200,7 @@ export default function PayrollReportPage() {
                 ))}
               </select>
             </div>
-            <div className="relative w-40 min-w-[120px]">
+            <div className="relative w-full min-w-[120px] md:w-40">
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
@@ -211,7 +211,7 @@ export default function PayrollReportPage() {
                 ))}
               </select>
             </div>
-            <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <div className="relative w-full min-w-[180px] max-w-full md:flex-1 md:max-w-xs">
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
@@ -222,16 +222,16 @@ export default function PayrollReportPage() {
               />
             </div>
           </div>
-          <div className="flex gap-2 justify-end">
+          <div className="flex flex-col gap-2 w-full sm:flex-row sm:justify-end sm:items-center sm:w-auto">
             <button
               onClick={downloadExcel}
-              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+              className="w-full sm:w-auto bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 justify-center"
             >
               <FaFileExport /> Export Excel
             </button>
             <button
               onClick={downloadPDF}
-              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+              className="w-full sm:w-auto bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2 justify-center"
             >
               <FaFileExport /> Export PDF
             </button>
@@ -239,7 +239,7 @@ export default function PayrollReportPage() {
         </div>
         {/* Table */}
         <div className={`overflow-x-auto rounded-xl border shadow-xl ${cardBg}`}>
-          <table className="min-w-full divide-y divide-blue-100">
+          <table className="min-w-[800px] sm:min-w-full divide-y divide-blue-100">
             <thead className={`${tableHead} sticky top-0 z-10`}>
               <tr>
                 <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${tableHeaderText}`}>Employee ID</th>
