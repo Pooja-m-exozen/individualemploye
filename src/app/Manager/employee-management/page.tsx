@@ -608,7 +608,7 @@ export default function EmployeeManagementPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {workflowSteps.map((step, i) => (
+                    {workflowSteps.map((step,) => (
                       <button
                         key={step.key}
                         type="button"

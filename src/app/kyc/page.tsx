@@ -6,7 +6,7 @@ import { isAuthenticated,  getEmployeeId } from '@/services/auth';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip } from 'react-tooltip';
-import Image from 'next/image';
+// import Image from 'next/image';
 import { useTheme } from '@/context/ThemeContext';
 
 // import classNames from 'classnames';

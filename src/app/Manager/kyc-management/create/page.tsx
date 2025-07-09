@@ -1020,13 +1020,13 @@ export default function CreateKYCPage() {
                         <div className="flex items-center gap-2 mb-2"><FaMapMarkerAlt className="text-blue-500" /><span className="font-semibold">Address Details</span></div>
                         <div className="mb-2 text-xs text-gray-400">Current Address</div>
                         <div className="grid grid-cols-1 gap-x-4 gap-y-1 mb-2">
-                          {Object.entries(addressDetails.currentAddress).filter(([k,v]) => v).map(([key, value]) => (
+                          {Object.entries(addressDetails.currentAddress).filter(([v]) => v).map(([key, value]) => (
                             <div key={key} className="flex justify-between text-sm"><span className="text-gray-500 dark:text-gray-400">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span><span className="font-medium">{value as string}</span></div>
                           ))}
                         </div>
                         <div className="mb-2 text-xs text-gray-400">Permanent Address</div>
                         <div className="grid grid-cols-1 gap-x-4 gap-y-1">
-                          {Object.entries(addressDetails.permanentAddress).filter(([k,v]) => v).map(([key, value]) => (
+                          {Object.entries(addressDetails.permanentAddress).filter(([v]) => v).map(([key, value]) => (
                             <div key={key} className="flex justify-between text-sm"><span className="text-gray-500 dark:text-gray-400">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span><span className="font-medium">{value as string}</span></div>
                           ))}
                         </div>
@@ -1035,7 +1035,7 @@ export default function CreateKYCPage() {
                       <div className={`rounded-xl p-4 shadow border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-blue-50 border-blue-200"}`}>
                         <div className="flex items-center gap-2 mb-2"><FaMoneyCheckAlt className="text-blue-500" /><span className="font-semibold">Bank Details</span></div>
                         <div className="grid grid-cols-1 gap-x-4 gap-y-1">
-                          {Object.entries(bankDetails).filter(([k,v]) => v).map(([key, value]) => (
+                          {Object.entries(bankDetails).filter(([v]) => v).map(([key, value]) => (
                             <div key={key} className="flex justify-between text-sm"><span className="text-gray-500 dark:text-gray-400">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span><span className="font-medium">{value as string}</span></div>
                           ))}
                         </div>
@@ -1044,7 +1044,7 @@ export default function CreateKYCPage() {
                       <div className={`rounded-xl p-4 shadow border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-blue-50 border-blue-200"}`}>
                         <div className="flex items-center gap-2 mb-2"><FaIdCard className="text-blue-500" /><span className="font-semibold">Identification Details</span></div>
                         <div className="grid grid-cols-1 gap-x-4 gap-y-1">
-                          {Object.entries(identificationDetails).filter(([k,v]) => v).map(([key, value]) => (
+                          {Object.entries(identificationDetails).filter(([v]) => v).map(([key, value]) => (
                             <div key={key} className="flex justify-between text-sm"><span className="text-gray-500 dark:text-gray-400">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span><span className="font-medium">{value as string}</span></div>
                           ))}
                         </div>
@@ -1053,7 +1053,7 @@ export default function CreateKYCPage() {
                       <div className={`rounded-xl p-4 shadow border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-blue-50 border-blue-200"}`}>
                         <div className="flex items-center gap-2 mb-2"><FaPhoneVolume className="text-blue-500" /><span className="font-semibold">Emergency Contact</span></div>
                         <div className="grid grid-cols-1 gap-x-4 gap-y-1">
-                          {Object.entries(emergencyContact).filter(([k,v]) => v).map(([key, value]) => (
+                          {Object.entries(emergencyContact).filter(([v]) => v).map(([key, value]) => (
                             <div key={key} className="flex justify-between text-sm"><span className="text-gray-500 dark:text-gray-400">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span><span className="font-medium">{value as string}</span></div>
                           ))}
                         </div>

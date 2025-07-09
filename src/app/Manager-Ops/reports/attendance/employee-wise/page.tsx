@@ -1109,7 +1109,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
                       </table>
                       {/* Optionally, add a card view for mobile */}
                       <div className="sm:hidden mt-4 space-y-4">
-                        {attendance.map((record, index) => {
+                        {attendance.map((record, ) => {
                           const dayType = getDayType(record.date, year, month);
                           const status = getAttendanceStatus(record, dayType);
                           let hoursWorked = dayType !== 'Working Day' ? '-' : '0h 0m';

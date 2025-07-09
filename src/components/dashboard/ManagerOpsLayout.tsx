@@ -11,7 +11,7 @@ import {
   FaCog,
   FaSun,
   FaMoon,
-  FaBell,
+  
   FaBars,
   FaSignOutAlt,
   FaCalendarAlt, // Added for Attendance
