@@ -131,9 +131,19 @@ export default function ManagerDashboardPage() {
   const [showLegend, setShowLegend] = useState(false);
   const [onLeaveToday, setOnLeaveToday] = useState<OnLeaveTodayItem[]>([]);
   const [onLeaveTodayLoading, setOnLeaveTodayLoading] = useState(true);
+  // Add isMobile state to handle window.innerWidth safely
+  const [isMobile, setIsMobile] = useState(false);
 
   // Helper for responsive padding
   const sectionPad = "px-2 sm:px-4 md:px-0";
+
+  useEffect(() => {
+    // Only run on client
+    setIsMobile(window.innerWidth < 768);
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -534,7 +544,7 @@ export default function ManagerDashboardPage() {
               });
             })()}
           </svg>
-          {(showLegend || window.innerWidth < 768) && (
+          {(showLegend || isMobile) && (
             <div className="flex flex-wrap gap-2 justify-center">
               {projectDistribution.map((p, i) => (
                 <span key={p._id} className="flex items-center gap-2 text-xs sm:text-sm">
