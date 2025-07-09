@@ -60,6 +60,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const [showOpsPassword, setShowOpsPassword] = useState(false);
   const [showManagerPassword, setShowManagerPassword] = useState(false);
   const [showHRPassword, setShowHRPassword] = useState(false);
+  const [showUserTaskPasswordModal, setShowUserTaskPasswordModal] = useState(false);
+  const [userTaskPassword, setUserTaskPassword] = useState("");
+  const [userTaskPasswordError, setUserTaskPasswordError] = useState(false);
+  const [showUserTaskPassword, setShowUserTaskPassword] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -602,6 +606,15 @@ const handleLogout = () => {
                               <FaUser className="text-orange-500 w-5 h-5" /> Coordinator View
                             </button>
                           )}
+                          {/* Add + Task option if the role is user */}
+                          {getUserRole() === 'User' && (
+                            <button
+                              onClick={() => { setShowProfileDropdown(false); setShowUserTaskPasswordModal(true); }}
+                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                            >
+                              <FaPlus className="text-blue-500 w-5 h-5" /> + Task
+                            </button>
+                          )}
                           <button
                             onClick={handleEditProfile}
                             className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
@@ -848,6 +861,58 @@ const handleLogout = () => {
                 <button
                   onClick={handleCoordinatorPasswordSubmit}
                   className="px-8 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* User Task Password Modal */}
+        {showUserTaskPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowUserTaskPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <input
+                    type={showUserTaskPassword ? 'text' : 'password'}
+                    value={userTaskPassword}
+                    onChange={(e) => setUserTaskPassword(e.target.value)}
+                    placeholder="Enter Task Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowUserTaskPassword(!showUserTaskPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showUserTaskPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {userTaskPasswordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    if (userTaskPassword === 'Kycexozen@2025!') {
+                      setUserTaskPasswordError(false);
+                      setShowUserTaskPasswordModal(false);
+                      setUserTaskPassword("");
+                      router.push('/task/dashboard');
+                    } else {
+                      setUserTaskPasswordError(true);
+                    }
+                  }}
+                  className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
                 >
                   Submit
                 </button>

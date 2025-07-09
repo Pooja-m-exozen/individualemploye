@@ -686,7 +686,7 @@ export default function AnalyticsView() {
                                 rx={3}
                                 className="transition-all duration-200 hover:opacity-80"
                                 style={{ cursor: 'pointer' }}
-                                onMouseEnter={() => {
+                                onMouseEnter={e => {
                                   setTooltipData({
                                     date: trend.date,
                                     submitted: trend.submitted,
@@ -695,8 +695,8 @@ export default function AnalyticsView() {
                                     total
                                   });
                                   setTooltipPosition({
-                                    x: x + barWidth / 2,
-                                    y: margin.top + height - submittedHeight / 2
+                                    x: e.clientX,
+                                    y: e.clientY
                                   });
                                   setShowTooltip(true);
                                 }}
@@ -713,7 +713,7 @@ export default function AnalyticsView() {
                                 rx={3}
                                 className="transition-all duration-200 hover:opacity-80"
                                 style={{ cursor: 'pointer' }}
-                                onMouseEnter={() => {
+                                onMouseEnter={e => {
                                   setTooltipData({
                                     date: trend.date,
                                     submitted: trend.submitted,
@@ -722,8 +722,8 @@ export default function AnalyticsView() {
                                     total
                                   });
                                   setTooltipPosition({
-                                    x: x + barWidth / 2,
-                                    y: margin.top + height - submittedHeight - approvedHeight / 2
+                                    x: e.clientX,
+                                    y: e.clientY
                                   });
                                   setShowTooltip(true);
                                 }}
@@ -740,7 +740,7 @@ export default function AnalyticsView() {
                                 rx={3}
                                 className="transition-all duration-200 hover:opacity-80"
                                 style={{ cursor: 'pointer' }}
-                                onMouseEnter={() => {
+                                onMouseEnter={e => {
                                   setTooltipData({
                                     date: trend.date,
                                     submitted: trend.submitted,
@@ -749,8 +749,8 @@ export default function AnalyticsView() {
                                     total
                                   });
                                   setTooltipPosition({
-                                    x: x + barWidth / 2,
-                                    y: margin.top + height - submittedHeight - approvedHeight - rejectedHeight / 2
+                                    x: e.clientX,
+                                    y: e.clientY
                                   });
                                   setShowTooltip(true);
                                 }}

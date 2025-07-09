@@ -174,6 +174,7 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
       subItems: [
         { label: "View Attendance", icon: <FaCalendarAlt />, href: "/v1/employee/admin/attendance-management" },
         { label: "Regularization", icon: <FaCog />, href: "/v1/employee/admin/attendance-management/regularization" },
+        { label: "Hourly Based", icon: <FaCog />, href: "/v1/employee/admin/attendance-management/hourly-based" },
       ],
     },
     { 
