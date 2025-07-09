@@ -398,13 +398,46 @@ export default function LeaveManagementViewPage() {
                         <td className={`px-3 py-2 text-xs whitespace-nowrap ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{leave.status}</td>
                         <td className={`px-3 py-2 text-xs whitespace-nowrap max-w-[120px] truncate ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{leave.reason}</td>
                         <td className="px-3 py-2 text-xs whitespace-nowrap text-center">
-                          <button
-                            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full transition shadow-md"
-                            title="View Details"
-                            onClick={() => setViewRecord(leave)}
-                          >
-                            <FaEye />
-                          </button>
+                          <div className="flex flex-row gap-2 justify-center items-center">
+                            <button
+                              className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full transition shadow-md"
+                              title="View Details"
+                              onClick={() => setViewRecord(leave)}
+                            >
+                              <FaEye />
+                            </button>
+                            {leave.status === "Pending" && (
+                              <>
+                                <button
+                                  className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-full transition shadow-md"
+                                  title="Approve"
+                                  onClick={async () => {
+                                    try {
+                                      await updateLeaveStatus(leave.leaveId, "Approved");
+                                      showToast({ message: "Leave approved successfully!", type: "success" });
+                                      await refreshLeaveData();
+                                    } catch {
+                                      showToast({ message: "Failed to approve leave", type: "error" });
+                                    }
+                                  }}
+                                >
+                                  {/* Check icon */}
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                                <button
+                                  className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-full transition shadow-md"
+                                  title="Reject"
+                                  onClick={() => {
+                                    setRejectLeaveId(leave.leaveId);
+                                    setRejectModalOpen(true);
+                                  }}
+                                >
+                                  {/* Times icon */}
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
