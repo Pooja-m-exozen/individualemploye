@@ -3,7 +3,7 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import type { JSX } from 'react';
 import Image from 'next/image';
-import {  FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus, FaChevronLeft,  FaUser, FaCalendarAlt, FaMoneyBillWave, FaTasks,  FaHeadset,  FaBell,  FaIdCard,  FaTimes, FaBars, FaCog, FaEdit, FaUserCheck, FaCalendarCheck, FaClipboardCheck, FaHistory, FaSun, FaMoon } from 'react-icons/fa';
+import {  FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus, FaChevronLeft,  FaUser, FaCalendarAlt, FaMoneyBillWave, FaTasks,  FaHeadset,  FaBell,  FaIdCard,  FaTimes, FaBars, FaCog, FaEdit, FaUserCheck, FaCalendarCheck, FaClipboardCheck, FaHistory, FaSun, FaMoon, FaChevronDown } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { logout, isAuthenticated, getUserRole, getEmployeeId } from '@/services/auth';
@@ -266,35 +266,37 @@ const handleLogout = () => {
                     : `${isExpanded ? 'text-blue-700' : 'text-gray-500'}`
                 }`}>{item.icon}</span>
                 {isSidebarExpanded && (
-                  <span className="font-medium truncate">{item.label}</span>
+                  <span className="ml-3 font-medium truncate">{item.label}</span>
                 )}
               </div>
               {isSidebarExpanded && (
-                <span className="ml-2 flex-shrink-0">
-                  <FaChevronRight className={`w-4 h-4 transition-transform duration-200 ${
-                    isExpanded 
-                      ? `transform rotate-90 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'}` 
-                      : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                  }`} />
-                </span>
+                <FaChevronDown className={`w-4 h-4 transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
               )}
             </button>
-            {expandedMenus.includes(item.label) && isSidebarExpanded && item.subItems && (
+            {isExpanded && isSidebarExpanded && item.subItems && (
               <ul className="pl-6 space-y-1 animate-fadeIn">
                 {item.subItems.map(subItem => (
                   <li key={subItem.label}>
                     <Link
                       href={subItem.href || '#'}
-                      className={`w-full flex items-center px-4 py-2.5 text-sm rounded-xl transition-all duration-200 ${
+                      className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
                         theme === 'dark'
-                          ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                          : 'text-gray-500 hover:bg-blue-50 hover:text-blue-700'
+                          ? `${pathname === subItem.href 
+                              ? 'bg-gray-700 text-white' 
+                              : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`
+                          : `${pathname === subItem.href
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`
                       }`}
                     >
-                      <span className={`text-sm w-8 ${
-                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                      <span className={`text-xl w-8 transition-colors ${
+                        theme === 'dark'
+                          ? `${pathname === subItem.href ? 'text-blue-400' : 'text-gray-400'}`
+                          : `${pathname === subItem.href ? 'text-blue-700' : 'text-gray-500'}`
                       }`}>{subItem.icon}</span>
-                      <span className="font-medium truncate">{subItem.label}</span>
+                      {isSidebarExpanded && (
+                        <span className="ml-3 font-medium truncate">{subItem.label}</span>
+                      )}
                     </Link>
                   </li>
                 ))}
@@ -320,7 +322,7 @@ const handleLogout = () => {
                 : `${isActive ? 'text-blue-700' : 'text-gray-500'}`
             }`}>{item.icon}</span>
             {isSidebarExpanded && (
-              <span className="font-medium truncate">{item.label}</span>
+              <span className="ml-3 font-medium truncate">{item.label}</span>
             )}
           </Link>
         )}
@@ -409,7 +411,7 @@ const handleLogout = () => {
     <UserContext.Provider value={userDetails}>
       <div className={`min-h-screen flex ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
         {/* Sidebar (desktop) */}
-        <aside className={`hidden lg:flex flex-col fixed inset-y-0 left-0 w-72 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-r shadow-xl z-30`}>
+        <aside className={`hidden lg:flex flex-col fixed inset-y-0 left-0 transition-all duration-300 ${isSidebarExpanded ? 'w-72' : 'w-20'} ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-r shadow-xl z-30`}>
           {/* Logo and Toggle */}
           <div className={`flex items-center justify-between p-5 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} h-[65px]`}>
             <div className={`flex items-center ${isSidebarExpanded ? 'justify-start' : 'justify-center'} w-full`}>
@@ -526,7 +528,7 @@ const handleLogout = () => {
         )}
 
         {/* Main Content */}
-        <div className={`flex-1 flex flex-col min-w-0 lg:ml-72 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className={`flex-1 flex flex-col min-w-0 ${isSidebarExpanded ? 'lg:ml-72' : 'lg:ml-20'} ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
           {/* Header */}
           <header className={`sticky top-0 z-20 h-16 flex items-center px-4 md:px-8 border-b w-full
             ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}

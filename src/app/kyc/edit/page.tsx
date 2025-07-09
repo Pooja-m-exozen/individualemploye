@@ -425,15 +425,14 @@ export default function EditKYC() {
 
       {/* Instructions Panel */}
       <div className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-        <div className="max-w-5xl mx-auto px-4 py-4 mt-6 rounded-lg border "
+        <div className="max-w-5xl mx-auto px-4 py-4 mt-6 rounded-lg"
           style={{marginTop: '1.5rem'}}
         >
-          <div className={`border ${
-            theme === 'dark' 
-              ? 'bg-gray-800 border-gray-700' 
-              : 'bg-white border-gray-200'
-          } p-0`}
-          >
+          <div className={
+            `${theme === 'dark' 
+              ? 'bg-gray-800' 
+              : 'bg-white'} p-0`
+          }>
             <div className="flex items-start gap-4 p-4">
               <div className={`p-2 rounded-lg ${
                 theme === 'dark' 
@@ -552,29 +551,29 @@ export default function EditKYC() {
 
           {/* Main Content Area */}
           <div className="flex-1">
-            <div className="space-y-6">
-              {/* Back Button and Title */}
-              <div className="flex items-center gap-4 mt-16">
-                <button
-                  onClick={() => router.push('/kyc')}
-                  className={`p-2 rounded-xl transition-colors ${
-                    theme === 'dark'
-                      ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200'
-                      : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <FaArrowLeft className="w-5 h-5" />
-                </button>
-                <div className="max-w-md">
-                  <h1 className={`text-2xl font-bold ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>Edit KYC Information</h1>
-                  <p className={
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                  }>Update your personal and identity information</p>
-                </div>
+            {/* Move the Edit KYC Information title to the top of the main content area */}
+            <div className="flex items-center gap-4 mb-8">
+              <button
+                onClick={() => router.push('/kyc')}
+                className={`p-2 rounded-xl transition-colors ${
+                  theme === 'dark'
+                    ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200'
+                    : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <FaArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="max-w-md">
+                <h1 className={`text-2xl font-bold ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>Edit KYC Information</h1>
+                <p className={
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                }>Update your personal and identity information</p>
               </div>
+            </div>
 
+            <div className="space-y-6">
               {/* Form Sections */}
               <form onSubmit={handleSubmit} className="space-y-6">
                 <AnimatePresence mode="wait">
