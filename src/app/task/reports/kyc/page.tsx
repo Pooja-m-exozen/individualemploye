@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import TaskDashboardLayout from "@/components/dashboard/TaskDashboardLayout";
-import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaTrash, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaEye, FaSort, FaSortUp, FaSortDown, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
+import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaSort, FaSortUp, FaSortDown, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
 import EditKYCModal from "@/components/dashboard/EditKYCModal";
 import ViewKYCModal from "@/components/dashboard/ViewKYCModal";
 import { useTheme } from "@/context/ThemeContext";
@@ -605,41 +605,124 @@ export default function ViewAllKYCPage() {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center gap-2">
                                 <button
-                                  onClick={() => setModal({ type: 'edit', data: form })}
-                                  className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105
-                                    ${theme === 'dark' ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                  title="Edit KYC"
-                                >
-                                  <FaEdit className="w-3 h-3" />
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => setModal({ type: 'view', data: form })}
-                                  className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105
-                                    ${theme === 'dark' ? 'bg-gray-700 text-blue-200 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                                  title="View Details"
-                                >
-                                  <FaEye className="w-3 h-3" />
-                                  View
-                                </button>
-                                <button
                                   onClick={async () => {
-                                    if (window.confirm('Are you sure you want to delete this KYC record? This action cannot be undone.')) {
+                                    const jsPDF = (await import('jspdf')).default;
+                                    const autoTable = (await import('jspdf-autotable')).default;
+                                    const doc = new jsPDF();
+                                    const { personalDetails, addressDetails, bankDetails, identificationDetails, emergencyContact } = form;
+
+                                    // Helper to fetch image as data URI (skip for now, or use a placeholder)
+                                    const getImageDataUri = async (url: string): Promise<string | null> => {
                                       try {
-                                        await fetch(`https://cafm.zenapi.co.in/api/kyc/${form.personalDetails.employeeId}`, { method: 'DELETE' });
-                                        setKYCForms(prev => prev.filter(f => f._id !== form._id));
-                                        setToast({ type: 'success', message: 'KYC record deleted successfully.' });
+                                        const response = await fetch(url);
+                                        if (!response.ok) return null;
+                                        const blob = await response.blob();
+                                        return await new Promise<string | null>((resolve) => {
+                                          const reader = new FileReader();
+                                          reader.onloadend = () => {
+                                            if (typeof reader.result === 'string') {
+                                              resolve(reader.result);
+                                            } else {
+                                              resolve(null);
+                                            }
+                                          };
+                                          reader.onerror = () => resolve(null);
+                                          reader.readAsDataURL(blob);
+                                        });
                                       } catch {
-                                        setToast({ type: 'error', message: 'Failed to delete KYC record.' });
+                                        return null;
+                                      }
+                                    };
+
+                                    // Header
+                                    doc.setFontSize(18);
+                                    doc.setFont('helvetica', 'bold');
+                                    doc.text("Employee KYC Document", 105, 20, { align: "center" });
+                                    doc.setLineWidth(0.5);
+                                    doc.line(15, 25, 195, 25);
+
+                                    // Employee image (optional)
+                                    if (personalDetails.employeeImage) {
+                                      const imgData = await getImageDataUri(personalDetails.employeeImage);
+                                      if (typeof imgData === 'string') {
+                                        doc.addImage(imgData, 'JPEG', 150, 30, 40, 40);
+                                        doc.rect(150, 30, 40, 40);
                                       }
                                     }
+
+                                    // Summary fields
+                                    doc.setFontSize(10);
+                                    let yPos: number = 40;
+                                    const addSummaryField = (label: string, value: string) => {
+                                      doc.setFont('helvetica', 'bold');
+                                      doc.text(label, 15, yPos);
+                                      doc.setFont('helvetica', 'normal');
+                                      doc.text(value, 50, yPos);
+                                      yPos += 7;
+                                    };
+                                    addSummaryField("Full Name:", personalDetails.fullName);
+                                    addSummaryField("Employee ID:", personalDetails.employeeId);
+                                    addSummaryField("Project Name:", personalDetails.projectName);
+                                    addSummaryField("Designation:", personalDetails.designation);
+                                    addSummaryField("Date of Joining:", new Date(personalDetails.dateOfJoining).toLocaleDateString());
+
+                                    const tableStartY = 80;
+                                    const createTable = (title: string, data: Record<string, string | number | boolean | string[]>, startY?: number): void => {
+                                      const tableData = Object.entries(data).map(([key, value]) => {
+                                        const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+                                        const valueText = Array.isArray(value) ? value.join(', ') : String(value);
+                                        return [formattedKey, valueText];
+                                      });
+                                      autoTable(doc, {
+                                        startY: startY || ((doc as object as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ? (doc as object as { lastAutoTable?: { finalY: number } }).lastAutoTable!.finalY + 10 : 80),
+                                        head: [[{ content: title, colSpan: 2, styles: { halign: 'left', fillColor: [40, 140, 153], textColor: [255, 255, 255] } }]],
+                                        body: tableData,
+                                        theme: 'grid',
+                                        headStyles: { fillColor: [22, 160, 133] },
+                                        columnStyles: {
+                                          0: { fontStyle: 'bold', cellWidth: 50 },
+                                          1: { cellWidth: 'auto' }
+                                        },
+                                      });
+                                    };
+                                    createTable("Personal Details", personalDetails, tableStartY);
+                                    createTable("Address Details (Permanent)", addressDetails.permanentAddress);
+                                    createTable("Address Details (Current)", addressDetails.currentAddress);
+                                    createTable("Bank Details", bankDetails);
+                                    createTable("Identification Details", identificationDetails);
+                                    createTable("Emergency Contact", emergencyContact);
+
+                                    let finalY: number = (doc as object as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? tableStartY;
+                                    finalY += 10;
+                                    if (finalY > 240) { doc.addPage(); finalY = 20; }
+                                    doc.setFontSize(10);
+                                    doc.setFont('helvetica', 'bold');
+                                    doc.text("Acknowledgement", 15, finalY);
+                                    finalY += 5;
+                                    doc.setFontSize(8);
+                                    doc.setFont('helvetica', 'italic');
+                                    const acknowledgementText = "I hereby declare that the information provided is true and correct to the best of my knowledge and belief. I understand that any false information may lead to disciplinary action, including termination of employment.";
+                                    const splitText = doc.splitTextToSize(acknowledgementText, 180);
+                                    doc.text(splitText, 15, finalY);
+                                    finalY += (splitText.length * 3) + 15;
+                                    if (finalY > 250) { doc.addPage(); finalY = 40; }
+                                    const signatureY = finalY;
+                                    doc.setFontSize(10);
+                                    doc.setFont('helvetica', 'normal');
+                                    doc.line(15, signatureY + 15, 75, signatureY + 15);
+                                    doc.text("Employee Signature", 25, signatureY + 20);
+                                    doc.line(130, signatureY + 15, 190, signatureY + 15);
+                                    doc.text("Authorized Signatory", 135, signatureY + 20);
+                                    doc.text("(Exozen Pvt. Ltd.)", 138, signatureY + 25);
+
+                                    doc.save(`KYC-Details-${personalDetails.employeeId}.pdf`);
                                   }}
                                   className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105
-                                    ${theme === 'dark' ? 'bg-red-900/30 text-red-200 hover:bg-red-900/50' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
-                                  title="Delete KYC"
+                                    ${theme === 'dark' ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                                  title="Download KYC PDF"
                                 >
-                                  <FaTrash className="w-3 h-3" />
-                                  Delete
+                                  <FaDownload className="w-3 h-3" />
+                                  Download
                                 </button>
                               </div>
                             </td>
