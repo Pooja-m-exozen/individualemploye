@@ -1,147 +1,261 @@
 "use client";
-import React, { useState, useMemo, useEffect } from "react";
-import { FaSearch, FaCalendarAlt, FaFileExport } from "react-icons/fa";
+
+import React, { JSX, useEffect, useState } from "react";
+import ManagerLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { useTheme } from "@/context/ThemeContext";
+import { FaSpinner,  FaFilePdf, FaFileExcel, FaInfoCircle } from "react-icons/fa";
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import 'react-tooltip/dist/react-tooltip.css';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
-// Define the type for attendance record
+interface Employee {
+  employeeId: string;
+  fullName: string;
+  designation: string;
+  projectName: string;
+  imageUrl: string;
+}
+
+interface Attendance {
+  date: string;
+  status: string;
+  punchInTime?: string;
+  punchOutTime?: string;
+}
+
+interface LeaveRecord {
+  leaveId?: string;
+  employeeId: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+}
+
+const GOVERNMENT_HOLIDAYS = [
+  { date: '2024-01-26', description: 'Republic Day' },
+  { date: '2024-08-15', description: 'Independence Day' },
+];
+
+const isSecondOrFourthSaturday = (date: Date): boolean => {
+  if (date.getDay() !== 6) return false;
+  const saturday = Math.floor((date.getDate() - 1) / 7) + 1;
+  return saturday === 2 || saturday === 4;
+};
+
+const isHoliday = (date: Date): boolean => {
+  const day = date.getDay();
+  const dateString = date.toISOString().split('T')[0];
+  if (day === 0) return true;
+  if (isSecondOrFourthSaturday(date)) return true;
+  return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
+};
+
+const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string, punchInTime?: string, punchOutTime?: string): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const checkDate = new Date(date);
+  checkDate.setHours(0, 0, 0, 0);
+
+  if (checkDate > today) {
+    return '';
+  }
+
+  const onLeave = leaves.find(leave => {
+    const startDate = new Date(leave.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(leave.endDate);
+    endDate.setHours(0, 0, 0, 0);
+    return checkDate >= startDate && checkDate <= endDate && leave.status === 'Approved';
+  });
+
+  if (onLeave) {
+    return onLeave.leaveType;
+  }
+
+  if (isHoliday(date)) {
+    if (punchInTime && punchOutTime) return 'CF';
+    return 'H';
+  }
+
+  const isToday = checkDate.getTime() === today.getTime();
+  return (status === 'Present' && punchInTime && (punchOutTime || isToday)) ? 'P' : 'A';
+};
+
+// type WeekOffType = 'sunday' | 'saturday';
+// const getWeekOffs = (year: number, month: number): { date: string, type: WeekOffType }[] => {
+//   const daysInMonth = new Date(year, month, 0).getDate();
+//   const weekOffs: { date: string, type: WeekOffType }[] = [];
+//   for (let day = 1; day <= daysInMonth; day++) {
+//     const date = new Date(year, month - 1, day);
+//     if (date.getDay() === 0) {
+//       weekOffs.push({ date: date.toISOString().split('T')[0], type: 'sunday' });
+//     } else if (isSecondOrFourthSaturday(date)) {
+//       weekOffs.push({ date: date.toISOString().split('T')[0], type: 'saturday' });
+//     }
+//   }
+//   return weekOffs;
+// };
+
+const getPayableDays = (attendance: Attendance[]): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  return attendance.filter(a => {
+    const attendanceDate = new Date(a.date);
+    attendanceDate.setHours(0, 0, 0, 0);
+    if (attendanceDate > today) return false;
+    return ['P', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff'].includes(a.status);
+  }).length;
+};
+
+const getBase64FromUrl = async (url: string, retries = 3): Promise<string> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to convert image to base64'));
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`Retrying image fetch, ${retries} attempts remaining`);
+      return getBase64FromUrl(url, retries - 1);
+    }
+    throw error;
+  }
+};
+
+const addLogoToPDF = async (doc: jsPDF, x: number, y: number, width: number, height: number): Promise<void> => {
+  try {
+    const logoBase64 = await getBase64FromUrl("/v1/employee/exozen_logo1.png");
+    doc.addImage(logoBase64, 'PNG', x, y, width, height);
+  } catch {
+    console.warn('Failed to load primary logo, trying fallback logo');
+    try {
+      const fallbackLogoBase64 = await getBase64FromUrl('/exozen_logo.png');
+      doc.addImage(fallbackLogoBase64, 'PNG', x, y, width, height);
+    } catch (fallbackError) {
+      console.error('Failed to load both logos:', fallbackError);
+      doc.setFontSize(12);
+      doc.setTextColor(150, 150, 150);
+      doc.text('EXOZEN', x, y + height / 2);
+    }
+  }
+};
+
+interface KycForm {
+  personalDetails: {
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    projectName: string;
+    employeeImage?: string;
+  };
+}
+interface KycApiResponse {
+  kycForms: KycForm[];
+}
 interface AttendanceRecord {
-	employeeId: string;
-	projectName: string;
-	date: string;
-	punchInTime?: string;
-	punchOutTime?: string;
-	status: string;
-	_id?: string;
+  employeeId: string;
+  projectName: string;
+  date: string;
+  status: string;
+  punchInTime?: string;
+  punchOutTime?: string;
+}
+interface AttendanceApiResponse {
+  attendance: AttendanceRecord[];
+}
+interface LeaveHistoryResponse {
+  leaveHistory: LeaveRecord[];
 }
 
-interface IdCard {
-	employeeId: string;
-	designation: string;
-}
+const OverallAttendancePage = (): JSX.Element => {
+  const { theme } = useTheme();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [attendanceData, setAttendanceData] = useState<Record<string, Attendance[]>>({});
+  const [leaveData, setLeaveData] = useState<Record<string, LeaveRecord[]>>({});
+  const [loading, setLoading] = useState<boolean>(true);
+  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
+  const [year, setYear] = useState<number>(new Date().getFullYear());
+  const [activeTab, setActiveTab] = useState<'overall' | 'consolidated'>('overall');
+  const router = useRouter();
+  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [selectedDesignation, setSelectedDesignation] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-export default function AttendanceReportPage() {
-	const { theme } = useTheme();
-	const [search, setSearch] = useState("");
-	const [projectFilter, setProjectFilter] = useState("All Projects");
-	const [designationFilter, setDesignationFilter] = useState("All Designations");
-	const [statusFilter, setStatusFilter] = useState("All Statuses");
-	const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-	const [designationOptions, setDesignationOptions] = useState<string[]>(["All Designations"]);
-	const [designationMap, setDesignationMap] = useState<Record<string, string>>({});
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
-	const [currentPage, setCurrentPage] = useState(1);
-	const rowsPerPage = 15;
+  useEffect(() => {
+    const fetchEmployeesAndLeaves = async () => {
+      setLoading(true);
+      try {
+        const kycResponse = await fetch("https://cafm.zenapi.co.in/api/kyc");
+        const kycData: KycApiResponse = await kycResponse.json();
 
-	useEffect(() => {
-		async function fetchData() {
-			setLoading(true);
-			setError("");
-			try {
-				const [attendanceRes, idCardRes] = await Promise.all([
-					fetch("https://cafm.zenapi.co.in/api/attendance/all"),
-					fetch("https://cafm.zenapi.co.in/api/id-cards/all"),
-				]);
-				const attendanceData = await attendanceRes.json();
-				const idCardData = await idCardRes.json();
-				// Fix: Only check for attendanceData.attendance array
-				if (Array.isArray(attendanceData.attendance)) {
-					setAttendanceRecords(attendanceData.attendance);
-				} else {
-					setError("Failed to load attendance records.");
-				}
-				if (idCardData.allIdCards) {
-					const designations = Array.from(
-						new Set(
-							idCardData.allIdCards
-								.map((f: IdCard) => (f.designation ? String(f.designation) : ""))
-								.filter((d: string) => Boolean(d))
-						)
-					) as string[];
-					setDesignationOptions(["All Designations", ...designations]);
-					const map: Record<string, string> = {};
-					idCardData.allIdCards.forEach((f: IdCard) => {
-						if (f.employeeId && f.designation) map[f.employeeId] = String(f.designation);
-					});
-					setDesignationMap(map);
-				}
-			} catch {
-				setError("Error fetching data.");
-			}
-			setLoading(false);
-		}
-		fetchData();
-	}, []);
+        if (kycData.kycForms) {
+          const filteredEmployees = kycData.kycForms
+            // .filter((form: KycForm) => form.personalDetails.projectName === "Exozen - ")
+            .map((form: KycForm) => ({
+              employeeId: form.personalDetails.employeeId,
+              fullName: form.personalDetails.fullName,
+              designation: form.personalDetails.designation,
+              projectName: form.personalDetails.projectName,
+              imageUrl: form.personalDetails.employeeImage || "/default-avatar.png",
+            }));
+          setEmployees(filteredEmployees);
 
-	const filteredRecords = useMemo(() => {
-		return attendanceRecords.filter((rec) => {
-			const matchesSearch =
-				search === "" ||
-				rec.employeeId?.toLowerCase().includes(search.toLowerCase());
-			const matchesProject =
-				projectFilter === "All Projects" || rec.projectName === projectFilter;
-			const recDesignation = designationMap[rec.employeeId] || "";
-			const matchesDesignation =
-				designationFilter === "All Designations" || recDesignation === designationFilter;
-			const matchesStatus =
-				statusFilter === "All Statuses" || rec.status === statusFilter;
-			return (
-				matchesSearch &&
-				matchesProject &&
-				matchesDesignation &&
-				matchesStatus
-			);
-		});
-	}, [search, projectFilter, designationFilter, statusFilter, attendanceRecords, designationMap]);
+          const leavePromises = filteredEmployees.map(emp =>
+            fetch(`https://cafm.zenapi.co.in/api/leave/history/${emp.employeeId}`)
+              .then(res => res.json())
+              .then((data: LeaveHistoryResponse) => ({
+                employeeId: emp.employeeId,
+                leaves: data.leaveHistory || []
+              }))
+          );
+          
+          const allLeaves = await Promise.all(leavePromises);
+          const leaveMap: Record<string, LeaveRecord[]> = {};
+          allLeaves.forEach(empLeaves => {
+            leaveMap[empLeaves.employeeId] = empLeaves.leaves;
+          });
+          setLeaveData(leaveMap);
+        }
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-	const paginatedRecords = useMemo(() => {
-		const start = (currentPage - 1) * rowsPerPage;
-		return filteredRecords.slice(start, start + rowsPerPage);
-	}, [filteredRecords, currentPage]);
-	const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);
+    fetchEmployeesAndLeaves();
+  }, []);
 
-	const projectOptions = useMemo(() => {
-		const projects = new Set(attendanceRecords.map((rec) => rec.projectName).filter(Boolean));
-		return ["All Projects", ...Array.from(projects).sort()];
-	}, [attendanceRecords]);
-	const statusOptions = useMemo(() => {
-		const statuses = new Set(attendanceRecords.map((rec) => String(rec.status)).filter((s: string) => Boolean(s)));
-		return ["All Statuses", ...Array.from(statuses)];
-	}, [attendanceRecords]);
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      if (employees.length === 0) return;
+      setLoading(true);
+      try {
+        const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/all`);
+        const data: AttendanceApiResponse = await response.json();
+        
+        const attendanceMap: Record<string, Attendance[]> = {};
+        
+        employees.forEach((employee) => {
+          const employeeAttendance = data.attendance.filter((record: AttendanceRecord) => 
+            record.employeeId === employee.employeeId
+          );
+          const employeeLeaves = leaveData[employee.employeeId] || [];
 
-	function downloadExcel() {
-		const data = filteredRecords.map((rec) => ({
-			"Employee ID": rec.employeeId,
-			"Project": rec.projectName,
-			"Designation": designationMap[rec.employeeId] || "-",
-			"Date": rec.date ? new Date(rec.date).toLocaleDateString() : "-",
-			"Status": rec.status,
-		}));
-		const worksheet = XLSX.utils.json_to_sheet(data);
-		const workbook = XLSX.utils.book_new();
-		XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Report");
-		XLSX.writeFile(workbook, "attendance_report.xlsx");
-	}
-	function downloadPDF() {
-		const doc = new jsPDF();
-		autoTable(doc, {
-			head: [["Employee ID", "Project", "Designation", "Date", "Status"]],
-			body: filteredRecords.map((rec) => [
-				rec.employeeId,
-				rec.projectName,
-				designationMap[rec.employeeId] || "-",
-				rec.date ? new Date(rec.date).toLocaleDateString() : "-",
-				rec.status,
-			]),
-			startY: 20,
-			styles: { fontSize: 10 },
-			headStyles: { fillColor: [41, 128, 185] },
-		});
-		doc.save("attendance_report.pdf");
-	}
+          const daysInMonth = new Date(year, month, 0).getDate();
+          const monthAttendance: Attendance[] = [];
 
 	return (
 		<div className={`min-h-screen font-sans ${theme === "dark" ? "bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950" : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"}`}>

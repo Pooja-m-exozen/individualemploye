@@ -88,7 +88,6 @@ const menuItems = [
       { label: "Stores", href: "/Manager/reports/stores" },
       { label: "Payroll", href: "/Manager/reports/payroll" },
       { label: "Project", href: "/Manager/reports/project" },
-      { label: "Employee", href: "/Manager/reports/employee" },
     ]
   },
 ];

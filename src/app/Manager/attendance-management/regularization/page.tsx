@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
-import { FaSearch, FaCalendarAlt, FaFileExport } from "react-icons/fa";
+import { FaSearch, FaCalendarAlt, FaFileExport, FaEye, FaCheck, FaTimes } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { fetchAllRegularizations, updateRegularizationStatus } from "@/services/regularization";
 import type { RegularizationRecord } from "@/types/regularization";
@@ -200,13 +200,13 @@ export default function AttendanceReportPage() {
                             onClick={downloadExcel}
                             className={`px-4 py-2 min-w-[120px] md:min-w-[140px] rounded-lg flex items-center justify-center gap-2 transition-colors text-xs md:text-base ${theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-500 text-white hover:bg-green-600"}`}
                         >
-                            <FaFileExport /> Export Excel
+                            <FaFileExport /> Excel
                         </button>
                         <button
                             onClick={downloadPDF}
                             className={`px-4 py-2 min-w-[120px] md:min-w-[140px] rounded-lg flex items-center justify-center gap-2 transition-colors text-xs md:text-base ${theme === "dark" ? "bg-red-700 text-white hover:bg-red-800" : "bg-red-500 text-white hover:bg-red-600"}`}
                         >
-                            <FaFileExport /> Export PDF
+                            <FaFileExport /> PDF
                         </button>
                     </div>
                 </div>
@@ -270,21 +270,30 @@ export default function AttendanceReportPage() {
                                         <td className={`px-4 py-3 text-center ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                                             <div className="flex flex-col md:flex-row gap-2 justify-center items-center">
                                                 <button
-                                                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+                                                    className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full transition shadow-md"
+                                                    title="View Details"
                                                     onClick={() => setViewRecord(rec)}
-                                                >View</button>
+                                                >
+                                                    <FaEye />
+                                                </button>
                                                 {rec.regularizationStatus === "Pending" && (
                                                     <>
                                                         <button
-                                                            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition"
+                                                            className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-full transition shadow-md"
+                                                            title="Approve"
                                                             onClick={() => handleAction(rec._id, "approve")}
                                                             disabled={loading}
-                                                        >Approve</button>
+                                                        >
+                                                            <FaCheck />
+                                                        </button>
                                                         <button
-                                                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition"
+                                                            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-full transition shadow-md"
+                                                            title="Reject"
                                                             onClick={() => handleReject(rec._id)}
                                                             disabled={loading}
-                                                        >Reject</button>
+                                                        >
+                                                            <FaTimes />
+                                                        </button>
                                                     </>
                                                 )}
                                             </div>

@@ -27,9 +27,10 @@ import { useTheme } from "@/context/ThemeContext";
 
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday} from 'date-fns';
-import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
+import { CircularProgressbar as OriginalCircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { calculateHoursUtc } from '../../utils/attendanceUtils';
+import type { FC } from 'react';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
@@ -60,6 +61,9 @@ interface StatusInfo {
   code: string;
   color: string;
 }
+
+// Type-cast workaround for JSX compatibility
+const CircularProgressbar = OriginalCircularProgressbar as unknown as FC<Record<string, unknown>>;
 
 function ViewAttendanceContent() {
   const router = useRouter();

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { FaTshirt, FaSearch, FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaUser, FaTable, FaThLarge, FaDownload, FaEye, FaTimes } from 'react-icons/fa';
+import { FaTshirt, FaSearch, FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaUser, FaTable, FaThLarge, FaDownload, FaEye, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import ManagerDashboardLayout from '@/components/dashboard/ManagerDashboardLayout';
 import { useTheme } from "@/context/ThemeContext";
 
@@ -17,11 +17,11 @@ interface UniformRequest {
 const statusBadge = (status: string) => {
 	switch (status) {
 		case 'Approved':
-			return <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold"><FaCheckCircle /> Approved</span>;
+			return <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-semibold border border-emerald-200"><FaCheckCircle className="w-3 h-3" /> Approved</span>;
 		case 'Rejected':
-			return <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-semibold"><FaTimesCircle /> Rejected</span>;
+			return <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1.5 rounded-full text-xs font-semibold border border-red-200"><FaTimesCircle className="w-3 h-3" /> Rejected</span>;
 		default:
-			return <span className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold"><FaHourglassHalf /> Pending</span>;
+			return <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full text-xs font-semibold border border-amber-200"><FaHourglassHalf className="w-3 h-3" /> Pending</span>;
 	}
 };
 
@@ -54,10 +54,11 @@ const UniformViewPage = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState(1);
-	const rowsPerPage = 10;
+	const rowsPerPage = 12;
 	const [viewModal, setViewModal] = useState<{ open: boolean, request: UniformRequest | null }>({ open: false, request: null });
 	const [projectFilter, setProjectFilter] = useState('All Projects');
 	const [designationFilter, setDesignationFilter] = useState('All Designations');
+
 
 	useEffect(() => {
 		const fetchUniforms = async () => {
@@ -97,6 +98,12 @@ const UniformViewPage = () => {
 		if (page >= 1 && page <= totalPages) setCurrentPage(page);
 	};
 
+	useEffect(() => {
+		if (viewModal.open && viewModal.request) {
+			console.log('Modal should render', viewModal);
+		}
+	}, [viewModal]);
+
 	return (
 		<ManagerDashboardLayout>
 			<div className={`min-h-screen flex flex-col items-center py-8 ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
@@ -106,7 +113,7 @@ const UniformViewPage = () => {
 						<div className={`flex items-center justify-center w-16 h-16 rounded-xl ${theme === 'dark' ? 'bg-black bg-opacity-60' : 'bg-blue-500 bg-opacity-30'}`}>
 							<FaTshirt className="w-8 h-8 text-white" />
 						</div>
-						<div>
+						<div className="flex-1">
 							<h1 className="text-3xl font-bold text-white">Uniform Requests - View</h1>
 							<p className="text-lg text-blue-100">Browse all uniform requests and their statuses</p>
 						</div>
@@ -170,10 +177,46 @@ const UniformViewPage = () => {
 											<span className={`text-sm md:text-base font ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>{req.designation}</span>
 											<span className={`text-xs md:text-sm font-bold px-2 py-0.5 rounded ${theme === 'dark' ? 'text-blue-100 bg-gray-800' : 'text-black bg-gray-100'}`}>{req.employeeId}</span>
 										</div>
-										<p className={`text-xs mb-1 truncate ${theme === 'dark' ? 'text-blue-400' : 'text-blue-400'}`}>{req.projectName}</p>
-										{statusBadge(req.approvalStatus)}
-										<div className={`mt-2 text-xs ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>
-											<span className="font-semibold">Requested Items:</span> {Array.isArray(req.uniformType) ? req.uniformType.join(", ") : ''}
+										<button
+											onClick={() => {
+												console.log('Eye icon clicked', req);
+												setViewModal({ open: true, request: req });
+											}}
+											className={`relative z-10 p-2 rounded-lg transition-colors ${
+												theme === 'dark' 
+													? 'text-slate-400 hover:text-blue-400 hover:bg-slate-700' 
+													: 'text-slate-500 hover:text-blue-600 hover:bg-slate-100'
+											}`}
+										>
+											<FaEye className="w-4 h-4" />
+										</button>
+									</div>
+
+									{/* Details */}
+									<div className="space-y-2">
+										<div className="flex items-center gap-2">
+											<span className={`text-xs font-medium px-2 py-1 rounded-full ${
+												theme === 'dark' ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-700'
+											}`}>
+												{req.employeeId}
+											</span>
+										</div>
+										
+										<div>
+											<p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+												<span className="font-medium">Project:</span> {req.projectName}
+											</p>
+										</div>
+
+										<div>
+											<p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+												<span className="font-medium">Items:</span> {Array.isArray(req.uniformType) ? req.uniformType.join(", ") : ''}
+											</p>
+										</div>
+
+										{/* Status Badge */}
+										<div className="pt-2">
+											{statusBadge(req.approvalStatus)}
 										</div>
 									</div>
 								</div>
@@ -187,13 +230,11 @@ const UniformViewPage = () => {
 									style={{ position: 'sticky', top: 0, zIndex: 2 }}
 								>
 									<tr>
-										<th className={`px-3 py-2 text-left text-xs font-extrabold uppercase tracking-wider rounded-tl-2xl ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Name</th>
-										<th className={`px-3 py-2 text-left text-xs font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Designation</th>
-										<th className={`px-3 py-2 text-left text-xs font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Employee ID</th>
-										<th className={`px-3 py-2 text-left text-xs font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Project</th>
-										<th className={`px-3 py-2 text-left text-xs font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Requested Items</th>
-										<th className={`px-3 py-2 text-left text-xs font-bold uppercase tracking-wider rounded-tr-2xl ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Status</th>
-										<th className={`px-3 py-2 text-center text-xs font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>View</th>
+										<th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Employee</th>
+										<th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Project</th>
+										<th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Requested Items</th>
+										<th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Status</th>
+										<th className={`px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Actions</th>
 									</tr>
 								</thead>
 								<tbody className={theme === 'dark' ? 'divide-y divide-gray-900' : 'divide-y divide-blue-50'}>
@@ -230,11 +271,17 @@ const UniformViewPage = () => {
 											</td>
 											<td className="px-3 py-2 text-center" data-label="View">
 												<button
-													className={`p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900 transition`}
-													title="View Details"
-													onClick={() => setViewModal({ open: true, request: req })}
+													onClick={() => {
+														console.log('Eye icon clicked', req);
+														setViewModal({ open: true, request: req });
+													}}
+													className={`p-2 rounded-lg transition-colors ${
+														theme === 'dark' 
+															? 'text-slate-400 hover:text-blue-400 hover:bg-slate-700' 
+															: 'text-slate-500 hover:text-blue-600 hover:bg-slate-100'
+													}`}
 												>
-													<FaEye className={`w-5 h-5 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`} />
+													<FaEye className="w-4 h-4" />
 												</button>
 											</td>
 										</tr>
@@ -276,18 +323,76 @@ const UniformViewPage = () => {
 								</div>
 							)}
 						</div>
-					)}
-				</div>
+					</div>
+				)}
+
+				{/* Enhanced Pagination */}
+				{totalPages > 1 && (
+					<div className="mt-6 flex items-center justify-between">
+						<div className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+							Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, filteredRequests.length)} of {filteredRequests.length} results
+						</div>
+						<div className="flex items-center gap-2">
+							<button
+								disabled={currentPage === 1}
+								onClick={() => handlePageChange(currentPage - 1)}
+								className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+									theme === 'dark' 
+										? 'text-slate-400 hover:text-white hover:bg-slate-700' 
+										: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+								}`}
+							>
+								<FaChevronLeft className="w-4 h-4" />
+							</button>
+							
+							{Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+								const page = i + 1;
+								return (
+									<button
+										key={page}
+										onClick={() => handlePageChange(page)}
+										className={`px-3 py-2 rounded-lg font-medium transition-colors ${
+											currentPage === page
+												? 'bg-blue-600 text-white'
+												: theme === 'dark'
+													? 'text-slate-400 hover:text-white hover:bg-slate-700'
+													: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+										}`}
+									>
+										{page}
+									</button>
+								);
+							})}
+							
+							<button
+								disabled={currentPage === totalPages}
+								onClick={() => handlePageChange(currentPage + 1)}
+								className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+									theme === 'dark' 
+										? 'text-slate-400 hover:text-white hover:bg-slate-700' 
+										: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+								}`}
+							>
+								<FaChevronRight className="w-4 h-4" />
+							</button>
+						</div>
+					</div>
+				)}
 			</div>
+
+			{/* Enhanced Modal */}
 			{viewModal.open && viewModal.request && (
-				<div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/70`}>
-					<div className={`relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-8 border-2 ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}>
+				<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+					<div className={`relative max-w-md w-full mx-4 rounded-2xl shadow-2xl ${theme === 'dark' ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-slate-200'}`}>
 						<button
-							className="absolute top-4 right-4 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow hover:bg-red-100 dark:hover:bg-red-900 transition-all duration-200 z-10"
-							aria-label="Close"
 							onClick={() => setViewModal({ open: false, request: null })}
+							className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${
+								theme === 'dark' 
+									? 'text-slate-400 hover:text-red-400 hover:bg-slate-700' 
+									: 'text-slate-500 hover:text-red-600 hover:bg-slate-100'
+							}`}
 						>
-							<FaTimes className="w-5 h-5 text-red-500" />
+							<FaTimes className="w-5 h-5" />
 						</button>
 						<h2 className={`text-2xl font-bold mb-4 text-center ${theme === 'dark' ? 'text-blue-100' : 'text-blue-900'}`}>Uniform Request Details</h2>
 						<div className="space-y-2 text-sm">

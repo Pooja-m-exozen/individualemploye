@@ -45,6 +45,7 @@ export default function ViewIDCardsPage() {
   const [projectFilter, setProjectFilter] = useState<string>('All Projects');
   const [designationFilter, setDesignationFilter] = useState<string>('All Designations');
   const projectFetchRef = useRef(false);
+  const [qrError, setQrError] = useState<string | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -98,6 +99,7 @@ export default function ViewIDCardsPage() {
       const fetchQRCodeData = async () => {
         setQrLoading(true);
         setQrCodeData(null);
+        setQrError(null);
         try {
           const res = await fetch(`https://cafm.zenapi.co.in/api/qr-code/${selectedCard.employeeId}`);
           if (!res.ok) {
@@ -106,6 +108,7 @@ export default function ViewIDCardsPage() {
           const data = await res.json();
           setQrCodeData(data);
         } catch (err) {
+          setQrError('Failed to fetch QR code data. QR code may not be available for this employee.');
           console.error("Failed to fetch QR code data", err);
         } finally {
           setQrLoading(false);
@@ -525,6 +528,14 @@ export default function ViewIDCardsPage() {
                   <div><span className="font-semibold">Valid Until:</span> {new Date(selectedCard.validUntil).toLocaleDateString()}</div>
                 </div>
               </div>
+              {/* Download Button */}
+              <button
+                className={`mt-4 mb-8 w-11/12 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition-all duration-200 ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                onClick={() => handleDownload(selectedCard)}
+                disabled={downloading}
+              >
+                <FaDownload /> Download ID Card
+              </button>
             </div>
             {/* Download Button */}
             <button

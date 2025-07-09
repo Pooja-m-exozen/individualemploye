@@ -461,23 +461,23 @@ export default function CreateShiftsPage() {
                 <form className="flex flex-col gap-4 md:gap-6 mb-8">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4">
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Project</label>
-                      <select className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Project</label>
+                      <select className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`}>
                         <option value="">Select Project</option>
                         {projects.map((p: string) => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Start Date</label>
-                      <input type="date" className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Start Date</label>
+                      <input type="date" className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`} />
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">End Date</label>
-                      <input type="date" className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>End Date</label>
+                      <input type="date" className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`} />
                     </div>
                     <div>
-                      <label className="block text-blue-800 font-semibold mb-1">Employee ID</label>
-                      <input type="text" placeholder="Search by Employee ID" className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee ID</label>
+                      <input type="text" placeholder="Search by Employee ID" className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-900 border-blue-200 focus:ring-blue-400'}`} />
                     </div>
                   </div>
                   <button type="button" className="self-end w-full md:w-auto px-6 md:px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400">Search</button>
@@ -487,13 +487,13 @@ export default function CreateShiftsPage() {
                   <table className="min-w-full divide-y divide-blue-100 text-xs md:text-base">
                     <thead className="bg-blue-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Employee ID</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Designation</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Project</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Current Weekoff</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">New Weekoff</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-blue-700 uppercase">Action</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Employee ID</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Name</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Designation</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Project</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Current Weekoff</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>New Weekoff</th>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-blue-50">
@@ -511,7 +511,7 @@ export default function CreateShiftsPage() {
                             </select>
                           </td>
                           <td className="px-4 py-3">
-                            <button className="px-4 py-1 rounded-lg bg-blue-100 text-blue-700 font-semibold text-sm hover:bg-blue-200 transition">Update Weekoff</button>
+                            <button className={`px-4 py-1 rounded-lg font-semibold text-sm transition ${theme === 'dark' ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}>Update Weekoff</button>
                           </td>
                         </tr>
                       ))}

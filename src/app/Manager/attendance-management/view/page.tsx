@@ -453,8 +453,8 @@ export default function AttendanceViewPage() {
                 className={`w-full px-3 md:px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 text-xs md:text-base ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-black border-gray-300 focus:ring-blue-600'}`}
               >
                 {/* No 'All Projects' option, only list unique projects */}
-                {uniqueProjects.map(project => (
-                  <option key={project} value={project}>{project}</option>
+                {uniqueProjects.map((project, idx) => (
+                  <option key={project || idx} value={project}>{project}</option>
                 ))}
               </select>
             </div>
@@ -518,6 +518,26 @@ export default function AttendanceViewPage() {
               <div>
                 <h2 className={`text-xl md:text-2xl font-bold ${theme === 'dark' ? 'text-blue-100' : 'text-gray-800'}`}>Project Wise Attendance</h2>
                 <p className={`text-xs md:text-sm mt-1 ${theme === 'dark' ? 'text-blue-300' : 'text-gray-500'}`}>Review and manage project wise attendance</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className={`${theme === 'dark' ? 'bg-green-700 text-white hover:bg-green-800' : 'bg-green-500 text-white hover:bg-green-600'} px-4 py-2 rounded-lg`}
+                  onClick={handleExportToExcel}
+                >
+                  Export to Excel
+                </button>
+                <button
+                  className={`${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-500 text-white hover:bg-blue-600'} px-4 py-2 rounded-lg`}
+                  onClick={handleExportToPDF}
+                >
+                  Export PDF
+                </button>
+                <button
+                  className={`${theme === 'dark' ? 'bg-purple-700 text-white hover:bg-purple-800' : 'bg-purple-500 text-white hover:bg-purple-600'} px-4 py-2 rounded-lg`}
+                  onClick={handleExportLocationPDF}
+                >
+                  Export Location PDF
+                </button>
               </div>
             </div>
             <div className="relative">

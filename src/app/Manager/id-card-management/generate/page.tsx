@@ -117,7 +117,7 @@ interface IDCardData {
   designation: string;
   projectName: string;
   bloodGroup?: string;
-  employeeImage?: string;
+  employeeImage: string;
   qrCodeImage: string;
   validUntil: string;
 }
@@ -652,10 +652,10 @@ export default function GenerateIDCardPage() {
       try {
         // Force HTTPS for remote images
         let safeUrl = url;
-        if (safeUrl && safeUrl.startsWith('http://')) {
+        if (safeUrl && safeUrl.startsWith('https://')) {
           safeUrl = 'https://' + safeUrl.substring(7);
         }
-        const fetchUrl = safeUrl && safeUrl.startsWith('http')
+        const fetchUrl = safeUrl && safeUrl.startsWith('https')
           ? `${window.location.origin}/api/proxy-image?url=${encodeURIComponent(safeUrl)}`
           : safeUrl;
         console.log('Employee image URL:', url, 'Fetch URL:', fetchUrl);
@@ -711,9 +711,30 @@ export default function GenerateIDCardPage() {
       doc.setLineWidth(1);
       doc.circle(centerX, centerY, radius, 'S');
       // Draw the image centered in the circle
-      const employeeImageUri = await getImageDataUri(request.employeeImage || "");
+      // --- Always fetch employee image as data URI using proxy to avoid CORS ---
+      let employeeImageUri: string | null = null;
+      let imageType: 'JPEG' | 'PNG' = 'JPEG';
+      if (request.employeeImage) {
+        employeeImageUri = await getImageDataUri(request.employeeImage);
+        // Try PNG if JPEG fails
+        if (!employeeImageUri) {
+          imageType = 'PNG';
+          employeeImageUri = await getImageDataUri(request.employeeImage);
+        }
+      }
       if (employeeImageUri) {
-        doc.addImage(employeeImageUri, "JPEG", centerX - imgSize/2, centerY - imgSize/2, imgSize, imgSize, undefined, 'FAST');
+        try {
+          doc.addImage(employeeImageUri, imageType, centerX - imgSize/2, centerY - imgSize/2, imgSize, imgSize, undefined, 'FAST');
+        } catch {
+          // fallback to PNG if JPEG fails
+          try {
+            doc.addImage(employeeImageUri, 'PNG', centerX - imgSize/2, centerY - imgSize/2, imgSize, imgSize, undefined, 'FAST');
+          } catch {
+            doc.setFontSize(8);
+            doc.setTextColor(180,180,180);
+            doc.text("No Photo", centerX, centerY, { align: "center" });
+          }
+        }
       } else {
         doc.setFontSize(8);
         doc.setTextColor(180,180,180);
@@ -1136,7 +1157,7 @@ export default function GenerateIDCardPage() {
                           type="text"
                           placeholder="Search by employee name or ID..."
                           value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onChange={event => setSearchTerm(event.target.value)}
                           className={`w-full pl-12 pr-4 py-4 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-lg ${
                             theme === 'dark'
                               ? 'bg-gray-700 border-gray-600 text-gray-200'

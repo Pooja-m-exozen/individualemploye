@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaSpinner, FaUserAlt, FaTimesCircle } from "react-icons/fa";
+import { FaSpinner, FaUserAlt, FaTimesCircle, FaSearch, FaEye } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory } from "@/services/leave";
 import { showToast, ToastStyles } from "@/components/Toast";
@@ -19,6 +19,7 @@ export default function LeaveManagementViewPage() {
   const [rejectLeaveId, setRejectLeaveId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionError, setRejectionError] = useState("");
+  const [viewRecord, setViewRecord] = useState<typeof allLeaves[0] | null>(null);
 
   React.useEffect(() => {
     setLoading(true);
@@ -104,22 +105,6 @@ export default function LeaveManagementViewPage() {
     }
   };
 
-  const handleApprove = async (leaveId: string) => {
-    try {
-      await updateLeaveStatus(leaveId, "Approved");
-      showToast({ message: "Leave approved successfully!", type: "success" });
-      await refreshLeaveData();
-    } catch {
-      showToast({ message: "Failed to approve leave", type: "error" });
-    }
-  };
-
-  const handleReject = (leaveId: string) => {
-    setRejectLeaveId(leaveId);
-    setRejectionReason("");
-    setRejectionError("");
-    setRejectModalOpen(true);
-  };
 
   const handleRejectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,6 +133,20 @@ export default function LeaveManagementViewPage() {
     setRejectionReason("");
     setRejectionError("");
   };
+
+  function getApprovedBy(record: Record<string, unknown>): string {
+    if (typeof record === 'object' && record && 'approvedBy' in record) {
+      return (record as Record<string, unknown>).approvedBy as string || 'N/A';
+    }
+    return 'N/A';
+  }
+
+  function getRejectionReason(record: Record<string, unknown>): string {
+    if (typeof record === 'object' && record && 'rejectionReason' in record) {
+      return (record as Record<string, unknown>).rejectionReason as string || '-';
+    }
+    return '-';
+  }
 
   return (
     <ManagerDashboardLayout>
@@ -193,6 +192,34 @@ export default function LeaveManagementViewPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {viewRecord && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className={`rounded-xl shadow-2xl p-6 w-full max-w-md ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Leave Details</h2>
+              <button onClick={() => setViewRecord(null)} className="text-2xl font-bold hover:text-red-500">&times;</button>
+            </div>
+            <div className="space-y-2">
+              <div><span className="font-semibold">Employee Name:</span> {viewRecord.employeeName}</div>
+              <div><span className="font-semibold">Employee ID:</span> {viewRecord.employeeId}</div>
+              <div><span className="font-semibold">Leave Type:</span> {viewRecord.leaveType}</div>
+              <div><span className="font-semibold">No of Days:</span> {viewRecord.numberOfDays}</div>
+              <div><span className="font-semibold">Date:</span> {viewRecord.startDate ? new Date(viewRecord.startDate).toISOString().split('T')[0] : 'N/A'}</div>
+              <div><span className="font-semibold">End Date:</span> {viewRecord.endDate ? new Date(viewRecord.endDate).toISOString().split('T')[0] : 'N/A'}</div>
+              <div><span className="font-semibold">Status:</span> {viewRecord.status}</div>
+              <div><span className="font-semibold">Reason:</span> {viewRecord.reason}</div>
+              <div><span className="font-semibold">Approved By:</span> {viewRecord ? String(getApprovedBy(viewRecord)) : "N/A"}</div>
+              <div><span className="font-semibold">Applied On:</span> {viewRecord.appliedOn ? new Date(viewRecord.appliedOn).toISOString().split('T')[0] : 'N/A'}</div>
+              <div><span className="font-semibold">Last Updated:</span> {viewRecord.lastUpdated ? new Date(viewRecord.lastUpdated).toISOString().split('T')[0] : 'N/A'}</div>
+              <div><span className="font-semibold">Emergency Contact:</span> {viewRecord.emergencyContact || 'N/A'}</div>
+              <div><span className="font-semibold">Rejection Reason:</span> {viewRecord ? String(getRejectionReason(viewRecord)) : "-"}</div>
+            </div>
+            <div className="flex justify-end mt-6">
+              <button onClick={() => setViewRecord(null)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Close</button>
+            </div>
           </div>
         </div>
       )}
@@ -456,10 +483,57 @@ export default function LeaveManagementViewPage() {
                   Next
                 </button>
               </div>
-            )}
             </div>
           )}
         </div>
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center mt-6 gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                currentPage === 1
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
+                  : theme === 'dark'
+                    ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
+                    : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
+              }`}
+            >
+              Prev
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`px-4 py-2 rounded-lg font-semibold border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                  currentPage === page
+                    ? theme === 'dark'
+                      ? 'bg-blue-700 text-white border-blue-700 shadow-lg'
+                      : 'bg-blue-600 text-white border-blue-600 shadow-lg'
+                    : theme === 'dark'
+                      ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-blue-800 hover:text-white'
+                      : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                currentPage === totalPages
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
+                  : theme === 'dark'
+                    ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
+                    : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </ManagerDashboardLayout>
   );

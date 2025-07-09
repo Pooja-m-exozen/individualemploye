@@ -21,6 +21,10 @@ interface AttendanceRecord {
   status?: string;
   isLate?: boolean;
   remarks?: string;
+  punchInLatitude?: number;
+  punchInLongitude?: number;
+  punchOutLatitude?: number;
+  punchOutLongitude?: number;
 }
 
 const AttendancePage = () => {
@@ -48,7 +52,13 @@ const AttendancePage = () => {
       const data = await response.json();
       
       if (data.attendance) {
-        setAttendanceData(data.attendance);
+        setAttendanceData(data.attendance.map((rec: AttendanceRecord) => ({
+          ...rec,
+          punchInLatitude: rec.punchInLatitude,
+          punchInLongitude: rec.punchInLongitude,
+          punchOutLatitude: rec.punchOutLatitude,
+          punchOutLongitude: rec.punchOutLongitude,
+        })));
       } else {
         setAttendanceData([]);
       }
