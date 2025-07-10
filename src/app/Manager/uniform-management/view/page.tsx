@@ -323,8 +323,9 @@ const UniformViewPage = () => {
 								</div>
 							)}
 						</div>
-					</div>
-				)}
+					)
+				}
+				</div>
 
 				{/* Enhanced Pagination */}
 				{totalPages > 1 && (

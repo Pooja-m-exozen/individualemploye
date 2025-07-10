@@ -148,6 +148,14 @@ export default function LeaveManagementViewPage() {
     return '-';
   }
 
+  function handleApprove(leaveId: string): void {
+    throw new Error("Function not implemented.");
+  }
+
+  function handleReject(leaveId: string): void {
+    throw new Error("Function not implemented.");
+  }
+
   return (
     <ManagerDashboardLayout>
       <ToastStyles />
@@ -436,53 +444,6 @@ export default function LeaveManagementViewPage() {
                   ))}
                 </tbody>
               </table>
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex flex-wrap justify-center items-center mt-4 md:mt-6 gap-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                    currentPage === 1
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
-                      : theme === 'dark'
-                        ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
-                        : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
-                  }`}
-                >
-                  Prev
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`px-4 py-2 rounded-lg font-semibold border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                      currentPage === page
-                        ? theme === 'dark'
-                          ? 'bg-blue-700 text-white border-blue-700 shadow-lg'
-                          : 'bg-blue-600 text-white border-blue-600 shadow-lg'
-                        : theme === 'dark'
-                          ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-blue-800 hover:text-white'
-                          : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                    currentPage === totalPages
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
-                      : theme === 'dark'
-                        ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
-                        : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
-                  }`}
-                >
-                  Next
-                </button>
-              </div>
             </div>
           )}
         </div>
