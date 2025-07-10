@@ -186,34 +186,12 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
   ];
 
   return (
-    <div className={`h-screen flex ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"} transition-colors duration-200`}>
-      {/* Sidebar */}
-      {/* Overlay for mobile */}
-      <div
-        className={`fixed inset-0 z-40 bg-black bg-opacity-40 transition-opacity md:hidden ${isSidebarOpenMobile ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-        onClick={() => setSidebarOpenMobile(false)}
-        aria-hidden={!isSidebarOpenMobile}
-      />
-      <aside
-        className={`fixed top-0 left-0 h-screen flex flex-col justify-between z-50
-          ${isSidebarExpanded ? "w-72" : "w-20"}
-          ${theme === "dark" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-800"}
-          transition-all duration-300 shadow-lg
-          md:relative md:translate-x-0
-          ${isSidebarOpenMobile ? "translate-x-0" : "-translate-x-full"} md:translate-x-0
-          overflow-hidden
-        `}
-        style={{
-          transitionProperty: 'width, left, right, background, color, transform',
-        }}
-      >
+    <div className={`min-h-screen flex ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"} transition-colors duration-200`}>
+      {/* Sidebar (desktop) */}
+      <aside className={`hidden md:flex flex-col fixed left-0 top-0 h-full transition-all duration-300 ${isSidebarExpanded ? 'w-72' : 'w-20'} ${theme === 'dark' ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-100 text-gray-800 border-gray-200'} border-r shadow-xl z-30`}>
         {/* Logo and Toggle */}
         <div className={`flex items-center justify-between h-14 px-4 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-300"}`}>
-          <div
-            className={`flex items-center ${
-              isSidebarExpanded ? "justify-start" : "justify-center"
-            } w-full`}
-          >
+          <div className={`flex items-center ${isSidebarExpanded ? "justify-start" : "justify-center"} w-full`}>
             <Image
               src="/v1/employee/logo-exo .png"
               alt="Exozen Logo"
@@ -230,14 +208,7 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
           </div>
           <button
             onClick={toggleSidebar}
-            className={`p-2 rounded-xl ${theme === "dark" ? "text-gray-400 hover:bg-gray-700 hover:text-white" : "text-gray-500 hover:bg-gray-200 hover:text-gray-800"} transition-all duration-200 ml-auto flex-shrink-0 md:hidden`}
-            title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
-          >
-            {isSidebarOpenMobile ? <FaChevronLeft className="w-5 h-5" /> : <FaBars className="w-5 h-5" />}
-          </button>
-          <button
-            onClick={toggleSidebar}
-            className={`p-2 rounded-xl ${theme === "dark" ? "text-gray-400 hover:bg-gray-700 hover:text-white" : "text-gray-500 hover:bg-gray-200 hover:text-gray-800"} transition-all duration-200 ml-auto flex-shrink-0 hidden md:block`}
+            className={`p-2 rounded-xl ${theme === "dark" ? "text-gray-400 hover:bg-gray-700 hover:text-white" : "text-gray-500 hover:bg-gray-200 hover:text-gray-800"} transition-all duration-200 ml-auto flex-shrink-0`}
             title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
           >
             {isSidebarExpanded ? (
@@ -247,40 +218,31 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
             )}
           </button>
         </div>
-
         {/* Navigation */}
-        <nav className="flex-1">
+        <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           <ul className="p-4 space-y-2">
             {menuItems.map((item) => (
               <li key={item.label}>
                 {item.subItems ? (
-                  <div className="space-y-1">
+                  <div>
                     <button
                       onClick={() => toggleSubmenu(item.label)}
-                      className={`flex items-center px-4 py-3 w-full rounded-xl transition-all duration-200 ${
-                        isSidebarExpanded ? "justify-start" : "justify-center"
-                      } ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}
+                      className={`flex items-center px-4 py-3 w-full rounded-xl transition-all duration-200 ${isSidebarExpanded ? "justify-start" : "justify-center"} whitespace-nowrap overflow-hidden text-ellipsis ${theme === "dark" ? (expandedSubmenus[item.label] ? "bg-gray-700 text-white" : "hover:bg-gray-700 hover:text-white") : (expandedSubmenus[item.label] ? "bg-blue-50 text-blue-700" : "hover:bg-gray-200 hover:text-gray-800")}`}
                     >
                       <span className="text-xl">{item.icon}</span>
-                      {isSidebarExpanded && <span className="ml-3 font-medium">{item.label}</span>}
-                      <span
-                        className={`ml-auto transition-transform ${
-                          expandedSubmenus[item.label] ? "rotate-180" : ""
-                        }`}
-                      >
-                        <FaChevronRight />
+                      {isSidebarExpanded && <span className="ml-3 font-medium whitespace-nowrap overflow-hidden text-ellipsis">{item.label}</span>}
+                      <span className="ml-auto">
+                        <FaChevronRight className={`transition-transform ${expandedSubmenus[item.label] ? "rotate-90" : ""}`} />
                       </span>
                     </button>
-                    {expandedSubmenus[item.label] && isSidebarExpanded && (
-                      <ul className="pl-6 space-y-2 border-l-2 border-gray-300 dark:border-gray-600">
+                    {isSidebarExpanded && expandedSubmenus[item.label] && (
+                      <ul className="pl-8 space-y-1">
                         {item.subItems.map((subItem) => (
                           <li key={subItem.label}>
                             {subItem.subItems ? (
                               <details className="group">
                                 <summary
-                                  className={`flex items-center px-4 py-2 rounded-lg cursor-pointer transition-all duration-200 ${
-                                    theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"
-                                  }`}
+                                  className={`flex items-center px-4 py-2 rounded-lg cursor-pointer transition-all duration-200 ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}
                                 >
                                   <span className="text-xl">{subItem.icon}</span>
                                   <span className="ml-3 font-medium">{subItem.label}</span>
@@ -293,9 +255,7 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
                                     <li key={nestedSubItem.label} className="ml-4">
                                       <a
                                         href={nestedSubItem.href}
-                                        className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 ${
-                                          theme === "dark" ? "text-gray-200 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"
-                                        }`}
+                                        className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 ${theme === "dark" ? "text-gray-200 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"}`}
                                       >
                                         <FaChevronRight className="mr-2 text-sm" />
                                         {nestedSubItem.label}
@@ -307,9 +267,7 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
                             ) : (
                               <a
                                 href={subItem.href}
-                                className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 ${
-                                  theme === "dark" ? "text-gray-200 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"
-                                }`}
+                                className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 ${theme === "dark" ? "text-gray-200 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"}`}
                               >
                                 <FaChevronRight className="mr-2 text-sm" />
                                 {subItem.label}
@@ -323,9 +281,7 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
                 ) : (
                   <a
                     href={item.href}
-                    className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
-                      isSidebarExpanded ? "justify-start" : "justify-center"
-                    } ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}
+                    className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${isSidebarExpanded ? "justify-start" : "justify-center"} ${theme === "dark" ? "hover:bg-gray-700 hover:text-white" : "hover:bg-gray-200 hover:text-gray-800"}`}
                   >
                     <span className="text-xl">{item.icon}</span>
                     {isSidebarExpanded && <span className="ml-3 font-medium">{item.label}</span>}
@@ -357,13 +313,82 @@ const ManagerOpsLayout = ({ children }: ManagerOpsLayoutProps): ReactNode => {
         </div>
       </aside>
 
+      {/* Mobile Sidebar and Overlay */}
+      {isSidebarOpenMobile && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden" onClick={() => setSidebarOpenMobile(false)} />
+          <aside className={`fixed inset-y-0 left-0 z-50 flex flex-col w-56 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'} border-r shadow-xl md:hidden`}>
+            {/* Logo and Close Button */}
+            <div className="flex items-center justify-between p-4 border-b h-14">
+              <Image src="/v1/employee/logo-exo .png" alt="Exozen Logo" width={32} height={32} className="rounded-xl shadow-sm" />
+              <button onClick={() => setSidebarOpenMobile(false)} className="p-2 ml-2 rounded-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <FaBars className="w-5 h-5" />
+              </button>
+            </div>
+            {/* Mobile menu: expandable submenus */}
+            <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <ul className="p-2 space-y-1">
+                {menuItems.map((item) => (
+                  <li key={item.label}>
+                    {item.subItems ? (
+                      <>
+                        <button
+                          onClick={() => toggleSubmenu(item.label)}
+                          className={`flex items-center w-full px-3 py-2 rounded-lg transition-all duration-200 text-base font-medium gap-2 ${theme === 'dark' ? 'text-white hover:bg-gray-700' : 'text-gray-800 hover:bg-gray-200'}`}
+                        >
+                          <span className="text-lg">{item.icon}</span>
+                          {item.label}
+                          <FaChevronRight className={`ml-auto transition-transform ${expandedSubmenus[item.label] ? 'rotate-90' : ''}`} />
+                        </button>
+                        {expandedSubmenus[item.label] && (
+                          <ul className="pl-7 py-1 space-y-1">
+                            {item.subItems.map((subItem) => (
+                              <li key={subItem.label}>
+                                <a href={subItem.href} onClick={() => setSidebarOpenMobile(false)} className={`flex items-center px-2 py-2 rounded-lg transition-all duration-200 text-sm gap-2 ${theme === 'dark' ? 'text-white hover:bg-gray-700' : 'text-gray-800 hover:bg-gray-200'}`}>
+                                  <FaChevronRight className="text-xs" />
+                                  {subItem.label}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    ) : (
+                      <a href={item.href} onClick={() => setSidebarOpenMobile(false)} className={`flex items-center px-3 py-2 rounded-lg transition-all duration-200 text-base font-medium gap-2 ${theme === 'dark' ? 'text-white hover:bg-gray-700' : 'text-gray-800 hover:bg-gray-200'}`}>
+                        <span className="text-lg">{item.icon}</span>
+                        {item.label}
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+            {/* Profile (mobile) */}
+            <div className="p-3 border-t mt-auto">
+              <div className="flex items-center gap-2">
+                <div className="relative cursor-pointer" onClick={() => setShowProfileDropdown(!showProfileDropdown)}>
+                  <Image src={userDetails?.employeeImage || '/placeholder-user.jpg'} alt={userDetails?.fullName || 'User'} width={36} height={36} className="w-9 h-9 rounded-full object-cover border-2 border-blue-500 shadow" />
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} truncate`}>{userDetails?.fullName}</p>
+                  <p className={`text-xs font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} truncate`}>{userDetails?.designation}</p>
+                </div>
+              </div>
+              {showProfileDropdown && (
+                <div className={`mt-2 w-full ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-xl border py-2 z-50`}>
+                  <button onClick={handleLogout} className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}>
+                    <FaSignOutAlt className="text-red-500 w-5 h-5" /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          </aside>
+        </>
+      )}
+
       {/* Main Content */}
-      <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out md:ml-0 ${
-          isSidebarExpanded ? "md:ml-72" : "md:ml-20"
-        }`}
-        style={{ background: 'none', marginLeft: 0, paddingLeft: 0 }}
-      >
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${isSidebarExpanded ? 'md:ml-72' : 'md:ml-20'} ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
         {/* Header */}
         <header
           className={`h-14 flex items-center px-2 md:px-4 sticky top-0 z-30 border-b shadow-lg transition-colors duration-200 ${

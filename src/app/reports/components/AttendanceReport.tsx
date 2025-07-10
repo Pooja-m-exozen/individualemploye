@@ -589,23 +589,51 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           let compOffLeaveUsed = 0;
           let lop = 0;
 
-        // Summary text
-        yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
-        doc.setFontSize(9);
-        doc.setTextColor(0, 0, 0);
-        
-        if (summary) {
-            const workingDays = summary.summary.totalDays - (summary.summary.weekOffs + summary.summary.holidays);
-            const totalWeekoff = summary.summary.weekOffs ?? 0;
-            // Total Payable Days: Present Days + Half Days + SL + CL + EL (as per table response, do not include compOff or others)
-            const totalPayableDays = summary.summary.presentDays + summary.summary.halfDays + summary.summary.sl + summary.summary.cl + summary.summary.el;
-            const attendancePercentage = ((totalPayableDays / workingDays) * 100).toFixed(2);
-            doc.text([
-                `Total Working Days: ${workingDays} days`,
-                `Total Weekoff: ${totalWeekoff} days`,
-                `Total Payable Days: ${totalPayableDays} days`,
-                `Attendance Percentage: ${attendancePercentage}%`
-            ], 15, yPosition, { lineHeightFactor: 1.5 });
+          // Calculate dayType and status for each record
+          filteredRecords.forEach((record) => {
+            const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
+            const status = getAttendanceStatus(record, dayType);
+            switch (status) {
+              case 'Present':
+                presentDays++;
+                break;
+              case 'Half Day':
+                halfDays++;
+                break;
+              case 'Comp Off':
+                compOffGained++;
+                break;
+              case 'Holiday':
+                holidays++;
+                break;
+              default:
+                if (status.includes('Leave')) {
+                  if (status.includes('EL')) el++;
+                  else if (status.includes('SL')) sl++;
+                  else if (status.includes('CL')) cl++;
+                } else if (status === 'Absent') {
+                  lop++;
+                }
+                break;
+            }
+            if (dayType === 'Sunday' || dayType === '2nd Saturday' || dayType === '4th Saturday') {
+              weekOffs++;
+            }
+          });
+
+          const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+          const workingDays = daysInMonth - weekOffs - holidays;
+          const totalPayableDays = presentDays + halfDays + sl + cl + el;
+          const attendancePercentage = workingDays > 0 ? ((totalPayableDays / workingDays) * 100).toFixed(2) : '0.00';
+
+          doc.setFontSize(9);
+          doc.setTextColor(0, 0, 0);
+          doc.text([
+            `Total Working Days: ${workingDays} days`,
+            `Total Weekoff: ${weekOffs} days`,
+            `Total Payable Days: ${totalPayableDays} days`,
+            `Attendance Percentage: ${attendancePercentage}%`
+          ], 15, yPosition, { lineHeightFactor: 1.5 });
         }
 
         // Add extra spacing after summary text before leave table
