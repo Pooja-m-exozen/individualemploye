@@ -5,7 +5,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Image from 'next/image';
 import { calculateHoursUtc, transformAttendanceRecord } from '../../utils/attendanceUtils';
-import { 
+import {
     RawAttendanceRecord as BaseRawAttendanceRecord,
     TransformedAttendanceRecord
 } from '../../types/attendance';
@@ -117,6 +117,21 @@ interface AttendanceReportProps {
     theme: 'light' | 'dark';  // Add this line
 }
 
+interface RegularizationRecord {
+  _id: string;
+  date: string;
+  isRegularized: boolean;
+  regularizationStatus: string;
+  remarks: string;
+  status: string;
+  originalStatus: string;
+  punchInTime: string;
+  punchOutTime: string;
+  regularizationDate: string;
+  regularizationReason: string;
+  regularizedBy: string;
+}
+
 const formatHoursToHoursAndMinutes = (hoursDecimal: string): string => {
     if (hoursDecimal === '0' || hoursDecimal === 'N/A') return 'N/A';
     const hours = Math.floor(parseFloat(hoursDecimal));
@@ -165,6 +180,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistory[]>([]);
     const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
     const [outLocationAddress, setOutLocationAddress] = useState<string | null>(null);
+    const [monthlySummary, setMonthlySummary] = useState<any>(null);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -189,7 +205,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const years = Array.from({ length: 5 }, (_, i) => currentYear + 2 - i);
 
     // Transform attendanceData using the shared logic
-    const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord => 
+    const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord =>
         transformAttendanceRecord(record)
     );
 
@@ -211,12 +227,18 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const getDayType = (date: string, year: number, month: number, projectName?: string) => {
         const dateStr = date.split('T')[0];
         const d = new Date(dateStr);
-        // Special rule for 'Arvind Technical'
-        if (projectName && projectName.trim().toLowerCase() === 'arvind technical') {
+        // Special rule for 'Arvind Technical' and 'Exozen - Ops'
+        if (
+            projectName &&
+            (
+                projectName.trim().toLowerCase() === 'arvind technical' ||
+                projectName.trim().toLowerCase() === 'exozen - ops'
+            )
+        ) {
             if (d.getDay() === 0) {
                 return 'Sunday';
             }
-            // For Arvind Technical, 2nd and 4th Saturdays are working days
+            // For these projects, all Saturdays are working days
             return 'Working Day';
         }
         // Default logic for other projects
@@ -262,14 +284,14 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
         console.log('Geocoding request for:', { lat, lng });
         const GOOGLE_MAPS_API_KEY = 'AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4';
-        
+       
         try {
             const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
             console.log('Geocoding URL:', url);
 
             const response = await fetch(url);
             const data: GoogleMapsGeocodingResponse = await response.json();
-            
+           
             console.log('Geocoding response:', data);
 
             if (data.status === 'OK' && data.results?.[0]) {
@@ -310,7 +332,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 console.log('Formatted address:', formattedAddress);
                 return formattedAddress;
             }
-            
+           
             console.warn('No results found for location:', { lat, lng });
             return 'Location not found';
         } catch (error) {
@@ -485,7 +507,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
             const status = getAttendanceStatus(record, dayType);
             let hoursWorked = 'Incomplete';
-            
+           
             if (record.punchInUtc && record.punchOutUtc) {
                 hoursWorked = formatHoursToHoursAndMinutes(
                     safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc)
@@ -530,51 +552,70 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
         // Second page - Monthly Summary
         doc.addPage();
-        // Only include the monthly summary and other sections below
-        // Monthly Summary Table
-        // Find if this is 'arvind technical' by checking if any record in filteredRecords is 'arvind technical'
-        const isArvindTechnical = filteredRecords.some(
-          (record) => record.projectName && record.projectName.trim().toLowerCase() === 'arvind technical'
-        );
-        if (isArvindTechnical) {
-          // For Arvind Technical: Total Working Days = days in month (30/31), Total Payable Days = Present Days + Comp Off (worked on Sundays)
-          const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-          // Present Days: count of records with status 'Present' (>=7h)
-          let presentDays = 0;
-          let compOffDays = 0;
-          filteredRecords.forEach((record) => {
-            const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
-            const status = getAttendanceStatus(record, dayType);
-            if (status === 'Present') presentDays++;
-            // Comp Off: worked on Sunday (dayType === 'Sunday' and status === 'Comp Off')
-            if (dayType === 'Sunday' && status === 'Comp Off') compOffDays++;
-          });
-          const totalPayableDays = presentDays + compOffDays;
+        // Use monthlySummary from API if available
+        if (monthlySummary) {
           autoTable(doc, {
             head: [[
-              'Total Working Days (incl. Week Off)',
+              'Total Days',
               'Present Days',
-              'Comp Off (Worked Sundays)',
-              'Total Payable Days'
+              'Half Days',
+              'Partially Absent',
+              'Total Weekoff',
+              'Holidays',
+              'EL',
+              'SL',
+              'CL',
+              'Comp Off',
+              'LOP'
             ]],
             body: [[
-              daysInMonth,
-              presentDays,
-              compOffDays,
-              totalPayableDays
+              monthlySummary.totalDays,
+              monthlySummary.presentDays,
+              monthlySummary.halfDays,
+              monthlySummary.partiallyAbsentDays,
+              monthlySummary.weekOffs,
+              monthlySummary.holidays,
+              monthlySummary.el,
+              monthlySummary.sl,
+              monthlySummary.cl,
+              monthlySummary.compOff,
+              monthlySummary.lop
             ]],
             startY: yPosition,
             theme: 'grid',
             styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
             headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 7, fontStyle: 'bold' },
             columnStyles: {
-              0: { cellWidth: 40 },
-              1: { cellWidth: 30 },
-              2: { cellWidth: 40 },
-              3: { cellWidth: 40 }
+              0: { cellWidth: 15 },
+              1: { cellWidth: 15 },
+              2: { cellWidth: 15 },
+              3: { cellWidth: 15 },
+              4: { cellWidth: 18 },
+              5: { cellWidth: 15 },
+              6: { cellWidth: 15 },
+              7: { cellWidth: 15 },
+              8: { cellWidth: 15 },
+              9: { cellWidth: 20 },
+              10: { cellWidth: 15 }
             },
             margin: { left: 10, right: 10 }
           });
+          yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+
+          // Add Overall Summary section
+          doc.setFontSize(11);
+          doc.setTextColor(41, 128, 185);
+          doc.text('Overall Summary', 12, yPosition);
+          yPosition += 8;
+          doc.setFontSize(10);
+          doc.setTextColor(0, 0, 0);
+          const totalPayableDays = monthlySummary.presentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
+          const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
+          doc.text(`Total Days: ${monthlySummary.totalDays}`, 12, yPosition);
+          yPosition += 7;
+          doc.text(`Total Payable Days: ${totalPayableDays}`, 12, yPosition);
+          yPosition += 7;
+          doc.text(`Attendance Percentage: ${attendancePercentage}%`, 12, yPosition);
         } else {
           // Calculate summary from attendance records and leave history
           let presentDays = 0;
@@ -612,7 +653,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             const status = getAttendanceStatus(record, dayType);
             const dateStr = record.date.split('T')[0];
             if (status === 'Present') presentDays++;
-            else if (status === 'Half Day') halfDays++;
+            else if (status === 'Half Day') halfDays += 0.5;
             else if (status === 'Partially Absent') partiallyAbsentDays++;
             else if (status === 'Comp Off') {
               compOffGained++;
@@ -640,6 +681,11 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
           // LOP: add Partially Absent as LOP if required
           lop += partiallyAbsentDays;
+
+          // Calculate Total Payable Days (exclude LOP/Absent days)
+          let totalPayableDays = presentDays + halfDays + weekOffs + holidays + el + cl + sl + compOffLeaveUsed + compOffGained - lop;
+          if (totalPayableDays < 0) totalPayableDays = 0;
+          // Note: LOP is now subtracted from totalPayableDays
 
           autoTable(doc, {
             head: [[
@@ -685,8 +731,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               7: { cellWidth: 15 },
               8: { cellWidth: 15 },
               9: { cellWidth: 20 },
-              10: { cellWidth: 25 },
-              11: { cellWidth: 15 }
+              10: { cellWidth: 15 }
             },
             margin: { left: 10, right: 10 }
           });
@@ -698,14 +743,12 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
           // Summary text
           const totalWorkingDays = filteredRecords.length;
-          // Total Payable Days calculation
-          const totalPayableDays = presentDays + halfDays + partiallyAbsentDays + weekOffs + holidays + el + cl + sl + compOffLeaveUsed;
+          // Attendance Percentage (keep as is)
+          const attendancePercentage = totalWorkingDays > 0 ? ((totalPayableDays / totalWorkingDays) * 100).toFixed(2) : '0.00';
           let totalPayableText = `Total Payable Days: ${totalPayableDays}`;
           if (compOffGained > 0) {
             totalPayableText += ` (Comp Off Gained: ${compOffGained})`;
           }
-          // Attendance Percentage (keep as is)
-          const attendancePercentage = totalWorkingDays > 0 ? ((totalPayableDays / totalWorkingDays) * 100).toFixed(2) : '0.00';
           doc.text([
               `Total Working Days: ${totalWorkingDays} days`,
               totalPayableText,
@@ -718,7 +761,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         yPosition += 15;
 
         // Add Leave Balance section on same page, but check for overflow
-        if (!isArvindTechnical && leaveBalance && leaveBalance.balances) {
+        if (leaveBalance && leaveBalance.balances) {
           // If not enough space, add a new page
           if (yPosition + 40 > doc.internal.pageSize.getHeight()) {
             doc.addPage();
@@ -810,15 +853,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             signatureY = noteY + 18;
         }
         // Add note below the leave history table with proper spacing
-        if (!isArvindTechnical) {
-          doc.setFontSize(10);
-          doc.setFont('bold');
-          doc.setTextColor(200, 0, 0);
-          const noteLabel = 'Note:';
-          doc.setTextColor(0, 0, 0);
-          const noteText = 'Please ensure that the total working hours per day are at least 8 hours.';
-          doc.text(`${noteLabel} ${noteText}`, 12, noteY);
-        }
+        doc.setFontSize(10);
+        doc.setFont('bold');
+        doc.setTextColor(200, 0, 0);
+        const noteLabel = 'Note:';
+        doc.setTextColor(0, 0, 0);
+        const noteText = 'Please ensure that the total working hours per day are at least 8 hours.';
+        doc.text(`${noteLabel} ${noteText}`, 12, noteY);
 
         // Signature lines
         doc.setDrawColor(100, 100, 100);
@@ -838,7 +879,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             const startDate = new Date(leave.startDate);
             const endDate = new Date(leave.endDate);
             const targetDate = new Date(year, month - 1);
-            
+           
             // Check if any part of the leave falls in the selected month
             return (
                 (startDate.getMonth() === month - 1 && startDate.getFullYear() === year) ||
@@ -929,19 +970,149 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
       doc.save(`location_report_${selectedMonth}_${selectedYear}.pdf`);
     };
 
+    // Add this function after downloadLocationPDF
+    const downloadRegularizationHistoryPDF = async () => {
+      if (!employeeId) return;
+      // Fetch regularization history
+      const apiUrl = `https://cafm.zenapi.co.in/api/attendance/${employeeId}/regularization-history?`;
+      try {
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        const monthName = months[selectedMonth - 1];
+        if (!data.success || !data.data || !Array.isArray(data.data.regularizations)) {
+          // Show PDF with message if no data
+          const doc = new jsPDF();
+          doc.setFontSize(14);
+          doc.setTextColor(41, 128, 185);
+          doc.text(`Regularization History Report - ${monthName} ${selectedYear}`, 15, 20);
+          doc.setFontSize(11);
+          doc.setTextColor(0, 0, 0);
+          doc.text('No regularization history found.', 15, 35);
+          doc.save(`regularization_history_${monthName}_${selectedYear}.pdf`);
+          return;
+        }
+        // Filter for current selected month and year
+        const regularizations = (data.data.regularizations as RegularizationRecord[]).filter((r: RegularizationRecord) => {
+          const date = new Date(r.date);
+          return date.getMonth() === selectedMonth - 1 && date.getFullYear() === selectedYear;
+        });
+        const doc = new jsPDF();
+        let yPosition = 15;
+        // Add Exozen logo (top left)
+        try {
+          doc.addImage('/v1/employee/exozen_logo1.png', 'PNG', 15, yPosition, 25, 8);
+        } catch {}
+        doc.setFontSize(12);
+        doc.setTextColor(41, 128, 185);
+        doc.text(`Regularization History Report - ${monthName} ${selectedYear}`, 45, yPosition + 4);
+        doc.setFontSize(10);
+        doc.setTextColor(41, 128, 185);
+        doc.text(`Employee ID: ${employeeId}`, 45, yPosition + 8);
+        yPosition += 15;
+        if (regularizations.length === 0) {
+          doc.setFontSize(11);
+          doc.setTextColor(0, 0, 0);
+          doc.text('No regularization history found for the selected month.', 15, yPosition + 10);
+          doc.save(`regularization_history_${monthName}_${selectedYear}.pdf`);
+          return;
+        }
+        // Table header
+        const tableHead = [[
+          'Date',
+          'Punch In',
+          'Punch Out',
+          'Status',
+          'Original Status',
+          'Regularized',
+          'Reg. Status',
+          'Reg. Date',
+          'Reason',
+          'By',
+          'Remarks'
+        ]];
+        // Table rows
+        const tableRows = regularizations.map((r: RegularizationRecord) => [
+          r.date ? new Date(r.date).toLocaleDateString() : '-',
+          r.punchInTime ? new Date(r.punchInTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-',
+          r.punchOutTime ? new Date(r.punchOutTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-',
+          r.status || '-',
+          r.originalStatus || '-',
+          r.isRegularized ? 'Yes' : 'No',
+          r.regularizationStatus || '-',
+          r.regularizationDate ? new Date(r.regularizationDate).toLocaleString() : '-',
+          r.regularizationReason || '-',
+          r.regularizedBy || '-',
+          r.remarks || '-'
+        ]);
+        autoTable(doc, {
+          head: tableHead,
+          body: tableRows,
+          startY: yPosition,
+          theme: 'grid',
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: {
+            fillColor: [41, 128, 185],
+            textColor: 255,
+            fontSize: 9,
+            fontStyle: 'bold'
+          },
+          columnStyles: {
+            0: { cellWidth: 18 }, // Date
+            1: { cellWidth: 15 }, // Punch In
+            2: { cellWidth: 15 }, // Punch Out
+            3: { cellWidth: 18 }, // Status
+            4: { cellWidth: 18 }, // Original Status
+            5: { cellWidth: 15 }, // Regularized
+            6: { cellWidth: 18 }, // Reg. Status
+            7: { cellWidth: 25 }, // Reg. Date
+            8: { cellWidth: 25 }, // Reason
+            9: { cellWidth: 15 }, // By
+            10: { cellWidth: 20 } // Remarks
+          },
+          margin: { left: 10, right: 10 }
+        });
+        doc.save(`regularization_history_${monthName}_${selectedYear}.pdf`);
+      } catch (err) {
+        // Show PDF with error message
+        const doc = new jsPDF();
+        doc.setFontSize(14);
+        doc.setTextColor(41, 128, 185);
+        doc.text(`Regularization History Report - ${months[selectedMonth - 1]} ${selectedYear}`, 15, 20);
+        doc.setFontSize(11);
+        doc.setTextColor(200, 0, 0);
+        doc.text('Failed to download regularization history PDF.', 15, 35);
+        doc.save(`regularization_history_${months[selectedMonth - 1]}_${selectedYear}.pdf`);
+      }
+    };
+
+    // Fetch monthly summary from API (employee-specific endpoint)
+    useEffect(() => {
+        if (!employeeId || !selectedMonth || !selectedYear) return;
+        fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${selectedMonth}&year=${selectedYear}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data && data.data.summary) {
+                    setMonthlySummary(data.data.summary);
+                } else {
+                    setMonthlySummary(null);
+                }
+            })
+            .catch(() => setMonthlySummary(null));
+    }, [employeeId, selectedMonth, selectedYear]);
+
     return (
         <div className={`space-y-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm p-6`}>
             {/* Header */}
             <div className={`${
-                theme === 'dark' 
-                    ? 'bg-white/10' 
+                theme === 'dark'
+                    ? 'bg-white/10'
                     : 'bg-blue-600'
             } text-white p-8 rounded-xl shadow-lg`}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className={`p-3 ${
-                            theme === 'dark' 
-                                ? 'bg-white/10' 
+                            theme === 'dark'
+                                ? 'bg-white/10'
                                 : 'bg-white/20'
                         } backdrop-blur-sm rounded-xl`}>
                             <FaFileExcel className="w-8 h-8 text-white" />
@@ -949,8 +1120,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                         <div>
                             <h1 className="text-3xl font-bold">Attendance Report</h1>
                             <p className={`${
-                                theme === 'dark' 
-                                    ? 'text-blue-200' 
+                                theme === 'dark'
+                                    ? 'text-blue-200'
                                     : 'text-blue-100'
                             } mt-1`}>View and download your attendance records</p>
                         </div>
@@ -978,8 +1149,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             value={selectedMonth}
                             onChange={(e) => handleMonthChange(parseInt(e.target.value))}
                             className={`pl-10 pr-4 py-2 border rounded-lg appearance-none ${
-                                            theme === 'dark' 
-                                                ? 'bg-gray-800 border-gray-600 text-gray-200' 
+                                            theme === 'dark'
+                                                ? 'bg-gray-800 border-gray-600 text-gray-200'
                                                 : 'bg-white border-gray-200 text-gray-900'
                                         } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                         >
@@ -998,7 +1169,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                       ))}
                     </select>
                 </div>
-                
+               
                 <div className="flex gap-3">
                   <button
                     onClick={downloadExcel}
@@ -1020,6 +1191,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                   >
                     <FaFilePdf className="w-4 h-4" />
                     Export Location Report (PDF)
+                  </button>
+                  <button
+                    onClick={downloadRegularizationHistoryPDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    <FaFilePdf className="w-4 h-4" />
+                    Export Regularization History (PDF)
                   </button>
                 </div>
               </div>
@@ -1057,7 +1235,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                   </thead>
                   <tbody className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
                     {processedData.map((record: ExtendedRawAttendanceRecord, index) => (
-                      <tr 
+                      <tr
                         key={record._id || index}
                         className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
                       >
@@ -1198,7 +1376,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             <div className="flex justify-between">
                                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
                                 <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
-                                    {selectedRecord.punchInLocation 
+                                    {selectedRecord.punchInLocation
                                         ? (inLocationAddress || 'Fetching location...')
                                         : 'Location not available'}
                                 </span>
@@ -1221,7 +1399,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             <div className="flex justify-between">
                                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
                                 <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
-                                    {selectedRecord.punchOutLocation 
+                                    {selectedRecord.punchOutLocation
                                         ? (outLocationAddress || 'Fetching location...')
                                         : 'Location not available'}
                                 </span>
@@ -1236,8 +1414,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                           {selectedRecord.punchInPhoto && (
                             <div>
                               <span className="text-sm text-gray-500 block mb-1">Punch In:</span>
-                              <Image 
-                                src={selectedRecord.punchInPhoto} 
+                              <Image
+                                src={selectedRecord.punchInPhoto}
                                 alt="Punch In"
                                 width={200}
                                 height={200}
@@ -1248,8 +1426,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                           {selectedRecord.punchOutPhoto && (
                             <div>
                               <span className="text-sm text-gray-500 block mb-1">Punch Out:</span>
-                              <Image 
-                                src={selectedRecord.punchOutPhoto} 
+                              <Image
+                                src={selectedRecord.punchOutPhoto}
                                 alt="Punch Out"
                                 width={200}
                                 height={200}
@@ -1263,6 +1441,76 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                   </div>
                 </div>
               )}
+
+            {/* Summary Table using monthlySummary if available */}
+            {monthlySummary && (
+              <div className="overflow-x-auto rounded-xl border mt-8">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-blue-700">
+                    <tr>
+                      <th className="px-4 py-2 text-white">Total Days</th>
+                      <th className="px-4 py-2 text-white">Present Days</th>
+                      <th className="px-4 py-2 text-white">Half Days</th>
+                      <th className="px-4 py-2 text-white">Partially Absent</th>
+                      <th className="px-4 py-2 text-white">Total Weekoff</th>
+                      <th className="px-4 py-2 text-white">Holidays</th>
+                      <th className="px-4 py-2 text-white">EL</th>
+                      <th className="px-4 py-2 text-white">SL</th>
+                      <th className="px-4 py-2 text-white">CL</th>
+                      <th className="px-4 py-2 text-white">Comp Off</th>
+                      <th className="px-4 py-2 text-white">LOP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="px-4 py-2 text-center">{monthlySummary.totalDays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.presentDays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.halfDays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.partiallyAbsentDays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.weekOffs}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.holidays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.el}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.sl}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.cl}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.compOff}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.lop}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                {/* Summary Section Below Table */}
+                <div className="mt-4">
+                  {(() => {
+                    const totalPayableDays = monthlySummary.presentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
+                    const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
+                    return (
+                      <>
+                        <div><strong>Total Days:</strong> {monthlySummary.totalDays}</div>
+                        <div><strong>Total Payable Days:</strong> {totalPayableDays}</div>
+                        <div><strong>Attendance Percentage:</strong> {attendancePercentage}%</div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* Summary Text using monthlySummary if available */}
+            {monthlySummary && (
+              <div className="mt-4">
+                {(() => {
+                  // Payable days: presentDays + halfDays + weekOffs + el + cl
+                  const totalPayableDays = monthlySummary.presentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl;
+                  const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
+                  return (
+                    <>
+                      <div><strong>Total Working Days:</strong> {monthlySummary.totalDays} days</div>
+                      <div><strong>Total Payable Days:</strong> {totalPayableDays}</div>
+                      <div><strong>Attendance Percentage:</strong> {attendancePercentage}%</div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
         </div>
       );
 };

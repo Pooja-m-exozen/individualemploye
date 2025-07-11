@@ -630,15 +630,17 @@ export default function ViewAllKYCPage() {
                             {/* Actions Cell */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => setModal({ type: 'edit', data: form })}
-                                  className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105
-                                    ${theme === 'dark' ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                  title="Edit KYC"
-                                >
-                                  <FaEdit className="w-3 h-3" />
-                                  Edit
-                                </button>
+                                {form.status.toLowerCase() !== "approved" && (
+                                  <button
+                                    onClick={() => setModal({ type: 'edit', data: form })}
+                                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105
+                                      ${theme === 'dark' ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                                    title="Edit KYC"
+                                  >
+                                    <FaEdit className="w-3 h-3" />
+                                    Edit
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => setModal({ type: 'view', data: form })}
                                   className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105
