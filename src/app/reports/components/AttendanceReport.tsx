@@ -132,6 +132,21 @@ interface RegularizationRecord {
   regularizedBy: string;
 }
 
+interface MonthlySummary {
+  totalDays: number;
+  presentDays: number;
+  regularizedPresentDays: number;
+  halfDays: number;
+  partiallyAbsentDays: number;
+  weekOffs: number;
+  holidays: number;
+  el: number;
+  sl: number;
+  cl: number;
+  compOff: number;
+  lop: number;
+}
+
 const formatHoursToHoursAndMinutes = (hoursDecimal: string): string => {
     if (hoursDecimal === '0' || hoursDecimal === 'N/A') return 'N/A';
     const hours = Math.floor(parseFloat(hoursDecimal));
@@ -180,7 +195,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistory[]>([]);
     const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
     const [outLocationAddress, setOutLocationAddress] = useState<string | null>(null);
-    const [monthlySummary, setMonthlySummary] = useState<any>(null);
+    const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
