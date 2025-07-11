@@ -906,6 +906,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         });
     };
 
+    // Add this function to extract time in HH:mm:ss from ISO string
+    const extractTime = (dateString: string | null) => {
+      if (!dateString) return '-';
+      const match = dateString.match(/T(\d{2}:\d{2}:\d{2})/);
+      return match ? match[1] : '-';
+    };
+
     // In your component's main render logic, process the attendance data
     const processedData = enrichWithLocations(attendanceData);
 
@@ -1050,8 +1057,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         // Table rows
         const tableRows = regularizations.map((r: RegularizationRecord) => [
           r.date ? new Date(r.date).toLocaleDateString() : '-',
-          r.punchInTime ? new Date(r.punchInTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-',
-          r.punchOutTime ? new Date(r.punchOutTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-',
+          extractTime(r.punchInTime),
+          extractTime(r.punchOutTime),
           r.status || '-',
           r.originalStatus || '-',
           r.isRegularized ? 'Yes' : 'No',
