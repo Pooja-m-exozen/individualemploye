@@ -506,7 +506,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         yPosition += 5;
 
         // Attendance table on first page
-        const tableColumn = ["Date", "Project", "Check In", "Check Out", "Hours Worked", "Shortage Hours", "Day Type", "Status"];
+        const tableColumn = ["Date", "Check In", "Check Out", "Hours Worked", "Shortage Hours", "Day Type", "Status"];
         const filteredRecords = processedAttendanceData.filter(record => {
             const dateObj = new Date(record.date);
             return dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
@@ -533,7 +533,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
             return [
                 formatDate(record.date),
-                record.projectName || '-',
                 formatTime(record.punchInTime),
                 formatTime(record.punchOutTime),
                 hoursWorked,
@@ -556,14 +555,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 fontStyle: 'bold'
             },
             columnStyles: {
-                0: { cellWidth: 25 },
-                1: { cellWidth: 35 },
-                2: { cellWidth: 25 },
-                3: { cellWidth: 25 },
-                4: { cellWidth: 25 },
-                5: { cellWidth: 25 },
-                6: { cellWidth: 35 },
-                7: { cellWidth: 25 }
+                0: { cellWidth: 22 }, // Date
+                1: { cellWidth: 20 }, // Check In
+                2: { cellWidth: 20 }, // Check Out
+                3: { cellWidth: 22 }, // Hours Worked
+                4: { cellWidth: 22 }, // Shortage Hours
+                5: { cellWidth: 22 }, // Day Type
+                6: { cellWidth: 22 }  // Status
             }
         });
 
