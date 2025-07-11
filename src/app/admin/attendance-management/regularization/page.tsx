@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { FaCalendarAlt, FaFileExport, FaEye, FaCheck, FaTimes } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-import { fetchAllRegularizations} from "@/services/regularization";
+import { fetchAllRegularizations, fetchAllRegularizationsPaginated } from "@/services/regularization";
 import type { RegularizationRecord } from "@/types/regularization";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -19,12 +19,16 @@ export default function AttendanceRegularizationPage() {
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectReason, setRejectReason] = useState("");
     const [rejectId, setRejectId] = useState<string | null>(null);
+    const [statusFilter, setStatusFilter] = useState<string>("All");
+    const [dateSort, setDateSort] = useState<string>("desc"); // 'desc' = Newest First, 'asc' = Oldest First
 
     useEffect(() => {
         setLoading(true);
-        fetchAllRegularizations()
-            .then((res) => {
-                setRecords(res.data.regularizations || []);
+        fetchAllRegularizationsPaginated()
+            .then((all) => {
+                // Deduplicate by _id
+                const unique = Array.from(new Map((all || []).map(item => [item._id, item])).values());
+                setRecords(unique);
                 setLoading(false);
             })
             .catch(() => {
@@ -114,14 +118,35 @@ export default function AttendanceRegularizationPage() {
         setLoading(false);
     };
 
+    // Status options for filter
+    const statusOptions = ["All", ...Array.from(new Set(records.map(r => r.status).filter(Boolean)))];
+
     const filteredRecords = useMemo(() => {
-        return records.filter((rec) => {
-            const matchesSearch =
-                search === "" ||
-                rec.employeeId?.toLowerCase().includes(search.toLowerCase());
-            return matchesSearch;
+        let filtered = records;
+        if (search) {
+            filtered = filtered.filter((rec) =>
+                rec.employeeId?.toLowerCase().includes(search.toLowerCase())
+            );
+        }
+        if (statusFilter !== "All") {
+            filtered = filtered.filter(rec => rec.status === statusFilter);
+        }
+        filtered = filtered.slice(); // copy
+        filtered.sort((a, b) => {
+            if (dateSort === "pending") {
+                if (a.regularizationStatus === "Pending" && b.regularizationStatus !== "Pending") return -1;
+                if (a.regularizationStatus !== "Pending" && b.regularizationStatus === "Pending") return 1;
+                // If both are pending or both are not, sort by date (newest first)
+                const dateA = new Date(a.date).getTime();
+                const dateB = new Date(b.date).getTime();
+                return dateB - dateA;
+            }
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            return dateSort === "desc" ? dateB - dateA : dateA - dateB;
         });
-    }, [search, records]);
+        return filtered;
+    }, [search, records, statusFilter, dateSort]);
 
     // Helper to format date only (YYYY-MM-DD)
     function formatDate(dt?: string) {
@@ -211,6 +236,26 @@ export default function AttendanceRegularizationPage() {
                         placeholder="Search by Employee ID"
                         className={`px-4 py-2 rounded-lg border-none shadow-sm focus:outline-none focus:ring-2 w-full md:w-64 ${theme === 'dark' ? 'bg-[#273356] text-blue-100 placeholder-blue-200 focus:ring-blue-300' : 'bg-white/80 text-gray-900 placeholder-gray-500 focus:ring-white'}`}
                     />
+                    {/* Status Filter */}
+                    <select
+                        value={statusFilter}
+                        onChange={e => setStatusFilter(e.target.value)}
+                        className="px-3 py-2 rounded-lg border shadow-sm focus:outline-none focus:ring-2 md:w-40 w-full"
+                    >
+                        {statusOptions.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                    </select>
+                    {/* Date Sort */}
+                    <select
+                        value={dateSort}
+                        onChange={e => setDateSort(e.target.value)}
+                        className="px-3 py-2 rounded-lg border shadow-sm focus:outline-none focus:ring-2 md:w-40 w-full"
+                    >
+                        <option value="desc">Newest First</option>
+                        <option value="asc">Oldest First</option>
+                        <option value="pending">Pending First (Regularization Status)</option>
+                    </select>
                     {/* Export Buttons */}
                     <div className="flex gap-2">
                         <button

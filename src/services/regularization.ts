@@ -28,3 +28,23 @@ export async function updateRegularizationStatus(id: string, action: string, rej
     );
   }
 }
+
+export async function fetchAllRegularizationsPaginated() {
+  let allRegularizations: any[] = [];
+  let currentPage = 1;
+  let totalPages = 1;
+
+  do {
+    const res = await fetch(`https://cafm.zenapi.co.in/api/attendance/regularization-history/all?page=${currentPage}`);
+    const data = await res.json();
+    if (data.success && data.data && Array.isArray(data.data.regularizations)) {
+      allRegularizations = allRegularizations.concat(data.data.regularizations);
+      totalPages = data.data.pagination.totalPages;
+      currentPage++;
+    } else {
+      break;
+    }
+  } while (currentPage <= totalPages);
+
+  return allRegularizations;
+}
