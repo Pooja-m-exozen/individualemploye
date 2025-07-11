@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { RegularizationRecord } from "@/types/regularization";
 
 const API_BASE_URL = "https://cafm.zenapi.co.in/api/attendance/regularization-history";
 
@@ -29,8 +30,8 @@ export async function updateRegularizationStatus(id: string, action: string, rej
   }
 }
 
-export async function fetchAllRegularizationsPaginated() {
-  let allRegularizations: any[] = [];
+export async function fetchAllRegularizationsPaginated(): Promise<RegularizationRecord[]> {
+  let allRegularizations: RegularizationRecord[] = [];
   let currentPage = 1;
   let totalPages = 1;
 
