@@ -506,7 +506,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         yPosition += 5;
 
         // Attendance table on first page
-        const tableColumn = ["Date", "Project", "Check In", "Check Out", "Hours Worked", "Day Type", "Status"];
+        const tableColumn = ["Date", "Project", "Check In", "Check Out", "Hours Worked", "Shortage Hours", "Day Type", "Status"];
         const filteredRecords = processedAttendanceData.filter(record => {
             const dateObj = new Date(record.date);
             return dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
@@ -522,14 +522,14 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
             const status = getAttendanceStatus(record, dayType);
             let hoursWorked = 'Incomplete';
-           
+            let hoursWorkedNum = 0;
             if (record.punchInUtc && record.punchOutUtc) {
-                hoursWorked = formatHoursToHoursAndMinutes(
-                    safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc)
-                );
+                hoursWorkedNum = parseFloat(safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc));
+                hoursWorked = formatHoursToHoursAndMinutes(hoursWorkedNum.toString());
             } else if (dayType !== 'Working Day') {
                 hoursWorked = '-';
             }
+            const shortage = hoursWorkedNum && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
 
             return [
                 formatDate(record.date),
@@ -537,6 +537,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 formatTime(record.punchInTime),
                 formatTime(record.punchOutTime),
                 hoursWorked,
+                shortage,
                 dayType,
                 status
             ];
@@ -560,8 +561,9 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 2: { cellWidth: 25 },
                 3: { cellWidth: 25 },
                 4: { cellWidth: 25 },
-                5: { cellWidth: 35 },
-                6: { cellWidth: 25 }
+                5: { cellWidth: 25 },
+                6: { cellWidth: 35 },
+                7: { cellWidth: 25 }
             }
         });
 
@@ -626,7 +628,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           yPosition += 8;
           doc.setFontSize(10);
           doc.setTextColor(0, 0, 0);
-          const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
+          const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + (monthlySummary.halfDays / 2) + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
           const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
           doc.text(`Total Days: ${monthlySummary.totalDays}`, 12, yPosition);
           yPosition += 7;
@@ -1117,6 +1119,15 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             .catch(() => setMonthlySummary(null));
     }, [employeeId, selectedMonth, selectedYear]);
 
+    // Helper to format shortage hours
+    const formatShortage = (hoursWorked: number): string => {
+      if (isNaN(hoursWorked) || hoursWorked >= 9) return '-';
+      const shortage = 9 - hoursWorked;
+      const h = Math.floor(shortage);
+      const m = Math.round((shortage - h) * 60);
+      return `${h}h ${m}m`;
+    };
+
     return (
         <div className={`space-y-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm p-6`}>
             {/* Header */}
@@ -1240,6 +1251,9 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                         Hours Worked
                       </th>
                       <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Shortage Hours
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
                         Day Type
                       </th>
                       <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
@@ -1251,83 +1265,74 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     </tr>
                   </thead>
                   <tbody className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {processedData.map((record: ExtendedRawAttendanceRecord, index) => (
-                      <tr
-                        key={record._id || index}
-                        className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
-                      >
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {formatDate(record.date)}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {record.projectName || 'N/A'}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {formatTime(record.punchInTime)}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {formatTime(record.punchOutTime)}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-    {(() => {
-  const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
-  if (record.punchInTime && record.punchOutTime) {
-    return formatHoursToHoursAndMinutes(
-      calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime)
-    );
-  } else if (dayType !== 'Working Day') {
-    return '-';
-  } else {
-    return 'Incomplete';
-  }
-})()}
-
-
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {record.punchInTime && record.punchOutTime ? (
-                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              {record.punchInTime && record.punchOutTime ? 'Present' : 'Absent'}
-                            </span>
-                          ) : ''}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            (() => {
-                                const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
-                                const status = getAttendanceStatus(record, dayType);
-                                switch (status) {
-                                    case 'Present':
-                                        return 'bg-green-100 text-green-800';
-                                    case 'Half Day':
-                                        return 'bg-yellow-100 text-yellow-800';
-                                    case 'Comp Off':
-                                        return 'bg-purple-100 text-purple-800';
-                                    case 'Holiday':
-                                        return 'bg-blue-100 text-blue-800';
-                                    default:
-                                        return status.includes('Leave')
-                                            ? 'bg-orange-100 text-orange-800'
-                                            : 'bg-red-100 text-red-800';
-                                }
-                            })()
-                          }`}>
-                            {(() => {
-                                const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
-                                return getAttendanceStatus(record, dayType);
-                            })()}
-                          </span>
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          <button
-                            onClick={() => setSelectedRecord(record)}
-                            className="text-blue-600 hover:underline"
-                          >
-                            View
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {processedData.map((record: ExtendedRawAttendanceRecord, index) => {
+                        const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
+                        let hoursWorkedNum = 0;
+                        let hoursWorkedStr = '';
+                        if (record.punchInTime && record.punchOutTime) {
+                            hoursWorkedNum = parseFloat(calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime));
+                            hoursWorkedStr = formatHoursToHoursAndMinutes(hoursWorkedNum.toString());
+                        } else if (dayType !== 'Working Day') {
+                            hoursWorkedStr = '-';
+                        } else {
+                            hoursWorkedStr = 'Incomplete';
+                        }
+                        const shortage = hoursWorkedNum && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
+                        return (
+                            <tr
+                                key={record._id || index}
+                                className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
+                            >
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {formatDate(record.date)}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {record.projectName || 'N/A'}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {formatTime(record.punchInTime)}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {formatTime(record.punchOutTime)}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {hoursWorkedStr}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {shortage}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {dayType}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                        (() => {
+                                            const status = getAttendanceStatus(record, dayType);
+                                            switch (status) {
+                                                case 'Present': return 'bg-green-100 text-green-800';
+                                                case 'Half Day': return 'bg-yellow-100 text-yellow-800';
+                                                case 'Comp Off': return 'bg-purple-100 text-purple-800';
+                                                case 'Holiday': return 'bg-blue-100 text-blue-800';
+                                                default: return status.includes('Leave') ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800';
+                                            }
+                                        })()
+                                    }`}>
+                                        {(() => {
+                                            return getAttendanceStatus(record, dayType);
+                                        })()}
+                                    </span>
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    <button
+                                        onClick={() => setSelectedRecord(record)}
+                                        className="text-blue-600 hover:underline"
+                                    >
+                                        View
+                                    </button>
+                                </td>
+                            </tr>
+                        );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1458,78 +1463,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                   </div>
                 </div>
               )}
-
-            {/* Summary Table using monthlySummary if available */}
-            {monthlySummary && (
-              <div className="overflow-x-auto rounded-xl border mt-8">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-blue-700">
-                    <tr>
-                      <th className="px-4 py-2 text-white">Total Days</th>
-                      <th className="px-4 py-2 text-white">Present Days</th>
-                      <th className="px-4 py-2 text-white">Regularized Present</th>
-                      <th className="px-4 py-2 text-white">Half Days</th>
-                      <th className="px-4 py-2 text-white">Partially Absent</th>
-                      <th className="px-4 py-2 text-white">Total Weekoff</th>
-                      <th className="px-4 py-2 text-white">Holidays</th>
-                      <th className="px-4 py-2 text-white">EL</th>
-                      <th className="px-4 py-2 text-white">SL</th>
-                      <th className="px-4 py-2 text-white">CL</th>
-                      <th className="px-4 py-2 text-white">Comp Off</th>
-                      <th className="px-4 py-2 text-white">LOP</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="px-4 py-2 text-center">{monthlySummary.totalDays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.presentDays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.regularizedPresentDays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.halfDays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.partiallyAbsentDays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.weekOffs}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.holidays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.el}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.sl}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.cl}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.compOff}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.lop}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                {/* Summary Section Below Table */}
-                <div className="mt-4">
-                  {(() => {
-                    const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
-                    const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
-                    return (
-                      <>
-                        <div><strong>Total Days:</strong> {monthlySummary.totalDays}</div>
-                        <div><strong>Total Payable Days:</strong> {totalPayableDays}</div>
-                        <div><strong>Attendance Percentage:</strong> {attendancePercentage}%</div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
-
-            {/* Summary Text using monthlySummary if available */}
-            {monthlySummary && (
-              <div className="mt-4">
-                {(() => {
-                  // Payable days: presentDays + halfDays + weekOffs + el + cl
-                  const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl;
-                  const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
-                  return (
-                    <>
-                      <div><strong>Total Working Days:</strong> {monthlySummary.totalDays} days</div>
-                      <div><strong>Total Payable Days:</strong> {totalPayableDays}</div>
-                      <div><strong>Attendance Percentage:</strong> {attendancePercentage}%</div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
         </div>
       );
 };
