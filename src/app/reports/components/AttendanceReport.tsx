@@ -558,6 +558,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             head: [[
               'Total Days',
               'Present Days',
+              'Regularized Present',
               'Half Days',
               'Partially Absent',
               'Total Weekoff',
@@ -571,6 +572,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             body: [[
               monthlySummary.totalDays,
               monthlySummary.presentDays,
+              monthlySummary.regularizedPresentDays,
               monthlySummary.halfDays,
               monthlySummary.partiallyAbsentDays,
               monthlySummary.weekOffs,
@@ -609,7 +611,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           yPosition += 8;
           doc.setFontSize(10);
           doc.setTextColor(0, 0, 0);
-          const totalPayableDays = monthlySummary.presentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
+          const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
           const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
           doc.text(`Total Days: ${monthlySummary.totalDays}`, 12, yPosition);
           yPosition += 7;
@@ -1450,6 +1452,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     <tr>
                       <th className="px-4 py-2 text-white">Total Days</th>
                       <th className="px-4 py-2 text-white">Present Days</th>
+                      <th className="px-4 py-2 text-white">Regularized Present</th>
                       <th className="px-4 py-2 text-white">Half Days</th>
                       <th className="px-4 py-2 text-white">Partially Absent</th>
                       <th className="px-4 py-2 text-white">Total Weekoff</th>
@@ -1465,6 +1468,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     <tr>
                       <td className="px-4 py-2 text-center">{monthlySummary.totalDays}</td>
                       <td className="px-4 py-2 text-center">{monthlySummary.presentDays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.regularizedPresentDays}</td>
                       <td className="px-4 py-2 text-center">{monthlySummary.halfDays}</td>
                       <td className="px-4 py-2 text-center">{monthlySummary.partiallyAbsentDays}</td>
                       <td className="px-4 py-2 text-center">{monthlySummary.weekOffs}</td>
@@ -1480,7 +1484,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 {/* Summary Section Below Table */}
                 <div className="mt-4">
                   {(() => {
-                    const totalPayableDays = monthlySummary.presentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
+                    const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
                     const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
                     return (
                       <>
@@ -1499,7 +1503,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               <div className="mt-4">
                 {(() => {
                   // Payable days: presentDays + halfDays + weekOffs + el + cl
-                  const totalPayableDays = monthlySummary.presentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl;
+                  const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl;
                   const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
                   return (
                     <>
