@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { FaFileExcel, FaFilePdf, FaCalendar, FaChevronLeft,  } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
@@ -5,7 +6,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Image from 'next/image';
 import { calculateHoursUtc, transformAttendanceRecord } from '../../utils/attendanceUtils';
-import { 
+import {
     RawAttendanceRecord as BaseRawAttendanceRecord,
     TransformedAttendanceRecord
 } from '../../types/attendance';
@@ -132,6 +133,21 @@ interface RegularizationRecord {
   regularizedBy: string;
 }
 
+interface MonthlySummary {
+  totalDays: number;
+  presentDays: number;
+  regularizedPresentDays: number;
+  halfDays: number;
+  partiallyAbsentDays: number;
+  weekOffs: number;
+  holidays: number;
+  el: number;
+  sl: number;
+  cl: number;
+  compOff: number;
+  lop: number;
+}
+
 const formatHoursToHoursAndMinutes = (hoursDecimal: string): string => {
     if (hoursDecimal === '0' || hoursDecimal === 'N/A') return 'N/A';
     const hours = Math.floor(parseFloat(hoursDecimal));
@@ -180,7 +196,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistory[]>([]);
     const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
     const [outLocationAddress, setOutLocationAddress] = useState<string | null>(null);
-    const [monthlySummary, setMonthlySummary] = useState<any>(null);
+    const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -205,7 +221,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const years = Array.from({ length: 5 }, (_, i) => currentYear + 2 - i);
 
     // Transform attendanceData using the shared logic
-    const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord => 
+    const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord =>
         transformAttendanceRecord(record)
     );
 
@@ -284,14 +300,14 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
         console.log('Geocoding request for:', { lat, lng });
         const GOOGLE_MAPS_API_KEY = 'AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4';
-        
+       
         try {
             const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
             console.log('Geocoding URL:', url);
 
             const response = await fetch(url);
             const data: GoogleMapsGeocodingResponse = await response.json();
-            
+           
             console.log('Geocoding response:', data);
 
             if (data.status === 'OK' && data.results?.[0]) {
@@ -332,7 +348,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 console.log('Formatted address:', formattedAddress);
                 return formattedAddress;
             }
-            
+           
             console.warn('No results found for location:', { lat, lng });
             return 'Location not found';
         } catch (error) {
@@ -491,7 +507,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         yPosition += 5;
 
         // Attendance table on first page
-        const tableColumn = ["Date", "Project", "Check In", "Check Out", "Hours Worked", "Day Type", "Status"];
+        const tableColumn = ["Date", "Check In", "Check Out", "Hours Worked", "Shortage Hours", "Day Type", "Status"];
         const filteredRecords = processedAttendanceData.filter(record => {
             const dateObj = new Date(record.date);
             return dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
@@ -507,21 +523,21 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
             const status = getAttendanceStatus(record, dayType);
             let hoursWorked = 'Incomplete';
-            
+            let hoursWorkedNum = 0;
             if (record.punchInUtc && record.punchOutUtc) {
-                hoursWorked = formatHoursToHoursAndMinutes(
-                    safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc)
-                );
+                hoursWorkedNum = parseFloat(safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc));
+                hoursWorked = formatHoursToHoursAndMinutes(hoursWorkedNum.toString());
             } else if (dayType !== 'Working Day') {
                 hoursWorked = '-';
             }
+            const shortage = hoursWorkedNum && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
 
             return [
                 formatDate(record.date),
-                record.projectName || '-',
                 formatTime(record.punchInTime),
                 formatTime(record.punchOutTime),
                 hoursWorked,
+                shortage,
                 dayType,
                 status
             ];
@@ -540,13 +556,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 fontStyle: 'bold'
             },
             columnStyles: {
-                0: { cellWidth: 25 },
-                1: { cellWidth: 35 },
-                2: { cellWidth: 25 },
-                3: { cellWidth: 25 },
-                4: { cellWidth: 25 },
-                5: { cellWidth: 35 },
-                6: { cellWidth: 25 }
+                0: { cellWidth: 22 }, // Date
+                1: { cellWidth: 20 }, // Check In
+                2: { cellWidth: 20 }, // Check Out
+                3: { cellWidth: 22 }, // Hours Worked
+                4: { cellWidth: 22 }, // Shortage Hours
+                5: { cellWidth: 22 }, // Day Type
+                6: { cellWidth: 22 }  // Status
             }
         });
 
@@ -611,7 +627,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           yPosition += 8;
           doc.setFontSize(10);
           doc.setTextColor(0, 0, 0);
-          const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
+          const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + (monthlySummary.halfDays / 2) + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
           const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
           doc.text(`Total Days: ${monthlySummary.totalDays}`, 12, yPosition);
           yPosition += 7;
@@ -881,7 +897,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             const startDate = new Date(leave.startDate);
             const endDate = new Date(leave.endDate);
             const targetDate = new Date(year, month - 1);
-            
+           
             // Check if any part of the leave falls in the selected month
             return (
                 (startDate.getMonth() === month - 1 && startDate.getFullYear() === year) ||
@@ -889,6 +905,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 (startDate <= targetDate && endDate >= new Date(year, month, 0))
             );
         });
+    };
+
+    // Add this function to extract time in HH:mm:ss from ISO string
+    const extractTime = (dateString: string | null) => {
+      if (!dateString) return '-';
+      const match = dateString.match(/T(\d{2}:\d{2}:\d{2})/);
+      return match ? match[1] : '-';
     };
 
     // In your component's main render logic, process the attendance data
@@ -1035,8 +1058,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         // Table rows
         const tableRows = regularizations.map((r: RegularizationRecord) => [
           r.date ? new Date(r.date).toLocaleDateString() : '-',
-          r.punchInTime ? new Date(r.punchInTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-',
-          r.punchOutTime ? new Date(r.punchOutTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-',
+          extractTime(r.punchInTime),
+          extractTime(r.punchOutTime),
           r.status || '-',
           r.originalStatus || '-',
           r.isRegularized ? 'Yes' : 'No',
@@ -1074,7 +1097,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           margin: { left: 10, right: 10 }
         });
         doc.save(`regularization_history_${monthName}_${selectedYear}.pdf`);
-      } catch (err) {
+      } catch {
         // Show PDF with error message
         const doc = new jsPDF();
         doc.setFontSize(14);
@@ -1102,19 +1125,28 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             .catch(() => setMonthlySummary(null));
     }, [employeeId, selectedMonth, selectedYear]);
 
+    // Helper to format shortage hours
+    const formatShortage = (hoursWorked: number): string => {
+      if (isNaN(hoursWorked) || hoursWorked >= 9) return '-';
+      const shortage = 9 - hoursWorked;
+      const h = Math.floor(shortage);
+      const m = Math.round((shortage - h) * 60);
+      return `${h}h ${m}m`;
+    };
+
     return (
         <div className={`space-y-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm p-6`}>
             {/* Header */}
             <div className={`${
-                theme === 'dark' 
-                    ? 'bg-white/10' 
+                theme === 'dark'
+                    ? 'bg-white/10'
                     : 'bg-blue-600'
             } text-white p-8 rounded-xl shadow-lg`}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className={`p-3 ${
-                            theme === 'dark' 
-                                ? 'bg-white/10' 
+                            theme === 'dark'
+                                ? 'bg-white/10'
                                 : 'bg-white/20'
                         } backdrop-blur-sm rounded-xl`}>
                             <FaFileExcel className="w-8 h-8 text-white" />
@@ -1122,8 +1154,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                         <div>
                             <h1 className="text-3xl font-bold">Attendance Report</h1>
                             <p className={`${
-                                theme === 'dark' 
-                                    ? 'text-blue-200' 
+                                theme === 'dark'
+                                    ? 'text-blue-200'
                                     : 'text-blue-100'
                             } mt-1`}>View and download your attendance records</p>
                         </div>
@@ -1151,8 +1183,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             value={selectedMonth}
                             onChange={(e) => handleMonthChange(parseInt(e.target.value))}
                             className={`pl-10 pr-4 py-2 border rounded-lg appearance-none ${
-                                            theme === 'dark' 
-                                                ? 'bg-gray-800 border-gray-600 text-gray-200' 
+                                            theme === 'dark'
+                                                ? 'bg-gray-800 border-gray-600 text-gray-200'
                                                 : 'bg-white border-gray-200 text-gray-900'
                                         } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                         >
@@ -1171,7 +1203,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                       ))}
                     </select>
                 </div>
-                
+               
                 <div className="flex gap-3">
                   <button
                     onClick={downloadExcel}
@@ -1225,6 +1257,9 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                         Hours Worked
                       </th>
                       <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Shortage Hours
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
                         Day Type
                       </th>
                       <th className={`px-6 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
@@ -1236,83 +1271,74 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     </tr>
                   </thead>
                   <tbody className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {processedData.map((record: ExtendedRawAttendanceRecord, index) => (
-                      <tr 
-                        key={record._id || index}
-                        className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
-                      >
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {formatDate(record.date)}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {record.projectName || 'N/A'}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {formatTime(record.punchInTime)}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {formatTime(record.punchOutTime)}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-    {(() => {
-  const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
-  if (record.punchInTime && record.punchOutTime) {
-    return formatHoursToHoursAndMinutes(
-      calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime)
-    );
-  } else if (dayType !== 'Working Day') {
-    return '-';
-  } else {
-    return 'Incomplete';
-  }
-})()}
-
-
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {record.punchInTime && record.punchOutTime ? (
-                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              {record.punchInTime && record.punchOutTime ? 'Present' : 'Absent'}
-                            </span>
-                          ) : ''}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            (() => {
-                                const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
-                                const status = getAttendanceStatus(record, dayType);
-                                switch (status) {
-                                    case 'Present':
-                                        return 'bg-green-100 text-green-800';
-                                    case 'Half Day':
-                                        return 'bg-yellow-100 text-yellow-800';
-                                    case 'Comp Off':
-                                        return 'bg-purple-100 text-purple-800';
-                                    case 'Holiday':
-                                        return 'bg-blue-100 text-blue-800';
-                                    default:
-                                        return status.includes('Leave')
-                                            ? 'bg-orange-100 text-orange-800'
-                                            : 'bg-red-100 text-red-800';
-                                }
-                            })()
-                          }`}>
-                            {(() => {
-                                const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
-                                return getAttendanceStatus(record, dayType);
-                            })()}
-                          </span>
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          <button
-                            onClick={() => setSelectedRecord(record)}
-                            className="text-blue-600 hover:underline"
-                          >
-                            View
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {processedData.map((record: ExtendedRawAttendanceRecord, index) => {
+                        const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
+                        let hoursWorkedNum = 0;
+                        let hoursWorkedStr = '';
+                        if (record.punchInTime && record.punchOutTime) {
+                            hoursWorkedNum = parseFloat(calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime));
+                            hoursWorkedStr = formatHoursToHoursAndMinutes(hoursWorkedNum.toString());
+                        } else if (dayType !== 'Working Day') {
+                            hoursWorkedStr = '-';
+                        } else {
+                            hoursWorkedStr = 'Incomplete';
+                        }
+                        const shortage = hoursWorkedNum && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
+                        return (
+                            <tr
+                                key={record._id || index}
+                                className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
+                            >
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {formatDate(record.date)}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {record.projectName || 'N/A'}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {formatTime(record.punchInTime)}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {formatTime(record.punchOutTime)}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {hoursWorkedStr}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {shortage}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {dayType}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                        (() => {
+                                            const status = getAttendanceStatus(record, dayType);
+                                            switch (status) {
+                                                case 'Present': return 'bg-green-100 text-green-800';
+                                                case 'Half Day': return 'bg-yellow-100 text-yellow-800';
+                                                case 'Comp Off': return 'bg-purple-100 text-purple-800';
+                                                case 'Holiday': return 'bg-blue-100 text-blue-800';
+                                                default: return status.includes('Leave') ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800';
+                                            }
+                                        })()
+                                    }`}>
+                                        {(() => {
+                                            return getAttendanceStatus(record, dayType);
+                                        })()}
+                                    </span>
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    <button
+                                        onClick={() => setSelectedRecord(record)}
+                                        className="text-blue-600 hover:underline"
+                                    >
+                                        View
+                                    </button>
+                                </td>
+                            </tr>
+                        );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1378,7 +1404,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             <div className="flex justify-between">
                                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
                                 <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
-                                    {selectedRecord.punchInLocation 
+                                    {selectedRecord.punchInLocation
                                         ? (inLocationAddress || 'Fetching location...')
                                         : 'Location not available'}
                                 </span>
@@ -1401,7 +1427,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             <div className="flex justify-between">
                                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
                                 <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
-                                    {selectedRecord.punchOutLocation 
+                                    {selectedRecord.punchOutLocation
                                         ? (outLocationAddress || 'Fetching location...')
                                         : 'Location not available'}
                                 </span>
@@ -1416,8 +1442,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                           {selectedRecord.punchInPhoto && (
                             <div>
                               <span className="text-sm text-gray-500 block mb-1">Punch In:</span>
-                              <Image 
-                                src={selectedRecord.punchInPhoto} 
+                              <Image
+                                src={selectedRecord.punchInPhoto}
                                 alt="Punch In"
                                 width={200}
                                 height={200}
@@ -1428,8 +1454,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                           {selectedRecord.punchOutPhoto && (
                             <div>
                               <span className="text-sm text-gray-500 block mb-1">Punch Out:</span>
-                              <Image 
-                                src={selectedRecord.punchOutPhoto} 
+                              <Image
+                                src={selectedRecord.punchOutPhoto}
                                 alt="Punch Out"
                                 width={200}
                                 height={200}
@@ -1443,78 +1469,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                   </div>
                 </div>
               )}
-
-            {/* Summary Table using monthlySummary if available */}
-            {monthlySummary && (
-              <div className="overflow-x-auto rounded-xl border mt-8">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-blue-700">
-                    <tr>
-                      <th className="px-4 py-2 text-white">Total Days</th>
-                      <th className="px-4 py-2 text-white">Present Days</th>
-                      <th className="px-4 py-2 text-white">Regularized Present</th>
-                      <th className="px-4 py-2 text-white">Half Days</th>
-                      <th className="px-4 py-2 text-white">Partially Absent</th>
-                      <th className="px-4 py-2 text-white">Total Weekoff</th>
-                      <th className="px-4 py-2 text-white">Holidays</th>
-                      <th className="px-4 py-2 text-white">EL</th>
-                      <th className="px-4 py-2 text-white">SL</th>
-                      <th className="px-4 py-2 text-white">CL</th>
-                      <th className="px-4 py-2 text-white">Comp Off</th>
-                      <th className="px-4 py-2 text-white">LOP</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="px-4 py-2 text-center">{monthlySummary.totalDays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.presentDays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.regularizedPresentDays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.halfDays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.partiallyAbsentDays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.weekOffs}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.holidays}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.el}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.sl}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.cl}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.compOff}</td>
-                      <td className="px-4 py-2 text-center">{monthlySummary.lop}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                {/* Summary Section Below Table */}
-                <div className="mt-4">
-                  {(() => {
-                    const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
-                    const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
-                    return (
-                      <>
-                        <div><strong>Total Days:</strong> {monthlySummary.totalDays}</div>
-                        <div><strong>Total Payable Days:</strong> {totalPayableDays}</div>
-                        <div><strong>Attendance Percentage:</strong> {attendancePercentage}%</div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
-
-            {/* Summary Text using monthlySummary if available */}
-            {monthlySummary && (
-              <div className="mt-4">
-                {(() => {
-                  // Payable days: presentDays + halfDays + weekOffs + el + cl
-                  const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl;
-                  const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
-                  return (
-                    <>
-                      <div><strong>Total Working Days:</strong> {monthlySummary.totalDays} days</div>
-                      <div><strong>Total Payable Days:</strong> {totalPayableDays}</div>
-                      <div><strong>Attendance Percentage:</strong> {attendancePercentage}%</div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
         </div>
       );
 };

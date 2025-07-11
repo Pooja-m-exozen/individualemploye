@@ -207,6 +207,9 @@ const OverallSummaryPage = (): JSX.Element => {
   const [loading, setLoading] = useState<boolean>(true);
   const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
   const [year, setYear] = useState<number>(new Date().getFullYear());
+  const [presentDaysData, setPresentDaysData] = useState<Record<string, number>>({});
+  const [regularizedPresentDaysData, setRegularizedPresentDaysData] = useState<Record<string, number>>({});
+  const [halfDaysData, setHalfDaysData] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const fetchEmployeesAndLeaves = async () => {
@@ -281,20 +284,32 @@ const OverallSummaryPage = (): JSX.Element => {
             .then(res => res.json())
             .then(data => ({
               employeeId: emp.employeeId,
+              presentDays: data.data?.summary?.presentDays ?? 0,
+              regularizedPresentDays: data.data?.summary?.regularizedPresentDays ?? 0,
               lop: data.data?.summary?.lop ?? 0,
               weekOffs: data.data?.summary?.weekOffs ?? 0,
+              halfDays: data.data?.summary?.halfDays ?? 0,
             }))
         );
         
         const allSummaryData = await Promise.all(summaryPromises);
+        const presentDaysMap: Record<string, number> = {};
+        const regularizedPresentDaysMap: Record<string, number> = {};
         const lopMap: Record<string, number> = {};
         const weekOffMap: Record<string, number> = {};
+        const halfDaysMap: Record<string, number> = {};
         allSummaryData.forEach(data => {
+          presentDaysMap[data.employeeId] = data.presentDays;
+          regularizedPresentDaysMap[data.employeeId] = data.regularizedPresentDays;
           lopMap[data.employeeId] = data.lop;
           weekOffMap[data.employeeId] = data.weekOffs;
+          halfDaysMap[data.employeeId] = data.halfDays;
         });
+        setPresentDaysData(presentDaysMap);
+        setRegularizedPresentDaysData(regularizedPresentDaysMap);
         setLopData(lopMap);
         setWeekOffData(weekOffMap);
+        setHalfDaysData(halfDaysMap);
       } catch (error) {
         console.error("Error fetching summary data:", error);
       }
@@ -366,7 +381,7 @@ const OverallSummaryPage = (): JSX.Element => {
     doc.text(`${new Date(0, month - 1).toLocaleString('default', { month: 'long' })} ${year}`, pageWidth / 2, 55, { align: 'center' });
 
     const tableHeaders = [
-        ['Employee', 'ID', 'Total Days', 'Present', 'Absent', 'Holidays', 'CF', 'EL', 'CL', 'SL', 'CompOff Used', 'Payable Days']
+        ['Total Days', 'Present', 'Half Days', 'Regularized Present', 'LOP', 'Week Offs', 'EL', 'CL', 'SL', 'CompOff Used', 'Payable Days']
     ];
 
     const tableData = employees.map(employee => {
@@ -380,29 +395,16 @@ const OverallSummaryPage = (): JSX.Element => {
         return a.status === status && d <= today;
       }).length;
       const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
-      const presentDays = getCount('P');
-      let holidayCount = getCount('H');
+      const present = presentDaysData[employee.employeeId] ?? 0;
+      const regularizedPresent = regularizedPresentDaysData[employee.employeeId] ?? 0;
+      const lop = lopData[employee.employeeId] ?? 0;
+      const weekOffs = weekOffData[employee.employeeId] ?? 0;
       const elCount = getCount('EL');
       const clCount = getCount('CL');
       const slCount = getCount('SL');
-      const cfCount = getCount('CF');
-      const present = presentDays;
-      let holiday = holidayCount;
-      const cf = cfCount;
-      const el = elCount;
-      const cl = clCount;
-      const sl = slCount;
-      const compOff = compOffUsed;
-      // For EFMS3254, set holidays to 0
-      if (employee.employeeId === "EFMS3254") {
-        holiday = 0;
-        holidayCount = 0;
-      }
-      const payableDays = present + holiday + el + sl + cl + cf + compOff;
-      const { absent } = getPayableDays(empAttendance, compOff, daysInMonth);
-      // Removed: const { absent, cfRemain } = getPayableDays(empAttendance, compOff, daysInMonth);
+      const payableDays = present + weekOffs + elCount + clCount + slCount + compOffUsed + regularizedPresent + halfDaysData[employee.employeeId] ;
+      const { absent } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
       let displayPayableDays = payableDays;
-      // If selected month is June (6), apply the override for employee 3254 only (not EFMS3254)
       if (
         employee.employeeId === "3254" &&
         payableDays === 0 &&
@@ -410,22 +412,18 @@ const OverallSummaryPage = (): JSX.Element => {
       ) {
         displayPayableDays = daysInMonth;
       }
-      // For EFMS3254, payable days must always be 0
-      if (employee.employeeId === "EFMS3254") {
-        displayPayableDays = 0;
-      }
+
       return [
-        employee.fullName,
-        employee.employeeId,
         daysInMonth,
         present,
-        absent,
-        holiday,
-        cf,
-        el,
-        cl,
-        sl,
-        compOff,
+        halfDaysData[employee.employeeId] ?? 0,
+        regularizedPresent,
+        lop,
+        weekOffs,
+        elCount,
+        clCount,
+        slCount,
+        compOffUsed,
         displayPayableDays
       ];
     });
@@ -435,6 +433,20 @@ const OverallSummaryPage = (): JSX.Element => {
         body: tableData,
         startY: 65,
         theme: 'grid',
+        headStyles: {
+          fillColor: [37, 99, 235], // blue-600
+          textColor: [255, 255, 255], // white
+        },
+        didParseCell: function (data) {
+          // Highlight Payable Days column in blue and bold
+          if (
+            data.section === 'body' &&
+            data.column.index === tableHeaders[0].length - 1
+          ) {
+            data.cell.styles.textColor = [37, 99, 235];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
     });
 
     doc.save(`Attendance_Summary_${month}_${year}.pdf`);
@@ -452,29 +464,30 @@ const OverallSummaryPage = (): JSX.Element => {
               return a.status === status && d <= today;
           }).length;
           const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
-          const presentDays = getCount('P');
+          const present = presentDaysData[employee.employeeId] ?? 0;
+          const regularizedPresent = regularizedPresentDaysData[employee.employeeId] ?? 0;
+          const halfDays = halfDaysData[employee.employeeId] ?? 0;
           const holidayCount = getCount('H');
           const elCount = getCount('EL');
           const clCount = getCount('CL');
           const slCount = getCount('SL');
           const cfCount = getCount('CF');
-          const payableDays = presentDays + holidayCount + elCount + slCount + clCount + cfCount + compOffUsed;
+          const weekOffs = weekOffData[employee.employeeId] ?? 0;
+          const payableDays = present + weekOffs + elCount + clCount + slCount + compOffUsed + regularizedPresent + halfDays;
           const { absent } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
-          // Removed: const { absent, cfRemain } = getPayableDays(empAttendance, compOffUsed, daysInMonth);
-          
           return {
               'Employee Name': employee.fullName,
               'Employee ID': employee.employeeId,
               'Total Days': daysInMonth,
-              'Present': presentDays,
-              'Absent': absent,
-              'Week Offs': weekOffData[employee.employeeId] ?? 0,
+              'Present': present,
+              'Half Days': halfDays,
+              'Regularized Present': regularizedPresent,
+              'Week Offs': weekOffs,
               'Holidays': holidayCount,
               'CF': cfCount,
               'EL': elCount,
               'CL': clCount,
               'SL': slCount,
-              'LOP': lopData[employee.employeeId] ?? 0,
               'CompOff Used': compOffUsed,
               'Payable Days': payableDays
           };
@@ -569,8 +582,10 @@ const OverallSummaryPage = (): JSX.Element => {
                     <th className="p-2 sm:p-3 text-left">Employee</th>
                     <th className="p-2 sm:p-3 text-center">Total Days</th>
                     <th className="p-2 sm:p-3 text-center">Present</th>
-                    <th className="p-2 sm:p-3 text-center">Absent</th>
-                    {/* Hide Holidays, CF, EL, CL, SL, CompOff Used columns on xs screens for clarity */}
+                    <th className="p-2 sm:p-3 text-center">Half Days</th>
+                    <th className="p-2 sm:p-3 text-center">Regularized Present</th>
+                    <th className="p-2 sm:p-3 text-center">LOP</th>
+                    <th className="p-2 sm:p-3 text-center">Week Offs</th>
                     <th className="p-2 sm:p-3 text-center hidden xs:table-cell">Holidays</th>
                     <th className="p-2 sm:p-3 text-center hidden xs:table-cell">CF</th>
                     <th className="p-2 sm:p-3 text-center hidden md:table-cell">EL</th>
@@ -603,23 +618,19 @@ const OverallSummaryPage = (): JSX.Element => {
                       return a.status === status && d <= today;
                     }).length;
                     const compOffUsed = employee.leaveBalance?.CompOff?.used || 0;
-                    const presentDays = getCount('P');
-                    const holidayCount = getCount('H');
+                    // Use presentDays from API for Exozen - Ops employees
+                    const present = presentDaysData[employee.employeeId] ?? 0;
+                    let holidayCount = getCount('H');
                     const elCount = getCount('EL');
                     const clCount = getCount('CL');
                     const slCount = getCount('SL');
                     const cfCount = getCount('CF');
-                    const present = presentDays;
-                    let holiday = holidayCount;
-                    const cf = cfCount;
-                    const el = elCount;
-                    const cl = clCount;
-                    const sl = slCount;
+                    const regularizedPresent = regularizedPresentDaysData[employee.employeeId] ?? 0;
+                    const halfDays = halfDaysData[employee.employeeId] ?? 0;
+                    const weekOffs = weekOffData[employee.employeeId] ?? 0;
                     const compOff = compOffUsed;
-                    if (employee.employeeId === "EFMS3254") {
-                      holiday = 0;
-                    }
-                    const payableDays = present + holiday + el + sl + cl + cf + compOff;
+                    // Payable days: present + weekOffs + el + cl + sl + compOffUsed + regularizedPresent + halfDays
+                    const payableDays = present + weekOffs + elCount + clCount + slCount + compOff + regularizedPresent + halfDays;
                     const { absent } = getPayableDays(empAttendance, compOff, daysInMonth);
                     let displayPayableDays = payableDays;
                     if (
@@ -659,29 +670,37 @@ const OverallSummaryPage = (): JSX.Element => {
                         }`}>{present}</td>
                         <td className={`p-2 sm:p-3 border text-center ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{absent}</td>
-                        {/* Hide Holidays, CF, EL, CL, SL, CompOff Used cells on xs/sm screens for clarity */}
+                        }`}>{halfDays}</td>
+                        <td className={`p-2 sm:p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{regularizedPresent}</td>
+                        <td className={`p-2 sm:p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{lopData[employee.employeeId] ?? 0}</td>
+                        <td className={`p-2 sm:p-3 border text-center ${
+                          theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
+                        }`}>{weekOffs}</td>
                         <td className={`p-2 sm:p-3 border text-center hidden xs:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{holiday}</td>
+                        }`}>{holidayCount}</td>
                         <td className={`p-2 sm:p-3 border text-center hidden xs:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{cf}</td>
+                        }`}>{cfCount}</td>
                         <td className={`p-2 sm:p-3 border text-center hidden md:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{el}</td>
+                        }`}>{elCount}</td>
                         <td className={`p-2 sm:p-3 border text-center hidden md:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{cl}</td>
+                        }`}>{clCount}</td>
                         <td className={`p-2 sm:p-3 border text-center hidden md:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
-                        }`}>{sl}</td>
+                        }`}>{slCount}</td>
                         <td className={`p-2 sm:p-3 border text-center hidden sm:table-cell ${
                           theme === 'light' ? 'border-gray-200 text-gray-400' : 'border-gray-700 text-gray-200'
                         }`}>{compOff}</td>
                         <td className={`p-2 sm:p-3 border text-center font-bold ${
                           theme === 'light' ? 'border-gray-200 text-blue-600' : 'border-gray-700 text-blue-400'
-                        }`}>{displayPayableDays}</td>
+                        }`}>{payableDays}</td>
                       </tr>
                     );
                   })}

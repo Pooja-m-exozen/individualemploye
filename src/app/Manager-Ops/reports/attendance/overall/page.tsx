@@ -54,15 +54,23 @@ const isSecondOrFourthSaturday = (date: Date): boolean => {
   return saturday === 2 || saturday === 4;
 };
 
-const isHoliday = (date: Date): boolean => {
+const isHoliday = (date: Date, projectName?: string): boolean => {
   const day = date.getDay();
   const dateString = date.toISOString().split('T')[0];
   if (day === 0) return true;
-  if (isSecondOrFourthSaturday(date)) return true;
+  // For Exozen - Ops, 2nd/4th Saturday is NOT a holiday
+  if (projectName !== 'Exozen - Ops' && isSecondOrFourthSaturday(date)) return true;
   return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
 };
 
-const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string, punchInTime?: string, punchOutTime?: string): string => {
+const getAttendanceStatus = (
+  date: Date,
+  leaves: LeaveRecord[],
+  status?: string,
+  punchInTime?: string,
+  punchOutTime?: string,
+  projectName?: string
+): string => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const checkDate = new Date(date);
@@ -84,7 +92,7 @@ const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string,
     return onLeave.leaveType;
   }
 
-  if (isHoliday(date)) {
+  if (isHoliday(date, projectName)) {
     if (punchInTime && punchOutTime) return 'CF';
     return 'H';
   }
@@ -317,7 +325,7 @@ const OverallAttendancePage = (): JSX.Element => {
             
             monthAttendance.push({
               date: dateString,
-              status: getAttendanceStatus(currentDate, employeeLeaves, dayRecord?.status, dayRecord?.punchInTime, dayRecord?.punchOutTime),
+              status: getAttendanceStatus(currentDate, employeeLeaves, dayRecord?.status, dayRecord?.punchInTime, dayRecord?.punchOutTime, "Exozen - Ops"),
               punchInTime: dayRecord?.punchInTime,
               punchOutTime: dayRecord?.punchOutTime
             });
