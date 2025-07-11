@@ -160,18 +160,17 @@ const AttendanceManagementPage = () => {
     try {
       const response = await fetch("https://cafm.zenapi.co.in/api/attendance/regularization-history/all");
       const data = await response.json();
-
-      if (!data.success || !data.regularizations || !Array.isArray(data.regularizations)) {
+      // The correct path is data.data.regularizations
+      const regularizations = data.data?.regularizations;
+      if (!data.success || !regularizations || !Array.isArray(regularizations)) {
         console.error("Invalid data structure for regularization requests:", data);
         setRegularizationRequests([]);
         return;
       }
-
       const exozenEmployeeIds = employees
         .filter(emp => emp.projectName === "Exozen - Ops")
         .map(emp => emp.employeeId);
-
-      const requests = data.regularizations
+      const requests = regularizations
         .filter((req: ApiRegularizationRequest) => exozenEmployeeIds.includes(req.employeeId))
         .map((req: ApiRegularizationRequest) => {
           const emp = employees.find(e => e.employeeId === req.employeeId);

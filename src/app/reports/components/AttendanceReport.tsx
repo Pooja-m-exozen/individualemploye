@@ -117,6 +117,21 @@ interface AttendanceReportProps {
     theme: 'light' | 'dark';  // Add this line
 }
 
+interface RegularizationRecord {
+  _id: string;
+  date: string;
+  isRegularized: boolean;
+  regularizationStatus: string;
+  remarks: string;
+  status: string;
+  originalStatus: string;
+  punchInTime: string;
+  punchOutTime: string;
+  regularizationDate: string;
+  regularizationReason: string;
+  regularizedBy: string;
+}
+
 const formatHoursToHoursAndMinutes = (hoursDecimal: string): string => {
     if (hoursDecimal === '0' || hoursDecimal === 'N/A') return 'N/A';
     const hours = Math.floor(parseFloat(hoursDecimal));
@@ -165,6 +180,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistory[]>([]);
     const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
     const [outLocationAddress, setOutLocationAddress] = useState<string | null>(null);
+    const [monthlySummary, setMonthlySummary] = useState<any>(null);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -536,51 +552,72 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
         // Second page - Monthly Summary
         doc.addPage();
-        // Only include the monthly summary and other sections below
-        // Monthly Summary Table
-        // Find if this is 'arvind technical' by checking if any record in filteredRecords is 'arvind technical'
-        const isArvindTechnical = filteredRecords.some(
-          (record) => record.projectName && record.projectName.trim().toLowerCase() === 'arvind technical'
-        );
-        if (isArvindTechnical) {
-          // For Arvind Technical: Total Working Days = days in month (30/31), Total Payable Days = Present Days + Comp Off (worked on Sundays)
-          const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-          // Present Days: count of records with status 'Present' (>=7h)
-          let presentDays = 0;
-          let compOffDays = 0;
-          filteredRecords.forEach((record) => {
-            const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
-            const status = getAttendanceStatus(record, dayType);
-            if (status === 'Present') presentDays++;
-            // Comp Off: worked on Sunday (dayType === 'Sunday' and status === 'Comp Off')
-            if (dayType === 'Sunday' && status === 'Comp Off') compOffDays++;
-          });
-          const totalPayableDays = presentDays + compOffDays;
+        // Use monthlySummary from API if available
+        if (monthlySummary) {
           autoTable(doc, {
             head: [[
-              'Total Working Days (incl. Week Off)',
+              'Total Days',
               'Present Days',
-              'Comp Off (Worked Sundays)',
-              'Total Payable Days'
+              'Regularized Present',
+              'Half Days',
+              'Partially Absent',
+              'Total Weekoff',
+              'Holidays',
+              'EL',
+              'SL',
+              'CL',
+              'Comp Off',
+              'LOP'
             ]],
             body: [[
-              daysInMonth,
-              presentDays,
-              compOffDays,
-              totalPayableDays
+              monthlySummary.totalDays,
+              monthlySummary.presentDays,
+              monthlySummary.regularizedPresentDays,
+              monthlySummary.halfDays,
+              monthlySummary.partiallyAbsentDays,
+              monthlySummary.weekOffs,
+              monthlySummary.holidays,
+              monthlySummary.el,
+              monthlySummary.sl,
+              monthlySummary.cl,
+              monthlySummary.compOff,
+              monthlySummary.lop
             ]],
             startY: yPosition,
             theme: 'grid',
             styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
             headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 7, fontStyle: 'bold' },
             columnStyles: {
-              0: { cellWidth: 40 },
-              1: { cellWidth: 30 },
-              2: { cellWidth: 40 },
-              3: { cellWidth: 40 }
+              0: { cellWidth: 15 },
+              1: { cellWidth: 15 },
+              2: { cellWidth: 15 },
+              3: { cellWidth: 15 },
+              4: { cellWidth: 18 },
+              5: { cellWidth: 15 },
+              6: { cellWidth: 15 },
+              7: { cellWidth: 15 },
+              8: { cellWidth: 15 },
+              9: { cellWidth: 20 },
+              10: { cellWidth: 15 }
             },
             margin: { left: 10, right: 10 }
           });
+          yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+
+          // Add Overall Summary section
+          doc.setFontSize(11);
+          doc.setTextColor(41, 128, 185);
+          doc.text('Overall Summary', 12, yPosition);
+          yPosition += 8;
+          doc.setFontSize(10);
+          doc.setTextColor(0, 0, 0);
+          const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
+          const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
+          doc.text(`Total Days: ${monthlySummary.totalDays}`, 12, yPosition);
+          yPosition += 7;
+          doc.text(`Total Payable Days: ${totalPayableDays}`, 12, yPosition);
+          yPosition += 7;
+          doc.text(`Attendance Percentage: ${attendancePercentage}%`, 12, yPosition);
         } else {
           // Calculate summary from attendance records and leave history
           let presentDays = 0;
@@ -618,7 +655,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             const status = getAttendanceStatus(record, dayType);
             const dateStr = record.date.split('T')[0];
             if (status === 'Present') presentDays++;
-            else if (status === 'Half Day') halfDays++;
+            else if (status === 'Half Day') halfDays += 0.5;
             else if (status === 'Partially Absent') partiallyAbsentDays++;
             else if (status === 'Comp Off') {
               compOffGained++;
@@ -696,8 +733,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               7: { cellWidth: 15 },
               8: { cellWidth: 15 },
               9: { cellWidth: 20 },
-              10: { cellWidth: 25 },
-              11: { cellWidth: 15 }
+              10: { cellWidth: 15 }
             },
             margin: { left: 10, right: 10 }
           });
@@ -727,7 +763,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         yPosition += 15;
 
         // Add Leave Balance section on same page, but check for overflow
-        if (!isArvindTechnical && leaveBalance && leaveBalance.balances) {
+        if (leaveBalance && leaveBalance.balances) {
           // If not enough space, add a new page
           if (yPosition + 40 > doc.internal.pageSize.getHeight()) {
             doc.addPage();
@@ -819,15 +855,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             signatureY = noteY + 18;
         }
         // Add note below the leave history table with proper spacing
-        if (!isArvindTechnical) {
-          doc.setFontSize(10);
-          doc.setFont('bold');
-          doc.setTextColor(200, 0, 0);
-          const noteLabel = 'Note:';
-          doc.setTextColor(0, 0, 0);
-          const noteText = 'Please ensure that the total working hours per day are at least 8 hours.';
-          doc.text(`${noteLabel} ${noteText}`, 12, noteY);
-        }
+        doc.setFontSize(10);
+        doc.setFont('bold');
+        doc.setTextColor(200, 0, 0);
+        const noteLabel = 'Note:';
+        doc.setTextColor(0, 0, 0);
+        const noteText = 'Please ensure that the total working hours per day are at least 8 hours.';
+        doc.text(`${noteLabel} ${noteText}`, 12, noteY);
 
         // Signature lines
         doc.setDrawColor(100, 100, 100);
@@ -938,6 +972,136 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
       doc.save(`location_report_${selectedMonth}_${selectedYear}.pdf`);
     };
 
+    // Add this function after downloadLocationPDF
+    const downloadRegularizationHistoryPDF = async () => {
+      if (!employeeId) return;
+      // Fetch regularization history
+      const apiUrl = `https://cafm.zenapi.co.in/api/attendance/${employeeId}/regularization-history?`;
+      try {
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        const monthName = months[selectedMonth - 1];
+        if (!data.success || !data.data || !Array.isArray(data.data.regularizations)) {
+          // Show PDF with message if no data
+          const doc = new jsPDF();
+          doc.setFontSize(14);
+          doc.setTextColor(41, 128, 185);
+          doc.text(`Regularization History Report - ${monthName} ${selectedYear}`, 15, 20);
+          doc.setFontSize(11);
+          doc.setTextColor(0, 0, 0);
+          doc.text('No regularization history found.', 15, 35);
+          doc.save(`regularization_history_${monthName}_${selectedYear}.pdf`);
+          return;
+        }
+        // Filter for current selected month and year
+        const regularizations = (data.data.regularizations as RegularizationRecord[]).filter((r: RegularizationRecord) => {
+          const date = new Date(r.date);
+          return date.getMonth() === selectedMonth - 1 && date.getFullYear() === selectedYear;
+        });
+        const doc = new jsPDF();
+        let yPosition = 15;
+        // Add Exozen logo (top left)
+        try {
+          doc.addImage('/v1/employee/exozen_logo1.png', 'PNG', 15, yPosition, 25, 8);
+        } catch {}
+        doc.setFontSize(12);
+        doc.setTextColor(41, 128, 185);
+        doc.text(`Regularization History Report - ${monthName} ${selectedYear}`, 45, yPosition + 4);
+        doc.setFontSize(10);
+        doc.setTextColor(41, 128, 185);
+        doc.text(`Employee ID: ${employeeId}`, 45, yPosition + 8);
+        yPosition += 15;
+        if (regularizations.length === 0) {
+          doc.setFontSize(11);
+          doc.setTextColor(0, 0, 0);
+          doc.text('No regularization history found for the selected month.', 15, yPosition + 10);
+          doc.save(`regularization_history_${monthName}_${selectedYear}.pdf`);
+          return;
+        }
+        // Table header
+        const tableHead = [[
+          'Date',
+          'Punch In',
+          'Punch Out',
+          'Status',
+          'Original Status',
+          'Regularized',
+          'Reg. Status',
+          'Reg. Date',
+          'Reason',
+          'By',
+          'Remarks'
+        ]];
+        // Table rows
+        const tableRows = regularizations.map((r: RegularizationRecord) => [
+          r.date ? new Date(r.date).toLocaleDateString() : '-',
+          r.punchInTime ? new Date(r.punchInTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-',
+          r.punchOutTime ? new Date(r.punchOutTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-',
+          r.status || '-',
+          r.originalStatus || '-',
+          r.isRegularized ? 'Yes' : 'No',
+          r.regularizationStatus || '-',
+          r.regularizationDate ? new Date(r.regularizationDate).toLocaleString() : '-',
+          r.regularizationReason || '-',
+          r.regularizedBy || '-',
+          r.remarks || '-'
+        ]);
+        autoTable(doc, {
+          head: tableHead,
+          body: tableRows,
+          startY: yPosition,
+          theme: 'grid',
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: {
+            fillColor: [41, 128, 185],
+            textColor: 255,
+            fontSize: 9,
+            fontStyle: 'bold'
+          },
+          columnStyles: {
+            0: { cellWidth: 18 }, // Date
+            1: { cellWidth: 15 }, // Punch In
+            2: { cellWidth: 15 }, // Punch Out
+            3: { cellWidth: 18 }, // Status
+            4: { cellWidth: 18 }, // Original Status
+            5: { cellWidth: 15 }, // Regularized
+            6: { cellWidth: 18 }, // Reg. Status
+            7: { cellWidth: 25 }, // Reg. Date
+            8: { cellWidth: 25 }, // Reason
+            9: { cellWidth: 15 }, // By
+            10: { cellWidth: 20 } // Remarks
+          },
+          margin: { left: 10, right: 10 }
+        });
+        doc.save(`regularization_history_${monthName}_${selectedYear}.pdf`);
+      } catch (err) {
+        // Show PDF with error message
+        const doc = new jsPDF();
+        doc.setFontSize(14);
+        doc.setTextColor(41, 128, 185);
+        doc.text(`Regularization History Report - ${months[selectedMonth - 1]} ${selectedYear}`, 15, 20);
+        doc.setFontSize(11);
+        doc.setTextColor(200, 0, 0);
+        doc.text('Failed to download regularization history PDF.', 15, 35);
+        doc.save(`regularization_history_${months[selectedMonth - 1]}_${selectedYear}.pdf`);
+      }
+    };
+
+    // Fetch monthly summary from API (employee-specific endpoint)
+    useEffect(() => {
+        if (!employeeId || !selectedMonth || !selectedYear) return;
+        fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${selectedMonth}&year=${selectedYear}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data && data.data.summary) {
+                    setMonthlySummary(data.data.summary);
+                } else {
+                    setMonthlySummary(null);
+                }
+            })
+            .catch(() => setMonthlySummary(null));
+    }, [employeeId, selectedMonth, selectedYear]);
+
     return (
         <div className={`space-y-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm p-6`}>
             {/* Header */}
@@ -1029,6 +1193,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                   >
                     <FaFilePdf className="w-4 h-4" />
                     Export Location Report (PDF)
+                  </button>
+                  <button
+                    onClick={downloadRegularizationHistoryPDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    <FaFilePdf className="w-4 h-4" />
+                    Export Regularization History (PDF)
                   </button>
                 </div>
               </div>
@@ -1272,6 +1443,78 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                   </div>
                 </div>
               )}
+
+            {/* Summary Table using monthlySummary if available */}
+            {monthlySummary && (
+              <div className="overflow-x-auto rounded-xl border mt-8">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-blue-700">
+                    <tr>
+                      <th className="px-4 py-2 text-white">Total Days</th>
+                      <th className="px-4 py-2 text-white">Present Days</th>
+                      <th className="px-4 py-2 text-white">Regularized Present</th>
+                      <th className="px-4 py-2 text-white">Half Days</th>
+                      <th className="px-4 py-2 text-white">Partially Absent</th>
+                      <th className="px-4 py-2 text-white">Total Weekoff</th>
+                      <th className="px-4 py-2 text-white">Holidays</th>
+                      <th className="px-4 py-2 text-white">EL</th>
+                      <th className="px-4 py-2 text-white">SL</th>
+                      <th className="px-4 py-2 text-white">CL</th>
+                      <th className="px-4 py-2 text-white">Comp Off</th>
+                      <th className="px-4 py-2 text-white">LOP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="px-4 py-2 text-center">{monthlySummary.totalDays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.presentDays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.regularizedPresentDays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.halfDays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.partiallyAbsentDays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.weekOffs}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.holidays}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.el}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.sl}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.cl}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.compOff}</td>
+                      <td className="px-4 py-2 text-center">{monthlySummary.lop}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                {/* Summary Section Below Table */}
+                <div className="mt-4">
+                  {(() => {
+                    const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
+                    const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
+                    return (
+                      <>
+                        <div><strong>Total Days:</strong> {monthlySummary.totalDays}</div>
+                        <div><strong>Total Payable Days:</strong> {totalPayableDays}</div>
+                        <div><strong>Attendance Percentage:</strong> {attendancePercentage}%</div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* Summary Text using monthlySummary if available */}
+            {monthlySummary && (
+              <div className="mt-4">
+                {(() => {
+                  // Payable days: presentDays + halfDays + weekOffs + el + cl
+                  const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + monthlySummary.halfDays + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl;
+                  const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
+                  return (
+                    <>
+                      <div><strong>Total Working Days:</strong> {monthlySummary.totalDays} days</div>
+                      <div><strong>Total Payable Days:</strong> {totalPayableDays}</div>
+                      <div><strong>Attendance Percentage:</strong> {attendancePercentage}%</div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
         </div>
       );
 };
