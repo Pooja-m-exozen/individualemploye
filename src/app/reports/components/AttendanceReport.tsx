@@ -1091,7 +1091,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           margin: { left: 10, right: 10 }
         });
         doc.save(`regularization_history_${monthName}_${selectedYear}.pdf`);
-      } catch (err) {
+      } catch {
         // Show PDF with error message
         const doc = new jsPDF();
         doc.setFontSize(14);
