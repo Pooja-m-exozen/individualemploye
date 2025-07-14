@@ -4,10 +4,9 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Image from 'next/image';
-import { calculateHoursUtc, transformAttendanceRecord } from '../../utils/attendanceUtils';
+import { calculateHoursUtc } from '../../utils/attendanceUtils';
 import {
     RawAttendanceRecord as BaseRawAttendanceRecord,
-    TransformedAttendanceRecord
 } from '../../types/attendance';
 import { startOfMonth, endOfMonth, format as formatDateFns } from 'date-fns';
 
