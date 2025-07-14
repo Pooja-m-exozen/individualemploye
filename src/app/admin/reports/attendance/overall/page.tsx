@@ -207,8 +207,6 @@ const OverallSummaryPage = (): JSX.Element => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceData, setAttendanceData] = useState<Record<string, Attendance[]>>({});
   const [leaveData, setLeaveData] = useState<Record<string, LeaveRecord[]>>({});
-  const [lopData, setLopData] = useState<Record<string, number>>({});
-  const [weekOffData, setWeekOffData] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingLop, setLoadingLop] = useState<boolean>(true);
   const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
@@ -303,8 +301,8 @@ const OverallSummaryPage = (): JSX.Element => {
           lopMap[data.employeeId] = data.lop;
           weekOffMap[data.employeeId] = data.weekOffs;
         });
-        setLopData(lopMap);
-        setWeekOffData(weekOffMap);
+        // setLopData(lopMap); // Removed as per edit hint
+        // setWeekOffData(weekOffMap); // Removed as per edit hint
       } catch (error) {
         console.error("Error fetching summary data:", error);
       } finally {
@@ -734,7 +732,6 @@ const OverallSummaryPage = (): JSX.Element => {
 
                     const presentDays = getCount('P');
                     const absentDays = getCount('A');
-                    const holidayCount = getCount('H');
                     const cfCount = getCount('CF');
                     const cflCount = getCount('CFL');
                     const elCount = getCount('EL');

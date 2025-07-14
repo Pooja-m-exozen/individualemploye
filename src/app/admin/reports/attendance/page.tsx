@@ -206,7 +206,6 @@ const OverallAttendancePage = (): JSX.Element => {
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [activeTab, setActiveTab] = useState<'overall' | 'consolidated'>('overall');
   const router = useRouter();
-  const [selectedProject, setSelectedProject] = useState<string>("");
   const [selectedDesignation, setSelectedDesignation] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [filterModalOpen, setFilterModalOpen] = useState(false);

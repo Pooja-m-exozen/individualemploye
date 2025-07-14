@@ -9,7 +9,7 @@ import {
     RawAttendanceRecord as BaseRawAttendanceRecord,
     TransformedAttendanceRecord
 } from '../../types/attendance';
-import { addDays, startOfMonth, endOfMonth, format as formatDateFns } from 'date-fns';
+import { startOfMonth, endOfMonth, format as formatDateFns } from 'date-fns';
 
 interface GoogleMapsAddressComponent {
     long_name: string;
