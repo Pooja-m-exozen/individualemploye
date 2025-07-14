@@ -238,11 +238,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 5 }, (_, i) => currentYear + 2 - i);
 
-    // Transform attendanceData using the shared logic
-    const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord =>
-        transformAttendanceRecord(record)
-    );
-
     const downloadExcel = () => {
         const worksheet = XLSX.utils.json_to_sheet(
             filteredRecords.map(record => ({
