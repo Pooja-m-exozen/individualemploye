@@ -85,15 +85,24 @@ const isSecondOrFourthSaturday = (date: Date): boolean => {
   return saturday === 2 || saturday === 4;
 };
 
-const isHoliday = (date: Date): boolean => {
+const isHoliday = (date: Date, projectName?: string): boolean => {
   const day = date.getDay();
   const dateString = date.toISOString().split('T')[0];
+  
+  // For Exozen - Ops project: only Sundays are holidays, 2nd and 4th Saturdays are working days
+  if (projectName === "Exozen - Ops") {
+    if (day === 0) return true; // Sunday is holiday
+    // 2nd and 4th Saturdays are working days, so return false
+    return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
+  }
+  
+  // For other projects: Sundays and 2nd/4th Saturdays are holidays
   if (day === 0) return true;
   if (isSecondOrFourthSaturday(date)) return true;
   return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
 };
 
-const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string, punchInTime?: string, punchOutTime?: string): string => {
+const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], projectName?: string, status?: string, punchInTime?: string, punchOutTime?: string): string => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const checkDate = new Date(date);
@@ -112,10 +121,19 @@ const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string,
   });
 
   if (onLeave) {
+    const leaveType = (onLeave.leaveType || '').toLowerCase().replace(/\s+/g, '');
+    if (leaveType === 'compoff' || leaveType === 'cfl' || leaveType === 'compoffleave') return 'CFL';
     return onLeave.leaveType;
   }
 
-  if (isHoliday(date)) {
+  // For Exozen - Ops project: if it's Sunday and they worked, it's Comp Off
+  if (projectName === "Exozen - Ops" && date.getDay() === 0) {
+    if (punchInTime && punchOutTime) return 'CF';
+    return 'H';
+  }
+
+  // For other projects: check if it's a holiday
+  if (isHoliday(date, projectName)) {
     if (punchInTime && punchOutTime) return 'CF';
     return 'H';
   }
@@ -127,14 +145,34 @@ const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string,
 const getPayableDays = (attendance: Attendance[]): number => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
   return attendance.filter(a => {
     const attendanceDate = new Date(a.date);
     attendanceDate.setHours(0, 0, 0, 0);
     if (attendanceDate > today) return false;
-    return ['P', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff'].includes(a.status);
+    return ['P', 'H', 'CF', 'CFL', 'EL', 'SL', 'CL'].includes(a.status);
   }).length;
 };
+
+// Add this utility function near the top:
+function getWeekOffsInMonth(year: number, month: number, projectName?: string): number {
+  let weekOffs = 0;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month - 1, day);
+    const dayOfWeek = date.getDay();
+    if (projectName === 'Exozen - Ops') {
+      if (dayOfWeek === 0) weekOffs++; // Only Sundays
+    } else {
+      if (dayOfWeek === 0) {
+        weekOffs++;
+      } else if (dayOfWeek === 6) {
+        const saturday = Math.floor((date.getDate() - 1) / 7) + 1;
+        if (saturday === 2 || saturday === 4) weekOffs++;
+      }
+    }
+  }
+  return weekOffs;
+}
 
 // Interfaces for API responses
 interface KycForm {
@@ -180,11 +218,12 @@ const OverallSummaryPage = (): JSX.Element => {
   const [activeTab, setActiveTab] = useState<'overall' | 'consolidated'>(
     pathname?.endsWith('/overall') ? 'consolidated' : 'overall'
   );
-  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [selectedDesignation, setSelectedDesignation] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [downloadDropdownOpen, setDownloadDropdownOpen] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
 
   const daysInMonth = new Date(year, month, 0).getDate();
 
@@ -308,7 +347,7 @@ const OverallSummaryPage = (): JSX.Element => {
             
             monthAttendance.push({
               date: dateString,
-              status: getAttendanceStatus(currentDate, employeeLeaves, dayRecord?.status, dayRecord?.punchInTime, dayRecord?.punchOutTime),
+              status: getAttendanceStatus(currentDate, employeeLeaves, employee.projectName, dayRecord?.status, dayRecord?.punchInTime, dayRecord?.punchOutTime),
               punchInTime: dayRecord?.punchInTime,
               punchOutTime: dayRecord?.punchOutTime
             });
@@ -334,7 +373,7 @@ const OverallSummaryPage = (): JSX.Element => {
 
   // Filter employees based on selected filters and search
   const filteredEmployees = employees.filter(emp => {
-    const matchesProject = selectedProject ? emp.projectName === selectedProject : true;
+    const matchesProject = selectedProjects.length > 0 ? selectedProjects.includes(emp.projectName) : true;
     const matchesDesignation = selectedDesignation ? emp.designation === selectedDesignation : true;
     const matchesSearch = searchQuery
       ? emp.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -353,10 +392,15 @@ const OverallSummaryPage = (): JSX.Element => {
     doc.text(`${new Date(0, month - 1).toLocaleString('default', { month: 'long' })} ${year}`, pageWidth / 2, 55, { align: 'center' });
 
     const tableHeaders = [
-        ['Employee', 'ID', 'Total Days', 'Present', 'Absent', 'Week Offs', 'Holidays', 'CF', 'EL', 'CL', 'SL', 'LOP', 'Payable Days']
+        ['Employee', 'ID', 'Total Days', 'Present', 'Absent', 'Week Offs', 'CF', 'CFL', 'EL', 'SL', 'CL', 'LOP', 'Payable Days']
     ];
 
-    const tableData = filteredEmployees.map(employee => {
+    // Only include selected employees if any are selected, otherwise all filteredEmployees
+    const employeesToDownload = selectedEmployeeIds.length > 0
+      ? employees.filter(e => selectedEmployeeIds.includes(e.employeeId))
+      : filteredEmployees;
+
+    const tableData = employeesToDownload.map(employee => {
         const empAttendance = attendanceData[employee.employeeId] || [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -367,20 +411,24 @@ const OverallSummaryPage = (): JSX.Element => {
             return a.status === status && d <= today;
         }).length;
 
+        const payableDays = getPayableDays(empAttendance);
+        const lop = daysInMonth - payableDays;
+        const clCount = getCount('CL');
+
         return [
             employee.fullName,
             employee.employeeId,
             daysInMonth,
             getCount('P'),
             getCount('A'),
-            weekOffData[employee.employeeId] ?? 0,
-            getCount('H'),
+            getWeekOffsInMonth(year, month, employee.projectName),
             getCount('CF'),
+            getCount('CFL'),
             getCount('EL'),
-            getCount('CL'),
             getCount('SL'),
-            lopData[employee.employeeId] ?? 0,
-            getPayableDays(empAttendance)
+            clCount,
+            lop,
+            payableDays
         ];
     });
 
@@ -395,7 +443,10 @@ const OverallSummaryPage = (): JSX.Element => {
   };
   
   const downloadExcel = () => {
-      const worksheetData = filteredEmployees.map(employee => {
+      const employeesToDownload = selectedEmployeeIds.length > 0
+        ? employees.filter(e => selectedEmployeeIds.includes(e.employeeId))
+        : filteredEmployees;
+      const worksheetData = employeesToDownload.map(employee => {
           const empAttendance = attendanceData[employee.employeeId] || [];
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -406,20 +457,24 @@ const OverallSummaryPage = (): JSX.Element => {
               return a.status === status && d <= today;
           }).length;
 
+          const payableDays = getPayableDays(empAttendance);
+          const lop = daysInMonth - payableDays;
+          const clCount = getCount('CL');
+
           return {
               'Employee Name': employee.fullName,
               'Employee ID': employee.employeeId,
               'Total Days': daysInMonth,
               'Present': getCount('P'),
               'Absent': getCount('A'),
-              'Week Offs': weekOffData[employee.employeeId] ?? 0,
-              'Holidays': getCount('H'),
+              'Week Offs': getWeekOffsInMonth(year, month, employee.projectName),
               'CF': getCount('CF'),
+              'CFL': getCount('CFL'),
               'EL': getCount('EL'),
-              'CL': getCount('CL'),
               'SL': getCount('SL'),
-              'LOP': lopData[employee.employeeId] ?? 0,
-              'Payable Days': getPayableDays(empAttendance)
+              'LOP': lop,
+              'Payable Days': payableDays,
+              'CL': clCount
           };
       });
 
@@ -532,17 +587,25 @@ const OverallSummaryPage = (): JSX.Element => {
                 </button>
                 <h2 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Advanced Filters</h2>
                 <div className="mb-4">
-                  <label className="block mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">Project</label>
-                  <select
-                    value={selectedProject}
-                    onChange={e => setSelectedProject(e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                  >
-                    <option value="">All Projects</option>
+                  <label className="block mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">Projects</label>
+                  <div className="flex flex-wrap gap-2">
                     {projectNames.map(project => (
-                      <option key={project} value={project}>{project}</option>
+                      <label key={project} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={selectedProjects.includes(project)}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setSelectedProjects(prev => [...prev, project]);
+                            } else {
+                              setSelectedProjects(prev => prev.filter(p => p !== project));
+                            }
+                          }}
+                        />
+                        <span>{project}</span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 </div>
                 <div className="mb-6">
                   <label className="block mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">Designation</label>
@@ -566,6 +629,30 @@ const OverallSummaryPage = (): JSX.Element => {
               </div>
             </div>
           )}
+          {/* Multi-select for employees after project filter */}
+         {selectedProjects.length > 0 && filteredEmployees.length > 0 && (
+           <div className="mb-4">
+             <label className="block mb-1 text-sm font-semibold text-white">Select Employees to Download (optional):</label>
+             <div className="flex flex-wrap gap-2">
+               {filteredEmployees.map(emp => (
+                 <label key={emp.employeeId} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded">
+                   <input
+                     type="checkbox"
+                     checked={selectedEmployeeIds.includes(emp.employeeId)}
+                     onChange={e => {
+                       if (e.target.checked) {
+                         setSelectedEmployeeIds(ids => [...ids, emp.employeeId]);
+                       } else {
+                         setSelectedEmployeeIds(ids => ids.filter(id => id !== emp.employeeId));
+                       }
+                     }}
+                   />
+                   <span>{emp.fullName} ({emp.employeeId})</span>
+                 </label>
+               ))}
+             </div>
+           </div>
+         )}
           {/* Attendance Legend with Download Dropdown */}
           <div className={`mb-4 p-4 rounded-lg border flex items-center justify-between ${theme === 'dark' ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'}`}>
             <div>
@@ -575,6 +662,7 @@ const OverallSummaryPage = (): JSX.Element => {
                 <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700'}`}>A</span><span>Absent</span></div>
                 <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>H</span><span>Holiday</span></div>
                 <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-cyan-900 text-cyan-300' : 'bg-cyan-100 text-cyan-700'}`}>CF</span><span>Comp. Off</span></div>
+                <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>CFL</span><span>CompOff Leave</span></div>
                 <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-700'}`}>EL/SL/CL</span><span>On Leave</span></div>
                 <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>-</span><span>Future</span></div>
               </div>
@@ -623,11 +711,11 @@ const OverallSummaryPage = (): JSX.Element => {
                     <th className="p-3 text-center font-semibold w-16">Present</th>
                     <th className="p-3 text-center font-semibold w-16">Absent</th>
                     <th className="p-3 text-center font-semibold w-20">Week Offs</th>
-                    <th className="p-3 text-center font-semibold w-20">Holidays</th>
                     <th className="p-3 text-center font-semibold w-16">CF</th>
+                    <th className="p-3 text-center font-semibold w-16">CFL</th>
                     <th className="p-3 text-center font-semibold w-16">EL</th>
-                    <th className="p-3 text-center font-semibold w-16">CL</th>
                     <th className="p-3 text-center font-semibold w-16">SL</th>
+                    <th className="p-3 text-center font-semibold w-16">CL</th>
                     <th className="p-3 text-center font-semibold w-16">LOP</th>
                     <th className="p-3 text-center font-semibold w-24">Payable Days</th>
                   </tr>
@@ -648,10 +736,12 @@ const OverallSummaryPage = (): JSX.Element => {
                     const absentDays = getCount('A');
                     const holidayCount = getCount('H');
                     const cfCount = getCount('CF');
+                    const cflCount = getCount('CFL');
                     const elCount = getCount('EL');
-                    const clCount = getCount('CL');
                     const slCount = getCount('SL');
                     const payableDays = getPayableDays(empAttendance);
+                    const lop = daysInMonth - payableDays;
+                    const clCount = getCount('CL');
                     return (
                       <tr key={employee.employeeId} className={`transition-colors duration-150 ${theme === 'dark' ? 'hover:bg-gray-700/50' : 'hover:bg-blue-50/50'}`}>
                         <td className={`py-3 pl-4 pr-8 sticky left-0 bg-inherit z-10 whitespace-nowrap w-48 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}> 
@@ -666,13 +756,13 @@ const OverallSummaryPage = (): JSX.Element => {
                         <td className={`p-3 text-center font-bold w-20 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>{daysInMonth}</td>
                         <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-green-900' : 'bg-green-100'}`}>{presentDays}</td>
                         <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-red-900' : 'bg-red-100'}`}>{absentDays}</td>
-                        <td className={`p-3 text-center font-bold w-20 ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{loadingLop ? '...' : weekOffData[employee.employeeId] ?? 0}</td>
-                        <td className={`p-3 text-center font-bold w-20 ${theme === 'dark' ? 'bg-purple-900' : 'bg-purple-100'}`}>{holidayCount}</td>
+                        <td className={`p-3 text-center font-bold w-20 ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{loadingLop ? '...' : getWeekOffsInMonth(year, month, employee.projectName)}</td>
                         <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{cfCount}</td>
+                        <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{cflCount}</td>
                         <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{elCount}</td>
-                        <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{clCount}</td>
                         <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{slCount}</td>
-                        <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-red-900' : 'bg-red-100'}`}>{loadingLop ? '...' : lopData[employee.employeeId] ?? 0}</td>
+                        <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>{clCount}</td>
+                        <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-red-900' : 'bg-red-100'}`}>{loadingLop ? '...' : lop}</td>
                         <td className={`p-3 text-center font-bold w-24 ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{payableDays}</td>
                       </tr>
                     );

@@ -46,15 +46,24 @@ const isSecondOrFourthSaturday = (date: Date): boolean => {
   return saturday === 2 || saturday === 4;
 };
 
-const isHoliday = (date: Date): boolean => {
+const isHoliday = (date: Date, projectName?: string): boolean => {
   const day = date.getDay();
   const dateString = date.toISOString().split('T')[0];
+  
+  // For Exozen - Ops project: only Sundays are holidays, 2nd and 4th Saturdays are working days
+  if (projectName === "Exozen - Ops") {
+    if (day === 0) return true; // Sunday is holiday
+    // 2nd and 4th Saturdays are working days, so return false
+    return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
+  }
+  
+  // For other projects: Sundays and 2nd/4th Saturdays are holidays
   if (day === 0) return true;
   if (isSecondOrFourthSaturday(date)) return true;
   return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
 };
 
-const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string, punchInTime?: string, punchOutTime?: string): string => {
+const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], projectName?: string, status?: string, punchInTime?: string, punchOutTime?: string): string => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const checkDate = new Date(date);
@@ -73,10 +82,19 @@ const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string,
   });
 
   if (onLeave) {
+    const leaveType = (onLeave.leaveType || '').toLowerCase().replace(/\s+/g, '');
+    if (leaveType === 'compoff' || leaveType === 'cfl' || leaveType === 'compoffleave') return 'CFL';
     return onLeave.leaveType;
   }
 
-  if (isHoliday(date)) {
+  // For Exozen - Ops project: if it's Sunday and they worked, it's Comp Off
+  if (projectName === "Exozen - Ops" && date.getDay() === 0) {
+    if (punchInTime && punchOutTime) return 'CF';
+    return 'H';
+  }
+
+  // For other projects: check if it's a holiday
+  if (isHoliday(date, projectName)) {
     if (punchInTime && punchOutTime) return 'CF';
     return 'H';
   }
@@ -103,12 +121,11 @@ const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string,
 const getPayableDays = (attendance: Attendance[]): number => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
   return attendance.filter(a => {
     const attendanceDate = new Date(a.date);
     attendanceDate.setHours(0, 0, 0, 0);
     if (attendanceDate > today) return false;
-    return ['P', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff'].includes(a.status);
+    return ['P', 'H', 'CF', 'CFL', 'EL', 'SL', 'CL'].includes(a.status);
   }).length;
 };
 
@@ -194,6 +211,8 @@ const OverallAttendancePage = (): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [downloadDropdownOpen, setDownloadDropdownOpen] = useState(false);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchEmployeesAndLeaves = async () => {
@@ -272,7 +291,7 @@ const OverallAttendancePage = (): JSX.Element => {
             
             monthAttendance.push({
               date: dateString,
-              status: getAttendanceStatus(currentDate, employeeLeaves, dayRecord?.status, dayRecord?.punchInTime, dayRecord?.punchOutTime),
+              status: getAttendanceStatus(currentDate, employeeLeaves, employee.projectName, dayRecord?.status, dayRecord?.punchInTime, dayRecord?.punchOutTime),
               punchInTime: dayRecord?.punchInTime,
               punchOutTime: dayRecord?.punchOutTime
             });
@@ -295,7 +314,6 @@ const OverallAttendancePage = (): JSX.Element => {
   const downloadPDF = async () => {
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
-    // const pageHeight = doc.internal.pageSize.getHeight();
     const margins = 10;
     let yPosition = 12;
     const logoWidth = 60;
@@ -317,11 +335,16 @@ const OverallAttendancePage = (): JSX.Element => {
       [
         'Emp ID', 'Name',
         ...Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString()),
-        'P', 'A', 'H', 'CF', 'EL', 'SL', 'CL', 'Payable'
+        'P', 'A', 'H', 'CF', 'CFL', 'EL', 'SL', 'CL', 'Payable'
       ]
     ];
 
-    const tableData = employees.map(employee => {
+    // Only include selected employees if any are selected, otherwise all filteredEmployees
+    const employeesToDownload = selectedEmployeeIds.length > 0
+      ? employees.filter(e => selectedEmployeeIds.includes(e.employeeId))
+      : filteredEmployees;
+
+    const tableData = employeesToDownload.map(employee => {
       const empAttendance = attendanceData[employee.employeeId] || [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -336,6 +359,7 @@ const OverallAttendancePage = (): JSX.Element => {
       const absentCount = getCount('A');
       const holidayCount = getCount('H');
       const cfCount = getCount('CF');
+      const cflCount = getCount('CFL');
       const elCount = getCount('EL');
       const slCount = getCount('SL');
       const clCount = getCount('CL');
@@ -350,6 +374,7 @@ const OverallAttendancePage = (): JSX.Element => {
           else if (record.status === 'H') fillColor = [237, 231, 246];
           else if (record.status === 'A') fillColor = [253, 232, 232];
           else if (record.status === 'CF') fillColor = [224, 247, 250];
+          else if (record.status === 'CFL') fillColor = [187, 222, 251];
           else if (['EL', 'SL', 'CL', 'CompOff'].includes(record.status)) fillColor = [255, 248, 225];
 
           let textColor: [number, number, number] = [156, 163, 175];
@@ -357,9 +382,10 @@ const OverallAttendancePage = (): JSX.Element => {
           else if (record.status === 'H') textColor = [94, 53, 177];
           else if (record.status === 'A') textColor = [183, 28, 28];
           else if (record.status === 'CF') textColor = [8, 145, 178];
+          else if (record.status === 'CFL') textColor = [30, 64, 175];
           else if (['EL', 'SL', 'CL', 'CompOff'].includes(record.status)) textColor = [217, 119, 6];
           
-          const fontStyle: 'bold' | 'normal' = ['P', 'A', 'H', 'CF', 'EL', 'SL', 'CL', 'CompOff'].includes(record.status) ? 'bold' : 'normal';
+          const fontStyle: 'bold' | 'normal' = ['P', 'A', 'H', 'CF', 'CFL', 'EL', 'SL', 'CL', 'CompOff'].includes(record.status) ? 'bold' : 'normal';
 
           return {
             content: record.status || '-',
@@ -370,7 +396,7 @@ const OverallAttendancePage = (): JSX.Element => {
             }
           };
         }),
-        presentCount.toString(), absentCount.toString(), holidayCount.toString(), cfCount.toString(),
+        presentCount.toString(), absentCount.toString(), holidayCount.toString(), cfCount.toString(), cflCount.toString(),
         elCount.toString(), slCount.toString(), clCount.toString(), payableDays.toString()
       ];
     });
@@ -418,6 +444,7 @@ const OverallAttendancePage = (): JSX.Element => {
       rowData["Absent"] = getCount('A');
       rowData["Holiday"] = getCount('H');
       rowData["CF"] = getCount('CF');
+      rowData["CFL"] = getCount('CFL');
       rowData["EL"] = getCount('EL');
       rowData["SL"] = getCount('SL');
       rowData["CL"] = getCount('CL');
@@ -466,7 +493,7 @@ const OverallAttendancePage = (): JSX.Element => {
 
   // Filter employees based on selected filters and search
   const filteredEmployees = employees.filter(emp => {
-    const matchesProject = selectedProject ? emp.projectName === selectedProject : true;
+    const matchesProject = selectedProjects.length > 0 ? selectedProjects.includes(emp.projectName) : true;
     const matchesDesignation = selectedDesignation ? emp.designation === selectedDesignation : true;
     const matchesSearch = searchQuery
       ? emp.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -584,18 +611,26 @@ const OverallAttendancePage = (): JSX.Element => {
                       ×
                     </button>
                     <h2 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Advanced Filters</h2>
-                    <div className="mb-4">
-                      <label className="block mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">Project</label>
-                      <select
-                        value={selectedProject}
-                        onChange={e => setSelectedProject(e.target.value)}
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                      >
-                        <option value="">All Projects</option>
+                    <div className="mb-2">
+                      <label className="block mb-1 text-sm font-semibold text-white">Select Projects:</label>
+                      <div className="flex flex-wrap gap-2">
                         {projectNames.map(project => (
-                          <option key={project} value={project}>{project}</option>
+                          <label key={project} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded">
+                            <input
+                              type="checkbox"
+                              checked={selectedProjects.includes(project)}
+                              onChange={e => {
+                                if (e.target.checked) {
+                                  setSelectedProjects(prev => [...prev, project]);
+                                } else {
+                                  setSelectedProjects(prev => prev.filter(p => p !== project));
+                                }
+                              }}
+                            />
+                            <span>{project}</span>
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     </div>
                     <div className="mb-6">
                       <label className="block mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">Designation</label>
@@ -619,6 +654,30 @@ const OverallAttendancePage = (): JSX.Element => {
                   </div>
                 </div>
               )}
+              {/* Multi-select for employees after project filter */}
+              {selectedProjects.length > 0 && filteredEmployees.length > 0 && (
+                <div className="mb-4">
+                  <label className="block mb-1 text-sm font-semibold text-white">Select Employees to Download (optional):</label>
+                  <div className="flex flex-wrap gap-2">
+                    {filteredEmployees.map(emp => (
+                      <label key={emp.employeeId} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={selectedEmployeeIds.includes(emp.employeeId)}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setSelectedEmployeeIds(ids => [...ids, emp.employeeId]);
+                            } else {
+                              setSelectedEmployeeIds(ids => ids.filter(id => id !== emp.employeeId));
+                            }
+                          }}
+                        />
+                        <span>{emp.fullName} ({emp.employeeId})</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
               {/* Attendance Legend with Download Dropdown */}
               <div className={`mb-4 p-4 rounded-lg border flex items-center justify-between ${theme === 'dark' ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'}`}>
                 <div>
@@ -629,6 +688,7 @@ const OverallAttendancePage = (): JSX.Element => {
                     <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>H</span><span>Holiday</span></div>
                     <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-cyan-900 text-cyan-300' : 'bg-cyan-100 text-cyan-700'}`}>CF</span><span>Comp. Off</span></div>
                     <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-700'}`}>EL/SL/CL</span><span>On Leave</span></div>
+                    <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>CFL</span><span>CompOff Leave</span></div>
                     <div className="flex items-center gap-2"><span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>-</span><span>Future</span></div>
                   </div>
                 </div>
@@ -679,6 +739,7 @@ const OverallAttendancePage = (): JSX.Element => {
                         <th className="p-3 text-center font-semibold bg-red-600">A</th>
                         <th className="p-3 text-center font-semibold bg-purple-600">H</th>
                         <th className="p-3 text-center font-semibold bg-cyan-600">CF</th>
+                        <th className="p-3 text-center font-semibold bg-blue-400">CFL</th>
                         <th className="p-3 text-center font-semibold bg-yellow-600">EL</th>
                         <th className="p-3 text-center font-semibold bg-yellow-600">SL</th>
                         <th className="p-3 text-center font-semibold bg-yellow-600">CL</th>
@@ -718,6 +779,7 @@ const OverallAttendancePage = (): JSX.Element => {
                               else if (status === 'A') badgeColor = theme === 'dark' ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700';
                               else if (status === 'H') badgeColor = theme === 'dark' ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-700';
                               else if (status === 'CF') badgeColor = theme === 'dark' ? 'bg-cyan-900 text-cyan-300' : 'bg-cyan-100 text-cyan-700';
+                              else if (status === 'CFL') badgeColor = theme === 'dark' ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-700';
                               else if (['EL', 'SL', 'CL'].includes(status)) badgeColor = theme === 'dark' ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-700';
                               else badgeColor = theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500';
                               
@@ -731,6 +793,7 @@ const OverallAttendancePage = (): JSX.Element => {
                             <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-red-900' : 'bg-red-100'}`}>{getCount('A')}</td>
                             <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-purple-900' : 'bg-purple-100'}`}>{getCount('H')}</td>
                             <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{getCount('CF')}</td>
+                            <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{getCount('CFL')}</td>
                             <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('EL')}</td>
                             <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('SL')}</td>
                             <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{getCount('CL')}</td>

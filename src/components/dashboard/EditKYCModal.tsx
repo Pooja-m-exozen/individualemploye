@@ -144,7 +144,7 @@ const EditKYCModal: React.FC<EditKYCModalProps> = ({ open, onClose, kycData, onS
   // Helper to check if a string is non-empty
   const isFilled = (val: unknown) => val !== undefined && val !== null && val !== '';
 
-  // Validate all fields in all sections
+  // Validate only visible/editable fields in all sections
   const isAllFieldsValid = () => {
     const pd = formData.personalDetails;
     const ad = formData.addressDetails;
@@ -152,48 +152,29 @@ const EditKYCModal: React.FC<EditKYCModalProps> = ({ open, onClose, kycData, onS
     const ec = formData.emergencyContact;
     const id = formData.identificationDetails;
     return (
-      isFilled(pd.employeeId) &&
-      isFilled(pd.projectName) &&
       isFilled(pd.fullName) &&
-      isFilled(pd.fathersName) &&
-      isFilled(pd.mothersName) &&
       isFilled(pd.gender) &&
       isFilled(pd.dob) &&
       isFilled(pd.phoneNumber) &&
-      isFilled(pd.designation) &&
-      isFilled(pd.dateOfJoining) &&
-      isFilled(pd.nationality) &&
-      isFilled(pd.religion) &&
-      isFilled(pd.maritalStatus) &&
-      isFilled(pd.bloodGroup) &&
-      isFilled(pd.uanNumber) &&
-      isFilled(pd.esicNumber) &&
-      isFilled(pd.experience) &&
-      isFilled(pd.educationalQualification) &&
-      Array.isArray(pd.languages) && pd.languages.length > 0 &&
-      isFilled(pd.employeeImage) &&
       isFilled(pd.email) &&
-      isFilled(pd.workType) &&
-      isFilled(ad.permanentAddress.state) &&
-      isFilled(ad.permanentAddress.city) &&
+      isFilled(pd.designation) &&
       isFilled(ad.permanentAddress.street) &&
+      isFilled(ad.permanentAddress.city) &&
+      isFilled(ad.permanentAddress.state) &&
       isFilled(ad.permanentAddress.postalCode) &&
-      isFilled(ad.currentAddress.state) &&
-      isFilled(ad.currentAddress.city) &&
       isFilled(ad.currentAddress.street) &&
+      isFilled(ad.currentAddress.city) &&
+      isFilled(ad.currentAddress.state) &&
       isFilled(ad.currentAddress.postalCode) &&
       isFilled(bd.bankName) &&
       isFilled(bd.branchName) &&
       isFilled(bd.accountNumber) &&
       isFilled(bd.ifscCode) &&
-      isFilled(id.identificationType) &&
-      isFilled(id.identificationNumber) &&
       isFilled(ec.name) &&
       isFilled(ec.phone) &&
       isFilled(ec.relationship) &&
-      isFilled(ec.aadhar) &&
-      Array.isArray(formData.documents) && formData.documents.length > 0 &&
-      isFilled(formData.status)
+      isFilled(id.identificationType) &&
+      isFilled(id.identificationNumber)
     );
   };
 

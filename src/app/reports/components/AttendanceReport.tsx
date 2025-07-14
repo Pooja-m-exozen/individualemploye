@@ -9,6 +9,7 @@ import {
     RawAttendanceRecord as BaseRawAttendanceRecord,
     TransformedAttendanceRecord
 } from '../../types/attendance';
+import { addDays, startOfMonth, endOfMonth, format as formatDateFns } from 'date-fns';
 
 interface GoogleMapsAddressComponent {
     long_name: string;
@@ -197,6 +198,24 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const [outLocationAddress, setOutLocationAddress] = useState<string | null>(null);
     const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null);
 
+    // Date range state
+    const [dateFrom, setDateFrom] = useState<string>(() => formatDateFns(startOfMonth(new Date(selectedYear, selectedMonth - 1)), 'yyyy-MM-dd'));
+    const [dateTo, setDateTo] = useState<string>(() => formatDateFns(endOfMonth(new Date(selectedYear, selectedMonth - 1)), 'yyyy-MM-dd'));
+
+    // Update date range when month/year changes
+    useEffect(() => {
+      setDateFrom(formatDateFns(startOfMonth(new Date(selectedYear, selectedMonth - 1)), 'yyyy-MM-dd'));
+      setDateTo(formatDateFns(endOfMonth(new Date(selectedYear, selectedMonth - 1)), 'yyyy-MM-dd'));
+    }, [selectedMonth, selectedYear]);
+
+    // Filter and sort records by date range
+    const filteredRecords = attendanceData.map((record: ExtendedRawAttendanceRecord): ExtendedRawAttendanceRecord =>
+        record
+    ).filter(record => {
+        const d = new Date(record.date);
+        return d >= new Date(dateFrom) && d <= new Date(dateTo);
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
@@ -226,7 +245,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
     const downloadExcel = () => {
         const worksheet = XLSX.utils.json_to_sheet(
-            attendanceData.map(record => ({
+            filteredRecords.map(record => ({
                 Date: formatDate(record.date),
                 'Project Name': record.projectName,
                 Designation: record.designation,
@@ -507,29 +526,21 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
         // Attendance table on first page
         const tableColumn = ["Date", "Check In", "Check Out", "Hours Worked", "Shortage Hours", "Day Type", "Status"];
-        const filteredRecords = processedAttendanceData.filter(record => {
-            const dateObj = new Date(record.date);
-            return dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
-        });
-
-        // Helper function to safely calculate hours
-        const safeCalculateHoursUtc = (inTime?: string | null, outTime?: string | null): string => {
-            if (!inTime || !outTime) return '0';
-            return calculateHoursUtc(inTime, outTime);
-        };
-
         const tableRows = filteredRecords.map((record: ExtendedRawAttendanceRecord) => {
             const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
             const status = getAttendanceStatus(record, dayType);
-            let hoursWorked = 'Incomplete';
+            let hoursWorked = '-';
             let hoursWorkedNum = 0;
-            if (record.punchInUtc && record.punchOutUtc) {
-                hoursWorkedNum = parseFloat(safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc));
+            let shortage = '-';
+            if (record.punchInTime && record.punchOutTime) {
+                const inTime = record.punchInUtc || record.punchInTime;
+                const outTime = record.punchOutUtc || record.punchOutTime;
+                hoursWorkedNum = parseFloat(calculateHoursUtc(inTime, outTime));
                 hoursWorked = formatHoursToHoursAndMinutes(hoursWorkedNum.toString());
+                shortage = hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
             } else if (dayType !== 'Working Day') {
                 hoursWorked = '-';
             }
-            const shortage = hoursWorkedNum && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
 
             return [
                 formatDate(record.date),
@@ -1203,6 +1214,12 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     </select>
                 </div>
                
+                <div className="flex gap-4 items-center">
+                  <label className="text-sm font-medium">From:</label>
+                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="px-2 py-1 rounded border" />
+                  <label className="text-sm font-medium">To:</label>
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="px-2 py-1 rounded border" />
+                </div>
                 <div className="flex gap-3">
                   <button
                     onClick={downloadExcel}
@@ -1270,19 +1287,21 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     </tr>
                   </thead>
                   <tbody className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {processedData.map((record: ExtendedRawAttendanceRecord, index) => {
+                    {filteredRecords.map((record: ExtendedRawAttendanceRecord, index) => {
                         const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
                         let hoursWorkedNum = 0;
-                        let hoursWorkedStr = '';
+                        let hoursWorkedStr = '-';
+                        let shortage = '-';
                         if (record.punchInTime && record.punchOutTime) {
-                            hoursWorkedNum = parseFloat(calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime));
+                            // Use raw UTC values if available, else fallback to punchInTime/punchOutTime
+                            const inTime = record.punchInUtc || record.punchInTime;
+                            const outTime = record.punchOutUtc || record.punchOutTime;
+                            hoursWorkedNum = parseFloat(calculateHoursUtc(inTime, outTime));
                             hoursWorkedStr = formatHoursToHoursAndMinutes(hoursWorkedNum.toString());
+                            shortage = hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
                         } else if (dayType !== 'Working Day') {
                             hoursWorkedStr = '-';
-                        } else {
-                            hoursWorkedStr = 'Incomplete';
                         }
-                        const shortage = hoursWorkedNum && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
                         return (
                             <tr
                                 key={record._id || index}
