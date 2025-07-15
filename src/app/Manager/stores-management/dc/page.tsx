@@ -90,7 +90,7 @@ export default function StoreDCPage() {
   const mappedDC = dcData.map(dc => ({
     ...dc,
     dcNumber: dc.dcNumber,
-    date: dc.dcDate.split("T")[0],
+    date: dc.dcDate ? dc.dcDate.split("T")[0] : "",
     issuedTo: dc.customer,
     status: "Issued", // API does not provide status, default to Issued
   }));
