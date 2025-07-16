@@ -34,13 +34,6 @@ interface InventorySize {
   unit: string;
 }
 
-interface InventoryItem {
-  _id: string;
-  name: string;
-  category: string;
-  sizeInventory: InventorySize[];
-}
-
 // Define available uniform items (if you want to keep them fixed, otherwise make this dynamic)
 // const UNIFORM_ITEMS = ["Shirt", "Trousers", "Cap", "Jacket", "Shoes", "Belt"];
 
@@ -204,9 +197,8 @@ export default function UniformRequestsPage() {
       // setInventoryError(null); // This line was removed
       fetch("https://inventory.zenapi.co.in/api/inventory/items")
         .then(res => res.json())
-        .then(data => {
-          // setInventoryItems(Array.isArray(data) ? data : data.items || []); // This line was removed
-          // setInventoryLoading(false); // This line was removed
+        .then(() => {
+          // No-op, inventory items logic removed
         })
         .catch ()
     }

@@ -6,6 +6,8 @@ import Image from "next/image";
 import { FaUsers, FaSpinner, FaEye, FaMapMarkerAlt } from "react-icons/fa";
 import { useMap } from "react-leaflet";
 import { FaMapMarkedAlt } from "react-icons/fa";
+import { useRef } from 'react';
+import type * as L from 'leaflet';
 
 // Dynamically import Leaflet components
 const MapContainer = dynamic(() => import("react-leaflet").then(mod => mod.MapContainer), { ssr: false });
@@ -13,7 +15,6 @@ const TileLayer = dynamic(() => import("react-leaflet").then(mod => mod.TileLaye
 const Marker = dynamic(() => import("react-leaflet").then(mod => mod.Marker), { ssr: false });
 const Popup = dynamic(() => import("react-leaflet").then(mod => mod.Popup), { ssr: false });
 const Polyline = dynamic(() => import("react-leaflet").then(mod => mod.Polyline), { ssr: false });
-const useLeaflet = typeof window !== 'undefined' ? require('leaflet') : null;
 
 interface Employee {
   employeeId: string;
@@ -48,6 +49,15 @@ interface ClusterEmployee {
   designation?: string;
   projectName?: string;
   punchInTime?: string;
+}
+
+// PunchEvent interface for all punch points
+interface PunchEvent {
+  lat: number;
+  lon: number;
+  photo: string;
+  label: string;
+  time: string;
 }
 
 // Utility: Throttle queue for geocoding
@@ -131,6 +141,7 @@ export default function MapView() {
   const [trackData, setTrackData] = useState<any>(null);
   const [trackLoading, setTrackLoading] = useState(false);
   const [trackError, setTrackError] = useState<string | null>(null);
+  const leafletLib = useLeafletLib();
 
   // Helper function to remove .000Z from time string
   const formatTime = (timeString: string | null): string => {
@@ -187,24 +198,24 @@ export default function MapView() {
       fetch(monthlyUrl).then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
     // Collect all punch events for the date
-    let events: { lat: number, lon: number, photo: string, label: string, time: string }[] = [];
+    let events: PunchEvent[] = [];
     // From daily punch log
     if (dailyRes && dailyRes.punchLogs && Array.isArray(dailyRes.punchLogs)) {
-      dailyRes.punchLogs.forEach((log: any, idx: number) => {
-        if (typeof log.inLat === 'number' && typeof log.inLon === 'number' && log.in) {
+      dailyRes.punchLogs.forEach((log: Record<string, unknown>) => {
+        if (typeof log.inLat === 'number' && typeof log.inLon === 'number' && typeof log.in === 'string') {
           events.push({
             lat: log.inLat,
             lon: log.inLon,
-            photo: log.inPhoto,
+            photo: typeof log.inPhoto === 'string' ? log.inPhoto : '',
             label: 'Punch In',
             time: log.in,
           });
         }
-        if (typeof log.outLat === 'number' && typeof log.outLon === 'number' && log.out) {
+        if (typeof log.outLat === 'number' && typeof log.outLon === 'number' && typeof log.out === 'string') {
           events.push({
             lat: log.outLat,
             lon: log.outLon,
-            photo: log.outPhoto,
+            photo: typeof log.outPhoto === 'string' ? log.outPhoto : '',
             label: 'Punch Out',
             time: log.out,
           });
@@ -213,21 +224,21 @@ export default function MapView() {
     }
     // From monthly attendance
     if (monthlyRes && monthlyRes.attendance && Array.isArray(monthlyRes.attendance)) {
-      monthlyRes.attendance.filter((rec: any) => rec.date && rec.date.startsWith(date)).forEach((rec: any, idx: number) => {
-        if (typeof rec.punchInLatitude === 'number' && typeof rec.punchInLongitude === 'number' && rec.punchInTime) {
+      monthlyRes.attendance.filter((rec: Record<string, unknown>) => typeof rec.date === 'string' && rec.date.startsWith(date)).forEach((rec: Record<string, unknown>) => {
+        if (typeof rec.punchInLatitude === 'number' && typeof rec.punchInLongitude === 'number' && typeof rec.punchInTime === 'string') {
           events.push({
             lat: rec.punchInLatitude,
             lon: rec.punchInLongitude,
-            photo: rec.punchInPhoto,
+            photo: typeof rec.punchInPhoto === 'string' ? rec.punchInPhoto : '',
             label: 'Punch In',
             time: rec.punchInTime,
           });
         }
-        if (typeof rec.punchOutLatitude === 'number' && typeof rec.punchOutLongitude === 'number' && rec.punchOutTime) {
+        if (typeof rec.punchOutLatitude === 'number' && typeof rec.punchOutLongitude === 'number' && typeof rec.punchOutTime === 'string') {
           events.push({
             lat: rec.punchOutLatitude,
             lon: rec.punchOutLongitude,
-            photo: rec.punchOutPhoto,
+            photo: typeof rec.punchOutPhoto === 'string' ? rec.punchOutPhoto : '',
             label: 'Punch Out',
             time: rec.punchOutTime,
           });
@@ -236,14 +247,14 @@ export default function MapView() {
     }
     // Remove duplicates (by lat/lon/time/photo)
     const seen = new Set();
-    events = events.filter(e => {
+    events = events.filter((e: PunchEvent) => {
       const key = `${e.lat},${e.lon},${e.time},${e.photo}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
     // Sort by time
-    events.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    events.sort((a: PunchEvent, b: PunchEvent) => new Date(a.time).getTime() - new Date(b.time).getTime());
     return events;
   }
 
@@ -254,7 +265,7 @@ export default function MapView() {
       setTrackError(null);
       setTrackData(null);
       fetchCombinedPunchData(trackModal.employeeId, trackModal.date)
-        .then(events => {
+        .then((events: PunchEvent[]) => {
           setTrackData({ events });
           setTrackLoading(false);
         })
@@ -527,7 +538,7 @@ export default function MapView() {
                         return (
                           <React.Fragment key={`${employee.employeeId}-${idx}`}>
                             {punchInPosition && (
-                              <EmployeeImageMarker position={punchInPosition as [number, number]} imageUrl={entry.punchInPhoto || employee.employeeImage}>
+                              <EmployeeImageMarker position={punchInPosition as [number, number]} imageUrl={entry.punchInPhoto || employee.employeeImage} leafletLib={leafletLib}>
                                 <Popup>
                                   <div style={{ width: "260px", padding: "12px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
                                     <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid #e5e7eb" }}>
@@ -578,7 +589,7 @@ export default function MapView() {
                               </EmployeeImageMarker>
                             )}
                             {punchOutPosition && (
-                              <EmployeeImageMarker position={punchOutPosition as [number, number]} imageUrl={entry.punchOutPhoto || employee.employeeImage}>
+                              <EmployeeImageMarker position={punchOutPosition as [number, number]} imageUrl={entry.punchOutPhoto || employee.employeeImage} leafletLib={leafletLib}>
                                 <Popup>
                                   <div style={{ width: "260px", padding: "12px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
                                     <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid #e5e7eb" }}>
@@ -750,7 +761,7 @@ export default function MapView() {
               ) : trackData && trackData.events && trackData.events.length > 0 ? (
                 <div className="w-full h-[350px] rounded-lg overflow-hidden">
                   {(() => {
-                    const points: [number, number][] = trackData.events.map((e: any) => [e.lat, e.lon]);
+                    const points: [number, number][] = trackData.events.map((e: PunchEvent) => [e.lat, e.lon]);
                     const center: [number, number] = points.length > 0 ? points[0] : [12.9716, 77.5946];
                     return (
                       <MapContainer
@@ -765,16 +776,16 @@ export default function MapView() {
                           maxZoom={22}
                         />
                         <FitBoundsModal points={points} />
-                        {trackData.events.map((m: any, i: number) => (
+                        {trackData.events.map((m: PunchEvent, i: number) => (
                           <Marker
                             key={i}
                             position={[m.lat, m.lon] as [number, number]}
-                            icon={useLeaflet && useLeaflet.divIcon({
+                            icon={leafletLib ? leafletLib.divIcon({
                               html: `<div style='position: relative; text-align: center;'><img src="${m.photo}" alt='${m.label}' style='width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); border: 2px solid ${m.label.toLowerCase().includes('in') ? '#2563eb' : '#22c55e'};' /><div style='position:absolute;top:44px;left:50%;transform:translateX(-50%);font-size:11px;color:#222;background:#fff;padding:1px 4px;border-radius:4px;border:1px solid #eee;white-space:nowrap;'>${m.label}</div></div>`,
                               className: "custom-punch-icon",
                               iconSize: [54, 60],
                               iconAnchor: [27, 44],
-                            })}
+                            }) : undefined}
                           >
                             <Popup>
                               <div style={{ textAlign: 'center', width: 180, padding: 8, borderRadius: 12 }}>
@@ -805,7 +816,7 @@ export default function MapView() {
 
 // Helper component for employee photo in modal
 function EmployeePhotoCell({ employeeId, punchInPhoto }: { employeeId: string, punchInPhoto?: string }) {
-  const [photoUrl, setPhotoUrl] = React.useState<string | null>(punchInPhoto || null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(punchInPhoto || null);
   React.useEffect(() => {
     if (photoUrl || !employeeId) return;
     async function fetchKycPhoto() {
@@ -828,23 +839,26 @@ function EmployeePhotoCell({ employeeId, punchInPhoto }: { employeeId: string, p
   );
 }
 
-function EmployeeImageMarker({ position, imageUrl, children }: { position: [number, number], imageUrl: string, children: React.ReactNode }) {
-  const [icon, setIcon] = useState<import('leaflet').DivIcon | null>(null);
+interface EmployeeImageMarkerProps {
+  position: [number, number];
+  imageUrl: string;
+  children: React.ReactNode;
+  leafletLib: typeof import('leaflet') | null;
+}
+function EmployeeImageMarker({ position, imageUrl, children, leafletLib }: EmployeeImageMarkerProps) {
+  const [icon, setIcon] = useState<L.DivIcon | null>(null);
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    import('leaflet').then(L => {
-      // NOTE: <img> is used here because Leaflet's divIcon requires raw HTML. Next.js <Image /> cannot be used inside raw HTML strings.
-      const divIcon = L.divIcon({
-        html: `<div style='position: relative; text-align: center;'>
-                  <img src="${imageUrl}" alt='Employee' style='width: 36px; height: 36px; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); border: 2px solid #3b82f6;' />
-                </div>`,
-        className: "custom-employee-icon",
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-      });
-      setIcon(divIcon);
+    if (!leafletLib) return;
+    const divIcon = leafletLib.divIcon({
+      html: `<div style='position: relative; text-align: center;'>
+                <img src="${imageUrl}" alt='Employee' style='width: 36px; height: 36px; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); border: 2px solid #3b82f6;' />
+              </div>`,
+      className: "custom-employee-icon",
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
     });
-  }, [imageUrl]);
+    setIcon(divIcon);
+  }, [imageUrl, leafletLib]);
   if (!icon) return null;
   return <Marker position={position} icon={icon}>{children}</Marker>;
 }
@@ -878,4 +892,18 @@ function FitBoundsModal({ points }: { points: [number, number][] }) {
     }
   }, [map, points]);
   return null;
+}
+
+function useLeafletLib(): typeof import('leaflet') | null {
+  const leafletRef = useRef<typeof import('leaflet') | null>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (!leafletRef.current && typeof window !== 'undefined') {
+      import('leaflet').then(mod => {
+        leafletRef.current = mod;
+        setReady(true);
+      });
+    }
+  }, []);
+  return leafletRef.current;
 }
