@@ -18,6 +18,9 @@ interface UniformRequest {
   };
   status: string;
   requestedItems: string[];
+  qty?: number;
+  remarks?: string;
+  sizes?: { [key: string]: string };
 }
 
 interface InventorySize {
@@ -97,13 +100,27 @@ export default function UniformRequestsPage() {
     e.preventDefault();
     if (!newRequest.employeeId || newRequest.requestedItems.length === 0 || newRequest.qty < 1) return;
     setCreateLoading(true);
-    // Prepare API body
+
+    // Map item IDs to names for uniformType
+    const selectedItems = inventoryItems.filter(item => newRequest.requestedItems.includes(item._id));
+    const uniformType = selectedItems.map(item => item.name);
+
+    // Map sizes: only one size per item (pick the first if multiple selected)
+    const size: { [key: string]: string } = {};
+    selectedItems.forEach(item => {
+      const sizes = newRequest.sizes[item._id];
+      if (Array.isArray(sizes) && sizes.length > 0) {
+        size[item.name] = sizes[0]; // pick the first selected size
+      }
+    });
+
     const body = {
-      uniformType: newRequest.requestedItems,
-      size: newRequest.sizes,
+      uniformType,
+      size,
       qty: newRequest.qty,
       remarks: newRequest.remarks
     };
+
     try {
       const res = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${newRequest.employeeId}/request`, {
         method: "POST",
@@ -122,8 +139,27 @@ export default function UniformRequestsPage() {
       setCreateLoading(false);
       setToast({ type: "success", message: "Uniform request created successfully." });
       setTimeout(() => setToast(null), 3500);
-      // Optionally refresh requests from API if you have a GET endpoint
-      // fetchRequests();
+      // Add the new request to the UI list using the API's response data
+      if (data.uniformRequest) {
+        setRequests(prev => [
+          ...prev,
+          {
+            _id: data.uniformRequest._id,
+            employee: {
+              employeeId: data.uniformRequest.employeeId,
+              fullName: data.uniformRequest.fullName,
+              designation: data.uniformRequest.designation,
+              employeeImage: "", // You may want to fetch or set this if available
+              projectName: data.uniformRequest.projectName,
+            },
+            status: data.uniformRequest.approvalStatus,
+            requestedItems: data.uniformRequest.uniformType,
+            qty: data.uniformRequest.qty,
+            remarks: data.uniformRequest.remarks,
+            sizes: data.uniformRequest.size,
+          }
+        ]);
+      }
     } catch (err) {
       setCreateLoading(false);
       const message = err instanceof Error ? err.message : "Failed to create uniform request.";
@@ -392,7 +428,7 @@ export default function UniformRequestsPage() {
                   <div key={request._id} className={`p-5 rounded-2xl shadow-lg transition-all duration-300 ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
                     <div className="flex items-center gap-4 mb-4">
                       <div className="w-16 h-16 rounded-full overflow-hidden">
-                        <Image src={request.employee.employeeImage} alt={request.employee.fullName} width={64} height={64} className="w-full h-full object-cover" />
+                        <Image src={request.employee.employeeImage || '/file.svg'} alt={request.employee.fullName} width={64} height={64} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1">
                         <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{request.employee.fullName}</h3>
@@ -405,15 +441,27 @@ export default function UniformRequestsPage() {
                         <span className={`text-sm ${request.status === 'Approved' ? 'text-green-500' : request.status === 'Rejected' ? 'text-red-500' : 'text-yellow-500'}`}>{request.status}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Items:</span>
+                        <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Items & Sizes:</span>
                         <div className="flex flex-wrap gap-2">
                           {request.requestedItems.map(item => (
                             <span key={item} className={`text-xs rounded-full py-1 px-3 ${theme === 'dark' ? 'bg-blue-900 text-blue-100' : 'bg-blue-50 text-blue-700'}`}>
-                              {item}
+                              {item}{request.sizes && request.sizes[item] ? ` (${request.sizes[item]})` : ''}
                             </span>
                           ))}
                         </div>
                       </div>
+                      {request.qty && (
+                        <div className="flex items-center justify-between">
+                          <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Quantity:</span>
+                          <span className="text-sm">{request.qty}</span>
+                        </div>
+                      )}
+                      {request.remarks && (
+                        <div className="flex items-center justify-between">
+                          <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Remarks:</span>
+                          <span className="text-sm">{request.remarks}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -443,38 +491,40 @@ export default function UniformRequestsPage() {
                 <table className={`min-w-full divide-y divide-gray-200 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
                   <thead className={theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">{/* Checkbox for bulk actions */}</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500"></th>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Employee ID</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Name</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Designation</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Project</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Requested Items</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Requested Items (Size)</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Qty</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Remarks</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredRequests.map(request => (
                       <tr key={request._id} className={theme === 'dark' ? 'bg-gray-800' : 'bg-white'}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{/* Checkbox */}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"></td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.employeeId}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.fullName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.designation}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.projectName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${request.status === 'Approved' ? 'bg-green-100 text-green-700' : request.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                            {request.status}
-                          </span>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${request.status === 'Approved' ? 'bg-green-100 text-green-700' : request.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{request.status}</span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="flex flex-wrap gap-2">
                             {request.requestedItems.map(item => (
                               <span key={item} className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${theme === 'dark' ? 'bg-blue-900 text-blue-100' : 'bg-blue-50 text-blue-700'}`}>
-                                {item}
+                                {item}{request.sizes && request.sizes[item] ? ` (${request.sizes[item]})` : ''}
                               </span>
                             ))}
                           </div>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">{request.qty || ''}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">{request.remarks || ''}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex gap-2">
                             <button
