@@ -188,7 +188,7 @@ export default function MapView() {
 
   // Helper to fetch and merge punch data from both APIs
   async function fetchCombinedPunchData(employeeId: string, date: string) {
-    const [year, month, day] = date.split('-');
+    const [year, month] = date.split('-'); // Removed 'day' from destructuring
     // API URLs
     const dailyUrl = `https://cafm.zenapi.co.in/api/attendance/${employeeId}/punch-log?date=${date}`;
     const monthlyUrl = `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${employeeId}&month=${parseInt(month, 10)}&year=${year}`;
