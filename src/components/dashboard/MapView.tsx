@@ -776,26 +776,35 @@ export default function MapView() {
                           maxZoom={22}
                         />
                         <FitBoundsModal points={points} />
-                        {trackData.events.map((m: PunchEvent, i: number) => (
-                          <Marker
-                            key={i}
-                            position={[m.lat, m.lon] as [number, number]}
-                            icon={leafletLib ? leafletLib.divIcon({
+                        {trackData.events.map((m: PunchEvent, i: number) => {
+                          let icon: L.DivIcon | L.Icon<L.IconOptions> | undefined;
+                          if (leafletLib) {
+                            const divIcon = leafletLib.divIcon({
                               html: `<div style='position: relative; text-align: center;'><img src="${m.photo}" alt='${m.label}' style='width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); border: 2px solid ${m.label.toLowerCase().includes('in') ? '#2563eb' : '#22c55e'};' /><div style='position:absolute;top:44px;left:50%;transform:translateX(-50%);font-size:11px;color:#222;background:#fff;padding:1px 4px;border-radius:4px;border:1px solid #eee;white-space:nowrap;'>${m.label}</div></div>`,
                               className: "custom-punch-icon",
                               iconSize: [54, 60],
                               iconAnchor: [27, 44],
-                            }) : undefined}
-                          >
-                            <Popup>
-                              <div style={{ textAlign: 'center', width: 180, padding: 8, borderRadius: 12 }}>
-                                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{m.label}</div>
-                                <div style={{ fontSize: 13, color: '#444', marginBottom: 6 }}>{formatTimeOnly(m.time)}</div>
-                                <Image src={m.photo} alt={m.label} width={120} height={90} style={{ borderRadius: 8, margin: '0 auto', objectFit: 'cover', maxHeight: 90 }} />
-                              </div>
-                            </Popup>
-                          </Marker>
-                        ))}
+                            });
+                            icon = divIcon ?? undefined;
+                          } else {
+                            icon = undefined;
+                          }
+                          return (
+                            <Marker
+                              key={i}
+                              position={[m.lat, m.lon] as [number, number]}
+                              icon={icon}
+                            >
+                              <Popup>
+                                <div style={{ textAlign: 'center', width: 180, padding: 8, borderRadius: 12 }}>
+                                  <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{m.label}</div>
+                                  <div style={{ fontSize: 13, color: '#444', marginBottom: 6 }}>{formatTimeOnly(m.time)}</div>
+                                  <Image src={m.photo} alt={m.label} width={120} height={90} style={{ borderRadius: 8, margin: '0 auto', objectFit: 'cover', maxHeight: 90 }} />
+                                </div>
+                              </Popup>
+                            </Marker>
+                          );
+                        })}
                         {points.length > 1 && (
                           <Polyline positions={points} color="#2563eb" />
                         )}
