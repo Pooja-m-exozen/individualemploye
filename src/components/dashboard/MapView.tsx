@@ -138,7 +138,7 @@ export default function MapView() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalCluster, setModalCluster] = useState<Cluster | null>(null);
   const [trackModal, setTrackModal] = useState<{ employeeId: string; date: string } | null>(null);
-  const [trackData, setTrackData] = useState<any>(null);
+  const [trackData, setTrackData] = useState<{ events: PunchEvent[] } | null>(null);
   const [trackLoading, setTrackLoading] = useState(false);
   const [trackError, setTrackError] = useState<string | null>(null);
   const leafletLib = useLeafletLib();
@@ -305,7 +305,6 @@ export default function MapView() {
     if (employees.length === 0) return;
     const fetchAttendanceData = async () => {
       const today = new Date();
-      const day = today.getDate();
       const month = today.getMonth() + 1;
       const year = today.getFullYear();
       const attendancePromises = employees.map(async (employee) => {
@@ -321,7 +320,7 @@ export default function MapView() {
           }
           const data = await response.json();
           const currentDayAttendance = data.attendance?.filter(
-            (record: Record<string, unknown>) => new Date(record.date as string).getDate() === day
+            (record: Record<string, unknown>) => new Date(record.date as string).getDate() === today.getDate()
           );
           const attendanceWithAddresses = await Promise.all(
             (currentDayAttendance || []).map(async (record: Attendance) => {
@@ -905,12 +904,10 @@ function FitBoundsModal({ points }: { points: [number, number][] }) {
 
 function useLeafletLib(): typeof import('leaflet') | null {
   const leafletRef = useRef<typeof import('leaflet') | null>(null);
-  const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!leafletRef.current && typeof window !== 'undefined') {
       import('leaflet').then(mod => {
         leafletRef.current = mod;
-        setReady(true);
       });
     }
   }, []);

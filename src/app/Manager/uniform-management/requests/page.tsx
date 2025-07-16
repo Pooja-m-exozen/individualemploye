@@ -27,13 +27,6 @@ interface UniformRequest {
   updatedAt?: string;
 }
 
-interface InventorySize {
-  _id: string;
-  size: string;
-  quantity: number;
-  unit: string;
-}
-
 // Define available uniform items (if you want to keep them fixed, otherwise make this dynamic)
 // const UNIFORM_ITEMS = ["Shirt", "Trousers", "Cap", "Jacket", "Shoes", "Belt"];
 
