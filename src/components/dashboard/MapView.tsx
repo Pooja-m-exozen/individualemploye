@@ -5,12 +5,15 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { FaUsers, FaSpinner, FaEye, FaMapMarkerAlt } from "react-icons/fa";
 import { useMap } from "react-leaflet";
+import { FaMapMarkedAlt } from "react-icons/fa";
 
 // Dynamically import Leaflet components
 const MapContainer = dynamic(() => import("react-leaflet").then(mod => mod.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import("react-leaflet").then(mod => mod.TileLayer), { ssr: false });
 const Marker = dynamic(() => import("react-leaflet").then(mod => mod.Marker), { ssr: false });
 const Popup = dynamic(() => import("react-leaflet").then(mod => mod.Popup), { ssr: false });
+const Polyline = dynamic(() => import("react-leaflet").then(mod => mod.Polyline), { ssr: false });
+const useLeaflet = typeof window !== 'undefined' ? require('leaflet') : null;
 
 interface Employee {
   employeeId: string;
@@ -124,12 +127,24 @@ export default function MapView() {
   const recordsPerPage = 5;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalCluster, setModalCluster] = useState<Cluster | null>(null);
+  const [trackModal, setTrackModal] = useState<{ employeeId: string; date: string } | null>(null);
+  const [trackData, setTrackData] = useState<any>(null);
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackError, setTrackError] = useState<string | null>(null);
 
   // Helper function to remove .000Z from time string
   const formatTime = (timeString: string | null): string => {
     if (!timeString) return 'N/A';
     return timeString.replace('.000Z', '');
   };
+
+  // Helper function to format time as HH:mm:ss
+  function formatTimeOnly(dateString: string) {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString.split('T')[1]?.split('.')[0] || dateString;
+    return d.toTimeString().slice(0, 8);
+  }
 
   const getAddressFromCoordinates = useCallback(async (lat: number, lng: number): Promise<string> => {
     const cacheKey = `${lat},${lng}`;
@@ -153,6 +168,102 @@ export default function MapView() {
       return "No location data available";
     }
   }, [addressCache]);
+
+  // Helper to get today's date in yyyy-mm-dd
+  const getToday = () => {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  };
+
+  // Helper to fetch and merge punch data from both APIs
+  async function fetchCombinedPunchData(employeeId: string, date: string) {
+    const [year, month, day] = date.split('-');
+    // API URLs
+    const dailyUrl = `https://cafm.zenapi.co.in/api/attendance/${employeeId}/punch-log?date=${date}`;
+    const monthlyUrl = `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${employeeId}&month=${parseInt(month, 10)}&year=${year}`;
+    // Fetch both in parallel
+    const [dailyRes, monthlyRes] = await Promise.all([
+      fetch(dailyUrl).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(monthlyUrl).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+    // Collect all punch events for the date
+    let events: { lat: number, lon: number, photo: string, label: string, time: string }[] = [];
+    // From daily punch log
+    if (dailyRes && dailyRes.punchLogs && Array.isArray(dailyRes.punchLogs)) {
+      dailyRes.punchLogs.forEach((log: any, idx: number) => {
+        if (typeof log.inLat === 'number' && typeof log.inLon === 'number' && log.in) {
+          events.push({
+            lat: log.inLat,
+            lon: log.inLon,
+            photo: log.inPhoto,
+            label: 'Punch In',
+            time: log.in,
+          });
+        }
+        if (typeof log.outLat === 'number' && typeof log.outLon === 'number' && log.out) {
+          events.push({
+            lat: log.outLat,
+            lon: log.outLon,
+            photo: log.outPhoto,
+            label: 'Punch Out',
+            time: log.out,
+          });
+        }
+      });
+    }
+    // From monthly attendance
+    if (monthlyRes && monthlyRes.attendance && Array.isArray(monthlyRes.attendance)) {
+      monthlyRes.attendance.filter((rec: any) => rec.date && rec.date.startsWith(date)).forEach((rec: any, idx: number) => {
+        if (typeof rec.punchInLatitude === 'number' && typeof rec.punchInLongitude === 'number' && rec.punchInTime) {
+          events.push({
+            lat: rec.punchInLatitude,
+            lon: rec.punchInLongitude,
+            photo: rec.punchInPhoto,
+            label: 'Punch In',
+            time: rec.punchInTime,
+          });
+        }
+        if (typeof rec.punchOutLatitude === 'number' && typeof rec.punchOutLongitude === 'number' && rec.punchOutTime) {
+          events.push({
+            lat: rec.punchOutLatitude,
+            lon: rec.punchOutLongitude,
+            photo: rec.punchOutPhoto,
+            label: 'Punch Out',
+            time: rec.punchOutTime,
+          });
+        }
+      });
+    }
+    // Remove duplicates (by lat/lon/time/photo)
+    const seen = new Set();
+    events = events.filter(e => {
+      const key = `${e.lat},${e.lon},${e.time},${e.photo}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    // Sort by time
+    events.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    return events;
+  }
+
+  // Fetch punch log when modal opens
+  useEffect(() => {
+    if (trackModal) {
+      setTrackLoading(true);
+      setTrackError(null);
+      setTrackData(null);
+      fetchCombinedPunchData(trackModal.employeeId, trackModal.date)
+        .then(events => {
+          setTrackData({ events });
+          setTrackLoading(false);
+        })
+        .catch(() => {
+          setTrackError('Failed to load punch log');
+          setTrackLoading(false);
+        });
+    }
+  }, [trackModal]);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -453,6 +564,15 @@ export default function MapView() {
                                         </div>
                                       )}
                                     </div>
+                                    {/* Track Location Link */}
+                                    <div style={{ marginTop: 10, textAlign: 'center' }}>
+                                      <button
+                                        style={{ color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, margin: '0 auto' }}
+                                        onClick={() => setTrackModal({ employeeId: employee.employeeId, date: getToday() })}
+                                      >
+                                        <FaMapMarkedAlt style={{ marginRight: 4 }} /> Track Location
+                                      </button>
+                                    </div>
                                   </div>
                                 </Popup>
                               </EmployeeImageMarker>
@@ -616,6 +736,69 @@ export default function MapView() {
           </div>
         </div>
       )}
+      {/* Track Location Modal */}
+      {trackModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50">
+          <div className="relative w-full max-w-2xl mx-auto border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl bg-white dark:bg-gray-900 p-0 overflow-hidden">
+            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:hover:text-[#e5e7eb] text-2xl font-bold" onClick={() => setTrackModal(null)} aria-label="Close">&times;</button>
+            <div className="px-8 pt-8 pb-4">
+              <div className="text-2xl font-extrabold text-center mb-2 text-gray-900 dark:text-[#e5e7eb]">Track Location</div>
+              {trackLoading ? (
+                <div className="flex items-center justify-center min-h-[200px]"><FaSpinner className="animate-spin text-blue-500 w-8 h-8" /></div>
+              ) : trackError ? (
+                <div className="text-red-500 text-center">{trackError}</div>
+              ) : trackData && trackData.events && trackData.events.length > 0 ? (
+                <div className="w-full h-[350px] rounded-lg overflow-hidden">
+                  {(() => {
+                    const points: [number, number][] = trackData.events.map((e: any) => [e.lat, e.lon]);
+                    const center: [number, number] = points.length > 0 ? points[0] : [12.9716, 77.5946];
+                    return (
+                      <MapContainer
+                        center={center}
+                        zoom={16}
+                        style={{ height: '100%', width: '100%' }}
+                        scrollWheelZoom={true}
+                      >
+                        <TileLayer
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                          maxZoom={22}
+                        />
+                        <FitBoundsModal points={points} />
+                        {trackData.events.map((m: any, i: number) => (
+                          <Marker
+                            key={i}
+                            position={[m.lat, m.lon] as [number, number]}
+                            icon={useLeaflet && useLeaflet.divIcon({
+                              html: `<div style='position: relative; text-align: center;'><img src="${m.photo}" alt='${m.label}' style='width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); border: 2px solid ${m.label.toLowerCase().includes('in') ? '#2563eb' : '#22c55e'};' /><div style='position:absolute;top:44px;left:50%;transform:translateX(-50%);font-size:11px;color:#222;background:#fff;padding:1px 4px;border-radius:4px;border:1px solid #eee;white-space:nowrap;'>${m.label}</div></div>`,
+                              className: "custom-punch-icon",
+                              iconSize: [54, 60],
+                              iconAnchor: [27, 44],
+                            })}
+                          >
+                            <Popup>
+                              <div style={{ textAlign: 'center', width: 180, padding: 8, borderRadius: 12 }}>
+                                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{m.label}</div>
+                                <div style={{ fontSize: 13, color: '#444', marginBottom: 6 }}>{formatTimeOnly(m.time)}</div>
+                                <Image src={m.photo} alt={m.label} width={120} height={90} style={{ borderRadius: 8, margin: '0 auto', objectFit: 'cover', maxHeight: 90 }} />
+                              </div>
+                            </Popup>
+                          </Marker>
+                        ))}
+                        {points.length > 1 && (
+                          <Polyline positions={points} color="#2563eb" />
+                        )}
+                      </MapContainer>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500">No punch log data found for this employee today.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -683,5 +866,16 @@ function FitBounds({ bounds }: { bounds: [number, number][] }) {
       }
     }
   }, [bounds, map]);
+  return null;
+}
+
+// Helper: FitBounds component for modal
+function FitBoundsModal({ points }: { points: [number, number][] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (map && points.length > 1) {
+      map.fitBounds(points);
+    }
+  }, [map, points]);
   return null;
 }
