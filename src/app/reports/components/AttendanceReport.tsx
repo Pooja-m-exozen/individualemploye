@@ -1,14 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { FaFileExcel, FaFilePdf, FaCalendar, FaChevronLeft,  } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Image from 'next/image';
-import { calculateHoursUtc } from '../../utils/attendanceUtils';
+import { calculateHoursUtc, transformAttendanceRecord } from '../../utils/attendanceUtils';
 import {
     RawAttendanceRecord as BaseRawAttendanceRecord,
+    TransformedAttendanceRecord
 } from '../../types/attendance';
-import { startOfMonth, endOfMonth, format as formatDateFns } from 'date-fns';
 
 interface GoogleMapsAddressComponent {
     long_name: string;
@@ -196,24 +197,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
     const [outLocationAddress, setOutLocationAddress] = useState<string | null>(null);
     const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null);
-
-    // Date range state
-    const [dateFrom, setDateFrom] = useState<string>(() => formatDateFns(startOfMonth(new Date(selectedYear, selectedMonth - 1)), 'yyyy-MM-dd'));
-    const [dateTo, setDateTo] = useState<string>(() => formatDateFns(endOfMonth(new Date(selectedYear, selectedMonth - 1)), 'yyyy-MM-dd'));
-
-    // Update date range when month/year changes
-    useEffect(() => {
-      setDateFrom(formatDateFns(startOfMonth(new Date(selectedYear, selectedMonth - 1)), 'yyyy-MM-dd'));
-      setDateTo(formatDateFns(endOfMonth(new Date(selectedYear, selectedMonth - 1)), 'yyyy-MM-dd'));
-    }, [selectedMonth, selectedYear]);
-
-    // Filter and sort records by date range
-    const filteredRecords = attendanceData.map((record: ExtendedRawAttendanceRecord): ExtendedRawAttendanceRecord =>
-        record
-    ).filter(record => {
-        const d = new Date(record.date);
-        return d >= new Date(dateFrom) && d <= new Date(dateTo);
-    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const [fromDateForPDF, setFromDateForPDF] = useState<string>('');
+    const [toDateForPDF, setToDateForPDF] = useState<string>('');
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -237,9 +222,14 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 5 }, (_, i) => currentYear + 2 - i);
 
+    // Transform attendanceData using the shared logic
+    const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord =>
+        transformAttendanceRecord(record)
+    );
+
     const downloadExcel = () => {
         const worksheet = XLSX.utils.json_to_sheet(
-            filteredRecords.map(record => ({
+            attendanceData.map(record => ({
                 Date: formatDate(record.date),
                 'Project Name': record.projectName,
                 Designation: record.designation,
@@ -501,15 +491,42 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         return dayType !== 'Working Day' ? 'Holiday' : 'Absent';
     };
 
+    // Integrate date range into the main downloadPDF function
     const downloadPDF = async () => {
         const doc = new jsPDF();
         let yPosition = 15;
+
+        // If a date range is selected, filter records for that range; otherwise, use the full month
+        let filteredRecords;
+        let reportTitle = `Attendance Report - ${months[selectedMonth - 1]} ${selectedYear}`;
+        if (fromDateForPDF && toDateForPDF) {
+            const fromDateObj = new Date(fromDateForPDF);
+            const toDateObj = new Date(toDateForPDF);
+            if (fromDateObj > toDateObj) {
+                alert("From date cannot be after To date.");
+                return;
+            }
+            filteredRecords = processedAttendanceData.filter(record => {
+                const recordDate = new Date(record.date);
+                return recordDate >= fromDateObj && recordDate <= toDateObj;
+            });
+            if (filteredRecords.length === 0) {
+                alert("No attendance data found for selected date range.");
+                return;
+            }
+            reportTitle = `Attendance Report - ${fromDateForPDF} to ${toDateForPDF}`;
+        } else {
+            filteredRecords = processedAttendanceData.filter(record => {
+                const dateObj = new Date(record.date);
+                return dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
+            });
+        }
 
         // First page - Header and Attendance Table
         doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 15, yPosition, 25, 8);
         doc.setFontSize(11);
         doc.setTextColor(41, 128, 185);
-        doc.text(`Attendance Report - ${months[selectedMonth - 1]} ${selectedYear}`, 45, yPosition + 4);
+        doc.text(reportTitle, 45, yPosition + 4);
         doc.setFontSize(9);
         doc.text(`Employee ID: ${employeeId}`, 45, yPosition + 8);
 
@@ -520,21 +537,24 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
         // Attendance table on first page
         const tableColumn = ["Date", "Check In", "Check Out", "Hours Worked", "Shortage Hours", "Day Type", "Status"];
+        // Helper function to safely calculate hours
+        const safeCalculateHoursUtc = (inTime?: string | null, outTime?: string | null): string => {
+            if (!inTime || !outTime) return '0';
+            return calculateHoursUtc(inTime, outTime);
+        };
+
         const tableRows = filteredRecords.map((record: ExtendedRawAttendanceRecord) => {
-            const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
+            const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName || undefined);
             const status = getAttendanceStatus(record, dayType);
-            let hoursWorked = '-';
+            let hoursWorked = 'Incomplete';
             let hoursWorkedNum = 0;
-            let shortage = '-';
-            if (record.punchInTime && record.punchOutTime) {
-                const inTime = record.punchInUtc || record.punchInTime;
-                const outTime = record.punchOutUtc || record.punchOutTime;
-                hoursWorkedNum = parseFloat(calculateHoursUtc(inTime, outTime));
+            if (record.punchInUtc && record.punchOutUtc) {
+                hoursWorkedNum = parseFloat(safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc));
                 hoursWorked = formatHoursToHoursAndMinutes(hoursWorkedNum.toString());
-                shortage = hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
             } else if (dayType !== 'Working Day') {
                 hoursWorked = '-';
             }
+            const shortage = hoursWorkedNum && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
 
             return [
                 formatDate(record.date),
@@ -1180,6 +1200,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
             {/* Filters and Actions */}
             <div className={`flex flex-wrap gap-4 items-center justify-between p-4 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'} rounded-xl`}>
+                {/* Month & Year Selector */}
                 <div className="flex gap-4">
                     <div className="relative">
                         <FaCalendar className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`} />
@@ -1193,58 +1214,72 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                                         } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                         >
                           {months.map((month, index) => (
-                            <option key={index + 1} value={index + 1}>{month}</option>
+                              <option key={index + 1} value={index + 1}>{month}</option>
                           ))}
                         </select>
                     </div>
+
                     <select
-                      value={selectedYear}
-                      onChange={(e) => handleYearChange(parseInt(e.target.value))}
-                      className="px-4 py-2 border rounded-lg appearance-none bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={selectedYear}
+                        onChange={(e) => handleYearChange(parseInt(e.target.value))}
+                        className="px-4 py-2 border rounded-lg appearance-none bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       {years.map((year) => (
-                        <option key={year} value={year}>{year}</option>
+                          <option key={year} value={year}>{year}</option>
                       ))}
                     </select>
                 </div>
-               
-                <div className="flex gap-4 items-center">
-                  <label className="text-sm font-medium">From:</label>
-                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="px-2 py-1 rounded border" />
-                  <label className="text-sm font-medium">To:</label>
-                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="px-2 py-1 rounded border" />
+                {/* Date Pickers for Date-Range PDF Export */}
+                <div className="flex gap-2 items-center">
+                  <label className="text-sm text-gray-500">From:</label>
+                  <input
+                    type="date"
+                    value={fromDateForPDF}
+                    onChange={(e) => setFromDateForPDF(e.target.value)}
+                    className="px-2 py-1 border rounded-lg text-sm"
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                  <label className="text-sm text-gray-500">To:</label>
+                  <input
+                    type="date"
+                    value={toDateForPDF}
+                    onChange={(e) => setToDateForPDF(e.target.value)}
+                    className="px-2 py-1 border rounded-lg text-sm"
+                    max={new Date().toISOString().split('T')[0]}
+                  />
                 </div>
+                {/* Export Buttons with Prompts */}
                 <div className="flex gap-3">
-                  <button
-                    onClick={downloadExcel}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    <FaFileExcel className="w-4 h-4" />
-                    Export Excel
-                  </button>
-                  <button
-                    onClick={downloadPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    <FaFilePdf className="w-4 h-4" />
-                    Export PDF
-                  </button>
-                  <button
-                    onClick={downloadLocationPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <FaFilePdf className="w-4 h-4" />
-                    Export Location Report (PDF)
-                  </button>
-                  <button
-                    onClick={downloadRegularizationHistoryPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                  >
-                    <FaFilePdf className="w-4 h-4" />
-                    Export Regularization History (PDF)
-                  </button>
+                    <button
+                        onClick={downloadExcel}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                        <FaFileExcel className="w-4 h-4" />
+                        Export Excel
+                    </button>
+                    <button
+                        onClick={downloadPDF}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                        <FaFilePdf className="w-4 h-4" />
+                        Export PDF
+                    </button>
+                    <button
+                        onClick={downloadLocationPDF}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        <FaFilePdf className="w-4 h-4" />
+                        Export Location Report (PDF)
+                    </button>
+                    <button
+                        onClick={downloadRegularizationHistoryPDF}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                        <FaFilePdf className="w-4 h-4" />
+                        Export Regularization History (PDF)
+                    </button>
                 </div>
-              </div>
+            </div>
 
             {/* Attendance Table */}
             <div className={`overflow-x-auto rounded-xl border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -1281,21 +1316,19 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     </tr>
                   </thead>
                   <tbody className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {filteredRecords.map((record: ExtendedRawAttendanceRecord, index) => {
+                    {processedData.map((record: ExtendedRawAttendanceRecord, index) => {
                         const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
                         let hoursWorkedNum = 0;
-                        let hoursWorkedStr = '-';
-                        let shortage = '-';
+                        let hoursWorkedStr = '';
                         if (record.punchInTime && record.punchOutTime) {
-                            // Use raw UTC values if available, else fallback to punchInTime/punchOutTime
-                            const inTime = record.punchInUtc || record.punchInTime;
-                            const outTime = record.punchOutUtc || record.punchOutTime;
-                            hoursWorkedNum = parseFloat(calculateHoursUtc(inTime, outTime));
+                            hoursWorkedNum = parseFloat(calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime));
                             hoursWorkedStr = formatHoursToHoursAndMinutes(hoursWorkedNum.toString());
-                            shortage = hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
                         } else if (dayType !== 'Working Day') {
                             hoursWorkedStr = '-';
+                        } else {
+                            hoursWorkedStr = 'Incomplete';
                         }
+                        const shortage = hoursWorkedNum && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
                         return (
                             <tr
                                 key={record._id || index}
