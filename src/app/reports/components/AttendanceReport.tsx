@@ -455,9 +455,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         if (leaveType) {
             return leaveType + ' Leave';
         }
-        // Special comp off logic for 'Arvind Technical'
-        const isArvind = record.projectName && record.projectName.trim().toLowerCase() === 'arvind technical';
+        // Normalize project name
+        const project = record.projectName ? record.projectName.trim().toLowerCase() : '';
+        const isArvind = project === 'arvind technical';
+        const isExozenOps = project === 'exozen - ops';
+
         if (isArvind) {
+            // For Arvind Technical, only allow Comp Off for working on Sunday
             if (dayType === 'Sunday' && record.punchInTime && record.punchOutTime) {
                 const inTime = record.punchInUtc || record.punchInTime;
                 const outTime = record.punchOutUtc || record.punchOutTime;
@@ -466,8 +470,19 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     return 'Comp Off';
                 }
             }
+        } else if (isExozenOps) {
+            // For Exozen - Ops, all Saturdays are working days, so no Comp Off for 2nd/4th Sat
+            // Do NOT give Comp Off for 2nd/4th Saturday, only for holidays and Sundays
+            if ((dayType === 'Holiday' || dayType === 'Sunday') && record.punchInTime && record.punchOutTime) {
+                const inTime = record.punchInUtc || record.punchInTime;
+                const outTime = record.punchOutUtc || record.punchOutTime;
+                const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
+                if (hoursWorked >= 4) {
+                    return 'Comp Off';
+                }
+            }
         } else {
-            // For other projects, comp off for working on holidays/2nd/4th Sat/Sunday
+            // For other projects, comp off for working on holidays, 2nd/4th Sat, or Sunday
             if (dayType !== 'Working Day' && record.punchInTime && record.punchOutTime) {
                 const inTime = record.punchInUtc || record.punchInTime;
                 const outTime = record.punchOutUtc || record.punchOutTime;

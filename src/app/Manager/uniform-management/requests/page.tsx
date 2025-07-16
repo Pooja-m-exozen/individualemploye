@@ -5,7 +5,7 @@ import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayou
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
-import Select from "react-select";
+// import Select from "react-select";
 
 interface UniformRequest {
   _id: string;
@@ -15,12 +15,16 @@ interface UniformRequest {
     designation: string;
     employeeImage: string;
     projectName: string;
+    gender?: string;
   };
   status: string;
   requestedItems: string[];
   qty?: number;
   remarks?: string;
   sizes?: { [key: string]: string };
+  requestDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface InventorySize {
@@ -51,17 +55,13 @@ export default function UniformRequestsPage() {
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [uniformItems, setUniformItems] = useState([{ type: "", size: "" }]);
   const [newRequest, setNewRequest] = useState<{
     employeeId: string;
-    requestedItems: string[];
-    sizes: { [key: string]: string[] };
     qty: number;
     remarks: string;
-  }>({ employeeId: "", requestedItems: [], sizes: {}, qty: 1, remarks: "" });
+  }>({ employeeId: "", qty: 1, remarks: "" });
   const [createLoading, setCreateLoading] = useState(false);
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [inventoryLoading, setInventoryLoading] = useState(false);
-  const [inventoryError, setInventoryError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRequests();
@@ -80,14 +80,40 @@ export default function UniformRequestsPage() {
     }
   };
 
-  const handleAction = async (id: string, action: "approve" | "reject") => {
-    setActionLoading(id + action);
+  // Update handleAction to use the new API endpoint and improve table UI/UX
+  const handleAction = async (employeeId: string, action: "approve" | "reject") => {
+    setActionLoading(employeeId + action);
     setError(null);
     try {
-      setRequests((prev) => prev.filter((req) => req._id !== id));
-      setToast({ type: "success", message: `Uniform request ${action}d successfully.` });
+      const endpoint = `https://cafm.zenapi.co.in/api/uniforms/${employeeId}/${action}`;
+      const remarks = action === 'approve' ? 'Approved by admin' : 'Rejected by admin';
+      const res = await fetch(endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ remarks })
+      });
+      const data = await res.json();
+      if (!res.ok || data.success === false) {
+        const message = data.message || `Failed to ${action} uniform request.`;
+        setError(message);
+        setToast({ type: "error", message });
+        setActionLoading(null);
+        setTimeout(() => setToast(null), 3500);
+        return;
+      }
+      if (action === 'reject') {
+        setRequests(prev => prev.filter(req => req.employee.employeeId !== employeeId));
+        setToast({ type: "success", message: "Successfully deleted" });
+      } else {
+        setRequests(prev => prev.map(req =>
+          req.employee.employeeId === employeeId
+            ? { ...req, status: "Approved" }
+            : req
+        ));
+        setToast({ type: "success", message: `Uniform request approved successfully.` });
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update uniform request status.";
+      const message = err instanceof Error ? err.message : `Failed to ${action} uniform request.`;
       setError(message);
       setToast({ type: "error", message });
     } finally {
@@ -96,23 +122,20 @@ export default function UniformRequestsPage() {
     }
   };
 
+  // Update handleCreateRequest to use uniformItems
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRequest.employeeId || newRequest.requestedItems.length === 0 || newRequest.qty < 1) return;
+    if (!newRequest.employeeId || uniformItems.some(item => !item.type || !item.size) || newRequest.qty < 1) {
+      setToast({ type: "error", message: "Please fill all required fields." });
+      setTimeout(() => setToast(null), 3500);
+      return;
+    }
     setCreateLoading(true);
 
-    // Map item IDs to names for uniformType
-    const selectedItems = inventoryItems.filter(item => newRequest.requestedItems.includes(item._id));
-    const uniformType = selectedItems.map(item => item.name);
-
-    // Map sizes: only one size per item (pick the first if multiple selected)
+    // Build uniformType and size from uniformItems
+    const uniformType = uniformItems.map(item => item.type);
     const size: { [key: string]: string } = {};
-    selectedItems.forEach(item => {
-      const sizes = newRequest.sizes[item._id];
-      if (Array.isArray(sizes) && sizes.length > 0) {
-        size[item.name] = sizes[0]; // pick the first selected size
-      }
-    });
+    uniformItems.forEach(item => { size[item.type] = item.size; });
 
     const body = {
       uniformType,
@@ -129,13 +152,15 @@ export default function UniformRequestsPage() {
       });
       const data = await res.json();
       if (!res.ok || data.success === false) {
-        setToast({ type: "error", message: data.message || "Failed to create uniform request." });
+        const errorMsg = data.message || "Failed to create uniform request.";
+        setToast({ type: "error", message: errorMsg });
         setCreateLoading(false);
         setTimeout(() => setToast(null), 3500);
         return;
       }
       setShowCreateModal(false);
-      setNewRequest({ employeeId: "", requestedItems: [], sizes: {}, qty: 1, remarks: "" });
+      setNewRequest({ employeeId: "", qty: 1, remarks: "" });
+      setUniformItems([{ type: "", size: "" }]);
       setCreateLoading(false);
       setToast({ type: "success", message: "Uniform request created successfully." });
       setTimeout(() => setToast(null), 3500);
@@ -149,21 +174,25 @@ export default function UniformRequestsPage() {
               employeeId: data.uniformRequest.employeeId,
               fullName: data.uniformRequest.fullName,
               designation: data.uniformRequest.designation,
-              employeeImage: "", // You may want to fetch or set this if available
+              employeeImage: "", // If you have an image, use it here
               projectName: data.uniformRequest.projectName,
+              gender: data.uniformRequest.gender,
             },
             status: data.uniformRequest.approvalStatus,
             requestedItems: data.uniformRequest.uniformType,
             qty: data.uniformRequest.qty,
             remarks: data.uniformRequest.remarks,
             sizes: data.uniformRequest.size,
+            requestDate: data.uniformRequest.requestDate,
+            createdAt: data.uniformRequest.createdAt,
+            updatedAt: data.uniformRequest.updatedAt,
           }
         ]);
       }
     } catch (err) {
-      setCreateLoading(false);
       const message = err instanceof Error ? err.message : "Failed to create uniform request.";
       setToast({ type: "error", message });
+      setCreateLoading(false);
       setTimeout(() => setToast(null), 3500);
     }
   };
@@ -171,13 +200,13 @@ export default function UniformRequestsPage() {
   // Fetch inventory items when modal opens
   useEffect(() => {
     if (showCreateModal) {
-      setInventoryLoading(true);
-      setInventoryError(null);
+      // setInventoryLoading(true); // This line was removed
+      // setInventoryError(null); // This line was removed
       fetch("https://inventory.zenapi.co.in/api/inventory/items")
         .then(res => res.json())
         .then(data => {
-          setInventoryItems(Array.isArray(data) ? data : data.items || []);
-          setInventoryLoading(false);
+          // setInventoryItems(Array.isArray(data) ? data : data.items || []); // This line was removed
+          // setInventoryLoading(false); // This line was removed
         })
         .catch ()
     }
@@ -280,7 +309,14 @@ export default function UniformRequestsPage() {
           {/* Create Request Modal */}
           {showCreateModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-              <div className={`rounded-2xl shadow-2xl p-8 w-full max-w-md relative animate-fade-in ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white'}`}>
+              <div className={`rounded-2xl shadow-2xl p-8 w-full max-w-md relative animate-fade-in ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white'}`}
+                style={{ minHeight: '400px' }}>
+                {toast && (
+                  <div className={`absolute top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-lg text-white font-semibold text-base flex items-center gap-3 z-50 animate-fade-in ${toast.type === "success" ? "bg-green-500" : "bg-red-500"}`}
+                    style={{ minWidth: '250px', maxWidth: '90%' }}>
+                    {toast.type === "success" ? <FaCheckCircle /> : <FaTimesCircle />} {toast.message}
+                  </div>
+                )}
                 <button
                   className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
                   onClick={() => setShowCreateModal(false)}
@@ -300,81 +336,41 @@ export default function UniformRequestsPage() {
                     />
                   </div>
                   <div>
-                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Requested Items</label>
-                    {inventoryLoading ? (
-                      <div className="text-blue-500">Loading items...</div>
-                    ) : inventoryError ? (
-                      <div className="text-red-500">{inventoryError}</div>
-                    ) : (
-                      <>
-                        <Select
-                          isMulti
-                          options={inventoryItems.map(item => ({
-                            value: item._id,
-                            label: `${item.name} (${item.category})`,
-                          }))}
-                          value={inventoryItems
-                            .filter(item => newRequest.requestedItems.includes(item._id))
-                            .map(item => ({ value: item._id, label: `${item.name} (${item.category})` }))}
-                          onChange={selectedOptions => {
-                            const selected = selectedOptions.map(opt => opt.value);
-                            setNewRequest(r => {
-                              // Remove sizes for unselected items
-                              const newSizes = { ...r.sizes };
-                              Object.keys(newSizes).forEach(key => {
-                                if (!selected.includes(key)) delete newSizes[key];
-                              });
-                              return { ...r, requestedItems: selected, sizes: newSizes };
-                            });
-                          }}
-                          classNamePrefix="react-select"
-                          placeholder="Select requested items..."
-                          styles={{
-                            control: (base) => ({ ...base, backgroundColor: theme === 'dark' ? '#1a202c' : '#fff', color: theme === 'dark' ? '#fff' : '#222' }),
-                            menu: (base) => ({ ...base, backgroundColor: theme === 'dark' ? '#2d3748' : '#fff' }),
-                            option: (base, state) => ({ ...base, backgroundColor: state.isFocused ? (theme === 'dark' ? '#2b6cb0' : '#bee3f8') : undefined, color: theme === 'dark' ? '#fff' : '#222' }),
-                            multiValue: (base) => ({ ...base, backgroundColor: theme === 'dark' ? '#2b6cb0' : '#bee3f8', color: theme === 'dark' ? '#fff' : '#222' }),
-                          }}
-                        />
-                        {/* Show sizes for each selected item */}
-                        {newRequest.requestedItems.map(itemId => {
-                          const item = inventoryItems.find(i => i._id === itemId);
-                          if (!item || !Array.isArray(item.sizeInventory)) return null;
-                          const availableSizes = item.sizeInventory.filter((sz: InventorySize) => sz.quantity > 0);
-                          return (
-                            <div key={itemId} className="mt-2 ml-2">
-                              <div className="font-semibold text-sm mb-1">Sizes for {item.name}:</div>
-                              <div className="flex flex-wrap gap-2">
-                                {availableSizes.map((sz: InventorySize) => (
-                                  <label key={sz._id} className="flex items-center gap-1 text-sm">
-                                    <input
-                                      type="checkbox"
-                                      className={theme === 'dark' ? 'accent-blue-400' : 'accent-blue-600'}
-                                      checked={Array.isArray(newRequest.sizes[itemId]) && newRequest.sizes[itemId]?.includes(sz.size)}
-                                      onChange={e => {
-                                        setNewRequest(r => {
-                                          let itemSizes = Array.isArray(r.sizes[itemId]) ? [...r.sizes[itemId]] : [];
-                                          if (e.target.checked) {
-                                            itemSizes.push(sz.size);
-                                          } else {
-                                            itemSizes = itemSizes.filter((s) => s !== sz.size);
-                                          }
-                                          return {
-                                            ...r,
-                                            sizes: { ...r.sizes, [itemId]: itemSizes }
-                                          };
-                                        });
-                                      }}
-                                    />
-                                    <span>{sz.size} <span className="text-xs text-gray-400">({sz.quantity} {sz.unit})</span></span>
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </>
-                    )}
+                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Uniform Items</label>
+                    <div className="space-y-2">
+                      {uniformItems.map((item, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            className={`flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                            placeholder="Type (e.g. Shirt)"
+                            value={item.type}
+                            onChange={e => setUniformItems(items => items.map((it, i) => i === idx ? { ...it, type: e.target.value } : it))}
+                            required
+                          />
+                          <input
+                            type="text"
+                            className={`w-24 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                            placeholder="Size"
+                            value={item.size}
+                            onChange={e => setUniformItems(items => items.map((it, i) => i === idx ? { ...it, size: e.target.value } : it))}
+                            required
+                          />
+                          <button
+                            type="button"
+                            className="text-red-500 text-xl font-bold px-2 focus:outline-none"
+                            onClick={() => setUniformItems(items => items.length > 1 ? items.filter((_, i) => i !== idx) : items)}
+                            title="Remove"
+                            disabled={uniformItems.length === 1}
+                          >×</button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className={`mt-2 px-3 py-1 rounded-lg font-semibold shadow transition focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-blue-800 text-white hover:bg-blue-900' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                        onClick={() => setUniformItems(items => [...items, { type: "", size: "" }])}
+                      >+ Add Item</button>
+                    </div>
                   </div>
                   <div>
                     <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Quantity</label>
@@ -399,7 +395,7 @@ export default function UniformRequestsPage() {
                   </div>
                   <button
                     type="submit"
-                    disabled={createLoading || !newRequest.employeeId || newRequest.requestedItems.length === 0 || Object.values(newRequest.sizes).some(s => !s) || newRequest.qty < 1}
+                    disabled={createLoading || !newRequest.employeeId || uniformItems.some(item => !item.type || !item.size) || newRequest.qty < 1}
                     className={`w-full py-2 rounded-xl font-bold shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
                   >
                     {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}Create Request
@@ -433,6 +429,12 @@ export default function UniformRequestsPage() {
                       <div className="flex-1">
                         <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{request.employee.fullName}</h3>
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{request.employee.designation} - {request.employee.projectName}</p>
+                        {request.employee.gender && (
+                          <p className={`text-xs ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Gender: {request.employee.gender}</p>
+                        )}
+                        {request.requestDate && (
+                          <p className={`text-xs ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Requested: {new Date(request.requestDate).toLocaleDateString()}</p>
+                        )}
                       </div>
                     </div>
                     <div className="flex flex-col gap-2 mb-4">
@@ -489,32 +491,36 @@ export default function UniformRequestsPage() {
             ) : (
               <div className="overflow-x-auto rounded-2xl shadow-lg">
                 <table className={`min-w-full divide-y divide-gray-200 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-                  <thead className={theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}>
+                  <thead className={theme === 'dark' ? 'bg-gray-700 sticky top-0 z-10' : 'bg-gray-50 sticky top-0 z-10'}>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500"></th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Employee ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Designation</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Project</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Requested Items (Size)</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Qty</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Remarks</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Actions</th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}></th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Employee ID</th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Name</th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Designation</th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Project</th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Gender</th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Request Date</th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Status</th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Requested Items (Size)</th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Qty</th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Remarks</th>
+                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredRequests.map(request => (
-                      <tr key={request._id} className={theme === 'dark' ? 'bg-gray-800' : 'bg-white'}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"></td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.employeeId}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.fullName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.designation}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.employee.projectName}</td>
+                      <tr key={request._id} className={theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700 transition' : 'bg-white hover:bg-blue-50 transition'}>
+                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm font-medium text-white' : 'px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'}></td>
+                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.employee.employeeId}</td>
+                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.employee.fullName}</td>
+                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.employee.designation}</td>
+                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.employee.projectName}</td>
+                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.employee.gender || ''}</td>
+                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.requestDate ? new Date(request.requestDate).toLocaleDateString() : ''}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${request.status === 'Approved' ? 'bg-green-100 text-green-700' : request.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{request.status}</span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>
                           <div className="flex flex-wrap gap-2">
                             {request.requestedItems.map(item => (
                               <span key={item} className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${theme === 'dark' ? 'bg-blue-900 text-blue-100' : 'bg-blue-50 text-blue-700'}`}>
@@ -523,25 +529,30 @@ export default function UniformRequestsPage() {
                             ))}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{request.qty || ''}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{request.remarks || ''}</td>
+                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.qty || ''}</td>
+                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.remarks || ''}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleAction(request._id, request.status === 'Approved' ? 'reject' : 'approve')}
-                              className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none ${request.status === 'Approved'
-                                ? theme === 'dark'
-                                  ? 'bg-red-600 text-white hover:bg-red-700'
-                                  : 'bg-red-500 text-white hover:bg-red-600'
-                                : theme === 'dark'
-                                  ? 'bg-green-600 text-white hover:bg-green-700'
-                                  : 'bg-green-500 text-white hover:bg-green-600'}`}
+                              onClick={() => handleAction(request.employee.employeeId, 'approve')}
+                              className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 ${theme === 'dark' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-green-500 text-white hover:bg-green-600'}`}
+                              title="Approve this request"
+                              disabled={actionLoading === request.employee.employeeId + 'approve'}
                             >
-                              {actionLoading === request._id + (request.status === 'Approved' ? 'reject' : 'approve') ? <FaSpinner className="animate-spin" /> : request.status === 'Approved' ? 'Reject' : 'Approve'}
+                              {actionLoading === request.employee.employeeId + 'approve' ? <FaSpinner className="animate-spin" /> : 'Approve'}
+                            </button>
+                            <button
+                              onClick={() => handleAction(request.employee.employeeId, 'reject')}
+                              className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 ${theme === 'dark' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                              title="Reject this request"
+                              disabled={actionLoading === request.employee.employeeId + 'reject'}
+                            >
+                              {actionLoading === request.employee.employeeId + 'reject' ? <FaSpinner className="animate-spin" /> : 'Reject'}
                             </button>
                             <button
                               onClick={() => setRequests(prev => prev.filter(req => req._id !== request._id))}
-                              className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none ${theme === 'dark' ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                              className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-gray-300 hover:scale-105 ${theme === 'dark' ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                              title="Remove this request from the list"
                             >
                               <FaTimesCircle /> Remove
                             </button>
