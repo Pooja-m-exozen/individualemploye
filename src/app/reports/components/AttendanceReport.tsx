@@ -499,6 +499,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         // If a date range is selected, filter records for that range; otherwise, use the full month
         let filteredRecords;
         let reportTitle = `Attendance Report - ${months[selectedMonth - 1]} ${selectedYear}`;
+        let singlePage = false;
         if (fromDateForPDF && toDateForPDF) {
             const fromDateObj = new Date(fromDateForPDF);
             const toDateObj = new Date(toDateForPDF);
@@ -515,6 +516,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 return;
             }
             reportTitle = `Attendance Report - ${fromDateForPDF} to ${toDateForPDF}`;
+            singlePage = true;
         } else {
             filteredRecords = processedAttendanceData.filter(record => {
                 const dateObj = new Date(record.date);
@@ -587,8 +589,16 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 4: { cellWidth: 22 }, // Shortage Hours
                 5: { cellWidth: 22 }, // Day Type
                 6: { cellWidth: 22 }  // Status
-            }
+            },
+            pageBreak: singlePage ? 'avoid' : 'auto',
+            didDrawPage: singlePage ? undefined : undefined // placeholder for future customization
         });
+
+        // If a date range is selected, do not add more pages (single page only)
+        if (singlePage) {
+            doc.save(`attendance_${fromDateForPDF}_to_${toDateForPDF}.pdf`);
+            return;
+        }
 
         // Second page - Monthly Summary
         doc.addPage();
