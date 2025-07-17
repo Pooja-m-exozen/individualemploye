@@ -64,7 +64,7 @@ interface KYCData {
     type: string;
     url: string;
     uploadedAt: string;
-    _id?: string;
+    _id: string;
   }>;
   status: string;
 }
@@ -147,7 +147,7 @@ const EditKYCModal: React.FC<EditKYCModalProps> = ({ open, onClose, kycData, onS
               type: data.documentType || type,
               url: data.documentURL || data.url,
               uploadedAt: new Date().toISOString(),
-              ...(data._id && /^[a-f\d]{24}$/i.test(data._id) ? { _id: data._id } : {}),
+              _id: (data._id && /^[a-f\d]{24}$/i.test(data._id)) ? data._id : "",
             },
           ],
         }));
@@ -230,7 +230,7 @@ const EditKYCModal: React.FC<EditKYCModalProps> = ({ open, onClose, kycData, onS
       const cleanedDocuments = formData.documents.map(doc => {
         const cleaned = { ...doc };
         if (!cleaned._id || !/^[a-f\d]{24}$/i.test(cleaned._id)) {
-          delete cleaned._id;
+          cleaned._id = "";
         }
         return cleaned;
       });
