@@ -618,6 +618,7 @@ export default function UniformRequestsPage() {
               </div>
             )}
           </div>
+          
         </div>
       </div>
     </ManagerDashboardLayout>
