@@ -155,8 +155,8 @@ export default function UploadDocuments() {
 
     try {
       const formData = new FormData();
-      formData.append("file", doc.file);
-      formData.append("type", type);
+      formData.append("document", doc.file); // Use 'document' key
+      formData.append("documentType", type); // Use 'documentType' key
 
       const response = await fetch(
         `https://cafm.zenapi.co.in/api/kyc/${employeeId}/upload-document`,
