@@ -48,6 +48,10 @@ export default function UniformRequestsPage() {
     remarks: string;
   }>({ employeeId: "", qty: 1, remarks: "" });
   const [createLoading, setCreateLoading] = useState(false);
+  // Pagination and filter state
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Approved' | 'Pending'>('All');
 
   useEffect(() => {
     fetchRequests();
@@ -57,10 +61,36 @@ export default function UniformRequestsPage() {
     setLoading(true);
     setError(null);
     try {
-      // TODO: Replace with real API call when available
-      setRequests([]); // No dummy data, empty by default
+      const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+      const data = await res.json();
+      if (!res.ok || data.success === false) {
+        setError(data.message || "Failed to fetch uniform requests.");
+        setLoading(false);
+        return;
+      }
+      // Map API data to your UniformRequest interface
+      const mapped = data.uniforms.map((item: any) => ({
+        _id: item._id,
+        employee: {
+          employeeId: item.employeeId,
+          fullName: item.fullName,
+          designation: item.designation,
+          employeeImage: "", // If you have an image, use it here
+          projectName: item.projectName,
+          gender: item.gender,
+        },
+        status: item.approvalStatus,
+        requestedItems: item.uniformType,
+        qty: item.qty,
+        remarks: item.remarks,
+        sizes: item.size,
+        requestDate: item.requestDate,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      }));
+      setRequests(mapped);
       setLoading(false);
-    } catch  {
+    } catch (err) {
       setError("Failed to fetch uniform requests.");
       setLoading(false);
     }
@@ -87,17 +117,15 @@ export default function UniformRequestsPage() {
         setTimeout(() => setToast(null), 3500);
         return;
       }
-      if (action === 'reject') {
-        setRequests(prev => prev.filter(req => req.employee.employeeId !== employeeId));
-        setToast({ type: "success", message: "Successfully deleted" });
-      } else {
-        setRequests(prev => prev.map(req =>
-          req.employee.employeeId === employeeId
-            ? { ...req, status: "Approved" }
+      // Only update status, do not remove
+      setRequests(prev =>
+        prev.map(req =>
+          req._id === employeeId
+            ? { ...req, status: action === 'approve' ? 'Approved' : 'Rejected' }
             : req
-        ));
-        setToast({ type: "success", message: `Uniform request approved successfully.` });
-      }
+        )
+      );
+      setToast({ type: "success", message: `Uniform request ${action}d successfully.` });
     } catch (err) {
       const message = err instanceof Error ? err.message : `Failed to ${action} uniform request.`;
       setError(message);
@@ -197,10 +225,22 @@ export default function UniformRequestsPage() {
     }
   }, [showCreateModal]);
 
+  // Filtered requests by search and status
   const filteredRequests = requests.filter(req =>
-    req.employee.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    req.employee.employeeId.toLowerCase().includes(search.toLowerCase())
+    (statusFilter === 'All' || req.status === statusFilter) &&
+    (req.employee.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      req.employee.employeeId.toLowerCase().includes(search.toLowerCase()))
   );
+
+  // Pagination logic for table view
+  const totalRows = filteredRequests.length;
+  const totalPages = Math.ceil(totalRows / rowsPerPage);
+  const paginatedRequests = filteredRequests.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+  // Reset to page 1 if filter/search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter]);
 
   return (
     <ManagerDashboardLayout>
@@ -252,7 +292,7 @@ export default function UniformRequestsPage() {
               {toast.type === "success" ? <FaCheckCircle /> : <FaTimesCircle />} {toast.message}
             </div>
           )}
-          {/* View Toggle and Search Bar */}
+          {/* View Toggle, Filter, and Search Bar */}
           <div className={`w-full max-w-5xl mx-auto mb-6 flex flex-col md:flex-row items-center gap-3 justify-between sticky top-0 z-30 py-2 ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
             <div className="flex gap-2 mb-2 md:mb-0">
               <button
@@ -279,6 +319,19 @@ export default function UniformRequestsPage() {
               >
                 Table View
               </button>
+            </div>
+            {/* Filter Dropdown */}
+            <div className="flex items-center gap-2">
+              <label className={`font-semibold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Status:</label>
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value as 'All' | 'Approved' | 'Pending')}
+                className={`rounded-lg px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+              >
+                <option value="All">All</option>
+                <option value="Approved">Approved</option>
+                <option value="Pending">Pending</option>
+              </select>
             </div>
             <div className={`flex items-center rounded-xl px-4 py-2 shadow w-full md:w-96 border ${theme === 'dark' ? 'bg-gray-800 border-blue-900' : 'bg-white border-blue-100'}`}>
               <FaSearch className={theme === 'dark' ? 'text-blue-300 mr-2' : 'text-blue-400 mr-2'} />
@@ -450,26 +503,28 @@ export default function UniformRequestsPage() {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleAction(request._id, request.status === 'Approved' ? 'reject' : 'approve')}
-                        className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none ${request.status === 'Approved'
-                          ? theme === 'dark'
-                            ? 'bg-red-600 text-white hover:bg-red-700'
-                            : 'bg-red-500 text-white hover:bg-red-600'
-                          : theme === 'dark'
-                            ? 'bg-green-600 text-white hover:bg-green-700'
-                            : 'bg-green-500 text-white hover:bg-green-600'}`}
-                      >
-                        {actionLoading === request._id + (request.status === 'Approved' ? 'reject' : 'approve') ? <FaSpinner className="animate-spin" /> : request.status === 'Approved' ? 'Reject' : 'Approve'}
-                      </button>
-                      <button
-                        onClick={() => setRequests(prev => prev.filter(req => req._id !== request._id))}
-                        className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none ${theme === 'dark' ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                      >
-                        <FaTimesCircle /> Remove
-                      </button>
-                    </div>
+                    {request.status === 'Pending' ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleAction(request._id, 'approve')}
+                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-green-500 text-white hover:bg-green-600`}
+                          disabled={actionLoading === request._id + 'approve'}
+                        >
+                          {actionLoading === request._id + 'approve' ? <FaSpinner className="animate-spin" /> : 'Approve'}
+                        </button>
+                        <button
+                          onClick={() => handleAction(request._id, 'reject')}
+                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-red-500 text-white hover:bg-red-600`}
+                          disabled={actionLoading === request._id + 'reject'}
+                        >
+                          {actionLoading === request._id + 'reject' ? <FaSpinner className="animate-spin" /> : 'Reject'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <span className="px-4 py-2 rounded-lg font-semibold">{request.status}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -493,7 +548,7 @@ export default function UniformRequestsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {filteredRequests.map(request => (
+                    {paginatedRequests.map(request => (
                       <tr key={request._id} className={theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700 transition' : 'bg-white hover:bg-blue-50 transition'}>
                         <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm font-medium text-white' : 'px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'}></td>
                         <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.employee.employeeId}</td>
@@ -517,36 +572,49 @@ export default function UniformRequestsPage() {
                         <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.qty || ''}</td>
                         <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.remarks || ''}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleAction(request.employee.employeeId, 'approve')}
-                              className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 ${theme === 'dark' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-green-500 text-white hover:bg-green-600'}`}
-                              title="Approve this request"
-                              disabled={actionLoading === request.employee.employeeId + 'approve'}
-                            >
-                              {actionLoading === request.employee.employeeId + 'approve' ? <FaSpinner className="animate-spin" /> : 'Approve'}
-                            </button>
-                            <button
-                              onClick={() => handleAction(request.employee.employeeId, 'reject')}
-                              className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 ${theme === 'dark' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-500 text-white hover:bg-red-600'}`}
-                              title="Reject this request"
-                              disabled={actionLoading === request.employee.employeeId + 'reject'}
-                            >
-                              {actionLoading === request.employee.employeeId + 'reject' ? <FaSpinner className="animate-spin" /> : 'Reject'}
-                            </button>
-                            <button
-                              onClick={() => setRequests(prev => prev.filter(req => req._id !== request._id))}
-                              className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-gray-300 hover:scale-105 ${theme === 'dark' ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                              title="Remove this request from the list"
-                            >
-                              <FaTimesCircle /> Remove
-                            </button>
-                          </div>
+                          {request.status === 'Pending' ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleAction(request.employee.employeeId, 'approve')}
+                                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 bg-green-500 text-white hover:bg-green-600`}
+                                title="Approve this request"
+                                disabled={actionLoading === request.employee.employeeId + 'approve'}
+                              >
+                                {actionLoading === request.employee.employeeId + 'approve' ? <FaSpinner className="animate-spin" /> : 'Approve'}
+                              </button>
+                              <button
+                                onClick={() => handleAction(request.employee.employeeId, 'reject')}
+                                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 bg-red-500 text-white hover:bg-red-600`}
+                                title="Reject this request"
+                                disabled={actionLoading === request.employee.employeeId + 'reject'}
+                              >
+                                {actionLoading === request.employee.employeeId + 'reject' ? <FaSpinner className="animate-spin" /> : 'Reject'}
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="px-4 py-2 rounded-lg font-semibold">{request.status}</span>
+                          )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {/* Pagination Controls */}
+                <div className="flex justify-between items-center py-4 px-2">
+                  <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Page {currentPage} of {totalPages}</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all focus:outline-none ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : theme === 'dark' ? 'bg-blue-800 text-white hover:bg-blue-900' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                    >Previous</button>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all focus:outline-none ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : theme === 'dark' ? 'bg-blue-800 text-white hover:bg-blue-900' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                    >Next</button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
