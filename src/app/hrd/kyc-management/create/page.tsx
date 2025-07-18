@@ -88,9 +88,12 @@ export default function CreateKYCPage() {
   const [multiDocCustomTypes, setMultiDocCustomTypes] = useState<string[]>([""]);
 
   // State for project list
-  const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
+  const [projectList, setProjectList] = useState<{ _id: string; projectName: string, designationWiseCount?: Record<string, number> }[]>([]);
   const [projectLoading, setProjectLoading] = useState(false);
   const [projectError, setProjectError] = useState<string | null>(null);
+
+  // Add state for designation options
+  const [designationOptions, setDesignationOptions] = useState<string[]>([]);
 
   // Seed to force re-fetch of next employee ID after each submission
   const [employeeIdSeed, setEmployeeIdSeed] = useState(0);
@@ -152,6 +155,16 @@ export default function CreateKYCPage() {
         setPersonalDetails(prev => ({ ...prev, employeeId: nextId }));
       });
   }, [employeeIdSeed]);
+
+  // Update designation options when project changes
+  useEffect(() => {
+    const selectedProject = projectList.find(p => p.projectName === personalDetails.projectName);
+    if (selectedProject && selectedProject.designationWiseCount) {
+      setDesignationOptions(Object.keys(selectedProject.designationWiseCount));
+    } else {
+      setDesignationOptions([]);
+    }
+  }, [personalDetails.projectName, projectList]);
 
   // Handle input changes for each section
   const handlePersonalChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -505,7 +518,18 @@ export default function CreateKYCPage() {
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Designation</label>
-                      <input name="designation" value={personalDetails.designation} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <select
+                        name="designation"
+                        value={personalDetails.designation}
+                        onChange={handlePersonalChange}
+                        className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`}
+                        required
+                      >
+                        <option value="">{designationOptions.length === 0 ? "Select project first" : "Select"}</option>
+                        {designationOptions.map(designation => (
+                          <option key={designation} value={designation}>{designation}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Date of Joining</label>
