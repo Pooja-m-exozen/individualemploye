@@ -86,8 +86,6 @@ export default function UniformRequestsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
   const [statusFilter, setStatusFilter] = useState<'All' | 'Approved' | 'Pending'>('All');
-<<<<<<< HEAD
-=======
   const [selectedUniforms, setSelectedUniforms] = useState<SelectedUniform[]>([]);
   const [uniformOptions, setUniformOptions] = useState<UniformOption[]>([]);
   const [employeeDetails, setEmployeeDetails] = useState<EmployeeDetails | null>(null);
@@ -95,7 +93,6 @@ export default function UniformRequestsPage() {
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [employeeImages, setEmployeeImages] = useState<{ [id: string]: string }>({});
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
 
   useEffect(() => {
     fetchRequests();
@@ -113,11 +110,7 @@ export default function UniformRequestsPage() {
         return;
       }
       // Map API data to your UniformRequest interface
-<<<<<<< HEAD
-      const mapped = data.uniforms.map((item: any) => ({
-=======
       const mapped = data.uniforms.map((item: UniformApiResponse) => ({
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
         _id: item._id,
         employee: {
           employeeId: item.employeeId,
@@ -138,11 +131,7 @@ export default function UniformRequestsPage() {
       }));
       setRequests(mapped);
       setLoading(false);
-<<<<<<< HEAD
-    } catch (err) {
-=======
     } catch {
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
       setError("Failed to fetch uniform requests.");
       setLoading(false);
     }
@@ -256,8 +245,6 @@ export default function UniformRequestsPage() {
     }
   }, [showCreateModal]);
 
-<<<<<<< HEAD
-=======
   // Fetch employee designation when employeeId changes
   useEffect(() => {
     if (showCreateModal && newRequest.employeeId) {
@@ -310,7 +297,6 @@ export default function UniformRequestsPage() {
   }, [showCreateModal, newRequest.employeeId]);
 
 
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
   // Filtered requests by search and status
   const filteredRequests = requests.filter(req =>
     (statusFilter === 'All' || req.status === statusFilter) &&
@@ -328,8 +314,6 @@ export default function UniformRequestsPage() {
     setCurrentPage(1);
   }, [search, statusFilter]);
 
-<<<<<<< HEAD
-=======
   // Fetch employee images for requests
   useEffect(() => {
     requests.forEach(req => {
@@ -350,7 +334,6 @@ export default function UniformRequestsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requests]);
 
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
   return (
     <ManagerDashboardLayout>
       <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'} flex flex-col py-8 pt-8`}>
@@ -666,20 +649,6 @@ export default function UniformRequestsPage() {
                     {request.status === 'Pending' ? (
                       <div className="flex gap-2">
                         <button
-<<<<<<< HEAD
-                          onClick={() => handleAction(request._id, 'approve')}
-                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-green-500 text-white hover:bg-green-600`}
-                          disabled={actionLoading === request._id + 'approve'}
-                        >
-                          {actionLoading === request._id + 'approve' ? <FaSpinner className="animate-spin" /> : 'Approve'}
-                        </button>
-                        <button
-                          onClick={() => handleAction(request._id, 'reject')}
-                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-red-500 text-white hover:bg-red-600`}
-                          disabled={actionLoading === request._id + 'reject'}
-                        >
-                          {actionLoading === request._id + 'reject' ? <FaSpinner className="animate-spin" /> : 'Reject'}
-=======
                           onClick={() => handleAction(request.employee.employeeId, 'approve')}
                           className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-green-500 text-white hover:bg-green-600`}
                         >
@@ -690,7 +659,6 @@ export default function UniformRequestsPage() {
                           className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-red-500 text-white hover:bg-red-600`}
                         >
                           Reject
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
                         </button>
                       </div>
                     ) : (
@@ -751,27 +719,15 @@ export default function UniformRequestsPage() {
                                 onClick={() => handleAction(request.employee.employeeId, 'approve')}
                                 className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 bg-green-500 text-white hover:bg-green-600`}
                                 title="Approve this request"
-<<<<<<< HEAD
-                                disabled={actionLoading === request.employee.employeeId + 'approve'}
-                              >
-                                {actionLoading === request.employee.employeeId + 'approve' ? <FaSpinner className="animate-spin" /> : 'Approve'}
-=======
                               >
                                 Approve
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
                               </button>
                               <button
                                 onClick={() => handleAction(request.employee.employeeId, 'reject')}
                                 className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 bg-red-500 text-white hover:bg-red-600`}
                                 title="Reject this request"
-<<<<<<< HEAD
-                                disabled={actionLoading === request.employee.employeeId + 'reject'}
-                              >
-                                {actionLoading === request.employee.employeeId + 'reject' ? <FaSpinner className="animate-spin" /> : 'Reject'}
-=======
                               >
                                 Reject
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
                               </button>
                             </div>
                           ) : (
