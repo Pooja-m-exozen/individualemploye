@@ -113,6 +113,16 @@ const CoordinatorDashboardLayout = ({ children }: CoordinatorDashboardLayoutProp
     { label: "Attendance", icon: <FaTasks />, href: "/v1/employee/coordinator/attendance-management" },
     { label: "KYC Management", icon: <FaUser />, href: "/v1/employee/coordinator/kyc-management" },
     { label: "ID Card Management", icon: <FaIdCard />, href: "/v1/employee/coordinator/id-card-management" },
+    { label: "Uniform Management", icon: <FaTshirt />, href: "/v1/employee/coordinator/uniform-management/requests" },
+    {
+      label: "Stores Management",
+      icon: <FaClipboardList />,
+      subItems: [
+        { label: "DC", icon: <FaClipboardList />, href: "/v1/employee/coordinator/stores-management/dc" },
+        { label: "In Stock", icon: <FaClipboardList />, href: "/v1/employee/coordinator/stores-management/in-stock" },
+        { label: "Requests", icon: <FaClipboardList />, href: "/v1/employee/coordinator/stores-management/requests" },
+      ],
+    },
     {
       label: "Reports",
       icon: <FaClipboardList />,
@@ -120,7 +130,6 @@ const CoordinatorDashboardLayout = ({ children }: CoordinatorDashboardLayoutProp
         { label: "KYC Report", icon: <FaUser />, href: "/v1/employee/coordinator/reports/kyc" },
         { label: "Uniform Report", icon: <FaTshirt />, href: "/v1/employee/coordinator/reports/uniform" },
         { label: "Attendance Report", icon: <FaTasks />, href: "/v1/employee/coordinator/reports/attendance" },
-       
       ],
     },
   ];

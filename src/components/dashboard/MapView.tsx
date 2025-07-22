@@ -123,6 +123,19 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
   });
 }
 
+// Helper function to format time as UTC, 12-hour, AM/PM
+function formatTimeUTC(dateString: string | null) {
+  if (!dateString) return 'N/A';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  return d.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'UTC',
+  });
+}
+
 export default function MapView() {
   const { theme } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -143,20 +156,13 @@ export default function MapView() {
   const [trackError, setTrackError] = useState<string | null>(null);
   const leafletLib = useLeafletLib();
 
-  // Helper function to remove .000Z from time string
-  const formatTime = (timeString: string | null): string => {
-    if (!timeString) return 'N/A';
-    return timeString.replace('.000Z', '');
+  // Helper to get today's date in yyyy-mm-dd
+  const getToday = () => {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
   };
 
-  // Helper function to format time as HH:mm:ss
-  function formatTimeOnly(dateString: string) {
-    if (!dateString) return '';
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return dateString.split('T')[1]?.split('.')[0] || dateString;
-    return d.toTimeString().slice(0, 8);
-  }
-
+  // Helper to get address from coordinates (used in attendance fetching)
   const getAddressFromCoordinates = useCallback(async (lat: number, lng: number): Promise<string> => {
     const cacheKey = `${lat},${lng}`;
     if (addressCache[cacheKey]) {
@@ -167,104 +173,53 @@ export default function MapView() {
         `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
       );
       const data = await response.json();
-      console.log('Geocode API response:', data); // Debugging line
       if (data.results && data.results[0]) {
         const address = data.results[0].formatted_address;
         setAddressCache(prev => ({ ...prev, [cacheKey]: address }));
         return address;
       }
       return "No location data available";
-    } catch (error) {
-      console.error("Error fetching address:", error);
+    } catch {
       return "No location data available";
     }
   }, [addressCache]);
 
-  // Helper to get today's date in yyyy-mm-dd
-  const getToday = () => {
-    const d = new Date();
-    return d.toISOString().split('T')[0];
-  };
-
-  // Helper to fetch and merge punch data from both APIs
-  async function fetchCombinedPunchData(employeeId: string, date: string) {
-    const [year, month] = date.split('-'); // Removed 'day' from destructuring
-    // API URLs
-    const dailyUrl = `https://cafm.zenapi.co.in/api/attendance/${employeeId}/punch-log?date=${date}`;
-    const monthlyUrl = `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${employeeId}&month=${parseInt(month, 10)}&year=${year}`;
-    // Fetch both in parallel
-    const [dailyRes, monthlyRes] = await Promise.all([
-      fetch(dailyUrl).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch(monthlyUrl).then(r => r.ok ? r.json() : null).catch(() => null),
-    ]);
-    // Collect all punch events for the date
-    let events: PunchEvent[] = [];
-    // From daily punch log
-    if (dailyRes && dailyRes.punchLogs && Array.isArray(dailyRes.punchLogs)) {
-      dailyRes.punchLogs.forEach((log: Record<string, unknown>) => {
-        if (typeof log.inLat === 'number' && typeof log.inLon === 'number' && typeof log.in === 'string') {
-          events.push({
-            lat: log.inLat,
-            lon: log.inLon,
-            photo: typeof log.inPhoto === 'string' ? log.inPhoto : '',
-            label: 'Punch In',
-            time: log.in,
-          });
-        }
-        if (typeof log.outLat === 'number' && typeof log.outLon === 'number' && typeof log.out === 'string') {
-          events.push({
-            lat: log.outLat,
-            lon: log.outLon,
-            photo: typeof log.outPhoto === 'string' ? log.outPhoto : '',
-            label: 'Punch Out',
-            time: log.out,
-          });
-        }
-      });
-    }
-    // From monthly attendance
-    if (monthlyRes && monthlyRes.attendance && Array.isArray(monthlyRes.attendance)) {
-      monthlyRes.attendance.filter((rec: Record<string, unknown>) => typeof rec.date === 'string' && rec.date.startsWith(date)).forEach((rec: Record<string, unknown>) => {
-        if (typeof rec.punchInLatitude === 'number' && typeof rec.punchInLongitude === 'number' && typeof rec.punchInTime === 'string') {
-          events.push({
-            lat: rec.punchInLatitude,
-            lon: rec.punchInLongitude,
-            photo: typeof rec.punchInPhoto === 'string' ? rec.punchInPhoto : '',
-            label: 'Punch In',
-            time: rec.punchInTime,
-          });
-        }
-        if (typeof rec.punchOutLatitude === 'number' && typeof rec.punchOutLongitude === 'number' && typeof rec.punchOutTime === 'string') {
-          events.push({
-            lat: rec.punchOutLatitude,
-            lon: rec.punchOutLongitude,
-            photo: typeof rec.punchOutPhoto === 'string' ? rec.punchOutPhoto : '',
-            label: 'Punch Out',
-            time: rec.punchOutTime,
-          });
-        }
-      });
-    }
-    // Remove duplicates (by lat/lon/time/photo)
-    const seen = new Set();
-    events = events.filter((e: PunchEvent) => {
-      const key = `${e.lat},${e.lon},${e.time},${e.photo}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    // Sort by time
-    events.sort((a: PunchEvent, b: PunchEvent) => new Date(a.time).getTime() - new Date(b.time).getTime());
-    return events;
+  // Helper to fetch punch data for Track Location modal (NEW API)
+  interface PunchApiResponse {
+    latitude: number;
+    longitude: number;
+    photo: string;
+    time: string;
   }
+  const fetchTrackPunchData = React.useCallback(async (employeeId: string, date: string) => {
+    // date should be yyyy-mm-dd
+    const url = `https://cafm.zenapi.co.in/api/attendance/${employeeId}/punches/${date}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch punch data');
+    const data = await res.json();
+    let events: PunchEvent[] = [];
+    if (data && Array.isArray(data.punches)) {
+      events = data.punches.map((p: PunchApiResponse) => ({
+        lat: p.latitude,
+        lon: p.longitude,
+        photo: p.photo,
+        label: 'Punch',
+        time: p.time,
+      }));
+      // Sort by time
+      events.sort((a: PunchEvent, b: PunchEvent) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    }
+    return events;
+  }, []);
 
-  // Fetch punch log when modal opens
+  // Fetch punch log when modal opens (Track Location)
   useEffect(() => {
     if (trackModal) {
       setTrackLoading(true);
       setTrackError(null);
       setTrackData(null);
-      fetchCombinedPunchData(trackModal.employeeId, trackModal.date)
+      // Use new API for track location
+      fetchTrackPunchData(trackModal.employeeId, trackModal.date)
         .then((events: PunchEvent[]) => {
           setTrackData({ events });
           setTrackLoading(false);
@@ -274,7 +229,7 @@ export default function MapView() {
           setTrackLoading(false);
         });
     }
-  }, [trackModal]);
+  }, [trackModal, fetchTrackPunchData]);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -561,7 +516,7 @@ export default function MapView() {
                                       <span style={{ backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "500", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>Punched In</span>
                                     </div>
                                     <div style={{ backgroundColor: "#eff6ff", padding: "10px", borderRadius: "8px" }}>
-                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTime(entry.punchInTime)}</p>
+                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTimeUTC(entry.punchInTime)}</p>
                                       {entry.punchInPhoto && (
                                         <div style={{ marginTop: "6px" }}>
                                           <Image 
@@ -612,7 +567,7 @@ export default function MapView() {
                                       <span style={{ backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "500", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>Punched Out</span>
                                     </div>
                                     <div style={{ backgroundColor: "#f0fdf4", padding: "10px", borderRadius: "8px" }}>
-                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTime(entry.punchOutTime)}</p>
+                                      <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTimeUTC(entry.punchOutTime)}</p>
                                       {entry.punchOutPhoto && (
                                         <div style={{ marginTop: "6px" }}>
                                           <Image 
@@ -736,7 +691,7 @@ export default function MapView() {
                         <td className={`px-3 py-2 font-medium ${theme === 'dark' ? 'text-[#e5e7eb]' : 'text-gray-900 dark:text-white'}`}>{emp.employeeId}</td>
                         <td className={`px-3 py-2 ${theme === 'dark' ? 'text-[#e5e7eb]' : 'text-gray-700 dark:text-gray-200'}`}>{emp.designation}</td>
                         <td className={`px-3 py-2 ${theme === 'dark' ? 'text-[#e5e7eb]' : 'text-gray-700 dark:text-gray-200'}`}>{emp.projectName}</td>
-                        <td className={`px-3 py-2 ${theme === 'dark' ? 'text-[#e5e7eb]' : 'text-gray-700 dark:text-gray-200'}`}>{emp.punchInTime ? formatTime(emp.punchInTime) : '-'}</td>
+                        <td className={`px-3 py-2 ${theme === 'dark' ? 'text-[#e5e7eb]' : 'text-gray-700 dark:text-gray-200'}`}>{emp.punchInTime ? formatTimeUTC(emp.punchInTime) : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -797,7 +752,7 @@ export default function MapView() {
                               <Popup>
                                 <div style={{ textAlign: 'center', width: 180, padding: 8, borderRadius: 12 }}>
                                   <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{m.label}</div>
-                                  <div style={{ fontSize: 13, color: '#444', marginBottom: 6 }}>{formatTimeOnly(m.time)}</div>
+                                  <div style={{ fontSize: 13, color: '#444', marginBottom: 6 }}>{formatTimeUTC(m.time)}</div>
                                   <Image src={m.photo} alt={m.label} width={120} height={90} style={{ borderRadius: 8, margin: '0 auto', objectFit: 'cover', maxHeight: 90 }} />
                                 </div>
                               </Popup>

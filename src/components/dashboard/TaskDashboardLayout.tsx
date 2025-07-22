@@ -106,12 +106,12 @@ const TaskDashboardLayout = ({ children }: TaskDashboardLayoutProps): React.Reac
   const menuItems: MenuItem[] = [
     { label: "Task Dashboard", icon: <FaTachometerAlt />, href: "/v1/employee/task/dashboard" },
     { label: "KYC Management", icon: <FaUser />, href: "/v1/employee/task/kyc-management" },
+    { label: "Uniform Management", icon: <FaClipboardList />, href: "/v1/employee/task/uniform-management/requests" },
     {
       label: "Reports",
       icon: <FaClipboardList />,
       subItems: [
         { label: "KYC Report", icon: <FaUser />, href: "/v1/employee/task/reports/kyc" },
-       
       ],
     },
   ];

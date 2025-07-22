@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
+import TaskDashboardLayout from "@/components/dashboard/TaskDashboardLayout";
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
@@ -27,6 +27,9 @@ interface UniformRequest {
   updatedAt?: string;
 }
 
+// Define available uniform items (if you want to keep them fixed, otherwise make this dynamic)
+// const UNIFORM_ITEMS = ["Shirt", "Trousers", "Cap", "Jacket", "Shoes", "Belt"];
+
 // Add types for uniform options API
 interface UniformOption {
   type: string;
@@ -41,13 +44,7 @@ interface EmployeeDetails {
   projectName: string;
 }
 
-// Add type for selected uniforms
-interface SelectedUniform {
-  type: string;
-  size: string;
-  qty: number;
-}
-// Add type for API mapping
+// Add UniformApiResponse interface
 interface UniformApiResponse {
   _id: string;
   employeeId: string;
@@ -86,16 +83,18 @@ export default function UniformRequestsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
   const [statusFilter, setStatusFilter] = useState<'All' | 'Approved' | 'Pending'>('All');
-<<<<<<< HEAD
-=======
-  const [selectedUniforms, setSelectedUniforms] = useState<SelectedUniform[]>([]);
-  const [uniformOptions, setUniformOptions] = useState<UniformOption[]>([]);
+  const [selectedUniforms, setSelectedUniforms] = useState<{
+    type: string;
+    size: string;
+    qty: number;
+  }[]>([]);
   const [employeeDetails, setEmployeeDetails] = useState<EmployeeDetails | null>(null);
   const [maxQuantity, setMaxQuantity] = useState<number>(5);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [employeeImages, setEmployeeImages] = useState<{ [id: string]: string }>({});
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
+  // Add missing state variables
+  const [uniformOptions, setUniformOptions] = useState<UniformOption[]>([]);
 
   useEffect(() => {
     fetchRequests();
@@ -113,17 +112,13 @@ export default function UniformRequestsPage() {
         return;
       }
       // Map API data to your UniformRequest interface
-<<<<<<< HEAD
-      const mapped = data.uniforms.map((item: any) => ({
-=======
       const mapped = data.uniforms.map((item: UniformApiResponse) => ({
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
         _id: item._id,
         employee: {
           employeeId: item.employeeId,
           fullName: item.fullName,
           designation: item.designation,
-          employeeImage: "", // If you have an image, use it here
+          employeeImage: item.employeeImage || "", // Use image if available
           projectName: item.projectName,
           gender: item.gender,
         },
@@ -138,50 +133,9 @@ export default function UniformRequestsPage() {
       }));
       setRequests(mapped);
       setLoading(false);
-<<<<<<< HEAD
-    } catch (err) {
-=======
     } catch {
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
       setError("Failed to fetch uniform requests.");
       setLoading(false);
-    }
-  };
-
-  // Update handleAction to use the new API endpoint and improve table UI/UX
-  const handleAction = async (employeeId: string, action: "approve" | "reject") => {
-    setError(null);
-    try {
-      const endpoint = `https://cafm.zenapi.co.in/api/uniforms/${employeeId}/${action}`;
-      const remarks = action === 'approve' ? 'Approved by admin' : 'Rejected by admin';
-      const res = await fetch(endpoint, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remarks })
-      });
-      const data = await res.json();
-      if (!res.ok || data.success === false) {
-        const message = data.message || `Failed to ${action} uniform request.`;
-        setError(message);
-        setToast({ type: "error", message });
-        setTimeout(() => setToast(null), 3500);
-        return;
-      }
-      // Only update status, do not remove
-      setRequests(prev =>
-        prev.map(req =>
-          req._id === employeeId
-            ? { ...req, status: action === 'approve' ? 'Approved' : 'Rejected' }
-            : req
-        )
-      );
-      setToast({ type: "success", message: `Uniform request ${action}d successfully.` });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : `Failed to ${action} uniform request.`;
-      setError(message);
-      setToast({ type: "error", message });
-    } finally {
-      setTimeout(() => setToast(null), 3500);
     }
   };
 
@@ -225,8 +179,7 @@ export default function UniformRequestsPage() {
       setCreateLoading(false);
       setToast({ type: "success", message: "Uniform request created successfully." });
       setTimeout(() => setToast(null), 3500);
-      // Refresh the list after creation
-      await fetchRequests();
+      // Optionally update UI list
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create uniform request.";
       setToast({ type: "error", message });
@@ -234,45 +187,6 @@ export default function UniformRequestsPage() {
       setTimeout(() => setToast(null), 3500);
     }
   };
-
-  // Fetch inventory items when modal opens
-  useEffect(() => {
-    if (showCreateModal) {
-      setOptionsLoading(true);
-      setOptionsError(null);
-      fetch("https://inventory.zenapi.co.in/api/inventory/items")
-        .then(res => res.json())
-        .then(data => {
-          setUniformOptions(Array.isArray(data) ? data : []);
-          setEmployeeDetails(null); // No longer fetching designation here
-          setMaxQuantity(5);
-        })
-        .catch(() => {
-          setUniformOptions([]);
-          setEmployeeDetails(null);
-          setMaxQuantity(5);
-          setOptionsError('Failed to fetch inventory options.');
-        });
-    }
-  }, [showCreateModal]);
-
-<<<<<<< HEAD
-=======
-  // Fetch employee designation when employeeId changes
-  useEffect(() => {
-    if (showCreateModal && newRequest.employeeId) {
-      fetch(`https://cafm.zenapi.co.in/api/kyc/${newRequest.employeeId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.kycData && data.kycData.personalDetails && data.kycData.personalDetails.designation) {
-            setEmployeeDetails(data.kycData.personalDetails);
-          } else {
-            setEmployeeDetails(null);
-          }
-        })
-        .catch(() => setEmployeeDetails(null));
-    }
-  }, [showCreateModal, newRequest.employeeId]);
 
   // Fetch uniform options when employeeId changes and modal is open
   useEffect(() => {
@@ -309,8 +223,6 @@ export default function UniformRequestsPage() {
     }
   }, [showCreateModal, newRequest.employeeId]);
 
-
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
   // Filtered requests by search and status
   const filteredRequests = requests.filter(req =>
     (statusFilter === 'All' || req.status === statusFilter) &&
@@ -328,8 +240,6 @@ export default function UniformRequestsPage() {
     setCurrentPage(1);
   }, [search, statusFilter]);
 
-<<<<<<< HEAD
-=======
   // Fetch employee images for requests
   useEffect(() => {
     requests.forEach(req => {
@@ -347,12 +257,10 @@ export default function UniformRequestsPage() {
           });
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requests]);
+  }, [requests, employeeImages]);
 
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
   return (
-    <ManagerDashboardLayout>
+    <TaskDashboardLayout>
       <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'} flex flex-col py-8 pt-8`}>
         <div className="max-w-7xl mx-auto w-full">
           {/* Header */}
@@ -376,6 +284,29 @@ export default function UniformRequestsPage() {
             >
               <FaPlus /> Create Request
             </button>
+          </div>
+          {/* Tabs for Uniform Requests/View */}
+          <div className="flex gap-2 mb-8 w-full max-w-5xl mx-auto">
+            <button
+              className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
+                theme === 'dark'
+                  ? 'bg-gray-800 border-blue-400 text-blue-400'
+                  : 'bg-white border-blue-600 text-blue-700'
+              }`}
+              style={{ borderBottomWidth: '3px' }}
+            >
+              Uniform Requests
+            </button>
+            <a
+              href="/v1/employee/task/uniform-management/view"
+              className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
+                theme === 'dark'
+                  ? 'bg-gray-700 border-transparent text-gray-300 hover:text-blue-300'
+                  : 'bg-gray-100 border-transparent text-gray-500 hover:text-blue-700'
+              }`}
+            >
+              View Uniform Requests
+            </a>
           </div>
           {/* Instructions Card (below header) */}
           {showInstructions && (
@@ -505,7 +436,7 @@ export default function UniformRequestsPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {uniformOptions.map(option => (
+                            {uniformOptions.map((option: UniformOption) => (
                               (option.sizes || option.set)?.map((sizeOrSet: string) => (
                                 <tr key={option.type + sizeOrSet}>
                                   <td className="px-2 py-1">{option.type}</td>
@@ -663,41 +594,8 @@ export default function UniformRequestsPage() {
                         </div>
                       )}
                     </div>
-                    {request.status === 'Pending' ? (
-                      <div className="flex gap-2">
-                        <button
-<<<<<<< HEAD
-                          onClick={() => handleAction(request._id, 'approve')}
-                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-green-500 text-white hover:bg-green-600`}
-                          disabled={actionLoading === request._id + 'approve'}
-                        >
-                          {actionLoading === request._id + 'approve' ? <FaSpinner className="animate-spin" /> : 'Approve'}
-                        </button>
-                        <button
-                          onClick={() => handleAction(request._id, 'reject')}
-                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-red-500 text-white hover:bg-red-600`}
-                          disabled={actionLoading === request._id + 'reject'}
-                        >
-                          {actionLoading === request._id + 'reject' ? <FaSpinner className="animate-spin" /> : 'Reject'}
-=======
-                          onClick={() => handleAction(request.employee.employeeId, 'approve')}
-                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-green-500 text-white hover:bg-green-600`}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleAction(request.employee.employeeId, 'reject')}
-                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-red-500 text-white hover:bg-red-600`}
-                        >
-                          Reject
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <span className="px-4 py-2 rounded-lg font-semibold">{request.status}</span>
-                      </div>
-                    )}
+                    {/* In the request list rendering (both card and table views), remove the approve and reject buttons and their handlers.
+                    Only display the request status and information, not the action buttons. */}
                   </div>
                 ))}
               </div>
@@ -745,38 +643,8 @@ export default function UniformRequestsPage() {
                         <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.qty || ''}</td>
                         <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.remarks || ''}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {request.status === 'Pending' ? (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleAction(request.employee.employeeId, 'approve')}
-                                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 bg-green-500 text-white hover:bg-green-600`}
-                                title="Approve this request"
-<<<<<<< HEAD
-                                disabled={actionLoading === request.employee.employeeId + 'approve'}
-                              >
-                                {actionLoading === request.employee.employeeId + 'approve' ? <FaSpinner className="animate-spin" /> : 'Approve'}
-=======
-                              >
-                                Approve
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
-                              </button>
-                              <button
-                                onClick={() => handleAction(request.employee.employeeId, 'reject')}
-                                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 bg-red-500 text-white hover:bg-red-600`}
-                                title="Reject this request"
-<<<<<<< HEAD
-                                disabled={actionLoading === request.employee.employeeId + 'reject'}
-                              >
-                                {actionLoading === request.employee.employeeId + 'reject' ? <FaSpinner className="animate-spin" /> : 'Reject'}
-=======
-                              >
-                                Reject
->>>>>>> 8028297ffb98929a892e21a0934ea3dc89021269
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="px-4 py-2 rounded-lg font-semibold">{request.status}</span>
-                          )}
+                          {/* In the request list rendering (both card and table views), remove the approve and reject buttons and their handlers.
+                          Only display the request status and information, not the action buttons. */}
                         </td>
                       </tr>
                     ))}
@@ -804,6 +672,6 @@ export default function UniformRequestsPage() {
           
         </div>
       </div>
-    </ManagerDashboardLayout>
+    </TaskDashboardLayout>
   );
 }
