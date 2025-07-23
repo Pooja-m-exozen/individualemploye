@@ -184,6 +184,14 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
       badge: pendingLeaveCount > 0 ? pendingLeaveCount : undefined
     },
     {
+      label: "Uniform Management",
+      icon: <FaChartBar />,
+      subItems: [
+        { label: "Requests", icon: <FaChartBar />, href: "/v1/employee/admin/uniform-management/requests" },
+        { label: "View", icon: <FaUsers />, href: "/v1/employee/admin/uniform-management/view" },
+      ],
+    },
+    {
       label: "Reports",
       icon: <FaChartBar />,
       subItems: [
