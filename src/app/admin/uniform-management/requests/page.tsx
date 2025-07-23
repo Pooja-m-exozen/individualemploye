@@ -339,24 +339,20 @@ export default function UniformRequestsPage() {
       <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'} flex flex-col py-8 pt-8`}>
         <div className="max-w-7xl mx-auto w-full">
           {/* Header */}
-          <div className={`mb-8 rounded-2xl p-8 flex items-center gap-6 shadow-lg bg-gradient-to-r ${
-            theme === "dark"
-              ? "from-gray-900 to-gray-800"
-              : "from-blue-600 to-blue-500"
-          }`}>
-            <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${
-              theme === "dark" ? "bg-gray-800 bg-opacity-60" : "bg-blue-500 bg-opacity-30"
-            }`}>
-              <FaTshirt className="w-8 h-8 text-white" />
-            </div>
-            <div className="flex-1 flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-white">Uniform Requests</h1>
-              {/* Pending badge */}
-              {requests.filter(r => r.status === 'Pending').length > 0 && (
-                <span className="inline-block bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-                  {requests.filter(r => r.status === 'Pending').length} Pending
-                </span>
-              )}
+          <div className={`rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-0 shadow-lg ${theme === 'dark' ? 'bg-[#2d3748] text-blue-100' : ''}`} style={theme === 'dark' ? {} : { background: '#1769ff' }}>
+            <div className="flex items-center gap-6">
+              <div className={`${theme === 'dark' ? 'bg-[#384152]' : 'bg-white/20'} rounded-full p-4 flex items-center justify-center`}>
+                <FaTshirt className="w-10 h-10 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white mb-1">Uniform Requests</h1>
+                {/* Pending badge */}
+                {requests.filter(r => r.status === 'Pending').length > 0 && (
+                  <span className="inline-block bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full mt-2">
+                    {requests.filter(r => r.status === 'Pending').length} Pending
+                  </span>
+                )}
+              </div>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}

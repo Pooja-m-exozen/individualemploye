@@ -119,10 +119,16 @@ const UniformViewPage = () => {
 						}`}>
 							<FaTshirt className="w-8 h-8 text-white" />
 						</div>
-						<div className="flex-1">
+						<div className="flex-1 flex items-center gap-3">
 							<h1 className="text-3xl font-bold text-white">Uniform Requests - View</h1>
-							<p className="text-lg text-blue-100">Browse all uniform requests and their statuses</p>
+							{/* Pending badge */}
+							{uniformRequests.filter(r => r.approvalStatus === 'Pending').length > 0 && (
+								<span className="inline-block bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+									{uniformRequests.filter(r => r.approvalStatus === 'Pending').length} Pending
+								</span>
+							)}
 						</div>
+						{/* You can add an export or create button here if needed */}
 					</div>
 				</div>
 
