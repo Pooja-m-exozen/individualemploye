@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import ManagerOpsLayout from "@/components/dashboard/ManagerOpsLayout";
+import ManagerOpsLayout from '@/components/dashboard/ManagerOpsLayout';
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
@@ -27,9 +27,6 @@ interface UniformRequest {
   updatedAt?: string;
 }
 
-// Define available uniform items (if you want to keep them fixed, otherwise make this dynamic)
-// const UNIFORM_ITEMS = ["Shirt", "Trousers", "Cap", "Jacket", "Shoes", "Belt"];
-
 // Add types for uniform options API
 interface UniformOption {
   type: string;
@@ -44,7 +41,13 @@ interface EmployeeDetails {
   projectName: string;
 }
 
-// Add UniformApiResponse interface
+// Add type for selected uniforms
+interface SelectedUniform {
+  type: string;
+  size: string;
+  qty: number;
+}
+// Add type for API mapping
 interface UniformApiResponse {
   _id: string;
   employeeId: string;
@@ -83,18 +86,13 @@ export default function UniformRequestsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
   const [statusFilter, setStatusFilter] = useState<'All' | 'Approved' | 'Pending'>('All');
-  const [selectedUniforms, setSelectedUniforms] = useState<{
-    type: string;
-    size: string;
-    qty: number;
-  }[]>([]);
+  const [selectedUniforms, setSelectedUniforms] = useState<SelectedUniform[]>([]);
+  const [uniformOptions, setUniformOptions] = useState<UniformOption[]>([]);
   const [employeeDetails, setEmployeeDetails] = useState<EmployeeDetails | null>(null);
   const [maxQuantity, setMaxQuantity] = useState<number>(5);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [employeeImages, setEmployeeImages] = useState<{ [id: string]: string }>({});
-  // Add missing state variables
-  const [uniformOptions, setUniformOptions] = useState<UniformOption[]>([]);
 
   useEffect(() => {
     fetchRequests();
@@ -118,7 +116,7 @@ export default function UniformRequestsPage() {
           employeeId: item.employeeId,
           fullName: item.fullName,
           designation: item.designation,
-          employeeImage: item.employeeImage || "", // Use image if available
+          employeeImage: "", // If you have an image, use it here
           projectName: item.projectName,
           gender: item.gender,
         },
@@ -136,6 +134,43 @@ export default function UniformRequestsPage() {
     } catch {
       setError("Failed to fetch uniform requests.");
       setLoading(false);
+    }
+  };
+
+  // Update handleAction to use the new API endpoint and improve table UI/UX
+  const handleAction = async (employeeId: string, action: "approve" | "reject") => {
+    setError(null);
+    try {
+      const endpoint = `https://cafm.zenapi.co.in/api/uniforms/${employeeId}/${action}`;
+      const remarks = action === 'approve' ? 'Approved by admin' : 'Rejected by admin';
+      const res = await fetch(endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ remarks })
+      });
+      const data = await res.json();
+      if (!res.ok || data.success === false) {
+        const message = data.message || `Failed to ${action} uniform request.`;
+        setError(message);
+        setToast({ type: "error", message });
+        setTimeout(() => setToast(null), 3500);
+        return;
+      }
+      // Only update status, do not remove
+      setRequests(prev =>
+        prev.map(req =>
+          req._id === employeeId
+            ? { ...req, status: action === 'approve' ? 'Approved' : 'Rejected' }
+            : req
+        )
+      );
+      setToast({ type: "success", message: `Uniform request ${action}d successfully.` });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : `Failed to ${action} uniform request.`;
+      setError(message);
+      setToast({ type: "error", message });
+    } finally {
+      setTimeout(() => setToast(null), 3500);
     }
   };
 
@@ -179,7 +214,8 @@ export default function UniformRequestsPage() {
       setCreateLoading(false);
       setToast({ type: "success", message: "Uniform request created successfully." });
       setTimeout(() => setToast(null), 3500);
-      // Optionally update UI list
+      // Refresh the list after creation
+      await fetchRequests();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create uniform request.";
       setToast({ type: "error", message });
@@ -187,6 +223,43 @@ export default function UniformRequestsPage() {
       setTimeout(() => setToast(null), 3500);
     }
   };
+
+  // Fetch inventory items when modal opens
+  useEffect(() => {
+    if (showCreateModal) {
+      setOptionsLoading(true);
+      setOptionsError(null);
+      fetch("https://inventory.zenapi.co.in/api/inventory/items")
+        .then(res => res.json())
+        .then(data => {
+          setUniformOptions(Array.isArray(data) ? data : []);
+          setEmployeeDetails(null); // No longer fetching designation here
+          setMaxQuantity(5);
+        })
+        .catch(() => {
+          setUniformOptions([]);
+          setEmployeeDetails(null);
+          setMaxQuantity(5);
+          setOptionsError('Failed to fetch inventory options.');
+        });
+    }
+  }, [showCreateModal]);
+
+  // Fetch employee designation when employeeId changes
+  useEffect(() => {
+    if (showCreateModal && newRequest.employeeId) {
+      fetch(`https://cafm.zenapi.co.in/api/kyc/${newRequest.employeeId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.kycData && data.kycData.personalDetails && data.kycData.personalDetails.designation) {
+            setEmployeeDetails(data.kycData.personalDetails);
+          } else {
+            setEmployeeDetails(null);
+          }
+        })
+        .catch(() => setEmployeeDetails(null));
+    }
+  }, [showCreateModal, newRequest.employeeId]);
 
   // Fetch uniform options when employeeId changes and modal is open
   useEffect(() => {
@@ -223,6 +296,7 @@ export default function UniformRequestsPage() {
     }
   }, [showCreateModal, newRequest.employeeId]);
 
+
   // Filtered requests by search and status
   const filteredRequests = requests.filter(req =>
     (statusFilter === 'All' || req.status === statusFilter) &&
@@ -257,7 +331,8 @@ export default function UniformRequestsPage() {
           });
       }
     });
-  }, [requests, employeeImages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requests]);
 
   return (
     <ManagerOpsLayout>
@@ -284,29 +359,6 @@ export default function UniformRequestsPage() {
             >
               <FaPlus /> Create Request
             </button>
-          </div>
-          {/* Tabs for Uniform Requests/View */}
-          <div className="flex gap-2 mb-8 w-full max-w-5xl mx-auto">
-            <button
-              className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
-                theme === 'dark'
-                  ? 'bg-gray-800 border-blue-400 text-blue-400'
-                  : 'bg-white border-blue-600 text-blue-700'
-              }`}
-              style={{ borderBottomWidth: '3px' }}
-            >
-              Uniform Requests
-            </button>
-            <a
-              href="/v1/employee/Manager-Ops/uniform-management/view"
-              className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
-                theme === 'dark'
-                  ? 'bg-gray-700 border-transparent text-gray-300 hover:text-blue-300'
-                  : 'bg-gray-100 border-transparent text-gray-500 hover:text-blue-700'
-              }`}
-            >
-              View Uniform Requests
-            </a>
           </div>
           {/* Instructions Card (below header) */}
           {showInstructions && (
@@ -387,46 +439,114 @@ export default function UniformRequestsPage() {
           {/* Create Request Modal */}
           {showCreateModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-              <div className={`rounded-2xl shadow-2xl p-8 w-full max-w-3xl relative animate-fade-in ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white'}`}
-                style={{ minHeight: '400px' }}>
+              <div className={`rounded-2xl shadow-2xl w-full max-w-3xl relative animate-fade-in ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white'}`}
+                style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
                 {toast && (
                   <div className={`absolute top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-lg text-white font-semibold text-base flex items-center gap-3 z-50 animate-fade-in ${toast.type === "success" ? "bg-green-500" : "bg-red-500"}`}
                     style={{ minWidth: '250px', maxWidth: '90%' }}>
                     {toast.type === "success" ? <FaCheckCircle /> : <FaTimesCircle />} {toast.message}
                   </div>
                 )}
-                <button
-                  className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
-                  onClick={() => setShowCreateModal(false)}
-                  title="Close"
-                >×</button>
-                <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}><FaTshirt /> Create Uniform Request</h2>
-                <form onSubmit={handleCreateRequest} className="space-y-5">
-                  <div>
-                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee ID</label>
-                    <input
-                      type="text"
-                      className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
-                      placeholder="Enter employee ID..."
-                      value={newRequest.employeeId}
-                      onChange={e => setNewRequest(r => ({ ...r, employeeId: e.target.value }))}
-                      required
-                    />
-                    {employeeDetails && (
-                      <div className="mt-1 text-sm text-blue-500">
-                        Name: {employeeDetails.fullName} | Designation: {employeeDetails.designation} | Project: {employeeDetails.projectName} | Gender: {employeeDetails.gender}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items (Max total qty: {maxQuantity})</label>
-                    {optionsLoading ? (
-                      <div className="text-blue-400">Loading options...</div>
-                    ) : optionsError ? (
-                      <div className="text-red-500">{optionsError}</div>
-                    ) : (
-                      <div className="overflow-x-auto max-h-64 border rounded-lg mb-2">
-                        <table className="min-w-full text-xs">
+                <div className="p-8 border-b">
+                  <button
+                    className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
+                    onClick={() => setShowCreateModal(false)}
+                    title="Close"
+                  >×</button>
+                  <h2 className={`text-2xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>
+                    <FaTshirt /> Create Uniform Request
+                  </h2>
+                </div>
+                
+                <div className="overflow-y-auto flex-1 p-8">
+                  <form id="createRequestForm" onSubmit={handleCreateRequest} className="space-y-5">
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee ID</label>
+                      <input
+                        type="text"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                        placeholder="Enter employee ID..."
+                        value={newRequest.employeeId}
+                        onChange={e => setNewRequest(r => ({ ...r, employeeId: e.target.value }))}
+                        required
+                      />
+                      {employeeDetails && (
+                        <div className="mt-1 text-sm text-blue-500">
+                          Name: {employeeDetails.fullName} | Designation: {employeeDetails.designation} | Project: {employeeDetails.projectName} | Gender: {employeeDetails.gender}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items (Max total qty: {maxQuantity})</label>
+                      {optionsLoading ? (
+                        <div className="text-blue-400">Loading options...</div>
+                      ) : optionsError ? (
+                        <div className="text-red-500">{optionsError}</div>
+                      ) : (
+                        <div className="overflow-x-auto max-h-64 border rounded-lg mb-2">
+                          <table className="min-w-full text-xs">
+                            <thead>
+                              <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
+                                <th className="px-2 py-1">Type</th>
+                                <th className="px-2 py-1">Size/Set</th>
+                                <th className="px-2 py-1">Qty</th>
+                                <th className="px-2 py-1"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {uniformOptions.map(option => (
+                                (option.sizes || option.set)?.map((sizeOrSet: string) => (
+                                  <tr key={option.type + sizeOrSet}>
+                                    <td className="px-2 py-1">{option.type}</td>
+                                    <td className="px-2 py-1">{sizeOrSet}</td>
+                                    <td className="px-2 py-1">
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        max={maxQuantity}
+                                        defaultValue={1}
+                                        className="w-16 border rounded px-1 py-0.5"
+                                        id={`qty-${option.type}-${sizeOrSet}`}
+                                      />
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <button
+                                        type="button"
+                                        className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                                        onClick={() => {
+                                          const qtyInput = document.getElementById(`qty-${option.type}-${sizeOrSet}`) as HTMLInputElement;
+                                          const qty = Number(qtyInput?.value || 1);
+                                          // Prevent exceeding maxQuantity
+                                          const totalQty = selectedUniforms.reduce((acc, u) => acc + u.qty, 0) + qty;
+                                          if (totalQty > maxQuantity) {
+                                            setToast({ type: 'error', message: `Total quantity cannot exceed ${maxQuantity}` });
+                                            setTimeout(() => setToast(null), 3500);
+                                            return;
+                                          }
+                                          setSelectedUniforms(prev => [
+                                            ...prev,
+                                            {
+                                              type: option.type,
+                                              size: sizeOrSet,
+                                              qty
+                                            }
+                                          ]);
+                                        }}
+                                      >Add</button>
+                                    </td>
+                                  </tr>
+                                ))
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                    {/* Selected Uniforms Table */}
+                    {selectedUniforms.length > 0 && (
+                      <div className="mb-2">
+                        <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Selected Items</label>
+                        <table className="min-w-full text-xs border rounded">
                           <thead>
                             <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
                               <th className="px-2 py-1">Type</th>
@@ -436,100 +556,44 @@ export default function UniformRequestsPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {uniformOptions.map((option: UniformOption) => (
-                              (option.sizes || option.set)?.map((sizeOrSet: string) => (
-                                <tr key={option.type + sizeOrSet}>
-                                  <td className="px-2 py-1">{option.type}</td>
-                                  <td className="px-2 py-1">{sizeOrSet}</td>
-                                  <td className="px-2 py-1">
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      max={maxQuantity}
-                                      defaultValue={1}
-                                      className="w-16 border rounded px-1 py-0.5"
-                                      id={`qty-${option.type}-${sizeOrSet}`}
-                                    />
-                                  </td>
-                                  <td className="px-2 py-1">
-                                    <button
-                                      type="button"
-                                      className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                                      onClick={() => {
-                                        const qtyInput = document.getElementById(`qty-${option.type}-${sizeOrSet}`) as HTMLInputElement;
-                                        const qty = Number(qtyInput?.value || 1);
-                                        // Prevent exceeding maxQuantity
-                                        const totalQty = selectedUniforms.reduce((acc, u) => acc + u.qty, 0) + qty;
-                                        if (totalQty > maxQuantity) {
-                                          setToast({ type: 'error', message: `Total quantity cannot exceed ${maxQuantity}` });
-                                          setTimeout(() => setToast(null), 3500);
-                                          return;
-                                        }
-                                        setSelectedUniforms(prev => [
-                                          ...prev,
-                                          {
-                                            type: option.type,
-                                            size: sizeOrSet,
-                                            qty
-                                          }
-                                        ]);
-                                      }}
-                                    >Add</button>
-                                  </td>
-                                </tr>
-                              ))
+                            {selectedUniforms.map((u, idx) => (
+                              <tr key={u.type + u.size}>
+                                <td className="px-2 py-1">{u.type}</td>
+                                <td className="px-2 py-1">{u.size}</td>
+                                <td className="px-2 py-1">{u.qty}</td>
+                                <td className="px-2 py-1">
+                                  <button type="button" className="text-red-500" onClick={() => setSelectedUniforms(prev => prev.filter((_, i) => i !== idx))}>Remove</button>
+                                </td>
+                              </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                     )}
-                  </div>
-                  {/* Selected Uniforms Table */}
-                  {selectedUniforms.length > 0 && (
-                    <div className="mb-2">
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Selected Items</label>
-                      <table className="min-w-full text-xs border rounded">
-                        <thead>
-                          <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
-                            <th className="px-2 py-1">Type</th>
-                            <th className="px-2 py-1">Size/Set</th>
-                            <th className="px-2 py-1">Qty</th>
-                            <th className="px-2 py-1"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedUniforms.map((u, idx) => (
-                            <tr key={u.type + u.size}>
-                              <td className="px-2 py-1">{u.type}</td>
-                              <td className="px-2 py-1">{u.size}</td>
-                              <td className="px-2 py-1">{u.qty}</td>
-                              <td className="px-2 py-1">
-                                <button type="button" className="text-red-500" onClick={() => setSelectedUniforms(prev => prev.filter((_, i) => i !== idx))}>Remove</button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Remarks</label>
+                      <input
+                        type="text"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                        placeholder="Remarks..."
+                        value={newRequest.remarks}
+                        onChange={e => setNewRequest(r => ({ ...r, remarks: e.target.value }))}
+                      />
                     </div>
-                  )}
-                  <div>
-                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Remarks</label>
-                    <input
-                      type="text"
-                      className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
-                      placeholder="Remarks..."
-                      value={newRequest.remarks}
-                      onChange={e => setNewRequest(r => ({ ...r, remarks: e.target.value }))}
-                    />
-                  </div>
+                  </form>
+                </div>
+
+                <div className="p-8 border-t">
                   <button
                     type="submit"
+                    form="createRequestForm"
                     disabled={createLoading || !newRequest.employeeId || selectedUniforms.length === 0}
-                    className={`w-full py-2 rounded-xl font-bold shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
+                    className={`w-full py-2 rounded-xl font-bold shadow transition-all disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
                   >
-                    {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}Create Request
+                    {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}
+                    Create Request
                   </button>
-                </form>
+                </div>
               </div>
             </div>
           )}
@@ -594,8 +658,26 @@ export default function UniformRequestsPage() {
                         </div>
                       )}
                     </div>
-                    {/* In the request list rendering (both card and table views), remove the approve and reject buttons and their handlers.
-                    Only display the request status and information, not the action buttons. */}
+                    {request.status === 'Pending' ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleAction(request.employee.employeeId, 'approve')}
+                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-green-500 text-white hover:bg-green-600`}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleAction(request.employee.employeeId, 'reject')}
+                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-red-500 text-white hover:bg-red-600`}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <span className="px-4 py-2 rounded-lg font-semibold">{request.status}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -643,8 +725,26 @@ export default function UniformRequestsPage() {
                         <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.qty || ''}</td>
                         <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.remarks || ''}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {/* In the request list rendering (both card and table views), remove the approve and reject buttons and their handlers.
-                          Only display the request status and information, not the action buttons. */}
+                          {request.status === 'Pending' ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleAction(request.employee.employeeId, 'approve')}
+                                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 bg-green-500 text-white hover:bg-green-600`}
+                                title="Approve this request"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleAction(request.employee.employeeId, 'reject')}
+                                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 bg-red-500 text-white hover:bg-red-600`}
+                                title="Reject this request"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="px-4 py-2 rounded-lg font-semibold">{request.status}</span>
+                          )}
                         </td>
                       </tr>
                     ))}

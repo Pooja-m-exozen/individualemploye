@@ -439,46 +439,114 @@ export default function UniformRequestsPage() {
           {/* Create Request Modal */}
           {showCreateModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-              <div className={`rounded-2xl shadow-2xl p-8 w-full max-w-3xl relative animate-fade-in ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white'}`}
-                style={{ minHeight: '400px' }}>
+              <div className={`rounded-2xl shadow-2xl w-full max-w-3xl relative animate-fade-in ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white'}`}
+                style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
                 {toast && (
                   <div className={`absolute top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-lg text-white font-semibold text-base flex items-center gap-3 z-50 animate-fade-in ${toast.type === "success" ? "bg-green-500" : "bg-red-500"}`}
                     style={{ minWidth: '250px', maxWidth: '90%' }}>
                     {toast.type === "success" ? <FaCheckCircle /> : <FaTimesCircle />} {toast.message}
                   </div>
                 )}
-                <button
-                  className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
-                  onClick={() => setShowCreateModal(false)}
-                  title="Close"
-                >×</button>
-                <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}><FaTshirt /> Create Uniform Request</h2>
-                <form onSubmit={handleCreateRequest} className="space-y-5">
-                  <div>
-                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee ID</label>
-                    <input
-                      type="text"
-                      className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
-                      placeholder="Enter employee ID..."
-                      value={newRequest.employeeId}
-                      onChange={e => setNewRequest(r => ({ ...r, employeeId: e.target.value }))}
-                      required
-                    />
-                    {employeeDetails && (
-                      <div className="mt-1 text-sm text-blue-500">
-                        Name: {employeeDetails.fullName} | Designation: {employeeDetails.designation} | Project: {employeeDetails.projectName} | Gender: {employeeDetails.gender}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items (Max total qty: {maxQuantity})</label>
-                    {optionsLoading ? (
-                      <div className="text-blue-400">Loading options...</div>
-                    ) : optionsError ? (
-                      <div className="text-red-500">{optionsError}</div>
-                    ) : (
-                      <div className="overflow-x-auto max-h-64 border rounded-lg mb-2">
-                        <table className="min-w-full text-xs">
+                <div className="p-8 border-b">
+                  <button
+                    className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
+                    onClick={() => setShowCreateModal(false)}
+                    title="Close"
+                  >×</button>
+                  <h2 className={`text-2xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>
+                    <FaTshirt /> Create Uniform Request
+                  </h2>
+                </div>
+                
+                <div className="overflow-y-auto flex-1 p-8">
+                  <form id="createRequestForm" onSubmit={handleCreateRequest} className="space-y-5">
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee ID</label>
+                      <input
+                        type="text"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                        placeholder="Enter employee ID..."
+                        value={newRequest.employeeId}
+                        onChange={e => setNewRequest(r => ({ ...r, employeeId: e.target.value }))}
+                        required
+                      />
+                      {employeeDetails && (
+                        <div className="mt-1 text-sm text-blue-500">
+                          Name: {employeeDetails.fullName} | Designation: {employeeDetails.designation} | Project: {employeeDetails.projectName} | Gender: {employeeDetails.gender}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items (Max total qty: {maxQuantity})</label>
+                      {optionsLoading ? (
+                        <div className="text-blue-400">Loading options...</div>
+                      ) : optionsError ? (
+                        <div className="text-red-500">{optionsError}</div>
+                      ) : (
+                        <div className="overflow-x-auto max-h-64 border rounded-lg mb-2">
+                          <table className="min-w-full text-xs">
+                            <thead>
+                              <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
+                                <th className="px-2 py-1">Type</th>
+                                <th className="px-2 py-1">Size/Set</th>
+                                <th className="px-2 py-1">Qty</th>
+                                <th className="px-2 py-1"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {uniformOptions.map(option => (
+                                (option.sizes || option.set)?.map((sizeOrSet: string) => (
+                                  <tr key={option.type + sizeOrSet}>
+                                    <td className="px-2 py-1">{option.type}</td>
+                                    <td className="px-2 py-1">{sizeOrSet}</td>
+                                    <td className="px-2 py-1">
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        max={maxQuantity}
+                                        defaultValue={1}
+                                        className="w-16 border rounded px-1 py-0.5"
+                                        id={`qty-${option.type}-${sizeOrSet}`}
+                                      />
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <button
+                                        type="button"
+                                        className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                                        onClick={() => {
+                                          const qtyInput = document.getElementById(`qty-${option.type}-${sizeOrSet}`) as HTMLInputElement;
+                                          const qty = Number(qtyInput?.value || 1);
+                                          // Prevent exceeding maxQuantity
+                                          const totalQty = selectedUniforms.reduce((acc, u) => acc + u.qty, 0) + qty;
+                                          if (totalQty > maxQuantity) {
+                                            setToast({ type: 'error', message: `Total quantity cannot exceed ${maxQuantity}` });
+                                            setTimeout(() => setToast(null), 3500);
+                                            return;
+                                          }
+                                          setSelectedUniforms(prev => [
+                                            ...prev,
+                                            {
+                                              type: option.type,
+                                              size: sizeOrSet,
+                                              qty
+                                            }
+                                          ]);
+                                        }}
+                                      >Add</button>
+                                    </td>
+                                  </tr>
+                                ))
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                    {/* Selected Uniforms Table */}
+                    {selectedUniforms.length > 0 && (
+                      <div className="mb-2">
+                        <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Selected Items</label>
+                        <table className="min-w-full text-xs border rounded">
                           <thead>
                             <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
                               <th className="px-2 py-1">Type</th>
@@ -488,100 +556,44 @@ export default function UniformRequestsPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {uniformOptions.map(option => (
-                              (option.sizes || option.set)?.map((sizeOrSet: string) => (
-                                <tr key={option.type + sizeOrSet}>
-                                  <td className="px-2 py-1">{option.type}</td>
-                                  <td className="px-2 py-1">{sizeOrSet}</td>
-                                  <td className="px-2 py-1">
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      max={maxQuantity}
-                                      defaultValue={1}
-                                      className="w-16 border rounded px-1 py-0.5"
-                                      id={`qty-${option.type}-${sizeOrSet}`}
-                                    />
-                                  </td>
-                                  <td className="px-2 py-1">
-                                    <button
-                                      type="button"
-                                      className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                                      onClick={() => {
-                                        const qtyInput = document.getElementById(`qty-${option.type}-${sizeOrSet}`) as HTMLInputElement;
-                                        const qty = Number(qtyInput?.value || 1);
-                                        // Prevent exceeding maxQuantity
-                                        const totalQty = selectedUniforms.reduce((acc, u) => acc + u.qty, 0) + qty;
-                                        if (totalQty > maxQuantity) {
-                                          setToast({ type: 'error', message: `Total quantity cannot exceed ${maxQuantity}` });
-                                          setTimeout(() => setToast(null), 3500);
-                                          return;
-                                        }
-                                        setSelectedUniforms(prev => [
-                                          ...prev,
-                                          {
-                                            type: option.type,
-                                            size: sizeOrSet,
-                                            qty
-                                          }
-                                        ]);
-                                      }}
-                                    >Add</button>
-                                  </td>
-                                </tr>
-                              ))
+                            {selectedUniforms.map((u, idx) => (
+                              <tr key={u.type + u.size}>
+                                <td className="px-2 py-1">{u.type}</td>
+                                <td className="px-2 py-1">{u.size}</td>
+                                <td className="px-2 py-1">{u.qty}</td>
+                                <td className="px-2 py-1">
+                                  <button type="button" className="text-red-500" onClick={() => setSelectedUniforms(prev => prev.filter((_, i) => i !== idx))}>Remove</button>
+                                </td>
+                              </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                     )}
-                  </div>
-                  {/* Selected Uniforms Table */}
-                  {selectedUniforms.length > 0 && (
-                    <div className="mb-2">
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Selected Items</label>
-                      <table className="min-w-full text-xs border rounded">
-                        <thead>
-                          <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
-                            <th className="px-2 py-1">Type</th>
-                            <th className="px-2 py-1">Size/Set</th>
-                            <th className="px-2 py-1">Qty</th>
-                            <th className="px-2 py-1"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedUniforms.map((u, idx) => (
-                            <tr key={u.type + u.size}>
-                              <td className="px-2 py-1">{u.type}</td>
-                              <td className="px-2 py-1">{u.size}</td>
-                              <td className="px-2 py-1">{u.qty}</td>
-                              <td className="px-2 py-1">
-                                <button type="button" className="text-red-500" onClick={() => setSelectedUniforms(prev => prev.filter((_, i) => i !== idx))}>Remove</button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Remarks</label>
+                      <input
+                        type="text"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                        placeholder="Remarks..."
+                        value={newRequest.remarks}
+                        onChange={e => setNewRequest(r => ({ ...r, remarks: e.target.value }))}
+                      />
                     </div>
-                  )}
-                  <div>
-                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Remarks</label>
-                    <input
-                      type="text"
-                      className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
-                      placeholder="Remarks..."
-                      value={newRequest.remarks}
-                      onChange={e => setNewRequest(r => ({ ...r, remarks: e.target.value }))}
-                    />
-                  </div>
+                  </form>
+                </div>
+
+                <div className="p-8 border-t">
                   <button
                     type="submit"
+                    form="createRequestForm"
                     disabled={createLoading || !newRequest.employeeId || selectedUniforms.length === 0}
-                    className={`w-full py-2 rounded-xl font-bold shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
+                    className={`w-full py-2 rounded-xl font-bold shadow transition-all disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
                   >
-                    {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}Create Request
+                    {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}
+                    Create Request
                   </button>
-                </form>
+                </div>
               </div>
             </div>
           )}
