@@ -11,7 +11,7 @@ export interface ToastOptions {
 export function showToast({ message, type = "info", duration = 3000 }: ToastOptions) {
   const toast = document.createElement("div");
   toast.textContent = message;
-  toast.className = `fixed z-50 bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded shadow-lg text-white font-semibold transition-opacity opacity-0 toast-${type}`;
+  toast.className = `fixed z-50 top-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded shadow-lg text-white font-semibold transition-opacity opacity-0 toast-${type}`;
   toast.style.background =
     type === "success"
       ? "#22c55e"

@@ -1,10 +1,12 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter, FaCheckCircle,  FaPlus, FaTimes } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { showToast } from "@/components/Toast";
 
 const guidelines = [
   "All DC records are updated in real-time as per store records.",
@@ -125,6 +127,7 @@ export default function StoreDCPage() {
     }
 
     // Company Name & Address
+    doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 10, y, 25, 12);
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.text("Exozen Facility Management Services Pvt Ltd", pageWidth / 2, y + 7, { align: "center" });
@@ -506,6 +509,7 @@ export default function StoreDCPage() {
               onClose={() => setShowCreate(false)}
               theme={theme}
               setDcData={setDcData}
+              dcData={dcData}
             />
           </div>
         )}
@@ -552,7 +556,7 @@ interface UniformApiResponse {
 }
 
 // Step-by-step CreateDCModal
-function CreateDCModal({ onClose, theme, setDcData }: { onClose: () => void; theme: string; setDcData: React.Dispatch<React.SetStateAction<DC[]>> }) {
+function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => void; theme: string; setDcData: React.Dispatch<React.SetStateAction<DC[]>>; dcData: DC[] }) {
   // Prefilled for quick testing
   const [customer, setCustomer] = useState('');
   const [dcNumber, setDcNumber] = useState('');
@@ -564,7 +568,8 @@ function CreateDCModal({ onClose, theme, setDcData }: { onClose: () => void; the
   const [uniformRequests, setUniformRequests] = useState<UniformApiResponse['uniforms']>([]);
   const [selectedRequest, setSelectedRequest] = useState<UniformApiResponse['uniforms'][0] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Remove unused error variable
+  // const [error, setError] = useState<string | null>(null);
   const [saveDCError, setSaveDCError] = useState<string | null>(null);
   const [step, setStep] = useState(1);
 
@@ -579,7 +584,7 @@ function CreateDCModal({ onClose, theme, setDcData }: { onClose: () => void; the
           setProjectList(uniqueProjects);
         }
       } catch {
-        setError("Failed to fetch projects");
+        // setError("Failed to fetch projects");
       }
     };
     fetchUniformData();
@@ -599,7 +604,7 @@ function CreateDCModal({ onClose, theme, setDcData }: { onClose: () => void; the
           setUniformRequests(filteredRequests);
         }
       } catch {
-        setError("Failed to fetch uniform requests");
+        // setError("Failed to fetch uniform requests");
       } finally {
         setLoading(false);
       }
@@ -690,247 +695,474 @@ function CreateDCModal({ onClose, theme, setDcData }: { onClose: () => void; the
     }
   };
 
+  // Remove unused nextStep and prevStep
+  // const nextStep = () => setStep(s => Math.min(s + 1, 3));
+  // const prevStep = () => setStep(s => Math.max(s - 1, 1));
+
+  // Wrap stepLabels in useMemo
+  const stepLabels = React.useMemo(() => ["Project", "Uniform Request", "DC Details"], []);
+
   // Step navigation
-  const nextStep = () => setStep(s => Math.min(s + 1, 3));
-  const prevStep = () => setStep(s => Math.max(s - 1, 1));
+  // const nextStep = () => setStep(s => Math.min(s + 1, 3));
+  // const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
   // Stepper labels
-  const stepLabels = ["Project", "Uniform Request", "DC Details"];
+  // const stepLabels = ["Project", "Uniform Request", "DC Details"];
+
+  // Accessibility: trap focus
+  const modalRef = React.useRef<HTMLDivElement>(null);
+  const announceRef = React.useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const modal = modalRef.current;
+    if (!modal) return;
+    const firstFocusable = modal.querySelectorAll(focusableElements)[0] as HTMLElement;
+    const focusable = modal.querySelectorAll(focusableElements);
+    const lastFocusable = focusable[focusable.length - 1] as HTMLElement;
+    function handleTab(e: KeyboardEvent) {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === firstFocusable) {
+          e.preventDefault();
+          lastFocusable.focus();
+        }
+      } else {
+        if (document.activeElement === lastFocusable) {
+          e.preventDefault();
+          firstFocusable.focus();
+        }
+      }
+    }
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    modal.addEventListener('keydown', handleTab);
+    window.addEventListener('keydown', handleEsc);
+    firstFocusable?.focus();
+    return () => {
+      modal.removeEventListener('keydown', handleTab);
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [onClose]);
+
+  // Animation state
+  const [show, setShow] = useState(false);
+  useEffect(() => { setShow(true); }, []);
+
+  // Stepper icons
+  const stepIcons = [
+    <FaStore key="store" className="w-5 h-5" />, 
+    <FaCheckCircle key="check" className="w-5 h-5" />, 
+    <FaInfoCircle key="info" className="w-5 h-5" />
+  ];
+
+  // Field validation
+  const [touched, setTouched] = useState<{[k: string]: boolean}>({});
+  const isStep1Valid = selectedProject !== '';
+  const isStep2Valid = !!selectedRequest;
+  const isStep3Valid = customer.trim() && dcNumber.trim() && dcDate.trim();
+  const [dcNumberError, setDcNumberError] = useState<string | null>(null);
+
+  // Auto-generate DC Number
+  const handleAutoGenerateDCNumber = () => {
+    const random = Math.floor(100000 + Math.random() * 900000);
+    setDcNumber(`DC${random}`);
+    setDcNumberError(null);
+  };
+
+  // Loading overlay and success state
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  // Announce step changes and errors
+  useEffect(() => {
+    if (announceRef.current) {
+      announceRef.current.textContent = `Step ${step}: ${stepLabels[step-1]}`;
+    }
+  }, [step, stepLabels]);
+  useEffect(() => {
+    if (announceRef.current && saveDCError) {
+      announceRef.current.textContent = `Error: ${saveDCError}`;
+    }
+  }, [saveDCError]);
+
+  // Focus management for step
+  useEffect(() => {
+    if (modalRef.current) {
+      const firstInput = modalRef.current.querySelector('input, select, textarea') as HTMLElement;
+      firstInput?.focus();
+    }
+  }, [step]);
+
+  // Responsive: use flex-col on mobile
+  // Subtle step transition animation
+  // Brand accent in header
+
+  // Stepper progress bar
+  const progressPercent = ((step-1)/(stepLabels.length-1))*100;
+
+  // Live preview for step 3
+  // const preview = step === 3 && (
+  //   <div className={`rounded-xl border shadow p-6 mt-8 mb-2 transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-blue-900" : "bg-white border-blue-100"}`}
+  //     aria-label="Delivery Challan Preview">
+  //     <div className="flex items-center gap-2 mb-2">
+  //       <FaBoxOpen className={`w-5 h-5 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} />
+  //       <span className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-blue-900"}`}>Preview</span>
+  //     </div>
+  //     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+  //       <div><span className="font-semibold">Customer:</span> {customer}</div>
+  //       <div><span className="font-semibold">DC Number:</span> {dcNumber}</div>
+  //       <div><span className="font-semibold">Date:</span> {dcDate}</div>
+  //       <div><span className="font-semibold">Remarks:</span> {remarks}</div>
+  //       <div><span className="font-semibold">Address:</span> {address}</div>
+  //     </div>
+  //     <div className="mt-4">
+  //       <span className="font-semibold block mb-1">Items:</span>
+  //       <ul className="list-disc ml-6">
+  //         {selectedRequest && (
+  //           <li>{selectedRequest.fullName} - Qty: {selectedRequest.qty} - Size: {typeof selectedRequest.size === 'object' && selectedRequest.uniformType && selectedRequest.uniformType[0] && selectedRequest.size[selectedRequest.uniformType[0]] ? selectedRequest.size[selectedRequest.uniformType[0]] : ''}</li>
+  //         )}
+  //       </ul>
+  //     </div>
+  //   </div>
+  // );
+
+  // Success animation
+  const successAnimation = success && (
+    <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
+      <div className="rounded-full bg-green-100 p-6 mb-4">
+        <FaCheckCircle className="w-16 h-16 text-green-600 animate-bounce" />
+      </div>
+      <div className="text-2xl font-bold text-green-700 mb-2">DC Created!</div>
+      <div className="text-gray-600 mb-6">Your Delivery Challan has been successfully created.</div>
+      <button
+        className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200 ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+        onClick={() => { setSuccess(false); setStep(1); setSelectedProject(''); setSelectedRequest(null); setCustomer(''); setDcNumber(''); setRemarks(''); setAddress(''); }}
+      >Create Another</button>
+      <button
+        className="mt-4 underline text-blue-600 text-sm"
+        onClick={onClose}
+      >Close</button>
+    </div>
+  );
+
+  // Save handler with loading and success
+  const handleCreateDCWithUX = async () => {
+    setTouched({ customer: true, dcNumber: true, dcDate: true });
+    if (!isStep3Valid) return;
+    // Duplicate DC number check
+    const dcNumberTrimmed = dcNumber.trim().toLowerCase();
+    const duplicate = dcData.some((dc: DC) => dc.dcNumber.trim().toLowerCase() === dcNumberTrimmed);
+    if (duplicate) {
+      showToast({ message: "DC Number already exists. Please use a unique DC Number.", type: "error" });
+      return;
+    }
+    setSaving(true);
+    await handleCreateDC();
+    setSaving(false);
+    if (!saveDCError) {
+      setSuccess(true);
+      showToast({ message: "Delivery Challan created successfully!", type: "success" });
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className={`rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col relative overflow-y-auto max-h-[90vh] transition-colors duration-300 ${theme === "dark" ? "bg-[#181f2a]" : "bg-white"}`}>
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      aria-modal="true"
+      role="dialog"
+      aria-label="Create Delivery Challan Modal"
+    >
+      <div
+        ref={modalRef}
+        className={`relative rounded-3xl shadow-2xl border-2 max-w-3xl w-full flex flex-col overflow-y-auto max-h-[95vh] transition-all duration-300 ${show ? 'scale-100 opacity-100' : 'scale-95 opacity-0'} ${theme === "dark" ? "bg-[#181f2a] border-blue-900" : "bg-white border-blue-200"}`}
+        tabIndex={-1}
+      >
+        {/* Brand accent */}
+        <div className={`absolute left-0 top-0 w-full h-2 rounded-t-3xl ${theme === "dark" ? "bg-gradient-to-r from-blue-900 via-blue-700 to-blue-900" : "bg-gradient-to-r from-blue-400 via-blue-600 to-blue-400"}`}></div>
         {/* Modal Header */}
         <div className={`p-6 border-b flex items-center justify-between sticky top-0 z-10 ${theme === "dark" ? "bg-[#181f2a] border-blue-900" : "bg-white border-blue-100"}`}>
           <div className="flex items-center gap-3">
+            <Image src="/v1/employee/exozen_logo1.png" alt="Brand Logo" width={56} height={32} className="w-14 h-8 object-contain bg-white rounded shadow mr-4" />
             <FaBoxOpen className={`w-7 h-7 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`} />
             <h2 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Generate Delivery Challan</h2>
           </div>
-          <button onClick={onClose} className={`p-2 rounded-full transition ${theme === "dark" ? "hover:bg-blue-900" : "hover:bg-blue-100"}`}>
-            <FaTimes className={`w-5 h-5 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`} />
+          <button
+            onClick={onClose}
+            aria-label="Close modal"
+            className={`p-3 rounded-full transition absolute top-4 right-4 z-20 text-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === "dark" ? "hover:bg-blue-900 text-gray-400 hover:text-blue-300" : "hover:bg-blue-100 text-gray-600 hover:text-blue-600"}`}
+          >
+            <FaTimes className="w-7 h-7" />
           </button>
         </div>
-        {/* Horizontal Stepper */}
-        <div className="flex justify-center items-center gap-0 py-6 px-4">
-          {stepLabels.map((label, idx) => (
-            <React.Fragment key={label}>
-              <div className="flex flex-col items-center">
-                <div className={`w-9 h-9 flex items-center justify-center rounded-full font-bold border-2 transition-all duration-200
-                  ${step === idx + 1
-                    ? theme === "dark"
-                      ? "bg-blue-700 text-white border-blue-400 shadow-lg"
-                      : "bg-blue-600 text-white border-blue-400 shadow-lg"
-                    : theme === "dark"
-                      ? "bg-gray-800 text-gray-400 border-gray-700"
-                      : "bg-gray-200 text-gray-500 border-gray-300"
+        {/* Stepper and Progress Bar */}
+        <div className="flex flex-col gap-2 px-4 pt-6 pb-2">
+          <div className="flex justify-center items-center gap-0">
+            {stepLabels.map((label, idx) => (
+              <React.Fragment key={label}>
+                <div className="flex flex-col items-center">
+                  <div className={`w-11 h-11 flex items-center justify-center rounded-full font-bold border-2 mb-1 transition-all duration-200
+                    ${step === idx + 1
+                      ? theme === "dark"
+                        ? "bg-blue-700 text-white border-blue-400 shadow-lg"
+                        : "bg-blue-600 text-white border-blue-400 shadow-lg"
+                      : theme === "dark"
+                        ? "bg-gray-800 text-gray-400 border-gray-700"
+                        : "bg-gray-200 text-gray-500 border-gray-300"
+                    }`}>
+                    {stepIcons[idx]}
+                  </div>
+                  <span className={`text-xs font-medium transition-colors duration-200 ${step === idx + 1
+                    ? theme === "dark" ? "text-blue-300" : "text-blue-700"
+                    : theme === "dark" ? "text-gray-400" : "text-gray-500"
                   }`}>
-                  {idx + 1}
+                    {label}
+                  </span>
                 </div>
-                <span className={`text-xs mt-2 font-medium transition-colors duration-200 ${step === idx + 1
-                  ? theme === "dark" ? "text-blue-300" : "text-blue-700"
-                  : theme === "dark" ? "text-gray-400" : "text-gray-500"
-                }`}>
-                  {label}
-                </span>
-              </div>
-              {idx < stepLabels.length - 1 && (
-                <div className={`w-12 h-1 mx-2 rounded transition-all duration-200
-                  ${step > idx + 1
-                    ? theme === "dark" ? "bg-blue-700" : "bg-blue-600"
-                    : theme === "dark" ? "bg-gray-700" : "bg-gray-300"
-                  }`} />
-              )}
-            </React.Fragment>
-          ))}
+                {idx < stepLabels.length - 1 && (
+                  <div className={`w-16 h-1 mx-2 rounded transition-all duration-200
+                    ${step > idx + 1
+                      ? theme === "dark" ? "bg-blue-700" : "bg-blue-600"
+                      : theme === "dark" ? "bg-gray-700" : "bg-gray-300"
+                    }`} />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+          {/* Progress Bar */}
+          <div className="w-full h-2 bg-gray-200 dark:bg-blue-950 rounded-full overflow-hidden mt-2">
+            <div
+              className={`h-2 rounded-full transition-all duration-500 ${theme === "dark" ? "bg-blue-700" : "bg-blue-600"}`}
+              style={{ width: `${progressPercent}%` }}
+            ></div>
+          </div>
         </div>
+        {/* ARIA live region for announcements */}
+        <div ref={announceRef} className="sr-only" aria-live="polite"></div>
         {/* Modal Content */}
-        <div className="p-6 flex flex-col gap-8">
-          {/* Step 1: Project Selection */}
-          {step === 1 && (
-            <div className={`rounded-xl border shadow-sm p-6 transition-colors duration-300
-              ${theme === "dark" ? "bg-[#232e3e] border-blue-900" : "bg-blue-50 border-blue-100"}`}>
-              <div className="flex items-center gap-2 mb-4">
-                <FaStore className={`w-5 h-5 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} />
-                <span className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-blue-900"}`}>Project Selection</span>
-              </div>
-              <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Select Project</label>
-              <select
-                value={selectedProject}
-                onChange={e => {
-                  setSelectedProject(e.target.value);
-                  setSelectedRequest(null);
-                }}
-                className={`w-full p-3 border rounded-lg focus:ring-2 transition-all duration-200
-                  ${theme === "dark"
-                    ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900"
-                    : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"
-                  }`}
-              >
-                <option value="">Select a project</option>
-                {projectList.map(project => (
-                  <option key={project} value={project}>{project}</option>
-                ))}
-              </select>
-              {error && <div className="mt-2 text-red-600 text-sm">{error}</div>}
-              <div className="flex justify-end mt-6">
-                <button
-                  type="button"
-                  disabled={!selectedProject}
-                  onClick={nextStep}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all duration-200
-                    ${selectedProject
-                      ? theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    }`}
-                >
-                  Next
-                </button>
-              </div>
+        <div className="p-4 md:p-8 flex flex-col gap-10 animate-fade-in">
+          {saving && (
+            <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 rounded-3xl">
+              <svg className="animate-spin h-12 w-12 text-blue-600" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /></svg>
             </div>
           )}
-          {/* Step 2: Uniform Request Selection */}
-          {step === 2 && (
-            <div className={`rounded-xl border shadow-sm p-6 transition-colors duration-300
-              ${theme === "dark" ? "bg-[#233e2e] border-green-900" : "bg-green-50 border-green-100"}`}>
-              <div className="flex items-center gap-2 mb-4">
-                <FaCheckCircle className={`w-5 h-5 ${theme === "dark" ? "text-green-200" : "text-green-700"}`} />
-                <span className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-green-900"}`}>Uniform Request</span>
-              </div>
-              <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Uniform Requests</label>
-              {loading ? (
-                <div className="flex items-center gap-2 text-blue-600">
-                  <svg className="animate-spin h-5 w-5 mr-2 text-blue-600" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /></svg>
-                  Loading...
-                </div>
-              ) : (
-                <select
-                  value={selectedRequest?._id || ""}
-                  onChange={e => {
-                    const req = uniformRequests.find(r => r._id === e.target.value) || null;
-                    setSelectedRequest(req);
-                  }}
-                  className={`w-full p-3 border rounded-lg focus:ring-2 transition-all duration-200
-                    ${theme === "dark"
-                      ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-green-900"
-                      : "bg-white border-gray-200 text-gray-900 focus:ring-green-500"
-                    }`}
-                >
-                  <option value="">Select a request</option>
-                  {uniformRequests.map(request => (
-                    <option key={request._id} value={request._id}>
-                      {request.fullName} ({request.employeeId})
-                    </option>
-                  ))}
-                </select>
-              )}
-              <div className="flex justify-between mt-6">
-                <button
-                  type="button"
-                  onClick={prevStep}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all duration-200
-                    ${theme === "dark" ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  disabled={!selectedRequest}
-                  onClick={nextStep}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all duration-200
-                    ${selectedRequest
-                      ? theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-600 text-white hover:bg-green-700"
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    }`}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
-          {/* Step 3: DC Details & Preview */}
-          {step === 3 && (
+          {successAnimation}
+          {!success && (
             <>
-              <div className={`rounded-xl border shadow-sm p-6 transition-colors duration-300
-                ${theme === "dark" ? "bg-[#232e3e] border-indigo-900" : "bg-indigo-50 border-indigo-100"}`}>
-                <div className="flex items-center gap-2 mb-4">
-                  <FaInfoCircle className={`w-5 h-5 ${theme === "dark" ? "text-indigo-200" : "text-indigo-700"}`} />
-                  <span className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-indigo-900"}`}>DC Details</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Customer</label>
-                    <input type="text" value={customer} onChange={e => setCustomer(e.target.value)}
-                      className={`w-full p-3 border rounded-lg focus:ring-2 transition-all duration-200
-                        ${theme === "dark"
-                          ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
-                          : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
-                       }`} />
+              {/* Step 1: Project Selection */}
+              {step === 1 && (
+                <section className={`rounded-2xl border shadow-lg p-6 md:p-10 transition-colors duration-300 flex flex-col gap-4
+                  ${theme === "dark" ? "bg-gradient-to-br from-[#232e3e] via-blue-950 to-blue-900 border-blue-900" : "bg-gradient-to-br from-blue-50 via-white to-blue-100 border-blue-100"}`}
+                  aria-labelledby="step1-header">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FaStore className={`w-5 h-5 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} />
+                    <span id="step1-header" className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-blue-900"}`}>Project Selection</span>
                   </div>
-                  <div>
-                    <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>DC Number</label>
-                    <input type="text" value={dcNumber} onChange={e => setDcNumber(e.target.value)}
-                      className={`w-full p-3 border rounded-lg focus:ring-2 transition-all duration-200
-                        ${theme === "dark"
-                          ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
-                          : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
-                       }`} />
+                  <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Select Project <span className="text-red-500">*</span></label>
+                  <select
+                    value={selectedProject}
+                    onChange={e => {
+                      setSelectedProject(e.target.value);
+                      setSelectedRequest(null);
+                      setTouched(t => ({ ...t, selectedProject: true }));
+                    }}
+                    className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                      ${theme === "dark"
+                        ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"
+                      }`}
+                    aria-required="true"
+                  >
+                    <option value="">Select a project</option>
+                    {projectList.map(project => (
+                      <option key={project} value={project}>{project}</option>
+                    ))}
+                  </select>
+                  {touched.selectedProject && !isStep1Valid && <div className="text-red-600 text-xs mt-1">Please select a project.</div>}
+                  <div className="text-xs text-gray-500 mt-2">Choose the project for which you want to generate a Delivery Challan.</div>
+                  <div className="flex justify-end mt-6">
+                    <button
+                      type="button"
+                      disabled={!isStep1Valid}
+                      onClick={() => setStep(2)}
+                      className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200
+                        ${isStep1Valid
+                          ? theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"
+                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
+                    >
+                      Next
+                    </button>
                   </div>
-                  <div>
-                    <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>DC Date</label>
-                    <input type="date" value={dcDate} onChange={e => setDcDate(e.target.value)}
-                      className={`w-full p-3 border rounded-lg focus:ring-2 transition-all duration-200
-                        ${theme === "dark"
-                          ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
-                          : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
-                       }`} />
-                  </div>
-                  <div>
-                    <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Remarks</label>
-                    <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)}
-                      className={`w-full p-3 border rounded-lg focus:ring-2 transition-all duration-200
-                        ${theme === "dark"
-                          ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
-                          : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
-                       }`} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Address</label>
-                    <input type="text" value={address} onChange={e => setAddress(e.target.value)}
-                      className={`w-full p-3 border rounded-lg focus:ring-2 transition-all duration-200
-                        ${theme === "dark"
-                          ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
-                          : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
-                       }`} />
-                  </div>
-                </div>
-              </div>
-              {/* Error Message */}
-              {saveDCError && (
-                <div className={`p-3 rounded-lg border flex items-center gap-2 mt-4
-                  ${theme === "dark" ? "bg-red-900 border-red-700 text-red-200" : "bg-red-100 border-red-200 text-red-700"}`}>
-                  <FaTimes className="w-4 h-4" />
-                  {saveDCError}
-                </div>
+                </section>
               )}
-              <div className="flex justify-between mt-6">
-                <button
-                  type="button"
-                  onClick={prevStep}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all duration-200
-                    ${theme === "dark" ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCreateDC}
-                  className={`px-6 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-all duration-200
-                    ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
-                >
-                  <FaPlus className="w-4 h-4" />
-                  Generate DC
-                </button>
-              </div>
+              {/* Step 2: Uniform Request Selection */}
+              {step === 2 && (
+                <section className={`rounded-2xl border shadow-lg p-6 md:p-10 transition-colors duration-300 flex flex-col gap-4
+                  ${theme === "dark" ? "bg-gradient-to-br from-[#233e2e] via-green-950 to-green-900 border-green-900" : "bg-gradient-to-br from-green-50 via-white to-green-100 border-green-100"}`}
+                  aria-labelledby="step2-header">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FaCheckCircle className={`w-5 h-5 ${theme === "dark" ? "text-green-200" : "text-green-700"}`} />
+                    <span id="step2-header" className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-green-900"}`}>Uniform Request</span>
+                  </div>
+                  <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Uniform Requests <span className="text-red-500">*</span></label>
+                  {loading ? (
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <svg className="animate-spin h-5 w-5 mr-2 text-blue-600" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /></svg>
+                      Loading...
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedRequest?._id || ""}
+                      onChange={e => {
+                        const req = uniformRequests.find(r => r._id === e.target.value) || null;
+                        setSelectedRequest(req);
+                        setTouched(t => ({ ...t, selectedRequest: true }));
+                      }}
+                      className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                        ${theme === "dark"
+                          ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-green-900"
+                          : "bg-white border-gray-200 text-gray-900 focus:ring-green-500"
+                        }`}
+                      aria-required="true"
+                    >
+                      <option value="">Select a request</option>
+                      {uniformRequests.map(request => (
+                        <option key={request._id} value={request._id}>
+                          {request.fullName} ({request.employeeId})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {touched.selectedRequest && !isStep2Valid && <div className="text-red-600 text-xs mt-1">Please select a uniform request.</div>}
+                  <div className="text-xs text-gray-500 mt-2">Select an approved uniform request to auto-fill item details for the DC.</div>
+                  <div className="flex justify-between mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200
+                        ${theme === "dark" ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!isStep2Valid}
+                      onClick={() => setStep(3)}
+                      className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200
+                        ${isStep2Valid
+                          ? theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-600 text-white hover:bg-green-700"
+                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </section>
+              )}
+              {/* Step 3: DC Details & Preview */}
+              {step === 3 && (
+                <section className={`rounded-2xl border shadow-lg p-6 md:p-10 transition-colors duration-300 flex flex-col gap-4
+                  ${theme === "dark" ? "bg-gradient-to-br from-[#232e3e] via-indigo-950 to-indigo-900 border-indigo-900" : "bg-gradient-to-br from-indigo-50 via-white to-indigo-100 border-indigo-100"}`}
+                  aria-labelledby="step3-header">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FaInfoCircle className={`w-5 h-5 ${theme === "dark" ? "text-indigo-200" : "text-indigo-700"}`} />
+                    <span id="step3-header" className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-indigo-900"}`}>DC Details</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Customer <span className="text-red-500">*</span></label>
+                      <input type="text" value={customer} onChange={e => { setCustomer(e.target.value); setTouched(t => ({ ...t, customer: true })); }}
+                        className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                          ${theme === "dark"
+                            ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
+                            : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
+                         }`} aria-required="true" />
+                      {touched.customer && !customer.trim() && <div className="text-red-600 text-xs mt-1">Customer is required.</div>}
+                      <div className="text-xs text-gray-500 mt-1">Name of the person or entity receiving the delivery.</div>
+                    </div>
+                    <div>
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>DC Number <span className="text-red-500">*</span></label>
+                      <div className="flex gap-2">
+                        <input type="text" value={dcNumber} onChange={e => { setDcNumber(e.target.value); setTouched(t => ({ ...t, dcNumber: true })); setDcNumberError(null); }}
+                          className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                            ${theme === "dark"
+                              ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
+                              : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
+                           }`} aria-required="true" />
+                        <button type="button" onClick={handleAutoGenerateDCNumber}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 border text-xs whitespace-nowrap
+                            ${theme === "dark" ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"}`}
+                        >Auto-generate</button>
+                      </div>
+                      {touched.dcNumber && !dcNumber.trim() && <div className="text-red-600 text-xs mt-1">DC Number is required.</div>}
+                      {dcNumberError && <div className="text-red-600 text-xs mt-1">{dcNumberError}</div>}
+                      <div className="text-xs text-gray-500 mt-1">Unique identifier for this Delivery Challan.</div>
+                    </div>
+                    <div>
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>DC Date <span className="text-red-500">*</span></label>
+                      <input type="date" value={dcDate} onChange={e => { setDcDate(e.target.value); setTouched(t => ({ ...t, dcDate: true })); }}
+                        className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                          ${theme === "dark"
+                            ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
+                            : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
+                         }`} aria-required="true" />
+                      {touched.dcDate && !dcDate.trim() && <div className="text-red-600 text-xs mt-1">Date is required.</div>}
+                      <div className="text-xs text-gray-500 mt-1">Date of issue for this DC.</div>
+                    </div>
+                    <div>
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Remarks</label>
+                      <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)}
+                        className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                          ${theme === "dark"
+                            ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
+                            : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
+                         }`} />
+                      <div className="text-xs text-gray-500 mt-1">Any additional notes for this DC (optional).</div>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Address</label>
+                      <input type="text" value={address} onChange={e => setAddress(e.target.value)}
+                        className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                          ${theme === "dark"
+                            ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
+                            : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
+                         }`} />
+                      <div className="text-xs text-gray-500 mt-1">Delivery address (optional).</div>
+                    </div>
+                  </div>
+                  {/* {preview} */}
+                  {saveDCError && (
+                    <div className={`p-4 rounded-lg border flex items-center gap-2 mt-6
+                      ${theme === "dark" ? "bg-red-900 border-red-700 text-red-200" : "bg-red-100 border-red-200 text-red-700"}`}>
+                      <FaTimes className="w-4 h-4" />
+                      {saveDCError}
+                    </div>
+                  )}
+                  <div className="flex justify-between mt-8">
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200
+                        ${theme === "dark" ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateDCWithUX}
+                      disabled={saving || !isStep3Valid}
+                      className={`px-8 py-3 rounded-lg font-medium text-lg flex items-center gap-2 transition-all duration-200
+                        ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}
+                        ${(saving || !isStep3Valid) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      {saving && <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /></svg>}
+                      <FaPlus className="w-4 h-4" />
+                      Generate DC
+                    </button>
+                  </div>
+                </section>
+              )}
             </>
           )}
         </div>
