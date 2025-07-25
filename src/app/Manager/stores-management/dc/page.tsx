@@ -397,8 +397,12 @@ export default function StoreDCPage() {
             </div>
             {/* DC Table */}
             <div className="w-full rounded-2xl shadow-xl transition-colors duration-300">
-              <div className="w-full overflow-x-auto">
-                <table className={`min-w-max table-fixed divide-y ${theme === "dark" ? "divide-blue-900" : "divide-blue-100"}`}>
+              {/* Restrict height and enable both scrollbars */}
+              <div
+                className="w-full h-[320px] overflow-x-auto overflow-y-auto"
+              >
+                {/* Increase min-w to force horizontal scroll on smaller screens */}
+                <table className={`min-w-[800px] table-fixed divide-y ${theme === "dark" ? "divide-blue-900" : "divide-blue-100"}`}>
                   <thead className={theme === "dark" ? "bg-blue-950" : "bg-blue-50"}>
                     <tr>
                       <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Number</th>
