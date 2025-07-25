@@ -68,6 +68,7 @@ export default function StoreDCPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDC, setSelectedDC] = useState<DC | null>(null);
+  const [uniformReq, setUniformReq] = useState<any>(null);
 
   useEffect(() => {
     const fetchDCs = async () => {
@@ -91,6 +92,21 @@ export default function StoreDCPage() {
     fetchDCs();
   }, []);
 
+  useEffect(() => {
+    async function fetchUniform() {
+      if (selectedDC) {
+        const req = await fetchUniformRequestForCustomer(
+          selectedDC.items[0]?.employeeId,
+          selectedDC.customer
+        );
+        setUniformReq(req);
+      } else {
+        setUniformReq(null);
+      }
+    }
+    fetchUniform();
+  }, [selectedDC]);
+
   // Map API data to table structure
   const mappedDC = dcData.map(dc => ({
     ...dc,
@@ -112,7 +128,12 @@ export default function StoreDCPage() {
   });
 
   // Download DC as PDF (only required fields)
-  const handleDownloadDC = (dc: DC) => {
+  const handleDownloadDC = async (dc: DC) => {
+    // Fetch uniform request for this customer
+    const uniformReq = await fetchUniformRequestForCustomer(
+      dc.items[0]?.employeeId,
+      dc.customer
+    );
     const doc = new jsPDF();
     (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = undefined;
 
@@ -173,20 +194,30 @@ export default function StoreDCPage() {
 
     y += 22;
 
-    // Table - Only required columns: Sl.No, Customer, DC Number, Quantity, Size
+    // Table - Remove Employee ID column
     autoTable(doc, {
       startY: y,
-      head: [["Sl.No", "Customer", "DC Number", "Quantity", "Size"]],
+      head: [["Sl.No", "Employee Name", "Project", "Designation", "Uniform Types", "Sizes", "Quantity"]],
       body: dc.items.map((item, idx) => [
         idx + 1,
         dc.customer,
-        dc.dcNumber,
-        item.quantity,
-        item.size
+        uniformReq ? uniformReq.projectName : "",
+        uniformReq ? uniformReq.designation : "",
+        uniformReq
+          ? (Array.isArray(uniformReq.uniformType)
+              ? uniformReq.uniformType.join("\n") // Multi-line for many types
+              : "")
+          : "",
+        uniformReq
+          ? (uniformReq.uniformType && typeof uniformReq.size === 'object'
+              ? uniformReq.uniformType.map((type: string) => `${type}: ${uniformReq.size[type] || ''}`).join("\n") // Multi-line for many sizes
+              : "")
+          : "",
+        item.quantity
       ]),
       theme: "grid",
       headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold', fontSize: 9 },
-      styles: { fontSize: 9, cellPadding: 2 },
+      styles: { fontSize: 9, cellPadding: 2, textColor: 20 }, // Force black text
       margin: { left: 12, right: 12 },
       tableWidth: pageWidth - 24,
     });
@@ -398,11 +429,9 @@ export default function StoreDCPage() {
             {/* DC Table */}
             <div className="w-full rounded-2xl shadow-xl transition-colors duration-300">
               {/* Restrict height and enable both scrollbars */}
-              <div
-                className="w-full h-[320px] overflow-x-auto overflow-y-auto"
-              >
+              <div className="w-full h-[320px] overflow-x-auto overflow-y-auto">
                 {/* Increase min-w to force horizontal scroll on smaller screens */}
-                <table className={`min-w-[800px] table-fixed divide-y ${theme === "dark" ? "divide-blue-900" : "divide-blue-100"}`}>
+                <table className={`min-w-[800px] table-fixed divide-y`} /* Remove theme-based text color for tbody */>
                   <thead className={theme === "dark" ? "bg-blue-950" : "bg-blue-50"}>
                     <tr>
                       <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Number</th>
@@ -412,7 +441,7 @@ export default function StoreDCPage() {
                       <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className={theme === "dark" ? "divide-y divide-blue-950" : "divide-y divide-blue-50"}>
+                  <tbody>
                     {loading ? (
                       <tr>
                         <td colSpan={5} className="py-12 text-center text-blue-600 font-semibold">Loading DC records...</td>
@@ -428,11 +457,11 @@ export default function StoreDCPage() {
                     ) : (
                       filteredDC.map((dc, idx) => (
                         <tr key={idx} className={`transition ${theme === "dark" ? "hover:bg-blue-950" : "hover:bg-blue-100"}`}>
-                          <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-900"}`}>{dc.dcNumber}</td>
-                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
-                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>{dc.customer}</td>
-                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>{dc.status}</td>
-                          <td className={`px-4 py-3`}>
+                          <td className="px-4 py-3 font-bold text-black">{dc.dcNumber}</td>
+                          <td className="px-4 py-3 text-black">{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
+                          <td className="px-4 py-3 text-black">{dc.customer}</td>
+                          <td className="px-4 py-3 text-black">{dc.status}</td>
+                          <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <button
                                 className={`px-3 py-1 rounded-lg text-xs font-semibold border transition ${theme === "dark" ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" : "bg-blue-600 text-white border-blue-700 hover:bg-blue-700"}`}
@@ -466,7 +495,7 @@ export default function StoreDCPage() {
                     <FaTimes className="w-6 h-6" />
                   </button>
                   <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Delivery Challan Details</h2>
-                  <div className={`space-y-4 max-h-[60vh] overflow-y-auto pr-2 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>
+                  <div className={`space-y-4 max-h-[60vh] overflow-y-auto pr-2 text-black`}> 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <span className="font-semibold">DC Number:</span>
@@ -481,6 +510,8 @@ export default function StoreDCPage() {
                         <span className="ml-2">{selectedDC.customer}</span>
                       </div>
                     </div>
+                    {/* Uniform Request Details */}
+                    <UniformRequestDetails employeeId={selectedDC.items[0]?.employeeId} fullName={selectedDC.customer} />
                     <div>
                       <span className="font-semibold block mb-2">Items:</span>
                       <div className="space-y-3">
@@ -488,10 +519,31 @@ export default function StoreDCPage() {
                           <div key={i} className={`rounded-lg p-4 border flex flex-col md:flex-row md:items-center gap-2 ${theme === "dark" ? "bg-blue-950 border-blue-900" : "bg-blue-50 border-blue-100"}`}>
                             <div className="flex-1 flex flex-wrap gap-4">
                               <div><span className="font-semibold">Sl.No:</span> {i + 1}</div>
-                              <div><span className="font-semibold">DC Number:</span> {selectedDC.dcNumber}</div>
-                              <div><span className="font-semibold">Customer:</span> {selectedDC.customer}</div>
+                              <div><span className="font-semibold">Employee Name:</span> {selectedDC.customer}</div>
+                              <div><span className="font-semibold">Employee ID:</span> {item.employeeId || "-"}</div>
+                              <div><span className="font-semibold">Project:</span> {uniformReq && uniformReq.projectName ? uniformReq.projectName : "-"}</div>
+                              <div><span className="font-semibold">Designation:</span> {uniformReq && uniformReq.designation ? uniformReq.designation : "-"}</div>
+                              <div>
+                                <span className="font-semibold">Uniform Types:</span>
+                                <div>
+                                  {uniformReq && Array.isArray(uniformReq.uniformType)
+                                    ? uniformReq.uniformType.map((type: string, idx: number) => (
+                                        <div key={idx}>{type}</div>
+                                      ))
+                                    : "-"}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-semibold">Sizes:</span>
+                                <div>
+                                  {uniformReq && uniformReq.uniformType && typeof uniformReq.size === 'object'
+                                    ? uniformReq.uniformType.map((type: string, idx: number) => (
+                                        <div key={idx}>{type}: {uniformReq.size[type] || ''}</div>
+                                      ))
+                                    : "-"}
+                                </div>
+                              </div>
                               <div><span className="font-semibold">Quantity:</span> {item.quantity}</div>
-                              <div><span className="font-semibold">Size:</span> {item.size}</div>
                             </div>
                           </div>
                         ))}
@@ -535,7 +587,6 @@ export default function StoreDCPage() {
 
 // type DisplayItem = SelectedItem & { price?: string; remarks?: string };
 
-// Add these new interfaces
 interface UniformApiResponse {
   success: boolean;
   message: string;
@@ -557,6 +608,57 @@ interface UniformApiResponse {
     requestDate: string;
     type: string[];
   }>;
+}
+
+// 1. Add a helper to fetch uniform request for a customer
+async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<any> {
+  try {
+    const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+    const data = await res.json();
+    if (data.success) {
+      // Try to match by employeeId first, fallback to fullName
+      return data.uniforms.find((u: any) => u.employeeId === employeeId) ||
+             data.uniforms.find((u: any) => u.fullName === fullName);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+// Add UniformRequestDetails component after StoreDCPage
+function UniformRequestDetails({ employeeId, fullName }: { employeeId: string; fullName: string }) {
+  const [uniformReq, setUniformReq] = React.useState<any>(null);
+  React.useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+        const data = await res.json();
+        if (data.success) {
+          const found = data.uniforms.find((u: any) => u.employeeId === employeeId) ||
+                        data.uniforms.find((u: any) => u.fullName === fullName);
+          setUniformReq(found);
+        }
+      } catch {}
+    }
+    if (employeeId || fullName) fetchData();
+  }, [employeeId, fullName]);
+  if (!uniformReq) return null;
+  return (
+    <div className="mb-4">
+      <div className="font-semibold mb-1">Uniform Request Details:</div>
+      <div className="text-sm mb-1"><b>Employee ID:</b> {uniformReq.employeeId}</div>
+      <div className="text-sm mb-1"><b>Full Name:</b> {uniformReq.fullName}</div>
+      <div className="text-sm mb-1"><b>Designation:</b> {uniformReq.designation}</div>
+      <div className="text-sm mb-1"><b>Project:</b> {uniformReq.projectName}</div>
+      <div className="text-sm mb-1"><b>Uniform Types:</b> {Array.isArray(uniformReq.uniformType) ? uniformReq.uniformType.join(", ") : ''}</div>
+      <div className="text-sm mb-1"><b>Sizes:</b> {uniformReq.uniformType && typeof uniformReq.size === 'object' ? uniformReq.uniformType.map((type: string) => `${type}: ${uniformReq.size[type] || ''}`).join(", ") : ''}</div>
+      <div className="text-sm mb-1"><b>Quantity:</b> {uniformReq.qty}</div>
+      <div className="text-sm mb-1"><b>Status:</b> {uniformReq.approvalStatus} / {uniformReq.issuedStatus}</div>
+      <div className="text-sm mb-1"><b>Remarks:</b> {uniformReq.remarks}</div>
+      <div className="text-xs text-gray-500">Request Date: {uniformReq.requestDate ? new Date(uniformReq.requestDate).toLocaleString() : ''}</div>
+    </div>
+  );
 }
 
 // Step-by-step CreateDCModal
