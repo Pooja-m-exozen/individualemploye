@@ -67,7 +67,7 @@ interface UniformApiResponse {
   updatedAt?: string;
 }
 
-export default function UniformRequestsPage() {
+function ClientRequestsPage() {
   const { theme } = useTheme();
   const [requests, setRequests] = useState<UniformRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -795,4 +795,8 @@ export default function UniformRequestsPage() {
       </div>
     </CoordinatorDashboardLayout>
   );
+}
+
+export default function Page() {
+  return <ClientRequestsPage />;
 }
