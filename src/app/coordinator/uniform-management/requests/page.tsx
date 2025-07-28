@@ -6,6 +6,7 @@ import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCirc
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 // import Select from "react-select";
+import { useSearchParams, useRouter } from "next/navigation";
 
 interface UniformRequest {
   _id: string;
@@ -93,10 +94,23 @@ export default function UniformRequestsPage() {
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [employeeImages, setEmployeeImages] = useState<{ [id: string]: string }>({});
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  useEffect(() => {
+    const create = searchParams!.get("create");
+    const employeeId = searchParams!.get("employeeId");
+    if (create === "1") {
+      setShowCreateModal(true);
+      if (employeeId && !newRequest.employeeId) {
+        setNewRequest(r => ({ ...r, employeeId }));
+      }
+    }
+  }, [searchParams]);
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -450,7 +464,14 @@ export default function UniformRequestsPage() {
                 <div className="p-8 border-b">
                   <button
                     className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      // Remove query params for best UX
+                      const params = new URLSearchParams(searchParams!.toString());
+                      params.delete('create');
+                      params.delete('employeeId');
+                      router.replace(`/coordinator/uniform-management/requests${params.toString() ? '?' + params.toString() : ''}`);
+                    }}
                     title="Close"
                   >×</button>
                   <h2 className={`text-2xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>
