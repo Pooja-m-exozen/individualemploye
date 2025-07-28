@@ -5,6 +5,7 @@ import CoordinatorDashboardLayout from "@/components/dashboard/CoordinatorDashbo
 import { useTheme } from "@/context/ThemeContext";
 import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle, FaUpload } from "react-icons/fa";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const sections = [
   { id: "personal", title: "Personal Details", icon: FaUser },
@@ -20,6 +21,7 @@ type DocUploadCompleteState = false | "show" | true | "single" | "multiple";
 
 export default function CreateKYCPage() {
   const { theme } = useTheme();
+  const router = useRouter();
   // State for each section
   const [personalDetails, setPersonalDetails] = useState({
     employeeId: "",
@@ -203,6 +205,9 @@ export default function CreateKYCPage() {
   // Add state for review modal
   const [showReview, setShowReview] = useState(false);
 
+  // State for uniform request modal
+  const [showUniformRequestModal, setShowUniformRequestModal] = useState(false);
+
   // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,7 +234,8 @@ export default function CreateKYCPage() {
       if (res.ok) {
         setMessage("KYC details submitted successfully.");
         setKycCreatedEmployeeId(personalDetails.employeeId); // Save for document upload
-        setShowUploadModal(true); // Show modal for document upload
+        // Instead of showing upload modal immediately, show uniform request modal
+        setShowUniformRequestModal(true);
         // Reset form fields but not employeeIdSeed yet
         setPersonalDetails({
           employeeId: "",
@@ -1093,6 +1099,39 @@ export default function CreateKYCPage() {
                       }}
                     >
                       Submit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Modal for uniform request after KYC creation */}
+            {showUniformRequestModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className={`rounded-2xl p-8 w-full max-w-md shadow-xl border flex flex-col items-center ${theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-white border-blue-200"}`}>
+                  <h2 className={`text-2xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Would you like to request uniform?</h2>
+                  <div className="flex gap-4 mt-4">
+                    <button
+                      className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700"
+                      onClick={() => {
+                        setShowUniformRequestModal(false);
+                        // Navigate to uniform requests page with create modal and employeeId
+                        if (kycCreatedEmployeeId) {
+                          router.push(`/coordinator/uniform-management/requests?create=1&employeeId=${kycCreatedEmployeeId}`);
+                        } else {
+                          router.push(`/coordinator/uniform-management/requests?create=1`);
+                        }
+                      }}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      className="px-6 py-2 rounded-xl bg-gray-300 text-gray-800 font-bold hover:bg-gray-400"
+                      onClick={() => {
+                        setShowUniformRequestModal(false);
+                        setShowUploadModal(true); // Continue to document upload modal as before
+                      }}
+                    >
+                      No
                     </button>
                   </div>
                 </div>

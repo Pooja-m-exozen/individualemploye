@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import TaskDashboardLayout from "@/components/dashboard/TaskDashboardLayout";
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 // import Select from "react-select";
+import { useSearchParams, useRouter } from "next/navigation";
 
 interface UniformRequest {
   _id: string;
@@ -63,7 +64,7 @@ interface UniformApiResponse {
   updatedAt?: string;
 }
 
-export default function UniformRequestsPage() {
+function UniformRequestsPage() {
   const { theme } = useTheme();
   const [requests, setRequests] = useState<UniformRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,10 +96,23 @@ export default function UniformRequestsPage() {
   const [employeeImages, setEmployeeImages] = useState<{ [id: string]: string }>({});
   // Add missing state variables
   const [uniformOptions, setUniformOptions] = useState<UniformOption[]>([]);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  useEffect(() => {
+    const create = searchParams!.get("create");
+    const employeeId = searchParams!.get("employeeId");
+    if (create === "1") {
+      setShowCreateModal(true);
+      if (employeeId && !newRequest.employeeId) {
+        setNewRequest(r => ({ ...r, employeeId }));
+      }
+    }
+  }, [searchParams, newRequest.employeeId]);
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -397,7 +411,14 @@ export default function UniformRequestsPage() {
                 )}
                 <button
                   className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    // Remove query params for best UX
+                    const params = new URLSearchParams(searchParams!.toString());
+                    params.delete('create');
+                    params.delete('employeeId');
+                    router.replace(`/task/uniform-management/requests${params.toString() ? '?' + params.toString() : ''}`);
+                  }}
                   title="Close"
                 >×</button>
                 <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}><FaTshirt /> Create Uniform Request</h2>
@@ -673,5 +694,13 @@ export default function UniformRequestsPage() {
         </div>
       </div>
     </TaskDashboardLayout>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <UniformRequestsPage />
+    </Suspense>
   );
 }
