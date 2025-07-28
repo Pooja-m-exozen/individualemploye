@@ -58,6 +58,10 @@ export default function CreateKYCPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Add state for auto-generate employee ID
+  const [autoGenerateEmployeeId, setAutoGenerateEmployeeId] = useState(true);
+  const [employeeIdError, setEmployeeIdError] = useState<string | null>(null);
+
   // Section navigation state
   const [activeSection, setActiveSection] = useState(sections[0].id);
   const [completedSections, setCompletedSections] = useState<string[]>([]);
@@ -129,7 +133,10 @@ export default function CreateKYCPage() {
       });
   }, []);
 
+  // Modified useEffect to only run when auto-generate is enabled
   useEffect(() => {
+    if (!autoGenerateEmployeeId) return;
+    
     // Always fetch ALL KYC forms to find the highest EFMS number
     let maxNum = 3376 - 1;
     let nextId = '';
@@ -156,7 +163,7 @@ export default function CreateKYCPage() {
         nextId = `EFMS${maxNum + 1}`;
         setPersonalDetails(prev => ({ ...prev, employeeId: nextId }));
       });
-  }, [employeeIdSeed]);
+  }, [employeeIdSeed, autoGenerateEmployeeId]);
 
   // Update designation options when project changes
   useEffect(() => {
@@ -168,10 +175,39 @@ export default function CreateKYCPage() {
     }
   }, [personalDetails.projectName, projectList]);
 
+  // Validate employee ID format
+  const validateEmployeeId = (id: string) => {
+    const regex = /^EFMS\d+$/;
+    if (!regex.test(id)) {
+      setEmployeeIdError("Employee ID must start with 'EFMS' followed by numbers (e.g., EFMS3377)");
+      return false;
+    }
+    setEmployeeIdError(null);
+    return true;
+  };
+
   // Handle input changes for each section
   const handlePersonalChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (e.target.name === 'employeeId' && !autoGenerateEmployeeId) {
+      validateEmployeeId(e.target.value);
+    }
     setPersonalDetails({ ...personalDetails, [e.target.name]: e.target.value });
   };
+
+  // Handle auto-generate checkbox change
+  const handleAutoGenerateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAutoGenerateEmployeeId(e.target.checked);
+    setEmployeeIdError(null);
+    
+    if (e.target.checked) {
+      // Trigger auto-generation
+      setEmployeeIdSeed(prev => prev + 1);
+    } else {
+      // Clear the employee ID for manual entry
+      setPersonalDetails(prev => ({ ...prev, employeeId: "" }));
+    }
+  };
+
   const handleAddressChange = (section: "permanentAddress" | "currentAddress", e: React.ChangeEvent<HTMLInputElement>) => {
     setAddressDetails(prev => {
       const updated = {
@@ -211,6 +247,13 @@ export default function CreateKYCPage() {
   // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate employee ID if not auto-generated
+    if (!autoGenerateEmployeeId && !validateEmployeeId(personalDetails.employeeId)) {
+      setError("Please enter a valid employee ID in the format EFMS followed by numbers.");
+      return;
+    }
+    
     setLoading(true);
     setMessage(null);
     setError(null);
@@ -473,9 +516,45 @@ export default function CreateKYCPage() {
                 <section className={`rounded-2xl p-6 border shadow-sm ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-blue-100"}`}>
                   <h2 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Personal Details</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Employee ID</label>
-                      <input name="employeeId" value={personalDetails.employeeId} readOnly className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required />
+                    {/* Employee ID with Auto-Generate Option */}
+                    <div className="md:col-span-2">
+                      <div className="flex items-center gap-4 mb-2">
+                        <label className={`flex items-center gap-2 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                          <input
+                            type="checkbox"
+                            checked={autoGenerateEmployeeId}
+                            onChange={handleAutoGenerateChange}
+                            className="form-checkbox h-4 w-4 text-blue-600 rounded focus:ring-blue-500 focus:ring-2"
+                          />
+                          <span className="font-medium">Auto-generate Employee ID</span>
+                        </label>
+                      </div>
+                      <div>
+                        <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                          Employee ID {!autoGenerateEmployeeId && <span className="text-red-500">*</span>}
+                        </label>
+                        <input 
+                          name="employeeId" 
+                          value={personalDetails.employeeId} 
+                          onChange={handlePersonalChange}
+                          readOnly={autoGenerateEmployeeId}
+                          placeholder={!autoGenerateEmployeeId ? "Enter Employee ID (e.g., EFMS3377)" : ""}
+                          className={`w-full rounded-lg px-4 py-2 border ${
+                            autoGenerateEmployeeId 
+                              ? theme === "dark" ? "bg-gray-700 text-gray-300 border-gray-600 cursor-not-allowed" : "bg-gray-100 text-gray-600 border-gray-300 cursor-not-allowed"
+                              : theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"
+                          } ${employeeIdError ? "border-red-500" : ""}`}
+                          required 
+                        />
+                        {!autoGenerateEmployeeId && (
+                          <p className={`text-xs mt-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                            Format: EFMS followed by numbers (e.g., EFMS3377)
+                          </p>
+                        )}
+                        {employeeIdError && (
+                          <p className="text-red-500 text-xs mt-1">{employeeIdError}</p>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Project Name</label>
@@ -812,7 +891,7 @@ export default function CreateKYCPage() {
                       type="button"
                       onClick={() => setShowReview(true)}
                       className={`px-8 py-3 rounded-xl text-white font-medium bg-blue-600 hover:bg-blue-700 transition-all ${theme === "dark" ? "bg-gray-700 hover:bg-gray-600" : "bg-blue-600 hover:bg-blue-700"}`}
-                      disabled={loading || !employeeImage}
+                      disabled={loading || !employeeImage || (!autoGenerateEmployeeId && !personalDetails.employeeId)}
                     >
                       {loading ? <span className="flex items-center gap-2"><FaSpinner className="animate-spin" /> Submitting...</span> : "Create KYC"}
                     </button>
@@ -1142,4 +1221,4 @@ export default function CreateKYCPage() {
       </div>
     </CoordinatorDashboardLayout>
   );
-} 
+}
