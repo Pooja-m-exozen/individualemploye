@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
+import { IndividualEmployeeDetails } from "@/components/dashboard/IndividualEmployeeDetails";
 import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter, FaCheckCircle,  FaPlus, FaTimes } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { jsPDF } from 'jspdf';
@@ -24,12 +25,27 @@ interface DCItem {
   itemId: string;
   quantity: number;
   size: string;
+  designation?: string; // Add designation field
+  uniformType?: string[]; // Store uniform types
+  projectName?: string; // Store project name
+  approvalStatus?: string; // Store approval status
+  requestDate?: string; // Store request date
+  individualEmployeeData?: { // Store individual employee data
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    uniformType: string[];
+    size: Record<string, string>;
+    qty: number;
+    projectName: string;
+  };
   _id: string;
 }
 
 interface DC {
   _id: string;
   customer: string;
+  projectName?: string; // Add project name field
   dcNumber: string;
   dcDate: string;
   remarks: string;
@@ -44,22 +60,63 @@ interface ApiResponse {
 }
 
 // Add new interface for preview data
-interface UniformRequest {
-  _id: string;
-  employeeId: string;
-  fullName: string;
-  designation: string;
-  gender: string;
-  projectName: string;
-  uniformType: string[];
-  size: Record<string, string>;
-  qty: number;
-  uniformRequested: boolean;
-  approvalStatus: string;
-  issuedStatus: string;
-  remarks: string;
-  requestDate: string;
-  type: string[];
+// interface DCPreviewData {
+//   dcNumber: string;
+//   dcDate: string;
+//   customer: string;
+//   address: string;
+//   remarks: string;
+//   items: Array<{
+//     itemCode: string;
+//     name: string;
+//     size: string;
+//     quantity: number;
+//     employeeId: string;
+//   }>;
+// }
+
+// Helper function to fetch uniform request for a customer
+async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<unknown> {
+  try {
+    const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+    
+    // Check if response is ok
+    if (!res.ok) {
+      console.error(`API Error: ${res.status} ${res.statusText}`);
+      return null;
+    }
+    
+    // Check if response is JSON
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      console.error("API returned non-JSON response:", contentType);
+      return null;
+    }
+    
+    const data = await res.json();
+    if (data.success) {
+      // Try to match by employeeId first, then by fullName
+      const byEmployeeId = data.uniforms.find((u: unknown) => (u as { employeeId: string }).employeeId === employeeId);
+      if (byEmployeeId) return byEmployeeId;
+      
+      const byFullName = data.uniforms.find((u: unknown) => (u as { fullName: string }).fullName === fullName);
+      if (byFullName) return byFullName;
+      
+      // If no exact match, try partial name match
+      const partialMatch = data.uniforms.find((u: unknown) => 
+        (u as { fullName: string }).fullName.toLowerCase().includes(fullName.toLowerCase()) ||
+        fullName.toLowerCase().includes((u as { fullName: string }).fullName.toLowerCase())
+      );
+      return partialMatch || null;
+    }
+  } catch (error) {
+    console.error("Error fetching uniform request:", error);
+    // Log the actual response if it's not JSON
+    if (error instanceof SyntaxError) {
+      console.error("JSON parsing error - API might be returning HTML or plain text");
+    }
+  }
+  return null;
 }
 
 export default function StoreDCPage() {
@@ -71,7 +128,31 @@ export default function StoreDCPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDC, setSelectedDC] = useState<DC | null>(null);
-  const [uniformReq, setUniformReq] = useState<UniformRequest | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [uniformReq, setUniformReq] = useState<unknown>(null);
+
+  // Helper function to get project name with proper fallback logic
+  const getProjectName = (dc: DC) => {
+    // First check if DC has projectName directly
+    if (dc.projectName && dc.projectName !== "N/A") return dc.projectName;
+    
+    // Check if any item has projectName
+    if (dc.items && dc.items.length > 0) {
+      for (const item of dc.items) {
+        // Check individualEmployeeData first (highest priority)
+        if (item.individualEmployeeData && item.individualEmployeeData.projectName) {
+          return item.individualEmployeeData.projectName;
+        }
+        // Check item's projectName
+        if (item.projectName && item.projectName !== "N/A") {
+          return item.projectName;
+        }
+      }
+    }
+    
+    // If no project name found, return "N/A"
+    return "N/A";
+  };
 
   useEffect(() => {
     const fetchDCs = async () => {
@@ -79,14 +160,63 @@ export default function StoreDCPage() {
       setError(null);
       try {
         const res = await fetch("https://inventory.zenapi.co.in/api/inventory/outward-dc");
-        if (!res.ok) throw new Error("Failed to fetch DCs");
+        
+        // Check if response is ok
+        if (!res.ok) {
+          throw new Error(`Failed to fetch DCs: ${res.status} ${res.statusText}`);
+        }
+        
+        // Check if response is JSON
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("API returned non-JSON response");
+        }
+        
         const data: ApiResponse = await res.json();
-        setDcData(data.dcs);
+        
+        // Log the data structure for debugging
+        console.log("Fetched DC data:", data);
+        
+        // Process the actual API response structure with project names
+        const processedDCs = await Promise.all(data.dcs.map(async (dc) => {
+          // Get actual project name from uniform requests
+          const actualProjectName = await getProjectNameFromUniformRequests(dc.customer);
+          
+          return {
+            ...dc,
+            // Use actual project name from uniform requests
+            projectName: actualProjectName,
+            // Process items to match our expected structure
+            items: dc.items.map(item => ({
+              ...item,
+              // Extract employee data from customer name
+              employeeId: extractEmployeeId(dc.customer),
+              name: extractEmployeeName(dc.customer),
+              designation: "Employee", // Default designation
+              // Parse size if it's a JSON string
+              size: typeof item.size === 'string' ? item.size : JSON.stringify(item.size),
+              quantity: item.quantity || 1,
+              // Create individualEmployeeData from available information
+              individualEmployeeData: {
+                employeeId: extractEmployeeId(dc.customer),
+                fullName: extractEmployeeName(dc.customer),
+                designation: "Employee",
+                uniformType: extractUniformTypes(item.size),
+                size: parseSizeData(item.size),
+                qty: item.quantity || 1,
+                projectName: actualProjectName
+              }
+            }))
+          };
+        }));
+        
+        setDcData(processedDCs);
       } catch (err: unknown) {
+        console.error("Error fetching DCs:", err);
         if (err instanceof Error) {
           setError(err.message);
         } else {
-          setError("Unknown error");
+          setError("Unknown error occurred while fetching DCs");
         }
       } finally {
         setLoading(false);
@@ -94,6 +224,192 @@ export default function StoreDCPage() {
     };
     fetchDCs();
   }, []);
+
+  // Helper function to extract project name from customer and remarks
+  const extractProjectName = (): string => {
+    // Try to extract project name from remarks first
+    // if (remarks && remarks.includes("Operations")) {
+    //   return "Operations";
+    // }
+    // if (remarks && remarks.includes("Security")) {
+    //   return "Security";
+    // }
+    // if (remarks && remarks.includes("Arvind Belair")) {
+    //   return "Arvind Belair";
+    // }
+    // // Check if customer name contains project information
+    // if (customer && customer.includes("Arvind Belair")) {
+    //   return "Arvind Belair";
+    // }
+    // Default project name
+    return "General";
+  };
+
+  // Helper function to extract employee ID from customer name
+  const extractEmployeeId = (customer: string): string => {
+    // For now, generate a simple ID from customer name
+    return customer.split(',')[0]?.trim() || "EMP001";
+  };
+
+  // Helper function to extract employee name from customer
+  const extractEmployeeName = (customer: string): string => {
+    return customer.split(',')[0]?.trim() || customer;
+  };
+
+  // Helper function to extract uniform types from size data
+  const extractUniformTypes = (size: string): string[] => {
+    try {
+      const sizeObj = typeof size === 'string' ? JSON.parse(size) : size;
+      return Object.keys(sizeObj || {});
+    } catch (error) {
+      console.error("Error parsing size data:", error);
+      return [];
+    }
+  };
+
+  // Helper function to parse size data into a record
+  const parseSizeData = (size: string): Record<string, string> => {
+    try {
+      if (typeof size === 'string') {
+        return JSON.parse(size);
+      }
+      return size || {};
+    } catch (error) {
+      console.error("Error parsing size data:", error);
+      return {};
+    }
+  };
+
+
+
+
+
+  // NEW: Dynamic function to get accessories from uniform types
+  const getDynamicAccessories = (uniformTypes: string[]): string => {
+    const accessoryTypes = ['Accessories', 'Cap', 'Hat', 'Belt', 'Gloves', 'Mask', 'Scarf', 'Towel', 'Bag', 'Umbrella', 'Raincoat', 'Safety', 'Helmet', 'Goggles', 'Earplugs', 'Respirator'];
+    
+    for (const accessoryType of accessoryTypes) {
+      if (uniformTypes.includes(accessoryType)) {
+        if (accessoryType === 'Accessories') return "Full";
+        return accessoryType;
+      }
+    }
+    
+    return "NA";
+  };
+
+  // Helper function to get project name from uniform requests
+  const getProjectNameFromUniformRequests = async (customer: string): Promise<string> => {
+    try {
+      const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+      if (!res.ok) return extractProjectName();
+      
+      const data = await res.json();
+      if (data.success) {
+        // Try to find matching uniform request by customer name
+        const customerNames = customer.split(',').map(name => name.trim());
+        for (const customerName of customerNames) {
+          const matchingRequest = data.uniforms.find((u: unknown) => 
+            (u as { fullName: string }).fullName === customerName || 
+            customerName.includes((u as { fullName: string }).fullName) ||
+            (u as { fullName: string }).fullName.includes(customerName)
+          );
+          if (matchingRequest && (matchingRequest as { projectName: string }).projectName) {
+            return (matchingRequest as { projectName: string }).projectName;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching project name from uniform requests:", error);
+    }
+    return extractProjectName();
+  };
+
+  // Helper function to get individual employee data from uniform requests
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const getEmployeeDataFromUniformRequests = async (_employeeName: string) => {
+    try {
+      const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+      if (!res.ok) return null;
+      
+      const data = await res.json();
+      if (data.success) {
+        const matchingRequest = data.uniforms.find((u: unknown) => 
+          (u as { fullName: string }).fullName === _employeeName || 
+          _employeeName.includes((u as { fullName: string }).fullName) ||
+          (u as { fullName: string }).fullName.includes(_employeeName)
+        );
+        return matchingRequest as unknown || null;
+      }
+    } catch (error) {
+      console.error("Error fetching employee data from uniform requests:", error);
+    }
+    return null;
+  };
+
+  // Function to refresh DC data
+  const refreshDCData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("https://inventory.zenapi.co.in/api/inventory/outward-dc");
+      
+      if (!res.ok) {
+        throw new Error(`Failed to fetch DCs: ${res.status} ${res.statusText}`);
+      }
+      
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("API returned non-JSON response");
+      }
+      
+      const data: ApiResponse = await res.json();
+      
+      // Process the actual API response structure with project names
+      const processedDCs = await Promise.all(data.dcs.map(async (dc) => {
+        // Get actual project name from uniform requests
+        const actualProjectName = await getProjectNameFromUniformRequests(dc.customer);
+        
+        return {
+          ...dc,
+          // Use actual project name from uniform requests
+          projectName: actualProjectName,
+          // Process items to match our expected structure
+          items: dc.items.map(item => ({
+            ...item,
+            // Extract employee data from customer name
+            employeeId: extractEmployeeId(dc.customer),
+            name: extractEmployeeName(dc.customer),
+            designation: "Employee", // Default designation
+            // Parse size if it's a JSON string
+            size: typeof item.size === 'string' ? item.size : JSON.stringify(item.size),
+            quantity: item.quantity || 1,
+            // Create individualEmployeeData from available information
+            individualEmployeeData: {
+              employeeId: extractEmployeeId(dc.customer),
+              fullName: extractEmployeeName(dc.customer),
+              designation: "Employee",
+              uniformType: extractUniformTypes(item.size),
+              size: parseSizeData(item.size),
+              qty: item.quantity || 1,
+              projectName: actualProjectName
+            }
+          }))
+        };
+      }));
+      
+      setDcData(processedDCs);
+    } catch (err: unknown) {
+      console.error("Error refreshing DCs:", err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Unknown error occurred while refreshing DCs");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchUniform() {
@@ -115,7 +431,7 @@ export default function StoreDCPage() {
     ...dc,
     dcNumber: dc.dcNumber,
     date: dc.dcDate ? dc.dcDate.split("T")[0] : "",
-    issuedTo: dc.customer,
+    projectName: getProjectName(dc),
     status: "Issued", // API does not provide status, default to Issued
   }));
 
@@ -125,55 +441,51 @@ export default function StoreDCPage() {
     const matchesStatus = statusFilter ? dc.status === statusFilter : true;
     const matchesSearch = search ? (
       dc.dcNumber.toLowerCase().includes(search.toLowerCase()) ||
-      dc.issuedTo.toLowerCase().includes(search.toLowerCase())
+      (dc.projectName || "N/A").toLowerCase().includes(search.toLowerCase())
     ) : true;
     return matchesStatus && matchesSearch;
   });
 
-  // Download DC as PDF (only required fields)
+  // Download DC as PDF (exact match to image format)
   const handleDownloadDC = async (dc: DC) => {
-    // Fetch uniform request for this customer
-    const uniformReq = await fetchUniformRequestForCustomer(
-      dc.items[0]?.employeeId,
-      dc.customer
-    );
+    // Log the DC data for debugging
+    console.log("Generating PDF for DC:", dc);
+    console.log("DC items:", dc.items);
+    
     const doc = new jsPDF();
     (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = undefined;
 
     const pageWidth = doc.internal.pageSize.getWidth();
     let y = 12;
 
-    // Logo
-    try {
-      doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 10, y, 25, 12);
-    } catch {
-      // Ignore logo error
-    }
-
-    // Company Name & Address
-    doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 10, y, 25, 12);
+    // Company Name & Address (exact match to image)
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text("Exozen Facility Management Services Pvt Ltd", pageWidth / 2, y + 7, { align: "center" });
+    doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED", pageWidth / 2, y + 7, { align: "center" });
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text("25/1, 4th floor, Skip House, Museum road, Near Brigade Tower, Bangalore- 560073 Karnataka", pageWidth / 2, y + 13, { align: "center" });
+    doc.text("25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", pageWidth / 2, y + 13, { align: "center" });
+
+    // Document Title
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Non-Returnable Delivery Challan", pageWidth / 2, y + 20, { align: "center" });
 
     // Outer border
     doc.setDrawColor(180);
     doc.rect(5, 6, pageWidth - 10, 170, 'S');
 
-    y += 20;
+    y += 25;
 
-    // DC No and Date row
-    doc.setFontSize(12);
+    // NRDC No and Date row (exact match to image)
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(`DC No: ${dc.dcNumber}`, 12, y);
+    doc.text(`NRDC No: ${dc.dcNumber}`, 12, y);
     doc.text(`Date: ${dc.dcDate ? dc.dcDate.split("T")[0] : ""}`, pageWidth - 60, y);
 
     y += 6;
 
-    // From/To boxes
+    // From/To boxes (exact match to image format)
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text("From:", 12, y + 5);
@@ -181,46 +493,193 @@ export default function StoreDCPage() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.rect(12, y + 7, pageWidth / 2 - 18, 18);
-    doc.text("Exozen Facility Management Services Pvt Ltd\n25/1, 4th floor, Skip House, Museum road, Near Brigade Tower, Bangalore - 560073 Karnataka", 14, y + 12, { maxWidth: pageWidth / 2 - 22 });
+    doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED\n25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", 14, y + 12, { maxWidth: pageWidth / 2 - 22 });
     doc.rect(pageWidth / 2 + 2, y + 7, pageWidth / 2 - 18, 18);
-    doc.text(dc.customer || "", pageWidth / 2 + 4, y + 12, { maxWidth: pageWidth / 2 - 22 });
+    
+    // Get project name using helper function
+    const projectName = getProjectName(dc);
+    console.log("Project name for PDF:", projectName);
+    
+    doc.text(projectName, pageWidth / 2 + 4, y + 12, { maxWidth: pageWidth / 2 - 22 });
 
     y += 28;
 
-    // Remarks box
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("Remarks:", 12, y + 5);
-    doc.setFont("helvetica", "normal");
-    doc.rect(12, y + 7, pageWidth - 28, 12);
-    doc.text(dc.remarks || "", 14, y + 13, { maxWidth: pageWidth - 32 });
-
-    y += 22;
-
-    // Table - Remove Employee ID column
+    // Table - Exact match to image format with multiple employees
+    const tableBody = [];
+    
+    // First, fetch all uniform requests to get employee data
+    let allUniformRequests = [];
+    try {
+      const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          allUniformRequests = data.uniforms;
+          console.log("Fetched uniform requests:", allUniformRequests);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching uniform requests:", error);
+    }
+    
+    // Process each item in the DC
+    for (let idx = 0; idx < dc.items.length; idx++) {
+      const item = dc.items[idx];
+      console.log(`Processing item ${idx}:`, item);
+      
+      // Try to find matching uniform request for this employee
+      let employeeUniformData = null;
+      const currentEmployeeName = item.name || extractEmployeeName(dc.customer);
+      
+      if (allUniformRequests.length > 0) {
+        employeeUniformData = allUniformRequests.find((u: unknown) => 
+          (u as { fullName: string; employeeId: string }).fullName === currentEmployeeName || 
+          currentEmployeeName.includes((u as { fullName: string; employeeId: string }).fullName) ||
+          (u as { fullName: string; employeeId: string }).fullName.includes(currentEmployeeName) ||
+          (u as { fullName: string; employeeId: string }).employeeId === item.employeeId
+        );
+        console.log(`Found uniform data for ${currentEmployeeName}:`, employeeUniformData);
+      }
+      
+      // Extract employee data from the processed item or uniform request
+      const employeeData = employeeUniformData || item.individualEmployeeData || {
+        employeeId: item.employeeId || extractEmployeeId(dc.customer),
+        fullName: item.name || extractEmployeeName(dc.customer),
+        designation: item.designation || "Employee",
+        uniformType: item.uniformType || extractUniformTypes(item.size),
+        size: parseSizeData(item.size),
+        qty: item.quantity || 1,
+        projectName: getProjectName(dc)
+      };
+      
+      console.log(`Using employee data for item ${idx}:`, employeeData);
+      
+      // Get employee information
+      const empId = employeeData.employeeId || "NA";
+      const designation = employeeData.designation || "Employee";
+      const employeeNameForItem = employeeData.fullName || dc.customer;
+      
+      console.log(`Employee data for item ${idx}:`, { empId, designation, employeeNameForItem });
+      
+      // Parse size data
+      const sizeData = employeeData.size || {};
+      const uniformTypes = employeeData.uniformType || [];
+      
+      // Get accessories dynamically
+      const accessories = getDynamicAccessories(uniformTypes);
+      
+      // Get quantity
+      const quantity = employeeData.qty || item.quantity || 1;
+      const noOfSet = sizeData['Accessories'] ? "Full set" : quantity.toString();
+      
+      // Create dynamic table row with separate columns for Shirt, Pant, Shoe
+      const shirtSize = sizeData['Work Shirt'] || sizeData['Shirt'] || sizeData['T-Shirt'] || 
+                       (uniformTypes.includes('Shirt') ? sizeData['Shirt'] : "NA");
+      const pantSize = sizeData['Work Pants'] || sizeData['Pant'] || sizeData['Trousers'] || 
+                      (uniformTypes.includes('Pant') ? sizeData['Pant'] : "NA");
+      const shoeSize = sizeData['Safety Boots'] || sizeData['Shoe'] || sizeData['Boots'] || 
+                      (uniformTypes.includes('Safety Boots') ? sizeData['Safety Boots'] : "NA");
+      
+      const tableRow = [
+        idx + 1,
+        empId,
+        employeeNameForItem,
+        designation,
+        noOfSet,
+        shirtSize,
+        pantSize,
+        shoeSize,
+        accessories,
+        "NA", // Amount field
+        "" // Employee signature field
+      ];
+      
+      console.log(`Table row for item ${idx}:`, tableRow);
+      tableBody.push(tableRow);
+    }
+    
+    // If we have multiple employees in one DC, we need to handle them separately
+    // Check if customer contains multiple names (comma-separated)
+    if (dc.customer.includes(',')) {
+      const customerNames = dc.customer.split(',').map(name => name.trim());
+      console.log("Multiple employees found:", customerNames);
+      
+      // Clear the table body and rebuild with individual employee data
+      tableBody.length = 0;
+      
+      for (let idx = 0; idx < customerNames.length; idx++) {
+        const customerName = customerNames[idx];
+        
+        // Try to get uniform request data for this specific employee
+        let employeeUniformData = null;
+        if (allUniformRequests.length > 0) {
+          employeeUniformData = allUniformRequests.find((u: unknown) => 
+            (u as { fullName: string }).fullName === customerName || 
+            customerName.includes((u as { fullName: string }).fullName) ||
+            (u as { fullName: string }).fullName.includes(customerName)
+          );
+          console.log(`Found uniform data for ${customerName}:`, employeeUniformData);
+        }
+        
+        // Use uniform request data if available, otherwise use default
+        const empId = employeeUniformData ? employeeUniformData.employeeId : `EMP${idx + 1}`;
+        const designation = employeeUniformData ? employeeUniformData.designation : "Employee";
+        const employeeNameForTable = customerName;
+        
+        // Parse size data for this employee
+        const sizeData = employeeUniformData ? employeeUniformData.size : {};
+        const uniformTypes = employeeUniformData ? employeeUniformData.uniformType : ["Uniform"];
+        
+        console.log(`Size data for ${customerName}:`, sizeData);
+        console.log(`Uniform types for ${customerName}:`, uniformTypes);
+        
+        // Get sizes for common uniform types - use the actual API data structure
+        const shirtSize = sizeData['Work Shirt'] || sizeData['Shirt'] || sizeData['T-Shirt'] || 
+                         (uniformTypes.includes('Shirt') ? sizeData['Shirt'] : "NA");
+        const pantSize = sizeData['Work Pants'] || sizeData['Pant'] || sizeData['Trousers'] || 
+                        (uniformTypes.includes('Pant') ? sizeData['Pant'] : "NA");
+        const shoeSize = sizeData['Safety Boots'] || sizeData['Shoe'] || sizeData['Boots'] || 
+                        (uniformTypes.includes('Safety Boots') ? sizeData['Safety Boots'] : "NA");
+        
+        // Get accessories dynamically
+        const accessories = getDynamicAccessories(uniformTypes);
+        
+        // Get quantity
+        const quantity = employeeUniformData ? employeeUniformData.qty : 1;
+        const noOfSet = sizeData['Accessories'] ? "Full set" : quantity.toString();
+        
+        const tableRow = [
+          idx + 1,
+          empId,
+          employeeNameForTable,
+          designation,
+          noOfSet,
+          shirtSize,
+          pantSize,
+          shoeSize,
+          accessories,
+          "NA", // Amount field
+          "" // Employee signature field
+        ];
+        
+        console.log(`Table row for employee ${idx + 1}:`, tableRow);
+        tableBody.push(tableRow);
+      }
+    }
+    
+    // Add empty rows to match the image format (at least 10 rows total)
+    const emptyRowsNeeded = Math.max(0, 10 - tableBody.length);
+    for (let i = 0; i < emptyRowsNeeded; i++) {
+      tableBody.push(["", "", "", "", "", "", "", "", "", "", ""]);
+    }
+    
     autoTable(doc, {
       startY: y,
-      head: [["Sl.No", "Employee Name", "Project", "Designation", "Uniform Types", "Sizes", "Quantity"]],
-      body: dc.items.map((item, idx) => [
-        idx + 1,
-        dc.customer,
-        uniformReq ? uniformReq.projectName : "",
-        uniformReq ? uniformReq.designation : "",
-        uniformReq
-          ? (Array.isArray(uniformReq.uniformType)
-              ? uniformReq.uniformType.join("\n") // Multi-line for many types
-              : "")
-          : "",
-        uniformReq
-          ? (uniformReq.uniformType && typeof uniformReq.size === 'object'
-              ? uniformReq.uniformType.map((type: string) => `${type}: ${uniformReq.size[type] || ''}`).join("\n") // Multi-line for many sizes
-              : "")
-          : "",
-        item.quantity
-      ]),
+      head: [["Sl No", "Emp ID", "Names", "DESIGNATION", "No of Set", "Shirt", "Pant", "Shoe", "Accessories", "Amount", "Emp Sign"]],
+      body: tableBody,
       theme: "grid",
-      headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold', fontSize: 9 },
-      styles: { fontSize: 9, cellPadding: 2, textColor: 20 }, // Force black text
+      headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold', fontSize: 8 },
+      styles: { fontSize: 8, cellPadding: 1, textColor: 20 },
       margin: { left: 12, right: 12 },
       tableWidth: pageWidth - 24,
     });
@@ -228,17 +687,14 @@ export default function StoreDCPage() {
     // Get Y after table
     const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
 
-    // Terms & Conditions
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("Terms & Conditions", 12, finalY + 8);
-    doc.setFont("helvetica", "normal");
+    // Terms & Conditions (exact match to image)
     doc.setFontSize(9);
-    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery.", 12, finalY + 13);
-    doc.text("2. Goods are delivered after careful checking.", 12, finalY + 18);
+    doc.setFont("helvetica", "normal");
+    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 8);
+    doc.text("2. Goods are delivered after careful checking", 12, finalY + 13);
 
-    // Signature lines
-    const sigY = finalY + 32;
+    // Signature lines (exact match to image)
+    const sigY = finalY + 25;
     doc.setDrawColor(120);
     doc.line(20, sigY, 60, sigY);
     doc.text("Initiated by", 28, sigY + 5);
@@ -247,7 +703,7 @@ export default function StoreDCPage() {
     doc.line(pageWidth - 60, sigY, pageWidth - 20, sigY);
     doc.text("Issued by", pageWidth - 50, sigY + 5);
 
-    doc.save(`DC_${dc.dcNumber}.pdf`);
+    doc.save(`NRDC_${dc.dcNumber}.pdf`);
   };
 
   // Download all DCs as summary PDF (styled, with logo and table)
@@ -258,20 +714,13 @@ export default function StoreDCPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     let y = 12;
 
-    // Logo (optional, handle error if not found)
-    try {
-      doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 10, y, 25, 12);
-    } catch {
-      // Ignore logo error
-    }
-
-    // Company Name & Address
+    // Company Name & Address (exact match to image)
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text("Exozen Facility Management Services Pvt Ltd", pageWidth / 2, y + 7, { align: "center" });
+    doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED", pageWidth / 2, y + 7, { align: "center" });
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text("25/1, 4th floor, Skip House, Museum road, Near Brigade Tower, Bangalore- 560073 Karnataka", pageWidth / 2, y + 13, { align: "center" });
+    doc.text("25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", pageWidth / 2, y + 13, { align: "center" });
 
     y += 22;
 
@@ -409,7 +858,7 @@ export default function StoreDCPage() {
                 <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
                 <input
                   type="text"
-                  placeholder="Search by DC number, item, or issued to..."
+                  placeholder="Search by DC number or project name..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
@@ -434,12 +883,12 @@ export default function StoreDCPage() {
               {/* Restrict height and enable both scrollbars */}
               <div className="w-full h-[320px] overflow-x-auto overflow-y-auto">
                 {/* Increase min-w to force horizontal scroll on smaller screens */}
-                <table className={`min-w-[800px] table-fixed divide-y`} /* Remove theme-based text color for tbody */>
+                <table className={`min-w-[800px] table-fixed divide-y ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
                   <thead className={theme === "dark" ? "bg-blue-950" : "bg-blue-50"}>
                     <tr>
                       <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Number</th>
                       <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Date</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Issued To</th>
+                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Project Name</th>
                       <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Status</th>
                       <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Actions</th>
                     </tr>
@@ -460,10 +909,10 @@ export default function StoreDCPage() {
                     ) : (
                       filteredDC.map((dc, idx) => (
                         <tr key={idx} className={`transition ${theme === "dark" ? "hover:bg-blue-950" : "hover:bg-blue-100"}`}>
-                          <td className="px-4 py-3 font-bold text-black">{dc.dcNumber}</td>
-                          <td className="px-4 py-3 text-black">{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
-                          <td className="px-4 py-3 text-black">{dc.customer}</td>
-                          <td className="px-4 py-3 text-black">{dc.status}</td>
+                          <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{dc.dcNumber}</td>
+                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
+                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{dc.projectName || "N/A"}</td>
+                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{dc.status}</td>
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <button
@@ -490,71 +939,110 @@ export default function StoreDCPage() {
             {/* DC Details Modal */}
             {selectedDC && (
               <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-                <div className={`rounded-2xl shadow-2xl max-w-lg w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+                <div className={`rounded-2xl shadow-2xl max-w-4xl w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
                   <button
                     className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
                     onClick={() => setSelectedDC(null)}
                   >
                     <FaTimes className="w-6 h-6" />
                   </button>
-                  <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Delivery Challan Details</h2>
-                  <div className={`space-y-4 max-h-[60vh] overflow-y-auto pr-2 text-black`}> 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="font-semibold">DC Number:</span>
-                        <span className="ml-2">{selectedDC.dcNumber}</span>
-                      </div>
-                      <div>
-                        <span className="font-semibold">Date:</span>
-                        <span className="ml-2">{selectedDC.dcDate ? selectedDC.dcDate.split('T')[0] : ''}</span>
-                      </div>
-                      <div>
-                        <span className="font-semibold">Customer:</span>
-                        <span className="ml-2">{selectedDC.customer}</span>
+                  <h2 className={`text-2xl font-bold mb-6 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                    <FaBoxOpen className="w-6 h-6" />
+                    Delivery Challan Details
+                  </h2>
+                  <div className={`space-y-6 max-h-[70vh] overflow-y-auto pr-2`}> 
+                    {/* DC Basic Info */}
+                    <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
+                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Information</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <span className="font-semibold text-sm">DC Number:</span>
+                          <div className="text-lg font-bold">{selectedDC.dcNumber}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-sm">Date:</span>
+                          <div className="text-lg">{selectedDC.dcDate ? selectedDC.dcDate.split('T')[0] : ''}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-sm">Project Name:</span>
+                          <div className="text-lg">{getProjectName(selectedDC)}</div>
+                        </div>
                       </div>
                     </div>
-                    {/* Uniform Request Details */}
-                    <UniformRequestDetails employeeId={selectedDC.items[0]?.employeeId} fullName={selectedDC.customer} />
-                    <div>
-                      <span className="font-semibold block mb-2">Items:</span>
-                      <div className="space-y-3">
-                        {selectedDC.items.map((item, i) => (
-                          <div key={i} className={`rounded-lg p-4 border flex flex-col md:flex-row md:items-center gap-2 ${theme === "dark" ? "bg-blue-950 border-blue-900" : "bg-blue-50 border-blue-100"}`}>
-                            <div className="flex-1 flex flex-wrap gap-4">
-                              <div><span className="font-semibold">Sl.No:</span> {i + 1}</div>
-                              <div><span className="font-semibold">Employee Name:</span> {selectedDC.customer}</div>
-                              <div><span className="font-semibold">Employee ID:</span> {item.employeeId || "-"}</div>
-                              <div><span className="font-semibold">Project:</span> {uniformReq && uniformReq.projectName ? uniformReq.projectName : "-"}</div>
-                              <div><span className="font-semibold">Designation:</span> {uniformReq && uniformReq.designation ? uniformReq.designation : "-"}</div>
-                              <div>
-                                <span className="font-semibold">Uniform Types:</span>
-                                <div>
-                                  {uniformReq && Array.isArray(uniformReq.uniformType)
-                                    ? uniformReq.uniformType.map((type: string, idx: number) => (
-                                        <div key={idx}>{type}</div>
-                                      ))
-                                    : "-"}
-                                </div>
-                              </div>
-                              <div>
-                                <span className="font-semibold">Sizes:</span>
-                                <div>
-                                  {uniformReq && uniformReq.uniformType && typeof uniformReq.size === 'object'
-                                    ? uniformReq.uniformType.map((type: string, idx: number) => (
-                                        <div key={idx}>{type}: {uniformReq.size[type] || ''}</div>
-                                      ))
-                                    : "-"}
-                                </div>
-                              </div>
-                              <div><span className="font-semibold">Quantity:</span> {item.quantity}</div>
-                            </div>
+
+                    {/* Project Information */}
+                    <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
+                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>Project Information</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className="font-semibold text-sm">Project Name:</span>
+                          <div className="text-lg">{getProjectName(selectedDC)}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-sm">Total Employees:</span>
+                          <div className="text-lg">
+                            {selectedDC.customer.includes(',') 
+                              ? selectedDC.customer.split(',').length 
+                              : selectedDC.items.length}
                           </div>
-                        ))}
+                        </div>
                       </div>
                     </div>
-                    <div className={`mt-4 p-3 rounded-lg border ${theme === "dark" ? "bg-yellow-900 border-yellow-700 text-yellow-200" : "bg-yellow-50 border-yellow-200 text-yellow-700"}`}>
-                      <span className="font-semibold">Remarks:</span> {selectedDC.remarks}
+
+                    {/* Employee Details */}
+                    <div>
+                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>Employee Details</h3>
+                      <div className="space-y-4">
+                        {/* Handle multiple employees from customer name */}
+                        {(() => {
+                          // Check if customer contains multiple names
+                          if (selectedDC.customer.includes(',')) {
+                            const customerNames = selectedDC.customer.split(',').map(name => name.trim());
+                            return customerNames.map((customerName, i) => (
+                              <div key={i} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                                <div className="flex items-center justify-between mb-3">
+                                  <h4 className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                                    Employee {i + 1}: {customerName}
+                                  </h4>
+                                  <span className={`px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
+                                    ID: {extractEmployeeId(customerName)}
+                                  </span>
+                                </div>
+                                <IndividualEmployeeDetails 
+                                  employeeName={customerName} 
+                                  theme={theme} 
+                                />
+                              </div>
+                            ));
+                          } else {
+                            // Single employee - use existing logic
+                            return selectedDC.items.map((item, i) => (
+                              <div key={i} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                                <div className="flex items-center justify-between mb-3">
+                                  <h4 className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                                    Employee {i + 1}: {item.individualEmployeeData ? item.individualEmployeeData.fullName : (item.name || selectedDC.customer)}
+                                  </h4>
+                                  <span className={`px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
+                                    ID: {item.individualEmployeeData ? item.individualEmployeeData.employeeId : (item.employeeId || "N/A")}
+                                  </span>
+                                </div>
+                                <IndividualEmployeeDetails 
+                                  employeeName={item.individualEmployeeData ? item.individualEmployeeData.fullName : (item.name || selectedDC.customer)} 
+                                  theme={theme} 
+                                />
+                              </div>
+                            ));
+                          }
+                        })()}
+                      </div>
                     </div>
+
+                    {/* Remarks */}
+                    {selectedDC.remarks && (
+                      <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-yellow-900 border-yellow-700" : "bg-yellow-50 border-yellow-200"}`}>
+                        <span className="font-semibold">Remarks:</span> {selectedDC.remarks}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -569,6 +1057,7 @@ export default function StoreDCPage() {
               theme={theme}
               setDcData={setDcData}
               dcData={dcData}
+              refreshDCData={refreshDCData}
             />
           </div>
         )}
@@ -594,6 +1083,8 @@ interface UniformApiResponse {
   success: boolean;
   message: string;
   uniforms: Array<{
+    id: string;
+    itemId: unknown;
     items: unknown;
     _id: string;
     employeeId: string;
@@ -613,59 +1104,12 @@ interface UniformApiResponse {
   }>;
 }
 
-// 1. Add a helper to fetch uniform request for a customer
-async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<UniformRequest | null> {
-  try {
-    const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
-    const data = await res.json();
-    if (data.success) {
-      // Try to match by employeeId first, fallback to fullName
-      return data.uniforms.find((u: UniformRequest) => u.employeeId === employeeId) ||
-             data.uniforms.find((u: UniformRequest) => u.fullName === fullName) || null;
-    }
-  } catch {
-    // ignore
-  }
-  return null;
-}
 
-// Add UniformRequestDetails component after StoreDCPage
-function UniformRequestDetails({ employeeId, fullName }: { employeeId: string; fullName: string }) {
-  const [uniformReq, setUniformReq] = React.useState<UniformRequest | null>(null);
-  React.useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
-        const data = await res.json();
-        if (data.success) {
-          const found = data.uniforms.find((u: UniformRequest) => u.employeeId === employeeId) ||
-                        data.uniforms.find((u: UniformRequest) => u.fullName === fullName) || null;
-          setUniformReq(found);
-        }
-      } catch {}
-    }
-    if (employeeId || fullName) fetchData();
-  }, [employeeId, fullName]);
-  if (!uniformReq) return null;
-  return (
-    <div className="mb-4">
-      <div className="font-semibold mb-1">Uniform Request Details:</div>
-      <div className="text-sm mb-1"><b>Employee ID:</b> {uniformReq.employeeId}</div>
-      <div className="text-sm mb-1"><b>Full Name:</b> {uniformReq.fullName}</div>
-      <div className="text-sm mb-1"><b>Designation:</b> {uniformReq.designation}</div>
-      <div className="text-sm mb-1"><b>Project:</b> {uniformReq.projectName}</div>
-      <div className="text-sm mb-1"><b>Uniform Types:</b> {Array.isArray(uniformReq.uniformType) ? uniformReq.uniformType.join(", ") : ''}</div>
-      <div className="text-sm mb-1"><b>Sizes:</b> {uniformReq.uniformType && typeof uniformReq.size === 'object' ? uniformReq.uniformType.map((type: string) => `${type}: ${uniformReq.size[type] || ''}`).join(", ") : ''}</div>
-      <div className="text-sm mb-1"><b>Quantity:</b> {uniformReq.qty}</div>
-      <div className="text-sm mb-1"><b>Status:</b> {uniformReq.approvalStatus} / {uniformReq.issuedStatus}</div>
-      <div className="text-sm mb-1"><b>Remarks:</b> {uniformReq.remarks}</div>
-      <div className="text-xs text-gray-500">Request Date: {uniformReq.requestDate ? new Date(uniformReq.requestDate).toLocaleString() : ''}</div>
-    </div>
-  );
-}
 
 // Step-by-step CreateDCModal
-function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => void; theme: string; setDcData: React.Dispatch<React.SetStateAction<DC[]>>; dcData: DC[] }) {
+function CreateDCModal({ onClose, theme, setDcData, dcData, refreshDCData }: { onClose: () => void; theme: string; setDcData: React.Dispatch<React.SetStateAction<DC[]>>; dcData: DC[]; refreshDCData: () => Promise<void> }) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _refreshDCData = refreshDCData;
   // Prefilled for quick testing
   const [customer, setCustomer] = useState('');
   const [dcNumber, setDcNumber] = useState('');
@@ -675,14 +1119,30 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
   const [projectList, setProjectList] = useState<string[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [uniformRequests, setUniformRequests] = useState<UniformApiResponse['uniforms']>([]);
-  const [selectedRequest, setSelectedRequest] = useState<UniformApiResponse['uniforms'][0] | null>(null);
+  const [selectedRequests, setSelectedRequests] = useState<UniformApiResponse['uniforms']>([]);
   const [loading, setLoading] = useState(false);
-  // Remove unused error variable
-  // const [error, setError] = useState<string | null>(null);
   const [saveDCError, setSaveDCError] = useState<string | null>(null);
   const [step, setStep] = useState(1);
+  const [touched, setTouched] = useState<{[k: string]: boolean}>({});
+  const [dcNumberError, setDcNumberError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+  // const [show, setShow] = useState(false);
+  // const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  // const [hasUnsaved, setHasUnsaved] = useState(false);
 
-  // Fetch all uniform requests and extract unique project names
+  // Stepper icons
+  const stepIcons = [
+    <FaStore key="store" className="w-5 h-5" />, 
+    <FaCheckCircle key="check" className="w-5 h-5" />, 
+    <FaInfoCircle key="info" className="w-5 h-5" />
+  ];
+
+  // Step validation
+  const isStep1Valid = selectedProject !== '';
+  const isStep2Valid = selectedRequests.length > 0;
+  const isStep3Valid = customer.trim() && dcNumber.trim() && dcDate.trim();
+
   useEffect(() => {
     const fetchUniformData = async () => {
       try {
@@ -724,36 +1184,35 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
     }
   }, [selectedProject]);
 
-  // Set customer to employee name when uniform request is selected
+  // Set customer to employee names when uniform requests are selected
   useEffect(() => {
-    if (selectedRequest) {
-      setCustomer(selectedRequest.fullName);
+    if (selectedRequests.length > 0) {
+      const names = selectedRequests.map(req => req.fullName).join(", ");
+      setCustomer(names);
     }
-  }, [selectedRequest]);
+  }, [selectedRequests]);
 
   // Always enabled, always sends the required payload
   const handleCreateDC = async () => {
-    if (!selectedRequest) {
-      setSaveDCError("Please select a uniform request.");
+    if (selectedRequests.length === 0) {
+      setSaveDCError("Please select at least one uniform request.");
       return;
     }
     try {
-      // Fill all item fields for DC and for PDF/view
-      const items = [
-        {
-          id: selectedRequest._id,
-          employeeId: selectedRequest.employeeId,
-          itemCode: Array.isArray(selectedRequest.items) && selectedRequest.items[0] && typeof selectedRequest.items[0] === 'object' && 'type' in selectedRequest.items[0] ? (selectedRequest.items[0] as { type?: string }).type || "" : "",
-          name: Array.isArray(selectedRequest.items) && selectedRequest.items[0] && typeof selectedRequest.items[0] === 'object' && 'type' in selectedRequest.items[0] ? (selectedRequest.items[0] as { type?: string }).type || "" : "",
-          size: typeof selectedRequest.size === 'object' && selectedRequest.uniformType && selectedRequest.uniformType[0] && selectedRequest.size[selectedRequest.uniformType[0]] ? selectedRequest.size[selectedRequest.uniformType[0]] : '',
-          quantity: selectedRequest.qty || 1,
-          price: "", // Add price if available
-          remarks: selectedRequest.remarks || ""
-        }
-      ];
+      // Create items array from selected requests
+      const items = selectedRequests.map(selectedRequest => ({
+        id: selectedRequest._id,
+        employeeId: selectedRequest.employeeId,
+        itemCode: Array.isArray(selectedRequest.items) && selectedRequest.items[0] && typeof selectedRequest.items[0] === 'object' && 'type' in selectedRequest.items[0] ? (selectedRequest.items[0] as { type?: string }).type || "" : "",
+        name: Array.isArray(selectedRequest.items) && selectedRequest.items[0] && typeof selectedRequest.items[0] === 'object' && 'type' in selectedRequest.items[0] ? (selectedRequest.items[0] as { type?: string }).type || "" : "",
+        size: typeof selectedRequest.size === 'object' && selectedRequest.uniformType && selectedRequest.uniformType[0] && selectedRequest.size[selectedRequest.uniformType[0]] ? selectedRequest.size[selectedRequest.uniformType[0]] : '',
+        quantity: selectedRequest.qty || 1,
+        price: "", // Add price if available
+        remarks: selectedRequest.remarks || ""
+      }));
 
       const payload = {
-        customer: selectedRequest.fullName,
+        customer: selectedRequests.map(req => req.fullName).join(", "),
         dcNumber,
         dcDate,
         remarks,
@@ -770,6 +1229,7 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
       const data = await res.json();
 
       if (data.success) {
+        // --- PATCH: Store projectName immediately in new DC object ---
         setDcData(prev => [
           {
             _id: data.dcId,
@@ -777,6 +1237,7 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
             dcNumber: payload.dcNumber,
             dcDate: payload.dcDate,
             remarks: payload.remarks,
+            projectName: selectedProject, // <-- Store project name immediately
             items: items.map(item => ({
               itemId: item.id,
               employeeId: item.employeeId,
@@ -787,6 +1248,8 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
               price: item.price,
               remarks: item.remarks,
               _id: item.id,
+              // Optionally, you can also store projectName in each item if needed:
+              // projectName: selectedProject,
             })),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -803,10 +1266,6 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
       setSaveDCError(err instanceof Error ? err.message : 'Unknown error');
     }
   };
-
-  // Remove unused nextStep and prevStep
-  // const nextStep = () => setStep(s => Math.min(s + 1, 3));
-  // const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
   // Wrap stepLabels in useMemo
   const stepLabels = React.useMemo(() => ["Project", "Uniform Request", "DC Details"], []);
@@ -856,85 +1315,34 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
 
   // Animation state
   const [show, setShow] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [hasUnsaved, setHasUnsaved] = useState(false);
+
+  // Track unsaved changes
+  useEffect(() => {
+    setHasUnsaved(
+      !!customer || !!dcNumber || !!remarks || !!address || selectedRequests.length > 0 || !!selectedProject
+    );
+  }, [customer, dcNumber, remarks, address, selectedRequests, selectedProject]);
+
+  // Animate modal open
   useEffect(() => { setShow(true); }, []);
 
-  // Stepper icons
-  const stepIcons = [
-    <FaStore key="store" className="w-5 h-5" />, 
-    <FaCheckCircle key="check" className="w-5 h-5" />, 
-    <FaInfoCircle key="info" className="w-5 h-5" />
-  ];
-
-  // Field validation
-  const [touched, setTouched] = useState<{[k: string]: boolean}>({});
-  const isStep1Valid = selectedProject !== '';
-  const isStep2Valid = !!selectedRequest;
-  const isStep3Valid = customer.trim() && dcNumber.trim() && dcDate.trim();
-  const [dcNumberError, setDcNumberError] = useState<string | null>(null);
-
-  // Auto-generate DC Number
-  const handleAutoGenerateDCNumber = () => {
-    const random = Math.floor(100000 + Math.random() * 900000);
-    setDcNumber(`DC${random}`);
-    setDcNumberError(null);
-  };
-
-  // Loading overlay and success state
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  // Announce step changes and errors
+  // Scroll to top on step change
   useEffect(() => {
-    if (announceRef.current) {
-      announceRef.current.textContent = `Step ${step}: ${stepLabels[step-1]}`;
-    }
-  }, [step, stepLabels]);
-  useEffect(() => {
-    if (announceRef.current && saveDCError) {
-      announceRef.current.textContent = `Error: ${saveDCError}`;
-    }
-  }, [saveDCError]);
-
-  // Focus management for step
-  useEffect(() => {
-    if (modalRef.current) {
-      const firstInput = modalRef.current.querySelector('input, select, textarea') as HTMLElement;
-      firstInput?.focus();
-    }
+    if (modalRef.current) modalRef.current.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
 
-  // Responsive: use flex-col on mobile
-  // Subtle step transition animation
-  // Brand accent in header
+  // Confirm before cloSign if unsaved
+  const handleRequestClose = () => {
+    if (hasUnsaved && !success) setShowCloseConfirm(true);
+    else onClose();
+  };
 
   // Stepper progress bar
   const progressPercent = ((step-1)/(stepLabels.length-1))*100;
 
-  // Live preview for step 3
-  // const preview = step === 3 && (
-  //   <div className={`rounded-xl border shadow p-6 mt-8 mb-2 transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-blue-900" : "bg-white border-blue-100"}`}
-  //     aria-label="Delivery Challan Preview">
-  //     <div className="flex items-center gap-2 mb-2">
-  //       <FaBoxOpen className={`w-5 h-5 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} />
-  //       <span className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-blue-900"}`}>Preview</span>
-  //     </div>
-  //     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-  //       <div><span className="font-semibold">Customer:</span> {customer}</div>
-  //       <div><span className="font-semibold">DC Number:</span> {dcNumber}</div>
-  //       <div><span className="font-semibold">Date:</span> {dcDate}</div>
-  //       <div><span className="font-semibold">Remarks:</span> {remarks}</div>
-  //       <div><span className="font-semibold">Address:</span> {address}</div>
-  //     </div>
-  //     <div className="mt-4">
-  //       <span className="font-semibold block mb-1">Items:</span>
-  //       <ul className="list-disc ml-6">
-  //         {selectedRequest && (
-  //           <li>{selectedRequest.fullName} - Qty: {selectedRequest.qty} - Size: {typeof selectedRequest.size === 'object' && selectedRequest.uniformType && selectedRequest.uniformType[0] && selectedRequest.size[selectedRequest.uniformType[0]] ? selectedRequest.size[selectedRequest.uniformType[0]] : ''}</li>
-  //         )}
-  //       </ul>
-  //     </div>
-  //   </div>
-  // );
+
 
   // Success animation
   const successAnimation = success && (
@@ -946,7 +1354,7 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
       <div className="text-gray-600 mb-6">Your Delivery Challan has been successfully created.</div>
       <button
         className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200 ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
-        onClick={() => { setSuccess(false); setStep(1); setSelectedProject(''); setSelectedRequest(null); setCustomer(''); setDcNumber(''); setRemarks(''); setAddress(''); }}
+        onClick={() => { setSuccess(false); setStep(1); setSelectedProject(''); setSelectedRequests([]); setCustomer(''); setDcNumber(''); setRemarks(''); }}
       >Create Another</button>
       <button
         className="mt-4 underline text-blue-600 text-sm"
@@ -975,6 +1383,14 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
     }
   };
 
+  // Fix 1: Remove the MouseEvent type from handleAutoGenerateDCNumber and implement the function
+  function handleAutoGenerateDCNumber() {
+    // Simple DC number generator (customize as needed)
+    const random = Math.floor(100000 + Math.random() * 900000);
+    setDcNumber(`DC${random}`);
+    setDcNumberError(null);
+  }
+
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
@@ -989,7 +1405,7 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
       >
         {/* Brand accent */}
         <div className={`absolute left-0 top-0 w-full h-2 rounded-t-3xl ${theme === "dark" ? "bg-gradient-to-r from-blue-900 via-blue-700 to-blue-900" : "bg-gradient-to-r from-blue-400 via-blue-600 to-blue-400"}`}></div>
-        {/* Modal Header */}
+        {/* Modal Header (sticky) */}
         <div className={`p-6 border-b flex items-center justify-between sticky top-0 z-10 ${theme === "dark" ? "bg-[#181f2a] border-blue-900" : "bg-white border-blue-100"}`}>
           <div className="flex items-center gap-3">
             <Image src="/v1/employee/exozen_logo1.png" alt="Brand Logo" width={56} height={32} className="w-14 h-8 object-contain bg-white rounded shadow mr-4" />
@@ -997,7 +1413,7 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
             <h2 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Generate Delivery Challan</h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleRequestClose}
             aria-label="Close modal"
             className={`p-3 rounded-full transition absolute top-4 right-4 z-20 text-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === "dark" ? "hover:bg-blue-900 text-gray-400 hover:text-blue-300" : "hover:bg-blue-100 text-gray-600 hover:text-blue-600"}`}
           >
@@ -1067,12 +1483,15 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
                     <FaStore className={`w-5 h-5 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} />
                     <span id="step1-header" className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-blue-900"}`}>Project Selection</span>
                   </div>
-                  <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Select Project <span className="text-red-500">*</span></label>
+                  <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Select Project <span className="text-red-500">*</span>
+                    <span className="ml-1 text-xs text-gray-400" title="Choose the project for which you want to generate a Delivery Challan.">(?)</span>
+                  </label>
                   <select
                     value={selectedProject}
                     onChange={e => {
                       setSelectedProject(e.target.value);
-                      setSelectedRequest(null);
+                      setSelectedRequests([]);
                       setTouched(t => ({ ...t, selectedProject: true }));
                     }}
                     className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
@@ -1112,39 +1531,67 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
                   aria-labelledby="step2-header">
                   <div className="flex items-center gap-2 mb-2">
                     <FaCheckCircle className={`w-5 h-5 ${theme === "dark" ? "text-green-200" : "text-green-700"}`} />
-                    <span id="step2-header" className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-green-900"}`}>Uniform Request</span>
+                    <span id="step2-header" className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-green-900"}`}>Select Employees</span>
                   </div>
-                  <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Uniform Requests <span className="text-red-500">*</span></label>
+                  <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Select Employees <span className="text-red-500">*</span>
+                    <span className="ml-1 text-xs text-gray-400" title="Select the employees whose approved uniform requests should be included in this delivery challan.">(?)</span>
+                  </label>
                   {loading ? (
                     <div className="flex items-center gap-2 text-blue-600">
                       <svg className="animate-spin h-5 w-5 mr-2 text-blue-600" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /></svg>
                       Loading...
                     </div>
                   ) : (
-                    <select
-                      value={selectedRequest?._id || ""}
-                      onChange={e => {
-                        const req = uniformRequests.find(r => r._id === e.target.value) || null;
-                        setSelectedRequest(req);
-                        setTouched(t => ({ ...t, selectedRequest: true }));
-                      }}
-                      className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
-                        ${theme === "dark"
-                          ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-green-900"
-                          : "bg-white border-gray-200 text-gray-900 focus:ring-green-500"
-                        }`}
-                      aria-required="true"
-                    >
-                      <option value="">Select a request</option>
-                      {uniformRequests.map(request => (
-                        <option key={request._id} value={request._id}>
-                          {request.fullName} ({request.employeeId})
-                        </option>
-                      ))}
-                    </select>
+                    <div className={`max-h-60 overflow-y-auto border rounded-lg p-4 ${theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
+                      {uniformRequests.length === 0 ? (
+                        <div className={`text-center py-4 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                          No approved uniform requests found for this project.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {uniformRequests.map(request => (
+                            <label key={request._id} className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors duration-200 ${
+                              theme === "dark" 
+                                ? "hover:bg-gray-800 border border-gray-700" 
+                                : "hover:bg-gray-50 border border-gray-200"
+                            }`}>
+                              <input
+                                type="checkbox"
+                                checked={selectedRequests.some(req => req._id === request._id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedRequests(prev => [...prev, request]);
+                                  } else {
+                                    setSelectedRequests(prev => prev.filter(req => req._id !== request._id));
+                                  }
+                                  setTouched(t => ({ ...t, selectedRequests: true }));
+                                }}
+                                className={`w-4 h-4 rounded border-2 focus:ring-2 focus:ring-offset-2 ${
+                                  theme === "dark" 
+                                    ? "bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500" 
+                                    : "bg-white border-gray-300 text-blue-600 focus:ring-blue-500"
+                                }`}
+                              />
+                              <div className="flex-1">
+                                <div className={`font-medium ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                  {request.fullName}
+                                </div>
+                                <div className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                  ID: {request.employeeId} • {request.designation} • {request.projectName}
+                                </div>
+                                <div className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                                  Uniform: {Array.isArray(request.uniformType) ? request.uniformType.join(", ") : ""} • Qty: {request.qty}
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
-                  {touched.selectedRequest && !isStep2Valid && <div className="text-red-600 text-xs mt-1">Please select a uniform request.</div>}
-                  <div className="text-xs text-gray-500 mt-2">Select an approved uniform request to auto-fill item details for the DC.</div>
+                  {touched.selectedRequests && !isStep2Valid && <div className="text-red-600 text-xs mt-1">Please select at least one employee.</div>}
+                  <div className="text-xs text-gray-500 mt-2">Select the employees whose approved uniform requests should be included in this delivery challan. All selected employees will be grouped under a Signle DC.</div>
                   <div className="flex justify-between mt-6">
                     <button
                       type="button"
@@ -1178,9 +1625,29 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
                     <FaInfoCircle className={`w-5 h-5 ${theme === "dark" ? "text-indigo-200" : "text-indigo-700"}`} />
                     <span id="step3-header" className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-indigo-900"}`}>DC Details</span>
                   </div>
+                  {/* Selected Employees Summary */}
+                  {selectedRequests.length > 0 && (
+                    <div className={`md:col-span-2 p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
+                      <div className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
+                        Selected Employees ({selectedRequests.length})
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {selectedRequests.map((req) => (
+                          <div key={req._id} className={`text-sm p-2 rounded ${theme === "dark" ? "bg-gray-800 text-gray-200" : "bg-white text-gray-700"}`}>
+                            <div className="font-medium">{req.fullName}</div>
+                            <div className="text-xs opacity-75">ID: {req.employeeId} • {req.designation}</div>
+                            <div className="text-xs opacity-75">Qty: {req.qty} • {Array.isArray(req.uniformType) ? req.uniformType.join(", ") : ""}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
-                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Customer <span className="text-red-500">*</span></label>
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                        Customer <span className="text-red-500">*</span>
+                        <span className="ml-1 text-xs text-gray-400" title="Name of the person or entity receiving the delivery.">(?)</span>
+                      </label>
                       <input type="text" value={customer} onChange={e => { setCustomer(e.target.value); setTouched(t => ({ ...t, customer: true })); }}
                         className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
                           ${theme === "dark"
@@ -1191,7 +1658,10 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
                       <div className="text-xs text-gray-500 mt-1">Name of the person or entity receiving the delivery.</div>
                     </div>
                     <div>
-                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>DC Number <span className="text-red-500">*</span></label>
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                        DC Number <span className="text-red-500">*</span>
+                        <span className="ml-1 text-xs text-gray-400" title="Unique identifier for this Delivery Challan.">(?)</span>
+                      </label>
                       <div className="flex gap-2">
                         <input type="text" value={dcNumber} onChange={e => { setDcNumber(e.target.value); setTouched(t => ({ ...t, dcNumber: true })); setDcNumberError(null); }}
                           className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
@@ -1209,7 +1679,10 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
                       <div className="text-xs text-gray-500 mt-1">Unique identifier for this Delivery Challan.</div>
                     </div>
                     <div>
-                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>DC Date <span className="text-red-500">*</span></label>
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                        DC Date <span className="text-red-500">*</span>
+                        <span className="ml-1 text-xs text-gray-400" title="Date of issue for this DC.">(?)</span>
+                      </label>
                       <input type="date" value={dcDate} onChange={e => { setDcDate(e.target.value); setTouched(t => ({ ...t, dcDate: true })); }}
                         className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
                           ${theme === "dark"
@@ -1240,7 +1713,6 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
                       <div className="text-xs text-gray-500 mt-1">Delivery address (optional).</div>
                     </div>
                   </div>
-                  {/* {preview} */}
                   {saveDCError && (
                     <div className={`p-4 rounded-lg border flex items-center gap-2 mt-6
                       ${theme === "dark" ? "bg-red-900 border-red-700 text-red-200" : "bg-red-100 border-red-200 text-red-700"}`}>
@@ -1274,8 +1746,43 @@ function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => v
               )}
             </>
           )}
+          {/* Bottom close button for easier dismissal */}
+          {!success && (
+            <div className="flex justify-center mt-2">
+              <button
+                type="button"
+                onClick={handleRequestClose}
+                className={`px-6 py-2 rounded-lg font-medium border mt-2 transition-all duration-200
+                  ${theme === "dark" ? "bg-gray-800 text-gray-300 border-blue-900 hover:bg-blue-900" : "bg-gray-100 text-blue-700 border-blue-200 hover:bg-blue-200"}`}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
+        {/* Confirm close dialog */}
+        {showCloseConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className={`rounded-xl shadow-xl p-8 bg-white dark:bg-gray-900 border ${theme === "dark" ? "border-blue-900" : "border-blue-200"}`}>
+              <div className="font-bold text-lg mb-2">Discard changes?</div>
+              <div className="mb-4 text-gray-600 dark:text-gray-300">You have unsaved changes. Are you sure you want to close?</div>
+              <div className="flex gap-4 justify-end">
+                <button
+                  className={`px-4 py-2 rounded border ${theme === "dark" ? "bg-gray-800 text-gray-200 border-blue-900 hover:bg-blue-900" : "bg-gray-100 text-blue-700 border-blue-200 hover:bg-blue-200"}`}
+                  onClick={() => setShowCloseConfirm(false)}
+                >Cancel</button>
+                <button
+                  className={`px-4 py-2 rounded border ${theme === "dark" ? "bg-red-900 text-red-100 border-red-700 hover:bg-red-800" : "bg-red-100 text-red-700 border-red-200 hover:bg-red-200"}`}
+                  onClick={() => { setShowCloseConfirm(false); onClose(); }}
+                >Discard</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+// PATCH: In getProjectName, prefer dc.projectName if present (already does this)
+// PATCH: No changes needed in handleDownloadDC or table rendering, as projectName is now always present in new DCs
