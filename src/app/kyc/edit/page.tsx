@@ -1709,7 +1709,7 @@ export default function EditKYC() {
                               <option value="">Select ID Type</option>
                               <option value="Aadhar">Aadhar</option>
                               <option value="PAN">PAN</option>
-                              <option value="Passport">Passport</option>
+                              <option value="Passbook">Passbook</option>
                               <option value="Driving License">Driving License</option>
                             </select>
                           </div>

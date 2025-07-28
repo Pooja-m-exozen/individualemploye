@@ -12,7 +12,7 @@ import {
   FaArrowLeft,
   FaIdCard,
   FaIdBadge,
-  FaPassport,
+  // FaPassport,
   FaUserCircle,
   FaQuestionCircle,
 } from "react-icons/fa";
@@ -23,7 +23,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 
 interface DocumentUpload {
-  type: "aadhar" | "pan" | "passport" | "photo";
+  type: "aadhar" | "pan" | "passbook" | "photo";
   file: File | null;
   preview: string | null;
   uploading: boolean;
@@ -31,7 +31,7 @@ interface DocumentUpload {
   success: boolean;
 }
 
-type DocumentType = "aadhar" | "pan" | "passport" | "photo";
+type DocumentType = "aadhar" | "pan" | "passbook" | "photo";
 
 const documentInfo = {
   aadhar: {
@@ -48,12 +48,12 @@ const documentInfo = {
     formats: "PDF, JPG, PNG (max 5MB)",
     icon: FaIdBadge,
   },
-  passport: {
-    label: "Passport",
-    description: "Upload the first and last page of your passport",
+  passbook: {
+    label: "Bank Passbook",
+    description: "Upload a clear copy of your bank passbook's first page",
     required: false,
     formats: "PDF, JPG, PNG (max 5MB)",
-    icon: FaPassport,
+    icon: FaFileAlt,
   },
   photo: {
     label: "Profile Photo",
@@ -84,8 +84,8 @@ export default function UploadDocuments() {
       error: null,
       success: false,
     },
-    passport: {
-      type: "passport",
+    passbook: {
+      type: "passbook",
       file: null,
       preview: null,
       uploading: false,
@@ -155,8 +155,8 @@ export default function UploadDocuments() {
 
     try {
       const formData = new FormData();
-      formData.append("document", doc.file); // Use 'document' key
-      formData.append("documentType", type); // Use 'documentType' key
+      formData.append("file", doc.file);
+      formData.append("type", type);
 
       const response = await fetch(
         `https://cafm.zenapi.co.in/api/kyc/${employeeId}/upload-document`,
@@ -640,7 +640,7 @@ export default function UploadDocuments() {
             <div className="grid grid-cols-1 gap-6">
               <DocumentUploadCard type="aadhar" label="Aadhar Card" required />
               <DocumentUploadCard type="pan" label="PAN Card" required />
-              <DocumentUploadCard type="passport" label="Passport" />
+              <DocumentUploadCard type="passbook" label="Bank Passbook" />
               <DocumentUploadCard type="photo" label="Profile Photo" required />
             </div>
 

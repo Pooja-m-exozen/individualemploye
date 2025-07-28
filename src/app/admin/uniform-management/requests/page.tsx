@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
+import AdminDashboardLayout from '@/components/dashboard/AdminDashboardLayout';
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
@@ -339,20 +339,19 @@ export default function UniformRequestsPage() {
       <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'} flex flex-col py-8 pt-8`}>
         <div className="max-w-7xl mx-auto w-full">
           {/* Header */}
-          <div className={`rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-0 shadow-lg ${theme === 'dark' ? 'bg-[#2d3748] text-blue-100' : ''}`} style={theme === 'dark' ? {} : { background: '#1769ff' }}>
-            <div className="flex items-center gap-6">
-              <div className={`${theme === 'dark' ? 'bg-[#384152]' : 'bg-white/20'} rounded-full p-4 flex items-center justify-center`}>
-                <FaTshirt className="w-10 h-10 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white mb-1">Uniform Requests</h1>
-                {/* Pending badge */}
-                {requests.filter(r => r.status === 'Pending').length > 0 && (
-                  <span className="inline-block bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full mt-2">
-                    {requests.filter(r => r.status === 'Pending').length} Pending
-                  </span>
-                )}
-              </div>
+          <div className={`mb-8 rounded-2xl p-8 flex items-center gap-6 shadow-lg bg-gradient-to-r ${
+            theme === "dark"
+              ? "from-gray-900 to-gray-800"
+              : "from-blue-600 to-blue-500"
+          }`}>
+            <div className={`flex items-center justify-center w-16 h-16 rounded-xl ${
+              theme === "dark" ? "bg-gray-800 bg-opacity-60" : "bg-blue-500 bg-opacity-30"
+            }`}>
+              <FaTshirt className="w-8 h-8 text-white" />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-white">Uniform Requests</h1>
+              <p className="text-lg text-blue-100">Approve or reject pending uniform requests</p>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -440,46 +439,114 @@ export default function UniformRequestsPage() {
           {/* Create Request Modal */}
           {showCreateModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-              <div className={`rounded-2xl shadow-2xl p-8 w-full max-w-3xl relative animate-fade-in ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white'}`}
-                style={{ minHeight: '400px' }}>
+              <div className={`rounded-2xl shadow-2xl w-full max-w-3xl relative animate-fade-in ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white'}`}
+                style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
                 {toast && (
                   <div className={`absolute top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-lg text-white font-semibold text-base flex items-center gap-3 z-50 animate-fade-in ${toast.type === "success" ? "bg-green-500" : "bg-red-500"}`}
                     style={{ minWidth: '250px', maxWidth: '90%' }}>
                     {toast.type === "success" ? <FaCheckCircle /> : <FaTimesCircle />} {toast.message}
                   </div>
                 )}
-                <button
-                  className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
-                  onClick={() => setShowCreateModal(false)}
-                  title="Close"
-                >×</button>
-                <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}><FaTshirt /> Create Uniform Request</h2>
-                <form onSubmit={handleCreateRequest} className="space-y-5">
-                  <div>
-                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee ID</label>
-                    <input
-                      type="text"
-                      className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
-                      placeholder="Enter employee ID..."
-                      value={newRequest.employeeId}
-                      onChange={e => setNewRequest(r => ({ ...r, employeeId: e.target.value }))}
-                      required
-                    />
-                    {employeeDetails && (
-                      <div className="mt-1 text-sm text-blue-500">
-                        Name: {employeeDetails.fullName} | Designation: {employeeDetails.designation} | Project: {employeeDetails.projectName} | Gender: {employeeDetails.gender}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items (Max total qty: {maxQuantity})</label>
-                    {optionsLoading ? (
-                      <div className="text-blue-400">Loading options...</div>
-                    ) : optionsError ? (
-                      <div className="text-red-500">{optionsError}</div>
-                    ) : (
-                      <div className="overflow-x-auto max-h-64 border rounded-lg mb-2">
-                        <table className="min-w-full text-xs">
+                <div className="p-8 border-b">
+                  <button
+                    className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
+                    onClick={() => setShowCreateModal(false)}
+                    title="Close"
+                  >×</button>
+                  <h2 className={`text-2xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>
+                    <FaTshirt /> Create Uniform Request
+                  </h2>
+                </div>
+                
+                <div className="overflow-y-auto flex-1 p-8">
+                  <form id="createRequestForm" onSubmit={handleCreateRequest} className="space-y-5">
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Employee ID</label>
+                      <input
+                        type="text"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                        placeholder="Enter employee ID..."
+                        value={newRequest.employeeId}
+                        onChange={e => setNewRequest(r => ({ ...r, employeeId: e.target.value }))}
+                        required
+                      />
+                      {employeeDetails && (
+                        <div className="mt-1 text-sm text-blue-500">
+                          Name: {employeeDetails.fullName} | Designation: {employeeDetails.designation} | Project: {employeeDetails.projectName} | Gender: {employeeDetails.gender}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items (Max total qty: {maxQuantity})</label>
+                      {optionsLoading ? (
+                        <div className="text-blue-400">Loading options...</div>
+                      ) : optionsError ? (
+                        <div className="text-red-500">{optionsError}</div>
+                      ) : (
+                        <div className="overflow-x-auto max-h-64 border rounded-lg mb-2">
+                          <table className="min-w-full text-xs">
+                            <thead>
+                              <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
+                                <th className="px-2 py-1">Type</th>
+                                <th className="px-2 py-1">Size/Set</th>
+                                <th className="px-2 py-1">Qty</th>
+                                <th className="px-2 py-1"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {uniformOptions.map(option => (
+                                (option.sizes || option.set)?.map((sizeOrSet: string) => (
+                                  <tr key={option.type + sizeOrSet}>
+                                    <td className="px-2 py-1">{option.type}</td>
+                                    <td className="px-2 py-1">{sizeOrSet}</td>
+                                    <td className="px-2 py-1">
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        max={maxQuantity}
+                                        defaultValue={1}
+                                        className="w-16 border rounded px-1 py-0.5"
+                                        id={`qty-${option.type}-${sizeOrSet}`}
+                                      />
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <button
+                                        type="button"
+                                        className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                                        onClick={() => {
+                                          const qtyInput = document.getElementById(`qty-${option.type}-${sizeOrSet}`) as HTMLInputElement;
+                                          const qty = Number(qtyInput?.value || 1);
+                                          // Prevent exceeding maxQuantity
+                                          const totalQty = selectedUniforms.reduce((acc, u) => acc + u.qty, 0) + qty;
+                                          if (totalQty > maxQuantity) {
+                                            setToast({ type: 'error', message: `Total quantity cannot exceed ${maxQuantity}` });
+                                            setTimeout(() => setToast(null), 3500);
+                                            return;
+                                          }
+                                          setSelectedUniforms(prev => [
+                                            ...prev,
+                                            {
+                                              type: option.type,
+                                              size: sizeOrSet,
+                                              qty
+                                            }
+                                          ]);
+                                        }}
+                                      >Add</button>
+                                    </td>
+                                  </tr>
+                                ))
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                    {/* Selected Uniforms Table */}
+                    {selectedUniforms.length > 0 && (
+                      <div className="mb-2">
+                        <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Selected Items</label>
+                        <table className="min-w-full text-xs border rounded">
                           <thead>
                             <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
                               <th className="px-2 py-1">Type</th>
@@ -489,100 +556,44 @@ export default function UniformRequestsPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {uniformOptions.map(option => (
-                              (option.sizes || option.set)?.map((sizeOrSet: string) => (
-                                <tr key={option.type + sizeOrSet}>
-                                  <td className="px-2 py-1">{option.type}</td>
-                                  <td className="px-2 py-1">{sizeOrSet}</td>
-                                  <td className="px-2 py-1">
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      max={maxQuantity}
-                                      defaultValue={1}
-                                      className="w-16 border rounded px-1 py-0.5"
-                                      id={`qty-${option.type}-${sizeOrSet}`}
-                                    />
-                                  </td>
-                                  <td className="px-2 py-1">
-                                    <button
-                                      type="button"
-                                      className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                                      onClick={() => {
-                                        const qtyInput = document.getElementById(`qty-${option.type}-${sizeOrSet}`) as HTMLInputElement;
-                                        const qty = Number(qtyInput?.value || 1);
-                                        // Prevent exceeding maxQuantity
-                                        const totalQty = selectedUniforms.reduce((acc, u) => acc + u.qty, 0) + qty;
-                                        if (totalQty > maxQuantity) {
-                                          setToast({ type: 'error', message: `Total quantity cannot exceed ${maxQuantity}` });
-                                          setTimeout(() => setToast(null), 3500);
-                                          return;
-                                        }
-                                        setSelectedUniforms(prev => [
-                                          ...prev,
-                                          {
-                                            type: option.type,
-                                            size: sizeOrSet,
-                                            qty
-                                          }
-                                        ]);
-                                      }}
-                                    >Add</button>
-                                  </td>
-                                </tr>
-                              ))
+                            {selectedUniforms.map((u, idx) => (
+                              <tr key={u.type + u.size}>
+                                <td className="px-2 py-1">{u.type}</td>
+                                <td className="px-2 py-1">{u.size}</td>
+                                <td className="px-2 py-1">{u.qty}</td>
+                                <td className="px-2 py-1">
+                                  <button type="button" className="text-red-500" onClick={() => setSelectedUniforms(prev => prev.filter((_, i) => i !== idx))}>Remove</button>
+                                </td>
+                              </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                     )}
-                  </div>
-                  {/* Selected Uniforms Table */}
-                  {selectedUniforms.length > 0 && (
-                    <div className="mb-2">
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Selected Items</label>
-                      <table className="min-w-full text-xs border rounded">
-                        <thead>
-                          <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
-                            <th className="px-2 py-1">Type</th>
-                            <th className="px-2 py-1">Size/Set</th>
-                            <th className="px-2 py-1">Qty</th>
-                            <th className="px-2 py-1"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedUniforms.map((u, idx) => (
-                            <tr key={u.type + u.size}>
-                              <td className="px-2 py-1">{u.type}</td>
-                              <td className="px-2 py-1">{u.size}</td>
-                              <td className="px-2 py-1">{u.qty}</td>
-                              <td className="px-2 py-1">
-                                <button type="button" className="text-red-500" onClick={() => setSelectedUniforms(prev => prev.filter((_, i) => i !== idx))}>Remove</button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Remarks</label>
+                      <input
+                        type="text"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                        placeholder="Remarks..."
+                        value={newRequest.remarks}
+                        onChange={e => setNewRequest(r => ({ ...r, remarks: e.target.value }))}
+                      />
                     </div>
-                  )}
-                  <div>
-                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Remarks</label>
-                    <input
-                      type="text"
-                      className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
-                      placeholder="Remarks..."
-                      value={newRequest.remarks}
-                      onChange={e => setNewRequest(r => ({ ...r, remarks: e.target.value }))}
-                    />
-                  </div>
+                  </form>
+                </div>
+
+                <div className="p-8 border-t">
                   <button
                     type="submit"
+                    form="createRequestForm"
                     disabled={createLoading || !newRequest.employeeId || selectedUniforms.length === 0}
-                    className={`w-full py-2 rounded-xl font-bold shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
+                    className={`w-full py-2 rounded-xl font-bold shadow transition-all disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
                   >
-                    {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}Create Request
+                    {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}
+                    Create Request
                   </button>
-                </form>
+                </div>
               </div>
             </div>
           )}

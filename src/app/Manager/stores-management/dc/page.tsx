@@ -1,11 +1,12 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter, FaCheckCircle,  FaPlus, FaTimes } from "react-icons/fa";
-import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { showToast } from "@/components/Toast";
 
 const guidelines = [
   "All DC records are updated in real-time as per store records.",
@@ -15,6 +16,11 @@ const guidelines = [
 
 // TypeScript types for API response
 interface DCItem {
+  employeeId: string;
+  itemCode: string;
+  name: string;
+  price: string;
+  remarks: string;
   itemId: string;
   quantity: number;
   size: string;
@@ -37,22 +43,21 @@ interface ApiResponse {
   dcs: DC[];
 }
 
-function getStatusColor(status: string, theme: string) {
-  switch (status.toLowerCase()) {
-    case "issued":
-      return theme === "dark"
-        ? "bg-emerald-900 text-emerald-200 border-emerald-700"
-        : "bg-emerald-100 text-emerald-800 border-emerald-200";
-    case "pending":
-      return theme === "dark"
-        ? "bg-amber-900 text-amber-200 border-amber-700"
-        : "bg-amber-100 text-amber-800 border-amber-200";
-    default:
-      return theme === "dark"
-        ? "bg-gray-700 text-gray-200 border-gray-600"
-        : "bg-gray-100 text-gray-800 border-gray-200";
-  }
-}
+// Add new interface for preview data
+// interface DCPreviewData {
+//   dcNumber: string;
+//   dcDate: string;
+//   customer: string;
+//   address: string;
+//   remarks: string;
+//   items: Array<{
+//     itemCode: string;
+//     name: string;
+//     size: string;
+//     quantity: number;
+//     employeeId: string;
+//   }>;
+// }
 
 export default function StoreDCPage() {
   const { theme } = useTheme();
@@ -63,6 +68,7 @@ export default function StoreDCPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDC, setSelectedDC] = useState<DC | null>(null);
+  const [uniformReq, setUniformReq] = useState<any>(null);
 
   useEffect(() => {
     const fetchDCs = async () => {
@@ -86,6 +92,21 @@ export default function StoreDCPage() {
     fetchDCs();
   }, []);
 
+  useEffect(() => {
+    async function fetchUniform() {
+      if (selectedDC) {
+        const req = await fetchUniformRequestForCustomer(
+          selectedDC.items[0]?.employeeId,
+          selectedDC.customer
+        );
+        setUniformReq(req);
+      } else {
+        setUniformReq(null);
+      }
+    }
+    fetchUniform();
+  }, [selectedDC]);
+
   // Map API data to table structure
   const mappedDC = dcData.map(dc => ({
     ...dc,
@@ -105,6 +126,197 @@ export default function StoreDCPage() {
     ) : true;
     return matchesStatus && matchesSearch;
   });
+
+  // Download DC as PDF (only required fields)
+  const handleDownloadDC = async (dc: DC) => {
+    // Fetch uniform request for this customer
+    const uniformReq = await fetchUniformRequestForCustomer(
+      dc.items[0]?.employeeId,
+      dc.customer
+    );
+    const doc = new jsPDF();
+    (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = undefined;
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 12;
+
+    // Logo
+    try {
+      doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 10, y, 25, 12);
+    } catch {
+      // Ignore logo error
+    }
+
+    // Company Name & Address
+    doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 10, y, 25, 12);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Exozen Facility Management Services Pvt Ltd", pageWidth / 2, y + 7, { align: "center" });
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("25/1, 4th floor, Skip House, Museum road, Near Brigade Tower, Bangalore- 560073 Karnataka", pageWidth / 2, y + 13, { align: "center" });
+
+    // Outer border
+    doc.setDrawColor(180);
+    doc.rect(5, 6, pageWidth - 10, 170, 'S');
+
+    y += 20;
+
+    // DC No and Date row
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`DC No: ${dc.dcNumber}`, 12, y);
+    doc.text(`Date: ${dc.dcDate ? dc.dcDate.split("T")[0] : ""}`, pageWidth - 60, y);
+
+    y += 6;
+
+    // From/To boxes
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("From:", 12, y + 5);
+    doc.text("To:", pageWidth / 2 + 2, y + 5);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.rect(12, y + 7, pageWidth / 2 - 18, 18);
+    doc.text("Exozen Facility Management Services Pvt Ltd\n25/1, 4th floor, Skip House, Museum road, Near Brigade Tower, Bangalore - 560073 Karnataka", 14, y + 12, { maxWidth: pageWidth / 2 - 22 });
+    doc.rect(pageWidth / 2 + 2, y + 7, pageWidth / 2 - 18, 18);
+    doc.text(dc.customer || "", pageWidth / 2 + 4, y + 12, { maxWidth: pageWidth / 2 - 22 });
+
+    y += 28;
+
+    // Remarks box
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Remarks:", 12, y + 5);
+    doc.setFont("helvetica", "normal");
+    doc.rect(12, y + 7, pageWidth - 28, 12);
+    doc.text(dc.remarks || "", 14, y + 13, { maxWidth: pageWidth - 32 });
+
+    y += 22;
+
+    // Table - Remove Employee ID column
+    autoTable(doc, {
+      startY: y,
+      head: [["Sl.No", "Employee Name", "Project", "Designation", "Uniform Types", "Sizes", "Quantity"]],
+      body: dc.items.map((item, idx) => [
+        idx + 1,
+        dc.customer,
+        uniformReq ? uniformReq.projectName : "",
+        uniformReq ? uniformReq.designation : "",
+        uniformReq
+          ? (Array.isArray(uniformReq.uniformType)
+              ? uniformReq.uniformType.join("\n") // Multi-line for many types
+              : "")
+          : "",
+        uniformReq
+          ? (uniformReq.uniformType && typeof uniformReq.size === 'object'
+              ? uniformReq.uniformType.map((type: string) => `${type}: ${uniformReq.size[type] || ''}`).join("\n") // Multi-line for many sizes
+              : "")
+          : "",
+        item.quantity
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold', fontSize: 9 },
+      styles: { fontSize: 9, cellPadding: 2, textColor: 20 }, // Force black text
+      margin: { left: 12, right: 12 },
+      tableWidth: pageWidth - 24,
+    });
+
+    // Get Y after table
+    const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
+
+    // Terms & Conditions
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Terms & Conditions", 12, finalY + 8);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery.", 12, finalY + 13);
+    doc.text("2. Goods are delivered after careful checking.", 12, finalY + 18);
+
+    // Signature lines
+    const sigY = finalY + 32;
+    doc.setDrawColor(120);
+    doc.line(20, sigY, 60, sigY);
+    doc.text("Initiated by", 28, sigY + 5);
+    doc.line(pageWidth / 2 - 20, sigY, pageWidth / 2 + 20, sigY);
+    doc.text("Received by", pageWidth / 2 - 8, sigY + 5);
+    doc.line(pageWidth - 60, sigY, pageWidth - 20, sigY);
+    doc.text("Issued by", pageWidth - 50, sigY + 5);
+
+    doc.save(`DC_${dc.dcNumber}.pdf`);
+  };
+
+  // Download all DCs as summary PDF (styled, with logo and table)
+  const handleDownloadAllDCs = () => {
+    const doc = new jsPDF();
+    (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = undefined;
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 12;
+
+    // Logo (optional, handle error if not found)
+    try {
+      doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 10, y, 25, 12);
+    } catch {
+      // Ignore logo error
+    }
+
+    // Company Name & Address
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Exozen Facility Management Services Pvt Ltd", pageWidth / 2, y + 7, { align: "center" });
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("25/1, 4th floor, Skip House, Museum road, Near Brigade Tower, Bangalore- 560073 Karnataka", pageWidth / 2, y + 13, { align: "center" });
+
+    y += 22;
+
+    // Table Title
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Delivery Challan Summary", pageWidth / 2, y, { align: "center" });
+
+    y += 8;
+
+    // Table - Only required columns: Sl.No, Customer, DC Number, Quantity, Size
+    autoTable(doc, {
+      startY: y,
+      head: [["Sl.No", "Customer", "DC Number", "Quantity", "Size"]],
+      body: dcData.map((dc, idx) => [
+        idx + 1,
+        dc.customer,
+        dc.dcNumber,
+        dc.items.map(item => item.quantity).join(", "),
+        dc.items.map(item => item.size).join(", ")
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 10 },
+      styles: { fontSize: 9, cellPadding: 2 },
+      margin: { left: 12, right: 12 },
+      tableWidth: pageWidth - 24,
+    });
+
+    // Get Y after table
+    const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
+
+    // Terms & Conditions
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Terms & Conditions", 14, finalY + 8);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery.", 14, finalY + 13);
+    doc.text("2. Goods are delivered after careful checking.", 14, finalY + 18);
+
+    // Footer
+    doc.setFontSize(10);
+    doc.text("Initiated by", 14, finalY + 32);
+    doc.text("Received by", 80, finalY + 32);
+    doc.text("Issued by", 150, finalY + 32);
+
+    doc.save("All_DCs_Summary.pdf");
+  };
 
   return (
     <ManagerDashboardLayout>
@@ -178,6 +390,16 @@ export default function StoreDCPage() {
           </div>
           {/* Right Panel - Search, Filter, DC Table */}
           <div className="flex-1 flex flex-col gap-6">
+            {/* Download All DCs PDF Button */}
+            <div className="flex justify-end mb-2">
+              <button
+                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-base font-semibold shadow transition border-2 ${theme === "dark" ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" : "bg-blue-600 text-white border-blue-700 hover:bg-blue-700"}`}
+                onClick={handleDownloadAllDCs}
+              >
+                <FaBoxOpen className="w-4 h-4" />
+                Download All DCs PDF
+              </button>
+            </div>
             {/* Search and Filter Row */}
             <div className="flex flex-col md:flex-row gap-4 mb-2 items-start md:items-center">
               <div className="relative w-full md:w-1/2">
@@ -206,8 +428,10 @@ export default function StoreDCPage() {
             </div>
             {/* DC Table */}
             <div className="w-full rounded-2xl shadow-xl transition-colors duration-300">
-              <div className="w-full overflow-x-auto">
-                <table className={`min-w-max table-fixed divide-y ${theme === "dark" ? "divide-blue-900" : "divide-blue-100"}`}>
+              {/* Restrict height and enable both scrollbars */}
+              <div className="w-full h-[320px] overflow-x-auto overflow-y-auto">
+                {/* Increase min-w to force horizontal scroll on smaller screens */}
+                <table className={`min-w-[800px] table-fixed divide-y`} /* Remove theme-based text color for tbody */>
                   <thead className={theme === "dark" ? "bg-blue-950" : "bg-blue-50"}>
                     <tr>
                       <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Number</th>
@@ -217,7 +441,7 @@ export default function StoreDCPage() {
                       <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className={theme === "dark" ? "divide-y divide-blue-950" : "divide-y divide-blue-50"}>
+                  <tbody>
                     {loading ? (
                       <tr>
                         <td colSpan={5} className="py-12 text-center text-blue-600 font-semibold">Loading DC records...</td>
@@ -233,22 +457,25 @@ export default function StoreDCPage() {
                     ) : (
                       filteredDC.map((dc, idx) => (
                         <tr key={idx} className={`transition ${theme === "dark" ? "hover:bg-blue-950" : "hover:bg-blue-100"}`}>
-                          <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-900"}`}>{dc.dcNumber}</td>
-                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
-                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>{dc.customer}</td>
+                          <td className="px-4 py-3 font-bold text-black">{dc.dcNumber}</td>
+                          <td className="px-4 py-3 text-black">{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
+                          <td className="px-4 py-3 text-black">{dc.customer}</td>
+                          <td className="px-4 py-3 text-black">{dc.status}</td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor('Issued', theme)} ${theme === "dark" ? "text-emerald-200" : "text-emerald-800"}`}>
-                              <FaCheckCircle className="w-3 h-3 mr-1" />
-                              Issued
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <button
-                              className={`px-4 py-1 rounded-lg font-semibold text-sm transition shadow ${theme === "dark" ? "bg-blue-900 text-blue-200 hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
-                              onClick={() => setSelectedDC(dc)}
-                            >
-                              View
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition ${theme === "dark" ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" : "bg-blue-600 text-white border-blue-700 hover:bg-blue-700"}`}
+                                onClick={() => setSelectedDC(dc)}
+                              >
+                                View
+                              </button>
+                              <button
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition ${theme === "dark" ? "bg-green-900 text-green-200 border-green-700 hover:bg-green-800" : "bg-green-600 text-white border-green-700 hover:bg-green-700"}`}
+                                onClick={() => handleDownloadDC(dc)}
+                              >
+                                Download DC
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -268,21 +495,62 @@ export default function StoreDCPage() {
                     <FaTimes className="w-6 h-6" />
                   </button>
                   <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Delivery Challan Details</h2>
-                  <div className={`space-y-3 max-h-[60vh] overflow-y-auto pr-2 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>
-                    <div><span className={`font-semibold ${theme === "dark" ? "text-gray-100" : "text-black"}`}>DC Number:</span> {selectedDC.dcNumber}</div>
-                    <div><span className={`font-semibold ${theme === "dark" ? "text-gray-100" : "text-black"}`}>Date:</span> {selectedDC.dcDate ? selectedDC.dcDate.split('T')[0] : ''}</div>
-                    <div><span className={`font-semibold ${theme === "dark" ? "text-gray-100" : "text-black"}`}>Issued To:</span> {selectedDC.customer}</div>
-                    <div><span className={`font-semibold ${theme === "dark" ? "text-gray-100" : "text-black"}`}>Status:</span> Issued</div>
-                    <div><span className={`font-semibold ${theme === "dark" ? "text-gray-100" : "text-black"}`}>Remarks:</span> {selectedDC.remarks}</div>
+                  <div className={`space-y-4 max-h-[60vh] overflow-y-auto pr-2 text-black`}> 
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="font-semibold">DC Number:</span>
+                        <span className="ml-2">{selectedDC.dcNumber}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold">Date:</span>
+                        <span className="ml-2">{selectedDC.dcDate ? selectedDC.dcDate.split('T')[0] : ''}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold">Customer:</span>
+                        <span className="ml-2">{selectedDC.customer}</span>
+                      </div>
+                    </div>
+                    {/* Uniform Request Details */}
+                    <UniformRequestDetails employeeId={selectedDC.items[0]?.employeeId} fullName={selectedDC.customer} />
                     <div>
-                      <span className={`font-semibold ${theme === "dark" ? "text-gray-100" : "text-black"}`}>Items:</span>
-                      <ul className="list-disc ml-6 mt-1">
+                      <span className="font-semibold block mb-2">Items:</span>
+                      <div className="space-y-3">
                         {selectedDC.items.map((item, i) => (
-                          <li key={i} className={theme === "dark" ? "text-gray-100" : "text-black"}>
-                            ID: {item.itemId} (Qty: {item.quantity}, Size: {item.size})
-                          </li>
+                          <div key={i} className={`rounded-lg p-4 border flex flex-col md:flex-row md:items-center gap-2 ${theme === "dark" ? "bg-blue-950 border-blue-900" : "bg-blue-50 border-blue-100"}`}>
+                            <div className="flex-1 flex flex-wrap gap-4">
+                              <div><span className="font-semibold">Sl.No:</span> {i + 1}</div>
+                              <div><span className="font-semibold">Employee Name:</span> {selectedDC.customer}</div>
+                              <div><span className="font-semibold">Employee ID:</span> {item.employeeId || "-"}</div>
+                              <div><span className="font-semibold">Project:</span> {uniformReq && uniformReq.projectName ? uniformReq.projectName : "-"}</div>
+                              <div><span className="font-semibold">Designation:</span> {uniformReq && uniformReq.designation ? uniformReq.designation : "-"}</div>
+                              <div>
+                                <span className="font-semibold">Uniform Types:</span>
+                                <div>
+                                  {uniformReq && Array.isArray(uniformReq.uniformType)
+                                    ? uniformReq.uniformType.map((type: string, idx: number) => (
+                                        <div key={idx}>{type}</div>
+                                      ))
+                                    : "-"}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-semibold">Sizes:</span>
+                                <div>
+                                  {uniformReq && uniformReq.uniformType && typeof uniformReq.size === 'object'
+                                    ? uniformReq.uniformType.map((type: string, idx: number) => (
+                                        <div key={idx}>{type}: {uniformReq.size[type] || ''}</div>
+                                      ))
+                                    : "-"}
+                                </div>
+                              </div>
+                              <div><span className="font-semibold">Quantity:</span> {item.quantity}</div>
+                            </div>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
+                    </div>
+                    <div className={`mt-4 p-3 rounded-lg border ${theme === "dark" ? "bg-yellow-900 border-yellow-700 text-yellow-200" : "bg-yellow-50 border-yellow-200 text-yellow-700"}`}>
+                      <span className="font-semibold">Remarks:</span> {selectedDC.remarks}
                     </div>
                   </div>
                 </div>
@@ -297,6 +565,7 @@ export default function StoreDCPage() {
               onClose={() => setShowCreate(false)}
               theme={theme}
               setDcData={setDcData}
+              dcData={dcData}
             />
           </div>
         )}
@@ -305,787 +574,705 @@ export default function StoreDCPage() {
   );
 }
 
-interface Item {
-  _id: string;
-  itemCode: string;
-  category: string;
-  subCategory: string;
-  name: string;
-  sizes: string[];
-  sizeInventory: {
-    size: string;
-    quantity: number;
-    unit: string;
-    price: string;
-    openingBalance: number;
+// interface SelectedItem {
+//   id: string;
+//   name: string;
+//   itemCode: string;
+//   size: string;
+//   quantity: number;
+//   employeeId: string;
+//   unit: string;
+//   stock: number;
+// }
+
+// type DisplayItem = SelectedItem & { price?: string; remarks?: string };
+
+interface UniformApiResponse {
+  success: boolean;
+  message: string;
+  uniforms: Array<{
+    items: unknown;
     _id: string;
-  }[];
-  description: string;
-}
-
-interface SelectedItem {
-  id: string;
-  name: string;
-  itemCode: string;
-  size: string;
-  quantity: number;
-  employeeId: string;
-  unit: string;
-  stock: number;
-}
-
-type DisplayItem = SelectedItem & { price?: string; remarks?: string };
-
-function CreateDCModal({ onClose, theme, setDcData }: { onClose: () => void; theme: string; setDcData: React.Dispatch<React.SetStateAction<DC[]>> }) {
-  const [items, setItems] = useState<Item[]>([]);
-  const [loadingItems, setLoadingItems] = useState(true);
-  const [errorItems, setErrorItems] = useState<string | null>(null);
-  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
-  const [qtyInputs, setQtyInputs] = useState<{ [key: string]: string }>({});
-  const [issueTo, setIssueTo] = useState("");
-  const [department, setDepartment] = useState("");
-  const [purpose, setPurpose] = useState("");
-  const [address, setAddress] = useState("");
-  const [employeeId, setEmployeeId] = useState("");
-  const [issuing, setIssuing] = useState(false);
-  const [issueError, setIssueError] = useState<string | null>(null);
-  const [issueSuccess, setIssueSuccess] = useState<string | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState("All");
-  const [search, setSearch] = useState("");
-  const [perRow, setPerRow] = useState(2);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showGenerateDCModal, setShowGenerateDCModal] = useState(false);
-  const [issuedDCs, setIssuedDCs] = useState<{
-    issueTo: string;
-    department: string;
-    purpose: string;
-    address: string;
-    items: SelectedItem[];
-    date: string;
-  }[]>([]); // Store issued DCs for table
-  const [lastIssuedItems, setLastIssuedItems] = useState<{
-    issueTo: string;
-    department: string;
-    purpose: string;
-    address: string;
-    items: SelectedItem[];
-    date: string;
-  } | null>(null);
-  const [showOutwardDCModal, setShowOutwardDCModal] = useState(false);
-  const [dcForm, setDcForm] = useState({
-    customer: '',
-    dcNumber: '',
-    dcDate: '',
-    remarks: '',
-    address: '',
-  });
-  const [savingDC, setSavingDC] = useState(false);
-  const [saveDCError, setSaveDCError] = useState('');
-
-  const [showDCPreviewModal, setShowDCPreviewModal] = useState(false);
-  const [dcPreviewData, setDcPreviewData] = useState<{
-    customer: string;
-    dcNumber: string;
-    dcDate?: string;
+    employeeId: string;
+    fullName: string;
+    designation: string;
+    gender: string;
+    projectName: string;
+    uniformType: string[];
+    size: Record<string, string>;
+    qty: number;
+    uniformRequested: boolean;
+    approvalStatus: string;
+    issuedStatus: string;
     remarks: string;
-    address: string;
-    items: SelectedItem[];
-    date?: string;
-  } | null>(null);
-  const [showOutwardSuccessModal, setShowOutwardSuccessModal] = useState(false);
+    requestDate: string;
+    type: string[];
+  }>;
+}
 
+// 1. Add a helper to fetch uniform request for a customer
+async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<any> {
+  try {
+    const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+    const data = await res.json();
+    if (data.success) {
+      // Try to match by employeeId first, fallback to fullName
+      return data.uniforms.find((u: any) => u.employeeId === employeeId) ||
+             data.uniforms.find((u: any) => u.fullName === fullName);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
+// Add UniformRequestDetails component after StoreDCPage
+function UniformRequestDetails({ employeeId, fullName }: { employeeId: string; fullName: string }) {
+  const [uniformReq, setUniformReq] = React.useState<any>(null);
+  React.useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+        const data = await res.json();
+        if (data.success) {
+          const found = data.uniforms.find((u: any) => u.employeeId === employeeId) ||
+                        data.uniforms.find((u: any) => u.fullName === fullName);
+          setUniformReq(found);
+        }
+      } catch {}
+    }
+    if (employeeId || fullName) fetchData();
+  }, [employeeId, fullName]);
+  if (!uniformReq) return null;
+  return (
+    <div className="mb-4">
+      <div className="font-semibold mb-1">Uniform Request Details:</div>
+      <div className="text-sm mb-1"><b>Employee ID:</b> {uniformReq.employeeId}</div>
+      <div className="text-sm mb-1"><b>Full Name:</b> {uniformReq.fullName}</div>
+      <div className="text-sm mb-1"><b>Designation:</b> {uniformReq.designation}</div>
+      <div className="text-sm mb-1"><b>Project:</b> {uniformReq.projectName}</div>
+      <div className="text-sm mb-1"><b>Uniform Types:</b> {Array.isArray(uniformReq.uniformType) ? uniformReq.uniformType.join(", ") : ''}</div>
+      <div className="text-sm mb-1"><b>Sizes:</b> {uniformReq.uniformType && typeof uniformReq.size === 'object' ? uniformReq.uniformType.map((type: string) => `${type}: ${uniformReq.size[type] || ''}`).join(", ") : ''}</div>
+      <div className="text-sm mb-1"><b>Quantity:</b> {uniformReq.qty}</div>
+      <div className="text-sm mb-1"><b>Status:</b> {uniformReq.approvalStatus} / {uniformReq.issuedStatus}</div>
+      <div className="text-sm mb-1"><b>Remarks:</b> {uniformReq.remarks}</div>
+      <div className="text-xs text-gray-500">Request Date: {uniformReq.requestDate ? new Date(uniformReq.requestDate).toLocaleString() : ''}</div>
+    </div>
+  );
+}
+
+// Step-by-step CreateDCModal
+function CreateDCModal({ onClose, theme, setDcData, dcData }: { onClose: () => void; theme: string; setDcData: React.Dispatch<React.SetStateAction<DC[]>>; dcData: DC[] }) {
+  // Prefilled for quick testing
+  const [customer, setCustomer] = useState('');
+  const [dcNumber, setDcNumber] = useState('');
+  const [dcDate, setDcDate] = useState(new Date().toISOString().split('T')[0]);
+  const [remarks, setRemarks] = useState('');
+  const [address, setAddress] = useState('');
+  const [projectList, setProjectList] = useState<string[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [uniformRequests, setUniformRequests] = useState<UniformApiResponse['uniforms']>([]);
+  const [selectedRequest, setSelectedRequest] = useState<UniformApiResponse['uniforms'][0] | null>(null);
+  const [loading, setLoading] = useState(false);
+  // Remove unused error variable
+  // const [error, setError] = useState<string | null>(null);
+  const [saveDCError, setSaveDCError] = useState<string | null>(null);
+  const [step, setStep] = useState(1);
+
+  // Fetch all uniform requests and extract unique project names
   useEffect(() => {
-    setLoadingItems(true);
-    setErrorItems(null);
-    fetch("https://inventory.zenapi.co.in/api/inventory/items")
-      .then(res => res.json())
-      .then(data => {
-        setItems(data);
-        setLoadingItems(false);
-      })
-      .catch(() => {
-        setErrorItems("Failed to fetch items");
-        setLoadingItems(false);
-      });
+    const fetchUniformData = async () => {
+      try {
+        const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+        const data: UniformApiResponse = await res.json();
+        if (data.success) {
+          const uniqueProjects = Array.from(new Set(data.uniforms.map(u => u.projectName)));
+          setProjectList(uniqueProjects);
+        }
+      } catch {
+        // setError("Failed to fetch projects");
+      }
+    };
+    fetchUniformData();
   }, []);
 
-  // Filtered items by search and category
-  const filteredItems = items.filter(item => {
-    const matchesCategory = categoryFilter === "All" || item.category === categoryFilter;
-    const matchesSearch =
-      !search ||
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.itemCode.toLowerCase().includes(search.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  // Filter uniform requests when project is selected
+  useEffect(() => {
+    const fetchUniformRequests = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+        const data: UniformApiResponse = await res.json();
+        if (data.success) {
+          const filteredRequests = data.uniforms.filter(
+            req => req.projectName === selectedProject && req.approvalStatus === 'Approved'
+          );
+          setUniformRequests(filteredRequests);
+        }
+      } catch {
+        // setError("Failed to fetch uniform requests");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Unique categories for filter dropdown
-  const categories = Array.from(new Set(items.map(i => i.category)));
-
-  // Add item to selectedItems
-  const handleAddItem = (item: Item, size: string, unit: string, stock: number) => {
-    const qty = parseInt(qtyInputs[`${item._id}_${size}`] || "");
-    if (!qty || qty < 1 || qty > stock) return;
-    if (!employeeId) {
-      setIssueError("Please enter Employee ID before adding items.");
-      return;
+    if (selectedProject) {
+      fetchUniformRequests();
     }
-    setSelectedItems(prev => [
-      ...prev,
-      {
-        id: item._id,
-        name: item.name,
-        itemCode: item.itemCode,
-        size,
-        quantity: qty,
-        employeeId,
-        unit,
-        stock,
-      },
-    ]);
-    setQtyInputs(prev => ({ ...prev, [`${item._id}_${size}`]: "" }));
-    setIssueError(null);
-  };
+  }, [selectedProject]);
 
-  // Remove item from selectedItems
-  const handleRemoveItem = (idx: number) => {
-    setSelectedItems(prev => prev.filter((_, i) => i !== idx));
-  };
+  // Set customer to employee name when uniform request is selected
+  useEffect(() => {
+    if (selectedRequest) {
+      setCustomer(selectedRequest.fullName);
+    }
+  }, [selectedRequest]);
 
-  // Issue Items API call
-  const handleIssue = async () => {
-    setIssuing(true);
-    setIssueError(null);
-    setIssueSuccess(null);
-    if (!issueTo || !department || !purpose || !address || selectedItems.length === 0) {
-      setIssueError("Please fill all details and select at least one item.");
-      setIssuing(false);
+  // Always enabled, always sends the required payload
+  const handleCreateDC = async () => {
+    if (!selectedRequest) {
+      setSaveDCError("Please select a uniform request.");
       return;
     }
     try {
-      const res = await fetch("https://inventory.zenapi.co.in/api/inventory/issue", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          issueTo,
-          department,
-          purpose,
-          address,
-          items: selectedItems.map(i => ({
-            id: i.id,
-            quantity: i.quantity,
-            size: i.size,
-            employeeId: i.employeeId,
-          })),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || "Failed to issue items");
-      setIssueSuccess(data.message || "Items issued successfully");
-      setSelectedItems([]);
-      setIssueTo("");
-      setDepartment("");
-      setPurpose("");
-      setAddress("");
-      setEmployeeId("");
-      setShowSuccessModal(true);
-      setLastIssuedItems({
-        issueTo,
-        department,
-        purpose,
+      // Fill all item fields for DC and for PDF/view
+      const items = [
+        {
+          id: selectedRequest._id,
+          employeeId: selectedRequest.employeeId,
+          itemCode: Array.isArray(selectedRequest.items) && selectedRequest.items[0] && typeof selectedRequest.items[0] === 'object' && 'type' in selectedRequest.items[0] ? (selectedRequest.items[0] as { type?: string }).type || "" : "",
+          name: Array.isArray(selectedRequest.items) && selectedRequest.items[0] && typeof selectedRequest.items[0] === 'object' && 'type' in selectedRequest.items[0] ? (selectedRequest.items[0] as { type?: string }).type || "" : "",
+          size: typeof selectedRequest.size === 'object' && selectedRequest.uniformType && selectedRequest.uniformType[0] && selectedRequest.size[selectedRequest.uniformType[0]] ? selectedRequest.size[selectedRequest.uniformType[0]] : '',
+          quantity: selectedRequest.qty || 1,
+          price: "", // Add price if available
+          remarks: selectedRequest.remarks || ""
+        }
+      ];
+
+      const payload = {
+        customer: selectedRequest.fullName,
+        dcNumber,
+        dcDate,
+        remarks,
         address,
-        items: selectedItems,
-        date: new Date().toISOString(),
+        items
+      };
+
+      const res = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setIssueError(err.message || "Failed to issue items");
+
+      const data = await res.json();
+
+      if (data.success) {
+        setDcData(prev => [
+          {
+            _id: data.dcId,
+            customer: payload.customer,
+            dcNumber: payload.dcNumber,
+            dcDate: payload.dcDate,
+            remarks: payload.remarks,
+            items: items.map(item => ({
+              itemId: item.id,
+              employeeId: item.employeeId,
+              itemCode: item.itemCode,
+              name: item.name,
+              size: item.size,
+              quantity: item.quantity,
+              price: item.price,
+              remarks: item.remarks,
+              _id: item.id,
+            })),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            __v: 0,
+          },
+          ...prev,
+        ]);
+        setSaveDCError(null);
+        onClose();
       } else {
-        setIssueError("Unknown error");
+        setSaveDCError(data.message || 'Failed to save Outward DC');
       }
-    } finally {
-      setIssuing(false);
+    } catch (err: unknown) {
+      setSaveDCError(err instanceof Error ? err.message : 'Unknown error');
     }
   };
 
-  // Pagination for items
-  const [page, setPage] = useState(1);
-  const itemsPerPage = perRow * 2;
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
-  const pagedItems = filteredItems.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  // Remove unused nextStep and prevStep
+  // const nextStep = () => setStep(s => Math.min(s + 1, 3));
+  // const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
-  // PDF Download Handler (now inside the component)
-  async function handleDownloadPDF() {
-    if (!dcPreviewData) return;
-    const doc = new jsPDF();
+  // Wrap stepLabels in useMemo
+  const stepLabels = React.useMemo(() => ["Project", "Uniform Request", "DC Details"], []);
 
-    // Add logo from public folder
-    const yPosition = 10; // or whatever value you want
-    doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 15, yPosition, 25, 8);
+  // Step navigation
+  // const nextStep = () => setStep(s => Math.min(s + 1, 3));
+  // const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
+  // Stepper labels
+  // const stepLabels = ["Project", "Uniform Request", "DC Details"];
 
-    doc.setFontSize(16);
-    doc.text('Exozen Facility Management Services Pvt Ltd', 10, 35);
-    doc.setFontSize(10);
-    doc.text('25/1, 4th floor, Skip House, Museum road, Near Brigade Tower, Bangalore- 560073 Karnataka', 10, 42);
-    doc.setFontSize(12);
-    doc.text(`DC No: ${dcPreviewData.dcNumber}`, 10, 52);
-    doc.text(`Date: ${dcPreviewData.dcDate}`, 150, 52);
-    doc.setFontSize(10);
-    doc.text('From:', 10, 60);
-    doc.text('Exozen Facility Management Services Pvt Ltd', 10, 65);
-    doc.text('25/1, 4th floor, Skip House, Museum road, Near Brigade Tower, Bangalore- 560073 Karnataka', 10, 70);
-    doc.text('To:', 120, 60);
-    doc.text(dcPreviewData.customer, 120, 65);
-    doc.text(`Address: ${dcPreviewData.address}`, 120, 70);
-    doc.setFontSize(10);
-    doc.text('Remarks:', 10, 80);
-    doc.text(dcPreviewData.remarks, 10, 85);
-    autoTable(doc, {
-      head: [[
-        'Sl.No', 'Employee ID', 'Item Code', 'Item Name', 'Size', 'Qty', 'Price', 'Remarks'
-      ]],
-      body: dcPreviewData.items.map((item: SelectedItem, idx: number) => [
-        idx + 1, item.employeeId, item.itemCode, item.name, item.size, item.quantity, (item as DisplayItem).price ?? '', (item as DisplayItem).remarks ?? ''
-      ]),
-      startY: 90,
-      theme: 'grid',
-      headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0] },
-      bodyStyles: { textColor: [0, 0, 0] },
-      styles: { fontSize: 9 },
-    });
-    doc.setFontSize(10);
-    // If your table always starts at Y=70, and is not too long, you can use a static value like 150 or 180
-    doc.text('Terms & Conditions', 10, 180);
-    doc.text('1. Complaints will be entertained if the goods are received within 24hrs of delivery.', 10, 185);
-    doc.text('2. Goods are delivered after careful checking.', 10, 190);
-    doc.text('Initiated by', 10, 205);
-    doc.text('Received by', 80, 205);
-    doc.text('Issued by', 150, 205);
-    doc.save(`DC-${dcPreviewData.dcNumber}.pdf`);
-  }
+  // Accessibility: trap focus
+  const modalRef = React.useRef<HTMLDivElement>(null);
+  const announceRef = React.useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const modal = modalRef.current;
+    if (!modal) return;
+    const firstFocusable = modal.querySelectorAll(focusableElements)[0] as HTMLElement;
+    const focusable = modal.querySelectorAll(focusableElements);
+    const lastFocusable = focusable[focusable.length - 1] as HTMLElement;
+    function handleTab(e: KeyboardEvent) {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === firstFocusable) {
+          e.preventDefault();
+          lastFocusable.focus();
+        }
+      } else {
+        if (document.activeElement === lastFocusable) {
+          e.preventDefault();
+          firstFocusable.focus();
+        }
+      }
+    }
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    modal.addEventListener('keydown', handleTab);
+    window.addEventListener('keydown', handleEsc);
+    firstFocusable?.focus();
+    return () => {
+      modal.removeEventListener('keydown', handleTab);
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [onClose]);
+
+  // Animation state
+  const [show, setShow] = useState(false);
+  useEffect(() => { setShow(true); }, []);
+
+  // Stepper icons
+  const stepIcons = [
+    <FaStore key="store" className="w-5 h-5" />, 
+    <FaCheckCircle key="check" className="w-5 h-5" />, 
+    <FaInfoCircle key="info" className="w-5 h-5" />
+  ];
+
+  // Field validation
+  const [touched, setTouched] = useState<{[k: string]: boolean}>({});
+  const isStep1Valid = selectedProject !== '';
+  const isStep2Valid = !!selectedRequest;
+  const isStep3Valid = customer.trim() && dcNumber.trim() && dcDate.trim();
+  const [dcNumberError, setDcNumberError] = useState<string | null>(null);
+
+  // Auto-generate DC Number
+  const handleAutoGenerateDCNumber = () => {
+    const random = Math.floor(100000 + Math.random() * 900000);
+    setDcNumber(`DC${random}`);
+    setDcNumberError(null);
+  };
+
+  // Loading overlay and success state
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  // Announce step changes and errors
+  useEffect(() => {
+    if (announceRef.current) {
+      announceRef.current.textContent = `Step ${step}: ${stepLabels[step-1]}`;
+    }
+  }, [step, stepLabels]);
+  useEffect(() => {
+    if (announceRef.current && saveDCError) {
+      announceRef.current.textContent = `Error: ${saveDCError}`;
+    }
+  }, [saveDCError]);
+
+  // Focus management for step
+  useEffect(() => {
+    if (modalRef.current) {
+      const firstInput = modalRef.current.querySelector('input, select, textarea') as HTMLElement;
+      firstInput?.focus();
+    }
+  }, [step]);
+
+  // Responsive: use flex-col on mobile
+  // Subtle step transition animation
+  // Brand accent in header
+
+  // Stepper progress bar
+  const progressPercent = ((step-1)/(stepLabels.length-1))*100;
+
+  // Live preview for step 3
+  // const preview = step === 3 && (
+  //   <div className={`rounded-xl border shadow p-6 mt-8 mb-2 transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-blue-900" : "bg-white border-blue-100"}`}
+  //     aria-label="Delivery Challan Preview">
+  //     <div className="flex items-center gap-2 mb-2">
+  //       <FaBoxOpen className={`w-5 h-5 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} />
+  //       <span className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-blue-900"}`}>Preview</span>
+  //     </div>
+  //     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+  //       <div><span className="font-semibold">Customer:</span> {customer}</div>
+  //       <div><span className="font-semibold">DC Number:</span> {dcNumber}</div>
+  //       <div><span className="font-semibold">Date:</span> {dcDate}</div>
+  //       <div><span className="font-semibold">Remarks:</span> {remarks}</div>
+  //       <div><span className="font-semibold">Address:</span> {address}</div>
+  //     </div>
+  //     <div className="mt-4">
+  //       <span className="font-semibold block mb-1">Items:</span>
+  //       <ul className="list-disc ml-6">
+  //         {selectedRequest && (
+  //           <li>{selectedRequest.fullName} - Qty: {selectedRequest.qty} - Size: {typeof selectedRequest.size === 'object' && selectedRequest.uniformType && selectedRequest.uniformType[0] && selectedRequest.size[selectedRequest.uniformType[0]] ? selectedRequest.size[selectedRequest.uniformType[0]] : ''}</li>
+  //         )}
+  //       </ul>
+  //     </div>
+  //   </div>
+  // );
+
+  // Success animation
+  const successAnimation = success && (
+    <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
+      <div className="rounded-full bg-green-100 p-6 mb-4">
+        <FaCheckCircle className="w-16 h-16 text-green-600 animate-bounce" />
+      </div>
+      <div className="text-2xl font-bold text-green-700 mb-2">DC Created!</div>
+      <div className="text-gray-600 mb-6">Your Delivery Challan has been successfully created.</div>
+      <button
+        className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200 ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+        onClick={() => { setSuccess(false); setStep(1); setSelectedProject(''); setSelectedRequest(null); setCustomer(''); setDcNumber(''); setRemarks(''); setAddress(''); }}
+      >Create Another</button>
+      <button
+        className="mt-4 underline text-blue-600 text-sm"
+        onClick={onClose}
+      >Close</button>
+    </div>
+  );
+
+  // Save handler with loading and success
+  const handleCreateDCWithUX = async () => {
+    setTouched({ customer: true, dcNumber: true, dcDate: true });
+    if (!isStep3Valid) return;
+    // Duplicate DC number check
+    const dcNumberTrimmed = dcNumber.trim().toLowerCase();
+    const duplicate = dcData.some((dc: DC) => dc.dcNumber.trim().toLowerCase() === dcNumberTrimmed);
+    if (duplicate) {
+      showToast({ message: "DC Number already exists. Please use a unique DC Number.", type: "error" });
+      return;
+    }
+    setSaving(true);
+    await handleCreateDC();
+    setSaving(false);
+    if (!saveDCError) {
+      setSuccess(true);
+      showToast({ message: "Delivery Challan created successfully!", type: "success" });
+    }
+  };
 
   return (
-    <div className={`rounded-2xl shadow-2xl max-w-7xl w-full p-0 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`} style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Sticky Header */}
-      <div className={`sticky top-0 z-10 flex items-center justify-between px-8 py-6 border-b ${theme === "dark" ? "bg-gray-900 border-blue-900" : "bg-white border-blue-100"}`}>
-        <h2 className={`text-2xl font-bold flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
-          <FaPlus className="w-5 h-5" /> Issue Items
-        </h2>
-        <button
-          className={`transition-colors duration-200 rounded-full p-2 ${theme === "dark" ? "text-gray-400 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
-          onClick={onClose}
-        >
-          <FaTimes className="w-6 h-6" />
-        </button>
-      </div>
-      {/* Scrollable Content */}
-      <div className="overflow-y-auto px-8 py-6" style={{ flex: 1, minHeight: 0 }}>
-        {/* Issue Details Form */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div>
-            <label className={`block text-sm font-semibold mb-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Issue To</label>
-            <input type="text" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 text-base ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-300 text-gray-900 placeholder-gray-500"}`} placeholder="Name of recipient" value={issueTo} onChange={e => setIssueTo(e.target.value)} />
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      aria-modal="true"
+      role="dialog"
+      aria-label="Create Delivery Challan Modal"
+    >
+      <div
+        ref={modalRef}
+        className={`relative rounded-3xl shadow-2xl border-2 max-w-3xl w-full flex flex-col overflow-y-auto max-h-[95vh] transition-all duration-300 ${show ? 'scale-100 opacity-100' : 'scale-95 opacity-0'} ${theme === "dark" ? "bg-[#181f2a] border-blue-900" : "bg-white border-blue-200"}`}
+        tabIndex={-1}
+      >
+        {/* Brand accent */}
+        <div className={`absolute left-0 top-0 w-full h-2 rounded-t-3xl ${theme === "dark" ? "bg-gradient-to-r from-blue-900 via-blue-700 to-blue-900" : "bg-gradient-to-r from-blue-400 via-blue-600 to-blue-400"}`}></div>
+        {/* Modal Header */}
+        <div className={`p-6 border-b flex items-center justify-between sticky top-0 z-10 ${theme === "dark" ? "bg-[#181f2a] border-blue-900" : "bg-white border-blue-100"}`}>
+          <div className="flex items-center gap-3">
+            <Image src="/v1/employee/exozen_logo1.png" alt="Brand Logo" width={56} height={32} className="w-14 h-8 object-contain bg-white rounded shadow mr-4" />
+            <FaBoxOpen className={`w-7 h-7 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`} />
+            <h2 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Generate Delivery Challan</h2>
           </div>
-          <div>
-            <label className={`block text-sm font-semibold mb-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Department</label>
-            <select className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 text-base ${theme === "dark" ? "bg-gray-800 border-gray-700 text-black" : "border-gray-300 text-black"}`} value={department} onChange={e => setDepartment(e.target.value)}>
-              <option value="" className="text-black">Select department</option>
-              <option value="IT" className="text-black">IT</option>
-              <option value="HR" className="text-black">HR</option>
-              <option value="Admin" className="text-black">Admin</option>
-              <option value="Operations" className="text-black">Operations</option>
-              <option value="Stores" className="text-black">Stores</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className={`block text-sm font-semibold mb-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Purpose</label>
-            <textarea className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 text-base ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-300 text-gray-900 placeholder-gray-500"}`} placeholder="Briefly describe the purpose of issuance" value={purpose} onChange={e => setPurpose(e.target.value)} />
-          </div>
-          <div className="md:col-span-2">
-            <label className={`block text-sm font-semibold mb-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Address</label>
-            <input type="text" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 text-base ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-300 text-gray-900 placeholder-gray-500"}`} placeholder="Enter address" value={address} onChange={e => setAddress(e.target.value)} />
-          </div>
-          <div className="md:col-span-2">
-            <label className={`block text-sm font-semibold mb-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Employee ID (for all items)</label>
-            <input type="text" className={`w-full px-4 py-2 rounded-lg border transition-colors duration-200 text-base ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-300 text-gray-900 placeholder-gray-500"}`} placeholder="Enter Employee ID" value={employeeId} onChange={e => setEmployeeId(e.target.value)} />
-          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close modal"
+            className={`p-3 rounded-full transition absolute top-4 right-4 z-20 text-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === "dark" ? "hover:bg-blue-900 text-gray-400 hover:text-blue-300" : "hover:bg-blue-100 text-gray-600 hover:text-blue-600"}`}
+          >
+            <FaTimes className="w-7 h-7" />
+          </button>
         </div>
-        {/* Item Selection */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <FaSearch className="w-5 h-5 text-blue-500" />
-            <span className={`font-bold text-xl ${theme === "dark" ? "text-blue-100" : "text-blue-800"}`}>Select Items for Issuance</span>
-          </div>
-          <div className="flex flex-wrap gap-3 mb-4">
-            <button className={`px-4 py-1.5 rounded-lg font-semibold transition ${perRow === 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-blue-100'} shadow`} onClick={() => setPerRow(2)}>2 per row</button>
-            <button className={`px-4 py-1.5 rounded-lg font-semibold transition ${perRow === 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-blue-100'} shadow`} onClick={() => setPerRow(3)}>3 per row</button>
-            <select className={`px-3 py-1.5 rounded-lg border shadow ${theme === "dark" ? "text-black" : "text-black"}`} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-              <option value="All" className="text-black">All</option>
-              {categories.map(cat => <option key={cat} value={cat} className="text-black">{cat}</option>)}
-            </select>
-          </div>
-          <input
-            type="text"
-            className={`w-full px-4 py-2 rounded-lg border mb-6 text-base ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-300 text-gray-900 placeholder-gray-500"}`}
-            placeholder="Search items by name or code..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          {loadingItems ? (
-            <div className="text-blue-600 font-semibold py-8 text-center">Loading items...</div>
-          ) : errorItems ? (
-            <div className="text-red-600 font-semibold py-8 text-center">{errorItems}</div>
-          ) : (
-            <div className={`grid gap-6 mb-6`} style={{ gridTemplateColumns: `repeat(${perRow}, minmax(0, 1fr))` }}>
-              {pagedItems.map(item => (
-                <div key={item._id} className={`rounded-2xl border p-6 shadow-lg transition-all duration-200 hover:shadow-2xl ${theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-200"}`}>
-                  <div className="font-bold text-lg mb-2 text-blue-700 flex items-center gap-2">
-                    {item.name}
-                    <span className="text-xs font-normal text-gray-400">({item.category} / {item.subCategory})</span>
+        {/* Stepper and Progress Bar */}
+        <div className="flex flex-col gap-2 px-4 pt-6 pb-2">
+          <div className="flex justify-center items-center gap-0">
+            {stepLabels.map((label, idx) => (
+              <React.Fragment key={label}>
+                <div className="flex flex-col items-center">
+                  <div className={`w-11 h-11 flex items-center justify-center rounded-full font-bold border-2 mb-1 transition-all duration-200
+                    ${step === idx + 1
+                      ? theme === "dark"
+                        ? "bg-blue-700 text-white border-blue-400 shadow-lg"
+                        : "bg-blue-600 text-white border-blue-400 shadow-lg"
+                      : theme === "dark"
+                        ? "bg-gray-800 text-gray-400 border-gray-700"
+                        : "bg-gray-200 text-gray-500 border-gray-300"
+                    }`}>
+                    {stepIcons[idx]}
                   </div>
-                  <div className="text-xs text-gray-500 mb-3">Code: {item.itemCode}</div>
-                  <table className="w-full text-xs mb-2">
-                    <thead>
-                      <tr className="text-gray-500">
-                        <th className="text-left">Size</th>
-                        <th className="text-left">Unit</th>
-                        <th className="text-left">Stock</th>
-                        <th className="text-left">Qty</th>
-                        <th className="text-left">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {item.sizeInventory.map(sizeInv => {
-                        const key = `${item._id}_${sizeInv.size}`;
-                        const alreadyAdded = selectedItems.some(sel => sel.id === item._id && sel.size === sizeInv.size);
-                        return (
-                          <tr key={sizeInv.size}>
-                            <td className={theme === "dark" ? "text-blue-100" : "text-blue-900"}>{sizeInv.size}</td>
-                            <td className={theme === "dark" ? "text-blue-100" : "text-blue-900"}>{sizeInv.unit}</td>
-                            <td className={theme === "dark" ? "text-blue-200" : "text-blue-700"}>{sizeInv.quantity}</td>
-                            <td>
-                              <input
-                                type="number"
-                                min={1}
-                                max={sizeInv.quantity}
-                                value={qtyInputs[key] || ""}
-                                onChange={e => setQtyInputs(prev => ({ ...prev, [key]: e.target.value }))}
-                                className={`w-16 px-2 py-1 rounded border text-base ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-400" : "border-gray-300 text-gray-900 placeholder-gray-500"}`}
-                                disabled={sizeInv.quantity === 0 || alreadyAdded}
-                                placeholder="Qty"
-                              />
-                            </td>
-                            <td>
-                              {sizeInv.quantity === 0 ? (
-                                <button className="px-4 py-1.5 rounded-lg bg-gray-300 text-gray-500 font-semibold cursor-not-allowed" disabled>Out</button>
-                              ) : alreadyAdded ? (
-                                <button className="px-4 py-1.5 rounded-lg bg-green-600 text-white font-semibold cursor-not-allowed" disabled>Added</button>
-                              ) : (
-                                <button
-                                  className="px-4 py-1.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
-                                  onClick={() => handleAddItem(item, sizeInv.size, sizeInv.unit, sizeInv.quantity)}
-                                  disabled={
-                                    !qtyInputs[key] ||
-                                    isNaN(Number(qtyInputs[key])) ||
-                                    Number(qtyInputs[key]) < 1 ||
-                                    Number(qtyInputs[key]) > sizeInv.quantity
-                                  }
-                                >
-                                  Add
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  <div className={`text-xs mt-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{item.description}</div>
+                  <span className={`text-xs font-medium transition-colors duration-200 ${step === idx + 1
+                    ? theme === "dark" ? "text-blue-300" : "text-blue-700"
+                    : theme === "dark" ? "text-gray-400" : "text-gray-500"
+                  }`}>
+                    {label}
+                  </span>
                 </div>
-              ))}
+                {idx < stepLabels.length - 1 && (
+                  <div className={`w-16 h-1 mx-2 rounded transition-all duration-200
+                    ${step > idx + 1
+                      ? theme === "dark" ? "bg-blue-700" : "bg-blue-600"
+                      : theme === "dark" ? "bg-gray-700" : "bg-gray-300"
+                    }`} />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+          {/* Progress Bar */}
+          <div className="w-full h-2 bg-gray-200 dark:bg-blue-950 rounded-full overflow-hidden mt-2">
+            <div
+              className={`h-2 rounded-full transition-all duration-500 ${theme === "dark" ? "bg-blue-700" : "bg-blue-600"}`}
+              style={{ width: `${progressPercent}%` }}
+            ></div>
+          </div>
+        </div>
+        {/* ARIA live region for announcements */}
+        <div ref={announceRef} className="sr-only" aria-live="polite"></div>
+        {/* Modal Content */}
+        <div className="p-4 md:p-8 flex flex-col gap-10 animate-fade-in">
+          {saving && (
+            <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 rounded-3xl">
+              <svg className="animate-spin h-12 w-12 text-blue-600" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /></svg>
             </div>
           )}
-          {/* Pagination */}
-          <div className="flex justify-between items-center mt-2 mb-4">
-            <button
-              className="px-4 py-1.5 rounded-lg bg-gray-200 text-gray-500 font-semibold disabled:opacity-50"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >Previous</button>
-            <span className={`text-base font-semibold ${theme === "dark" ? "text-blue-100" : "text-blue-800"}`}>Page {page} of {totalPages}</span>
-            <button
-              className="px-4 py-1.5 rounded-lg bg-gray-200 text-gray-500 font-semibold disabled:opacity-50"
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-            >Next</button>
-          </div>
-        </div>
-        {/* Selected Items Summary */}
-        <div className="mb-8">
-          <h3 className={`font-bold mb-3 text-lg ${theme === "dark" ? "text-blue-100" : "text-blue-800"}`}>Selected Items for Issuance</h3>
-          {selectedItems.length === 0 ? (
-            <div className="text-gray-400 text-base">No items selected yet.</div>
-          ) : (
-            <table className="w-full text-sm border rounded-xl overflow-hidden shadow">
-              <thead>
-                <tr className={theme === "dark" ? "bg-blue-950" : "bg-blue-100"}>
-                  <th className="px-3 py-2">Name</th>
-                  <th className="px-3 py-2">Code</th>
-                  <th className="px-3 py-2">Size</th>
-                  <th className="px-3 py-2">Qty</th>
-                  <th className="px-3 py-2">Unit</th>
-                  <th className="px-3 py-2">Employee ID</th>
-                  <th className="px-3 py-2">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedItems.map((item, idx) => (
-                  <tr key={idx} className={theme === "dark" ? "hover:bg-blue-950" : "hover:bg-blue-50"}>
-                    <td className="px-3 py-2">{item.name}</td>
-                    <td className="px-3 py-2">{item.itemCode}</td>
-                    <td className="px-3 py-2">{item.size}</td>
-                    <td className="px-3 py-2">{item.quantity}</td>
-                    <td className="px-3 py-2">{item.unit}</td>
-                    <td className="px-3 py-2">{item.employeeId}</td>
-                    <td className="px-3 py-2">
-                      <button className="text-red-600 hover:underline font-semibold" onClick={() => handleRemoveItem(idx)}>Remove</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-        {/* Error/Success */}
-        {issueError && <div className="text-red-600 mb-4 font-semibold text-base">{issueError}</div>}
-        {issueSuccess && <div className="text-green-600 mb-4 font-semibold text-base">{issueSuccess}</div>}
-      </div>
-      {/* Sticky Footer */}
-      <div className={`sticky bottom-0 z-10 px-8 py-4 border-t flex justify-end bg-opacity-95 ${theme === "dark" ? "bg-gray-900 border-blue-900" : "bg-white border-blue-100"}`}>
-        <button
-          className={`px-8 py-3 rounded-xl font-bold text-lg shadow transition ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900" : "bg-blue-600 text-white hover:bg-blue-700"}`}
-          onClick={handleIssue}
-          disabled={issuing}
-        >
-          {issuing ? "Issuing..." : "Issue Items"}
-        </button>
-      </div>
-      {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 flex flex-col items-center">
-            <div className="mb-4">
-              <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/><path d="M8 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </div>
-            <h2 className="text-2xl font-bold mb-2 text-gray-900">Success!</h2>
-            <p className="text-gray-600 mb-6">Items issued successfully!</p>
-            <div className="flex gap-4 w-full justify-center">
-              <button
-                className="px-6 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 font-semibold hover:bg-gray-100 transition"
-                onClick={() => { setShowSuccessModal(false); onClose(); }}
-              >
-                Close
-              </button>
-              <button
-                className="px-6 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition"
-                onClick={() => { setShowSuccessModal(false); setShowGenerateDCModal(true); }}
-              >
-                Generate Outward DC
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showGenerateDCModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 flex flex-col items-center">
-            <h2 className="text-2xl font-bold mb-2 text-gray-900 text-center">Generate Outward DC?</h2>
-            <p className="text-gray-600 mb-6 text-center">Do you want to generate an Outward Delivery Challan for these issued items?</p>
-            <div className="flex gap-4 w-full justify-center">
-              <button
-                className="px-6 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 font-semibold hover:bg-gray-100 transition"
-                onClick={() => { setShowGenerateDCModal(false); onClose(); }}
-              >
-                No, Finish
-              </button>
-              <button
-                className="px-6 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition"
-                onClick={() => {
-                  if (lastIssuedItems) {
-                    setDcForm({
-                      customer: lastIssuedItems.issueTo || '',
-                      dcNumber: '',
-                      dcDate: new Date().toISOString().slice(0, 10),
-                      remarks: `Issued to ${lastIssuedItems.issueTo} in ${lastIssuedItems.department} for the purpose of: ${lastIssuedItems.purpose}`,
-                      address: lastIssuedItems.address || '',
-                    });
-                  }
-                  setShowGenerateDCModal(false);
-                  setShowOutwardDCModal(true);
-                }}
-              >
-                Yes, Generate DC
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {issuedDCs.length > 0 && (
-        <div className="mt-8 bg-white rounded-xl shadow p-6">
-          <h3 className="text-lg font-bold mb-4 text-gray-800">Generated Outward DCs</h3>
-          <table className="w-full text-sm border rounded-xl overflow-hidden shadow">
-            <thead>
-              <tr className="bg-blue-100">
-                <th className="px-3 py-2">Issue To</th>
-                <th className="px-3 py-2">Department</th>
-                <th className="px-3 py-2">Purpose</th>
-                <th className="px-3 py-2">Address</th>
-                <th className="px-3 py-2">Date</th>
-                <th className="px-3 py-2">Items</th>
-              </tr>
-            </thead>
-            <tbody>
-              {issuedDCs.map((dc, idx) => (
-                <tr key={idx}>
-                  <td className="px-3 py-2">{dc.issueTo}</td>
-                  <td className="px-3 py-2">{dc.department}</td>
-                  <td className="px-3 py-2">{dc.purpose}</td>
-                  <td className="px-3 py-2">{dc.address}</td>
-                  <td className="px-3 py-2">{new Date(dc.date).toLocaleString()}</td>
-                  <td className="px-3 py-2">
-                    {dc.items.map((item, i) => (
-                      <div key={i}>{item.name} ({item.size}) x {item.quantity}</div>
+          {successAnimation}
+          {!success && (
+            <>
+              {/* Step 1: Project Selection */}
+              {step === 1 && (
+                <section className={`rounded-2xl border shadow-lg p-6 md:p-10 transition-colors duration-300 flex flex-col gap-4
+                  ${theme === "dark" ? "bg-gradient-to-br from-[#232e3e] via-blue-950 to-blue-900 border-blue-900" : "bg-gradient-to-br from-blue-50 via-white to-blue-100 border-blue-100"}`}
+                  aria-labelledby="step1-header">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FaStore className={`w-5 h-5 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} />
+                    <span id="step1-header" className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-blue-900"}`}>Project Selection</span>
+                  </div>
+                  <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Select Project <span className="text-red-500">*</span></label>
+                  <select
+                    value={selectedProject}
+                    onChange={e => {
+                      setSelectedProject(e.target.value);
+                      setSelectedRequest(null);
+                      setTouched(t => ({ ...t, selectedProject: true }));
+                    }}
+                    className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                      ${theme === "dark"
+                        ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"
+                      }`}
+                    aria-required="true"
+                  >
+                    <option value="">Select a project</option>
+                    {projectList.map(project => (
+                      <option key={project} value={project}>{project}</option>
                     ))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </select>
+                  {touched.selectedProject && !isStep1Valid && <div className="text-red-600 text-xs mt-1">Please select a project.</div>}
+                  <div className="text-xs text-gray-500 mt-2">Choose the project for which you want to generate a Delivery Challan.</div>
+                  <div className="flex justify-end mt-6">
+                    <button
+                      type="button"
+                      disabled={!isStep1Valid}
+                      onClick={() => setStep(2)}
+                      className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200
+                        ${isStep1Valid
+                          ? theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"
+                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </section>
+              )}
+              {/* Step 2: Uniform Request Selection */}
+              {step === 2 && (
+                <section className={`rounded-2xl border shadow-lg p-6 md:p-10 transition-colors duration-300 flex flex-col gap-4
+                  ${theme === "dark" ? "bg-gradient-to-br from-[#233e2e] via-green-950 to-green-900 border-green-900" : "bg-gradient-to-br from-green-50 via-white to-green-100 border-green-100"}`}
+                  aria-labelledby="step2-header">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FaCheckCircle className={`w-5 h-5 ${theme === "dark" ? "text-green-200" : "text-green-700"}`} />
+                    <span id="step2-header" className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-green-900"}`}>Uniform Request</span>
+                  </div>
+                  <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Uniform Requests <span className="text-red-500">*</span></label>
+                  {loading ? (
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <svg className="animate-spin h-5 w-5 mr-2 text-blue-600" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /></svg>
+                      Loading...
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedRequest?._id || ""}
+                      onChange={e => {
+                        const req = uniformRequests.find(r => r._id === e.target.value) || null;
+                        setSelectedRequest(req);
+                        setTouched(t => ({ ...t, selectedRequest: true }));
+                      }}
+                      className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                        ${theme === "dark"
+                          ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-green-900"
+                          : "bg-white border-gray-200 text-gray-900 focus:ring-green-500"
+                        }`}
+                      aria-required="true"
+                    >
+                      <option value="">Select a request</option>
+                      {uniformRequests.map(request => (
+                        <option key={request._id} value={request._id}>
+                          {request.fullName} ({request.employeeId})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {touched.selectedRequest && !isStep2Valid && <div className="text-red-600 text-xs mt-1">Please select a uniform request.</div>}
+                  <div className="text-xs text-gray-500 mt-2">Select an approved uniform request to auto-fill item details for the DC.</div>
+                  <div className="flex justify-between mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200
+                        ${theme === "dark" ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!isStep2Valid}
+                      onClick={() => setStep(3)}
+                      className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200
+                        ${isStep2Valid
+                          ? theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-600 text-white hover:bg-green-700"
+                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </section>
+              )}
+              {/* Step 3: DC Details & Preview */}
+              {step === 3 && (
+                <section className={`rounded-2xl border shadow-lg p-6 md:p-10 transition-colors duration-300 flex flex-col gap-4
+                  ${theme === "dark" ? "bg-gradient-to-br from-[#232e3e] via-indigo-950 to-indigo-900 border-indigo-900" : "bg-gradient-to-br from-indigo-50 via-white to-indigo-100 border-indigo-100"}`}
+                  aria-labelledby="step3-header">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FaInfoCircle className={`w-5 h-5 ${theme === "dark" ? "text-indigo-200" : "text-indigo-700"}`} />
+                    <span id="step3-header" className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-indigo-900"}`}>DC Details</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Customer <span className="text-red-500">*</span></label>
+                      <input type="text" value={customer} onChange={e => { setCustomer(e.target.value); setTouched(t => ({ ...t, customer: true })); }}
+                        className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                          ${theme === "dark"
+                            ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
+                            : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
+                         }`} aria-required="true" />
+                      {touched.customer && !customer.trim() && <div className="text-red-600 text-xs mt-1">Customer is required.</div>}
+                      <div className="text-xs text-gray-500 mt-1">Name of the person or entity receiving the delivery.</div>
+                    </div>
+                    <div>
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>DC Number <span className="text-red-500">*</span></label>
+                      <div className="flex gap-2">
+                        <input type="text" value={dcNumber} onChange={e => { setDcNumber(e.target.value); setTouched(t => ({ ...t, dcNumber: true })); setDcNumberError(null); }}
+                          className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                            ${theme === "dark"
+                              ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
+                              : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
+                           }`} aria-required="true" />
+                        <button type="button" onClick={handleAutoGenerateDCNumber}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 border text-xs whitespace-nowrap
+                            ${theme === "dark" ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"}`}
+                        >Auto-generate</button>
+                      </div>
+                      {touched.dcNumber && !dcNumber.trim() && <div className="text-red-600 text-xs mt-1">DC Number is required.</div>}
+                      {dcNumberError && <div className="text-red-600 text-xs mt-1">{dcNumberError}</div>}
+                      <div className="text-xs text-gray-500 mt-1">Unique identifier for this Delivery Challan.</div>
+                    </div>
+                    <div>
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>DC Date <span className="text-red-500">*</span></label>
+                      <input type="date" value={dcDate} onChange={e => { setDcDate(e.target.value); setTouched(t => ({ ...t, dcDate: true })); }}
+                        className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                          ${theme === "dark"
+                            ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
+                            : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
+                         }`} aria-required="true" />
+                      {touched.dcDate && !dcDate.trim() && <div className="text-red-600 text-xs mt-1">Date is required.</div>}
+                      <div className="text-xs text-gray-500 mt-1">Date of issue for this DC.</div>
+                    </div>
+                    <div>
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Remarks</label>
+                      <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)}
+                        className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                          ${theme === "dark"
+                            ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
+                            : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
+                         }`} />
+                      <div className="text-xs text-gray-500 mt-1">Any additional notes for this DC (optional).</div>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Address</label>
+                      <input type="text" value={address} onChange={e => setAddress(e.target.value)}
+                        className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                          ${theme === "dark"
+                            ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
+                            : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
+                         }`} />
+                      <div className="text-xs text-gray-500 mt-1">Delivery address (optional).</div>
+                    </div>
+                  </div>
+                  {/* {preview} */}
+                  {saveDCError && (
+                    <div className={`p-4 rounded-lg border flex items-center gap-2 mt-6
+                      ${theme === "dark" ? "bg-red-900 border-red-700 text-red-200" : "bg-red-100 border-red-200 text-red-700"}`}>
+                      <FaTimes className="w-4 h-4" />
+                      {saveDCError}
+                    </div>
+                  )}
+                  <div className="flex justify-between mt-8">
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200
+                        ${theme === "dark" ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateDCWithUX}
+                      disabled={saving || !isStep3Valid}
+                      className={`px-8 py-3 rounded-lg font-medium text-lg flex items-center gap-2 transition-all duration-200
+                        ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}
+                        ${(saving || !isStep3Valid) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      {saving && <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /></svg>}
+                      <FaPlus className="w-4 h-4" />
+                      Generate DC
+                    </button>
+                  </div>
+                </section>
+              )}
+            </>
+          )}
         </div>
-      )}
-      {showOutwardDCModal && lastIssuedItems && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-8 flex flex-col">
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">Delivery Challan Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">Customer/Recipient</label>
-                <input type="text" className="w-full px-4 py-2 rounded-lg border border-gray-200 text-base" value={dcForm.customer} onChange={e => setDcForm(f => ({ ...f, customer: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">DC Number</label>
-                <input type="text" className="w-full px-4 py-2 rounded-lg border border-blue-100 bg-blue-50 text-base" value={dcForm.dcNumber} onChange={e => setDcForm(f => ({ ...f, dcNumber: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">DC Date</label>
-                <input type="date" className="w-full px-4 py-2 rounded-lg border border-gray-200 text-base" value={dcForm.dcDate} onChange={e => setDcForm(f => ({ ...f, dcDate: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">Address</label>
-                <input type="text" className="w-full px-4 py-2 rounded-lg border border-gray-200 text-base" value={dcForm.address} onChange={e => setDcForm(f => ({ ...f, address: e.target.value }))} />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold mb-2 text-gray-700">Remarks</label>
-                <textarea className="w-full px-4 py-2 rounded-lg border border-gray-200 text-base" value={dcForm.remarks} onChange={e => setDcForm(f => ({ ...f, remarks: e.target.value }))} />
-              </div>
-            </div>
-            <h3 className="text-lg font-bold mb-2 text-gray-800">Items in Challan</h3>
-            <div className="bg-blue-50 rounded-xl p-4 mb-6">
-              <div className="flex items-center mb-2 text-green-600 font-semibold"><svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/><path d="M8 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>{lastIssuedItems.items.length} item{lastIssuedItems.items.length > 1 ? 's' : ''} in this Challan</div>
-              <input type="text" className="w-full px-4 py-2 rounded-lg border border-blue-100 mb-2" placeholder="Search items..." disabled />
-              <table className="w-full text-sm rounded-xl overflow-hidden">
-                <thead>
-                  <tr className="bg-blue-200 text-blue-900">
-                    <th className="px-3 py-2">Sl.No</th>
-                    <th className="px-3 py-2">Employee ID</th>
-                    <th className="px-3 py-2">Item Code</th>
-                    <th className="px-3 py-2">Item Name</th>
-                    <th className="px-3 py-2">Size</th>
-                    <th className="px-3 py-2">Quantity</th>
-                    <th className="px-3 py-2">Price Applicable</th>
-                    <th className="px-3 py-2">Price</th>
-                    <th className="px-3 py-2">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lastIssuedItems.items.map((item, idx) => (
-                    <tr key={idx} className="bg-white">
-                      <td className="px-3 py-2">{idx + 1}</td>
-                      <td className="px-3 py-2">{item.employeeId}</td>
-                      <td className="px-3 py-2">{item.itemCode}</td>
-                      <td className="px-3 py-2 text-blue-800 font-semibold">{item.name}</td>
-                      <td className="px-3 py-2"><span className="bg-blue-100 text-blue-700 rounded px-2 py-1 text-xs font-bold">{item.size}</span></td>
-                      <td className="px-3 py-2"><span className="bg-green-100 text-green-700 rounded px-2 py-1 text-xs font-bold">{item.quantity}</span></td>
-                      <td className="px-3 py-2 text-center"><input type="checkbox" checked readOnly /></td>
-                      <td className="px-3 py-2">{(item as DisplayItem).price ?? '—'}</td>
-                      <td className="px-3 py-2"></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {saveDCError && <div className="text-red-600 mb-2 font-semibold">{saveDCError}</div>}
-            <div className="flex justify-end mt-4">
-              <button
-                className="px-8 py-3 rounded-xl font-bold text-lg shadow transition bg-indigo-600 text-white hover:bg-indigo-700"
-                disabled={savingDC}
-                onClick={async () => {
-                  setSavingDC(true);
-                  setSaveDCError('');
-                  try {
-                    const res = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        customer: dcForm.customer,
-                        dcNumber: dcForm.dcNumber,
-                        dcDate: dcForm.dcDate,
-                        remarks: dcForm.remarks,
-                        address: dcForm.address,
-                        items: lastIssuedItems.items.map((item: SelectedItem) => ({
-                          id: item.id,
-                          quantity: item.quantity,
-                          size: item.size,
-                          employeeId: item.employeeId,
-                        })),
-                      }),
-                    });
-                    if (!res.ok) throw new Error('Failed to save Outward DC');
-                    const data = await res.json();
-                    setShowOutwardDCModal(false);
-                    setDcData((prev: DC[]) => [data, ...prev]);
-                    setDcPreviewData({
-                      ...dcForm,
-                      items: lastIssuedItems.items,
-                      date: dcForm.dcDate,
-                    });
-                    setShowDCPreviewModal(true);
-                    if (lastIssuedItems) {
-                      setIssuedDCs(prev => [
-                        ...prev,
-                        {
-                          issueTo: lastIssuedItems.issueTo,
-                          department: lastIssuedItems.department,
-                          purpose: lastIssuedItems.purpose,
-                          address: lastIssuedItems.address,
-                          items: lastIssuedItems.items,
-                          date: dcForm.dcDate,
-                        },
-                      ]);
-                    }
-                    setShowOutwardSuccessModal(true);
-                  } catch (err: unknown) {
-                    if (err instanceof Error) {
-                      setSaveDCError(err.message || 'Failed to save Outward DC');
-                    } else {
-                      setSaveDCError('Unknown error');
-                    }
-                  } finally {
-                    setSavingDC(false);
-                  }
-                }}
-              >
-                {savingDC ? 'Saving...' : 'Save Outward DC'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showDCPreviewModal && dcPreviewData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-8 relative print:p-0 print:shadow-none print:bg-white">
-            {/* Action buttons */}
-            <div className="flex justify-end gap-2 mb-4 print:hidden">
-              <button onClick={handleDownloadPDF} className="bg-blue-600 text-white px-4 py-2 rounded">Download as PDF</button>
-              <button onClick={() => window.print()} className="bg-green-500 text-white px-4 py-2 rounded">Print</button>
-              <button onClick={() => setShowDCPreviewModal(false)} className="bg-gray-300 text-gray-800 px-4 py-2 rounded">Close</button>
-            </div>
-            {/* DC Content */}
-            <div id="dc-content" className="bg-white p-6 rounded-xl border print:border-0">
-              <div className="flex items-center mb-2">
-                <Image src="/v1/employee/exozen_logo1.png" alt="Exozen Logo" width={120} height={40} />
-                <div>
-                  <div className="text-2xl font-bold text-black dark:text-white">Exozen Facility Management Services Pvt Ltd</div>
-                  <div className="text-sm text-black dark:text-white">25/1, 4th floor, Skip House, Museum road, Near Brigade Tower, Bangalore- 560073 Karnataka</div>
-                </div>
-              </div>
-              <div className="flex justify-between items-center border-b pb-2 mb-2">
-                <div className="font-bold text-lg text-black dark:text-white">DC No: {dcPreviewData.dcNumber}</div>
-                <div className="font-bold text-lg text-black dark:text-white">Date: {dcPreviewData.dcDate}</div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 border p-2 mb-2">
-                <div>
-                  <div className="font-bold text-black dark:text-white">From:</div>
-                  <div className="text-black dark:text-white">Exozen Facility Management Services Pvt Ltd</div>
-                  <div className="text-sm text-black dark:text-white">25/1, 4th floor, Skip House, Museum road, Near Brigade Tower, Bangalore- 560073 Karnataka</div>
-                </div>
-                <div>
-                  <div className="font-bold text-black dark:text-white">To:</div>
-                  <div className="text-black dark:text-white">{dcPreviewData.customer}</div>
-                  <div className="text-sm text-black dark:text-white">Address: {dcPreviewData.address}</div>
-                </div>
-              </div>
-              <div className="border p-2 mb-2">
-                <div className="font-bold mb-1 text-black dark:text-white">Remarks:</div>
-                <div className="text-black dark:text-white">{dcPreviewData.remarks}</div>
-              </div>
-              <table className="w-full text-sm border mb-2">
-                <thead>
-                  <tr className="bg-gray-200">
-                    <th className="px-2 py-1 border text-black dark:text-white">Sl.No</th>
-                    <th className="px-2 py-1 border text-black dark:text-white">Employee ID</th>
-                    <th className="px-2 py-1 border text-black dark:text-white">Item Code</th>
-                    <th className="px-2 py-1 border text-black dark:text-white">Item Name</th>
-                    <th className="px-2 py-1 border text-black dark:text-white">Size</th>
-                    <th className="px-2 py-1 border text-black dark:text-white">Qty</th>
-                    <th className="px-2 py-1 border text-black dark:text-white">Price</th>
-                    <th className="px-2 py-1 border text-black dark:text-white">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dcPreviewData.items.map((item, idx) => (
-                    <tr key={idx}>
-                      <td className="px-2 py-1 border text-black dark:text-white">{idx + 1}</td>
-                      <td className="px-2 py-1 border text-black dark:text-white">{item.employeeId}</td>
-                      <td className="px-2 py-1 border text-black dark:text-white">{item.itemCode}</td>
-                      <td className="px-2 py-1 border text-blue-800 font-semibold">{item.name}</td>
-                      <td className="px-2 py-1 border text-black dark:text-white">{item.size}</td>
-                      <td className="px-2 py-1 border text-black dark:text-white">{item.quantity}</td>
-                      <td className="px-2 py-1 border text-black dark:text-white">{(item as DisplayItem).price ?? ''}</td>
-                      <td className="px-2 py-1 border text-black dark:text-white">{(item as DisplayItem).remarks ?? ''}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="mb-2">
-                <div className="font-bold underline text-black dark:text-white">Terms & Conditions</div>
-                <div className="text-sm text-black dark:text-white">1. Complaints will be entertained if the goods are received within 24hrs of delivery.</div>
-                <div className="text-sm text-black dark:text-white">2. Goods are delivered after careful checking.</div>
-              </div>
-              <div className="flex justify-between mt-8">
-                <div>Initiated by<br /><br />_____________</div>
-                <div>Received by<br /><br />_____________</div>
-                <div>Issued by<br /><br />_____________</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {showOutwardSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 flex flex-col items-center">
-            <div className="mb-4">
-              <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/><path d="M8 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </div>
-            <h2 className="text-2xl font-bold mb-2 text-gray-900">Saved successfully!</h2>
-            <button
-              className="px-6 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition mt-4"
-              onClick={() => setShowOutwardSuccessModal(false)}
-            >Close</button>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

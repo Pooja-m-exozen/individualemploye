@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
+import { PDFDocument, rgb, degrees } from 'pdf-lib';
 
 interface KYCData {
   personalDetails: {
@@ -236,6 +237,103 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
     } catch (err) {
       console.error("Failed to generate PDF:", err);
       alert("Failed to generate PDF. Please check the console for details.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const downloadPDFWithWatermark = async (url: string, filename: string) => {
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(arrayBuffer);
+    const pages = pdfDoc.getPages();
+    for (const page of pages) {
+      const { width, height } = page.getSize();
+      page.drawText('EXOZEN', {
+        x: width / 2 - 100,
+        y: height / 2,
+        size: 60,
+        color: rgb(0.8, 0.8, 0.8),
+        opacity: 0.18,
+        rotate: degrees(-30),
+      });
+    }
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  };
+
+  const downloadImageWithWatermark = async (url: string, filename: string) => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const img = new window.Image();
+    img.crossOrigin = 'Anonymous';
+    const imgURL = URL.createObjectURL(blob);
+    img.src = imgURL;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas not supported');
+    ctx.drawImage(img, 0, 0);
+    // Watermark
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(-Math.PI / 4);
+    ctx.font = `${Math.floor(canvas.width / 8)}px Arial`;
+    ctx.fillStyle = '#222';
+    ctx.textAlign = 'center';
+    ctx.fillText('Exozen', 0, 0);
+    ctx.restore();
+    canvas.toBlob((watermarkedBlob) => {
+      if (watermarkedBlob) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(watermarkedBlob);
+        a.download = filename;
+        a.click();
+      }
+    }, blob.type);
+  };
+
+  const handleDocumentDownload = async (doc: { url: string, type: string }) => {
+    try {
+      setIsDownloading(true);
+
+      const proxyUrl = doc.url.startsWith('http') 
+        ? `/v1/employee/api/proxy-image?url=${encodeURIComponent(doc.url)}` 
+        : doc.url;
+
+      const ext = doc.url.split('.').pop()?.toLowerCase();
+
+      if (ext === 'pdf') {
+        await downloadPDFWithWatermark(proxyUrl, `${doc.type}-Exozen.pdf`);
+      } else if (["jpg", "jpeg", "png", "webp"].includes(ext || '')) {
+        await downloadImageWithWatermark(proxyUrl, `${doc.type}-Exozen.${ext}`);
+      } else {
+        // Download as-is for other file types
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`Failed to fetch document: ${response.statusText}`);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `${doc.type}-${new Date().toISOString().split('T')[0]}.${ext}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert(`Failed to download document. Please try again later. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsDownloading(false);
     }
@@ -630,18 +728,35 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
                           <div className={`${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'} w-10 h-10 rounded-lg flex items-center justify-center mr-4`}>
                             <FaFileAlt className={`w-5 h-5 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-500'}`} />
                           </div>
-                          <div>
+                          <div className="flex-1">
                             <h4 className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{doc.type}</h4>
-                            <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`}>Uploaded on {new Date(doc.uploadedAt).toLocaleDateString()}</p>
-                            <a
-                              href={doc.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={`text-sm mt-2 inline-flex items-center transition-colors
-                                ${theme === 'dark' ? 'text-blue-300 hover:text-blue-400' : 'text-blue-600 hover:text-blue-700'}`}
-                            >
-                              View Document
-                            </a>
+                            <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`}>
+                              Uploaded on {new Date(doc.uploadedAt).toLocaleDateString()}
+                            </p>
+                            <div className="flex gap-4 mt-2">
+                              <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`text-sm inline-flex items-center transition-colors
+                                  ${theme === 'dark' ? 'text-blue-300 hover:text-blue-400' : 'text-blue-600 hover:text-blue-700'}`}
+                              >
+                                View Document
+                              </a>
+                              <button
+                                onClick={() => handleDocumentDownload(doc)}
+                                disabled={isDownloading}
+                                className={`text-sm inline-flex items-center gap-2 transition-colors
+                                  ${theme === 'dark' ? 'text-green-300 hover:text-green-400 disabled:text-gray-500' : 'text-green-600 hover:text-green-700 disabled:text-gray-400'}`}
+                              >
+                                {isDownloading ? (
+                                  <FaSpinner className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <FaDownload className="w-4 h-4" />
+                                )}
+                                {isDownloading ? 'Downloading...' : 'Download as PDF'}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
