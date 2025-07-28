@@ -1,10 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import CoordinatorDashboardLayout from "@/components/dashboard/CoordinatorDashboardLayout";
-import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter } from "react-icons/fa";
-import Image from "next/image";
+import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-// import type { MouseEvent } from "react";
 
 interface SizeInventory {
   _id: string;
@@ -40,6 +38,8 @@ export default function StoreInStockPage() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // Changed from 8 to 10
 
   // Fetch inventory data
   useEffect(() => {
@@ -75,6 +75,19 @@ export default function StoreInStockPage() {
     return matchesCategory && matchesSearch;
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredStock.length / itemsPerPage);
+  const paginatedStock = filteredStock.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to page 1 if filter/search changes and current page is out of range
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(1);
+    // eslint-disable-next-line
+  }, [search, categoryFilter, totalPages]);
+
   return (
     <CoordinatorDashboardLayout>
       <div
@@ -102,8 +115,8 @@ export default function StoreInStockPage() {
             <FaStore className="w-10 h-10 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white mb-1">In Stock</h1>
-            <p className="text-white text-base opacity-90 mt-3">View and manage in-stock items</p>
+            <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">In Stock</h1>
+            <p className="text-white text-base opacity-90 mt-3">Browse, search, and filter all in-stock items in real time.</p>
           </div>
         </div>
         {/* Main Content */}
@@ -111,55 +124,64 @@ export default function StoreInStockPage() {
           {/* Left Panel - Info/Guidelines */}
           <div className="lg:w-1/3 w-full">
             <div
-              className={`rounded-xl p-6 border shadow-sm sticky top-8 transition-colors duration-300 ${
+              className={`rounded-xl p-8 border shadow-md sticky top-8 transition-colors duration-300 ${
                 theme === "dark"
-                  ? "bg-gray-900 border-blue-900"
-                  : "bg-white border-blue-100"
+                  ? "bg-gradient-to-br from-gray-900 via-blue-950 to-blue-900 border-blue-900"
+                  : "bg-gradient-to-br from-white via-blue-50 to-blue-100 border-blue-100"
               }`}
             >
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-50 text-blue-600"}`}>
-                  <FaInfoCircle className="w-5 h-5" />
+              <div className="flex items-center gap-3 mb-5">
+                <div className={`p-3 rounded-lg ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-700"}`}>
+                  <FaInfoCircle className="w-6 h-6" />
                 </div>
-                <h2 className={`text-lg font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>Stock Guidelines</h2>
+                <h2 className={`text-xl font-bold tracking-tight ${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>Stock Guidelines</h2>
               </div>
-              <ul className="space-y-4">
+              <ul className="space-y-4 pl-2">
                 {guidelines.map((g, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <span className={`p-2 rounded-lg ${theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-50 text-green-600"}`}><FaBoxOpen className="w-4 h-4" /></span>
-                    <span className={`text-sm leading-relaxed ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>{g}</span>
+                    <span className={`p-2 rounded-lg mt-1 ${theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-700"}`}>
+                      <FaBoxOpen className="w-4 h-4" />
+                    </span>
+                    <span className={`text-base leading-relaxed ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>{g}</span>
                   </li>
                 ))}
               </ul>
-              <div className={`mt-8 p-4 rounded-xl border text-blue-700 transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-blue-800 text-blue-200" : "bg-blue-50 border-blue-100 text-blue-700"}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <FaStore className="w-4 h-4" />
+              <div className={`mt-10 p-5 rounded-xl border text-blue-700 transition-colors duration-300 flex flex-col gap-2 ${
+                theme === "dark"
+                  ? "bg-gray-900 border-blue-800 text-blue-200"
+                  : "bg-blue-50 border-blue-100 text-blue-700"
+              }`}>
+                <div className="flex items-center gap-2">
+                  <FaStore className="w-5 h-5" />
                   <span className="font-semibold">Need Help?</span>
                 </div>
-                <p className="text-sm">Contact <span className="font-medium">stores@zenployee.com</span> for support.</p>
+                <p className="text-sm">
+                  For urgent queries or discrepancies, contact <span className="font-medium underline">stores@zenployee.com</span>.
+                </p>
               </div>
             </div>
           </div>
           {/* Right Panel - Search, Filter, Stock Cards */}
           <div className="flex-1 flex flex-col gap-6">
             {/* Search and Filter Row */}
-            <div className="flex flex-col md:flex-row gap-4 mb-2 items-start md:items-center">
+            <div className="flex flex-col md:flex-row gap-4 mb-2 items-start md:items-center sticky top-0 z-20 bg-opacity-90 backdrop-blur-md py-3 px-2 rounded-xl shadow-sm"
+              style={{background: theme === "dark" ? "#181f2af0" : "#f8fafcf0"}}>
               <div className="relative w-full md:w-1/2">
                 <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
                 <input
                   type="text"
-                  placeholder="Search by item or category..."
+                  placeholder="Search by item, category, or sub-category..."
                   value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
+                  onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+                  className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 text-base ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
                 />
               </div>
               <div className="flex items-center gap-2 w-full md:w-auto">
                 <FaFilter className={`w-5 h-5 mr-2 ${theme === "dark" ? "text-blue-200" : "text-blue-600"}`} />
                 <select
                   value={categoryFilter}
-                  onChange={e => setCategoryFilter(e.target.value)}
-                  className={`px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
+                  onChange={e => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
+                  className={`px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-base transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
                 >
                   <option value="">All Categories</option>
                   {categories.map(cat => (
@@ -169,7 +191,7 @@ export default function StoreInStockPage() {
               </div>
             </div>
             {/* Stock Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto pb-2">
               {loading ? (
                 <div className={`col-span-full text-center py-12 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Loading...</div>
               ) : error ? (
@@ -177,36 +199,28 @@ export default function StoreInStockPage() {
               ) : filteredStock.length === 0 ? (
                 <div className={`col-span-full text-center py-12 ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>No items found.</div>
               ) : (
-                filteredStock.map((item, idx) => {
+                paginatedStock.map((item, idx) => {
                   // Calculate total quantity
                   const totalQty = item.sizeInventory?.reduce((sum: number, s: SizeInventory) => sum + (s.quantity || 0), 0);
                   return (
                     <div
                       key={item._id || idx}
-                      className={`rounded-2xl border shadow-lg flex flex-col overflow-hidden hover:shadow-xl transition-all duration-200 ${theme === "dark" ? "border-blue-900 bg-gray-900" : "border-blue-100 bg-white"}`}
+                      className={`rounded-2xl border shadow-lg flex flex-col overflow-hidden hover:shadow-2xl transition-all duration-200 ${theme === "dark" ? "border-blue-900 bg-gradient-to-br from-gray-900 via-blue-950 to-blue-900" : "border-blue-100 bg-gradient-to-br from-white via-blue-50 to-blue-100"}`}
                     >
-                      <div className={`relative w-full h-48 flex items-center justify-center ${theme === "dark" ? "bg-blue-950" : "bg-blue-50"}`}>
-                        <Image
-                          src={"/v1/employee/logo-exo%20.png"}
-                          alt={item.name}
-                          fill
-                          style={{ objectFit: "contain" }}
-                          sizes="(max-width: 768px) 100vw, 50vw"
-                          priority
-                          onError={(e) => { (e.target as HTMLImageElement).src = '/file.svg'; }}
-                        />
-                      </div>
+                      {/* Removed item logo */}
+                      <div className={`relative w-full h-4 flex items-center justify-center ${theme === "dark" ? "bg-blue-950" : "bg-blue-50"}`}></div>
                       <div className="p-6 flex-1 flex flex-col justify-between">
                         <div>
-                          <h3 className={`text-xl font-bold mb-1 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{item.name}</h3>
+                          <h3 className={`text-xl font-bold mb-1 tracking-tight ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{item.name}</h3>
                           <div className="flex flex-wrap items-center gap-2 mb-2">
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-700"}`}>{item.category}</span>
                             {item.subCategory && (
                               <span className={`px-3 py-1 rounded-full text-xs font-semibold ${theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-50 text-green-700"}`}>{item.subCategory}</span>
                             )}
                           </div>
-                          <div className={`text-sm mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
-                            Total Quantity: <span className={theme === "dark" ? "font-semibold text-blue-200" : "font-semibold text-blue-700"}>{totalQty}</span>
+                          <div className={`text-base mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                            <span className="font-semibold">Total Quantity:</span>{" "}
+                            <span className={theme === "dark" ? "font-semibold text-blue-200" : "font-semibold text-blue-700"}>{totalQty}</span>
                           </div>
                           {/* Per-size inventory */}
                           {item.sizeInventory && item.sizeInventory.length > 0 && (
@@ -228,7 +242,7 @@ export default function StoreInStockPage() {
                         </div>
                         <div className="mt-6">
                           <button
-                            className={`w-full px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900 focus:ring-blue-900" : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-300"}`}
+                            className={`w-full px-4 py-2 rounded-lg font-semibold text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900 focus:ring-blue-900" : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-300"}`}
                             onClick={() => { setSelectedItem(item); setModalOpen(true); }}
                           >
                             View Details
@@ -240,6 +254,30 @@ export default function StoreInStockPage() {
                 })
               )}
             </div>
+            {/* Pagination Controls */}
+            {filteredStock.length > itemsPerPage && (
+              <div className="flex justify-center items-center gap-4 mt-2">
+                <button
+                  className={`px-3 py-2 rounded-lg font-semibold flex items-center gap-1 ${currentPage === 1 ? "opacity-50 cursor-not-allowed" : theme === "dark" ? "bg-blue-900 text-blue-200 hover:bg-blue-800" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  aria-label="Previous Page"
+                >
+                  <FaChevronLeft /> Prev
+                </button>
+                <span className={`text-base font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  className={`px-3 py-2 rounded-lg font-semibold flex items-center gap-1 ${currentPage === totalPages ? "opacity-50 cursor-not-allowed" : theme === "dark" ? "bg-blue-900 text-blue-200 hover:bg-blue-800" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  aria-label="Next Page"
+                >
+                  Next <FaChevronRight />
+                </button>
+              </div>
+            )}
             {/* Modal for item details */}
             {modalOpen && selectedItem && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
@@ -252,14 +290,8 @@ export default function StoreInStockPage() {
                     >
                       &times;
                     </button>
+                    {/* Removed item logo from modal */}
                     <div className="flex items-center gap-4 mb-4">
-                      <Image
-                        src={"/v1/employee/logo-exo%20.png"}
-                        alt={selectedItem.name}
-                        width={60}
-                        height={60}
-                        className="rounded-lg bg-blue-50 dark:bg-blue-950"
-                      />
                       <div>
                         <h2 className="text-xl font-bold text-blue-800 dark:text-blue-200">{selectedItem.name}</h2>
                         <div className="flex flex-wrap gap-2 mt-1">

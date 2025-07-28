@@ -154,6 +154,33 @@ export default function StoreDCPage() {
     return "N/A";
   };
 
+  // Helper function to get project name from uniform requests
+  const getProjectNameFromUniformRequests = React.useCallback(async (customer: string): Promise<string> => {
+    try {
+      const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+      if (!res.ok) return "General";
+      
+      const data = await res.json();
+      if (data.success) {
+        // Try to find matching uniform request by customer name
+        const customerNames = customer.split(',').map(name => name.trim());
+        for (const customerName of customerNames) {
+          const matchingRequest = data.uniforms.find((u: unknown) => 
+            (u as { fullName: string }).fullName === customerName || 
+            customerName.includes((u as { fullName: string }).fullName) ||
+            (u as { fullName: string }).fullName.includes(customerName)
+          );
+          if (matchingRequest && (matchingRequest as { projectName: string }).projectName) {
+            return (matchingRequest as { projectName: string }).projectName;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching project name from uniform requests:", error);
+    }
+    return "General";
+  }, []);
+
   useEffect(() => {
     const fetchDCs = async () => {
       setLoading(true);
@@ -223,7 +250,7 @@ export default function StoreDCPage() {
       }
     };
     fetchDCs();
-  }, []);
+  }, [getProjectNameFromUniformRequests]);
 
   // Helper function to extract project name from customer and remarks
   const extractProjectName = (): string => {
@@ -298,32 +325,7 @@ export default function StoreDCPage() {
     return "NA";
   };
 
-  // Helper function to get project name from uniform requests
-  const getProjectNameFromUniformRequests = async (customer: string): Promise<string> => {
-    try {
-      const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
-      if (!res.ok) return extractProjectName();
-      
-      const data = await res.json();
-      if (data.success) {
-        // Try to find matching uniform request by customer name
-        const customerNames = customer.split(',').map(name => name.trim());
-        for (const customerName of customerNames) {
-          const matchingRequest = data.uniforms.find((u: unknown) => 
-            (u as { fullName: string }).fullName === customerName || 
-            customerName.includes((u as { fullName: string }).fullName) ||
-            (u as { fullName: string }).fullName.includes(customerName)
-          );
-          if (matchingRequest && (matchingRequest as { projectName: string }).projectName) {
-            return (matchingRequest as { projectName: string }).projectName;
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching project name from uniform requests:", error);
-    }
-    return extractProjectName();
-  };
+
 
   // Helper function to get individual employee data from uniform requests
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
