@@ -225,21 +225,21 @@ export default function StoreDCPage() {
   }, []);
 
   // Helper function to extract project name from customer and remarks
-  const extractProjectName = (customer: string, remarks: string): string => {
+  const extractProjectName = (): string => {
     // Try to extract project name from remarks first
-    if (remarks && remarks.includes("Operations")) {
-      return "Operations";
-    }
-    if (remarks && remarks.includes("Security")) {
-      return "Security";
-    }
-    if (remarks && remarks.includes("Arvind Belair")) {
-      return "Arvind Belair";
-    }
-    // Check if customer name contains project information
-    if (customer && customer.includes("Arvind Belair")) {
-      return "Arvind Belair";
-    }
+    // if (remarks && remarks.includes("Operations")) {
+    //   return "Operations";
+    // }
+    // if (remarks && remarks.includes("Security")) {
+    //   return "Security";
+    // }
+    // if (remarks && remarks.includes("Arvind Belair")) {
+    //   return "Arvind Belair";
+    // }
+    // // Check if customer name contains project information
+    // if (customer && customer.includes("Arvind Belair")) {
+    //   return "Arvind Belair";
+    // }
     // Default project name
     return "General";
   };
@@ -260,45 +260,68 @@ export default function StoreDCPage() {
     try {
       const sizeObj = typeof size === 'string' ? JSON.parse(size) : size;
       return Object.keys(sizeObj || {});
-    } catch {
-      return ["Uniform"];
+    } catch (error) {
+      console.error("Error parsing size data:", error);
+      return [];
     }
   };
 
-  // Helper function to parse size data
+  // Helper function to parse size data into a record
   const parseSizeData = (size: string): Record<string, string> => {
     try {
-      return typeof size === 'string' ? JSON.parse(size) : (size || {});
-    } catch {
+      if (typeof size === 'string') {
+        return JSON.parse(size);
+      }
+      return size || {};
+    } catch (error) {
+      console.error("Error parsing size data:", error);
       return {};
     }
+  };
+
+
+
+
+
+  // NEW: Dynamic function to get accessories from uniform types
+  const getDynamicAccessories = (uniformTypes: string[]): string => {
+    const accessoryTypes = ['Accessories', 'Cap', 'Hat', 'Belt', 'Gloves', 'Mask', 'Scarf', 'Towel', 'Bag', 'Umbrella', 'Raincoat', 'Safety', 'Helmet', 'Goggles', 'Earplugs', 'Respirator'];
+    
+    for (const accessoryType of accessoryTypes) {
+      if (uniformTypes.includes(accessoryType)) {
+        if (accessoryType === 'Accessories') return "Full";
+        return accessoryType;
+      }
+    }
+    
+    return "NA";
   };
 
   // Helper function to get project name from uniform requests
   const getProjectNameFromUniformRequests = async (customer: string): Promise<string> => {
     try {
       const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
-      if (!res.ok) return extractProjectName(customer, "");
+      if (!res.ok) return extractProjectName();
       
       const data = await res.json();
       if (data.success) {
         // Try to find matching uniform request by customer name
         const customerNames = customer.split(',').map(name => name.trim());
         for (const customerName of customerNames) {
-                  const matchingRequest = data.uniforms.find((u: unknown) => 
-          (u as { fullName: string }).fullName === customerName || 
-          customerName.includes((u as { fullName: string }).fullName) ||
-          (u as { fullName: string }).fullName.includes(customerName)
-        );
-                      if (matchingRequest && (matchingRequest as { projectName: string }).projectName) {
-                          return (matchingRequest as { projectName: string }).projectName;
+          const matchingRequest = data.uniforms.find((u: unknown) => 
+            (u as { fullName: string }).fullName === customerName || 
+            customerName.includes((u as { fullName: string }).fullName) ||
+            (u as { fullName: string }).fullName.includes(customerName)
+          );
+          if (matchingRequest && (matchingRequest as { projectName: string }).projectName) {
+            return (matchingRequest as { projectName: string }).projectName;
           }
         }
       }
     } catch (error) {
       console.error("Error fetching project name from uniform requests:", error);
     }
-    return extractProjectName(customer, "");
+    return extractProjectName();
   };
 
   // Helper function to get individual employee data from uniform requests
@@ -541,22 +564,20 @@ export default function StoreDCPage() {
       const sizeData = employeeData.size || {};
       const uniformTypes = employeeData.uniformType || [];
       
-      // Get sizes for common uniform types - use the actual API data structure
+      // Get accessories dynamically
+      const accessories = getDynamicAccessories(uniformTypes);
+      
+      // Get quantity
+      const quantity = employeeData.qty || item.quantity || 1;
+      const noOfSet = sizeData['Accessories'] ? "Full set" : quantity.toString();
+      
+      // Create dynamic table row with separate columns for Shirt, Pant, Shoe
       const shirtSize = sizeData['Work Shirt'] || sizeData['Shirt'] || sizeData['T-Shirt'] || 
                        (uniformTypes.includes('Shirt') ? sizeData['Shirt'] : "NA");
       const pantSize = sizeData['Work Pants'] || sizeData['Pant'] || sizeData['Trousers'] || 
                       (uniformTypes.includes('Pant') ? sizeData['Pant'] : "NA");
       const shoeSize = sizeData['Safety Boots'] || sizeData['Shoe'] || sizeData['Boots'] || 
                       (uniformTypes.includes('Safety Boots') ? sizeData['Safety Boots'] : "NA");
-      
-      // Get accessories - check if Accessories is in uniformType array
-      const accessories = uniformTypes.includes('Accessories') ? "Full" : 
-                         uniformTypes.includes('Cap') || uniformTypes.includes('Hat') ? "Cap" :
-                         uniformTypes.includes('Belt') ? "Belt" : "NA";
-      
-      // Get quantity
-      const quantity = employeeData.qty || item.quantity || 1;
-      const noOfSet = sizeData['Accessories'] ? "Full set" : quantity.toString();
       
       const tableRow = [
         idx + 1,
@@ -619,10 +640,8 @@ export default function StoreDCPage() {
         const shoeSize = sizeData['Safety Boots'] || sizeData['Shoe'] || sizeData['Boots'] || 
                         (uniformTypes.includes('Safety Boots') ? sizeData['Safety Boots'] : "NA");
         
-        // Get accessories - check if Accessories is in uniformType array
-        const accessories = uniformTypes.includes('Accessories') ? "Full" : 
-                           uniformTypes.includes('Cap') || uniformTypes.includes('Hat') ? "Cap" :
-                           uniformTypes.includes('Belt') ? "Belt" : "NA";
+        // Get accessories dynamically
+        const accessories = getDynamicAccessories(uniformTypes);
         
         // Get quantity
         const quantity = employeeUniformData ? employeeUniformData.qty : 1;
@@ -1384,33 +1403,7 @@ function CreateDCModal({ onClose, theme, setDcData, dcData, refreshDCData }: { o
   // Stepper progress bar
   const progressPercent = ((step-1)/(stepLabels.length-1))*100;
 
-  // Live preview for step 3
-  const preview = step === 3 && (
-    <div className={`rounded-xl border shadow p-6 mt-8 mb-2 transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-blue-900" : "bg-white border-blue-100"}`}
-      aria-label="Delivery Challan Preview">
-      <div className="flex items-center gap-2 mb-2">
-        <FaBoxOpen className={`w-5 h-5 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} />
-        <span className={`font-semibold text-lg ${theme === "dark" ? "text-white" : "text-blue-900"}`}>Preview</span>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-        <div><span className="font-semibold">Customer:</span> {customer}</div>
-        <div><span className="font-semibold">DC Number:</span> {dcNumber}</div>
-        <div><span className="font-semibold">Date:</span> {dcDate}</div>
-        <div><span className="font-semibold">Remarks:</span> {remarks}</div>
-        <div><span className="font-semibold">Address:</span> {address}</div>
-      </div>
-      <div className="mt-4">
-        <span className="font-semibold block mb-1">Items:</span>
-        <ul className="list-disc ml-6">
-          {selectedRequests.map((req) => (
-            <li key={req._id}>
-              {req.fullName} - Qty: {req.qty} - Size: {typeof req.size === 'object' && req.uniformType && req.uniformType[0] && req.size[req.uniformType[0]] ? req.size[req.uniformType[0]] : ''}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
+
 
   // Success animation
   const successAnimation = success && (
@@ -1781,7 +1774,6 @@ function CreateDCModal({ onClose, theme, setDcData, dcData, refreshDCData }: { o
                       <div className="text-xs text-gray-500 mt-1">Delivery address (optional).</div>
                     </div>
                   </div>
-                  {preview}
                   {saveDCError && (
                     <div className={`p-4 rounded-lg border flex items-center gap-2 mt-6
                       ${theme === "dark" ? "bg-red-900 border-red-700 text-red-200" : "bg-red-100 border-red-200 text-red-700"}`}>
