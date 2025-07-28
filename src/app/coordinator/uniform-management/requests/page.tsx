@@ -110,7 +110,7 @@ export default function UniformRequestsPage() {
         setNewRequest(r => ({ ...r, employeeId }));
       }
     }
-  }, [searchParams]);
+  }, [searchParams, newRequest.employeeId]);
 
   const fetchRequests = async () => {
     setLoading(true);

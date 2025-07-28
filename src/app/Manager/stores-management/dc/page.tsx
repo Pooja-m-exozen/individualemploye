@@ -44,20 +44,23 @@ interface ApiResponse {
 }
 
 // Add new interface for preview data
-// interface DCPreviewData {
-//   dcNumber: string;
-//   dcDate: string;
-//   customer: string;
-//   address: string;
-//   remarks: string;
-//   items: Array<{
-//     itemCode: string;
-//     name: string;
-//     size: string;
-//     quantity: number;
-//     employeeId: string;
-//   }>;
-// }
+interface UniformRequest {
+  _id: string;
+  employeeId: string;
+  fullName: string;
+  designation: string;
+  gender: string;
+  projectName: string;
+  uniformType: string[];
+  size: Record<string, string>;
+  qty: number;
+  uniformRequested: boolean;
+  approvalStatus: string;
+  issuedStatus: string;
+  remarks: string;
+  requestDate: string;
+  type: string[];
+}
 
 export default function StoreDCPage() {
   const { theme } = useTheme();
@@ -68,7 +71,7 @@ export default function StoreDCPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDC, setSelectedDC] = useState<DC | null>(null);
-  const [uniformReq, setUniformReq] = useState<any>(null);
+  const [uniformReq, setUniformReq] = useState<UniformRequest | null>(null);
 
   useEffect(() => {
     const fetchDCs = async () => {
@@ -611,14 +614,14 @@ interface UniformApiResponse {
 }
 
 // 1. Add a helper to fetch uniform request for a customer
-async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<any> {
+async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<UniformRequest | null> {
   try {
     const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
     const data = await res.json();
     if (data.success) {
       // Try to match by employeeId first, fallback to fullName
-      return data.uniforms.find((u: any) => u.employeeId === employeeId) ||
-             data.uniforms.find((u: any) => u.fullName === fullName);
+      return data.uniforms.find((u: UniformRequest) => u.employeeId === employeeId) ||
+             data.uniforms.find((u: UniformRequest) => u.fullName === fullName) || null;
     }
   } catch {
     // ignore
@@ -628,15 +631,15 @@ async function fetchUniformRequestForCustomer(employeeId: string, fullName: stri
 
 // Add UniformRequestDetails component after StoreDCPage
 function UniformRequestDetails({ employeeId, fullName }: { employeeId: string; fullName: string }) {
-  const [uniformReq, setUniformReq] = React.useState<any>(null);
+  const [uniformReq, setUniformReq] = React.useState<UniformRequest | null>(null);
   React.useEffect(() => {
     async function fetchData() {
       try {
         const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
         const data = await res.json();
         if (data.success) {
-          const found = data.uniforms.find((u: any) => u.employeeId === employeeId) ||
-                        data.uniforms.find((u: any) => u.fullName === fullName);
+          const found = data.uniforms.find((u: UniformRequest) => u.employeeId === employeeId) ||
+                        data.uniforms.find((u: UniformRequest) => u.fullName === fullName) || null;
           setUniformReq(found);
         }
       } catch {}
