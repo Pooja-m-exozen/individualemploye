@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import CoordinatorDashboardLayout from '@/components/dashboard/CoordinatorDashboardLayout';
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -798,5 +798,9 @@ function ClientRequestsPage() {
 }
 
 export default function Page() {
-  return <ClientRequestsPage />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ClientRequestsPage />
+    </Suspense>
+  );
 }
