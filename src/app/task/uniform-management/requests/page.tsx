@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import TaskDashboardLayout from "@/components/dashboard/TaskDashboardLayout";
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -64,7 +64,7 @@ interface UniformApiResponse {
   updatedAt?: string;
 }
 
-export default function UniformRequestsPage() {
+function UniformRequestsPage() {
   const { theme } = useTheme();
   const [requests, setRequests] = useState<UniformRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -694,5 +694,13 @@ export default function UniformRequestsPage() {
         </div>
       </div>
     </TaskDashboardLayout>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <UniformRequestsPage />
+    </Suspense>
   );
 }
