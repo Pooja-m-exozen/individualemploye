@@ -58,6 +58,10 @@ export default function CreateKYCPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Add state for auto-generate employee ID
+  const [autoGenerateEmployeeId, setAutoGenerateEmployeeId] = useState(true);
+  const [employeeIdError, setEmployeeIdError] = useState<string | null>(null);
+
   // Section navigation state
   const [activeSection, setActiveSection] = useState(sections[0].id);
   const [completedSections, setCompletedSections] = useState<string[]>([]);
@@ -129,7 +133,10 @@ export default function CreateKYCPage() {
       });
   }, []);
 
-  useEffect(() => {
+   // Modified useEffect to only run when auto-generate is enabled
+   useEffect(() => {
+    if (!autoGenerateEmployeeId) return;
+    
     // Always fetch ALL KYC forms to find the highest EFMS number
     let maxNum = 3376 - 1;
     let nextId = '';
@@ -156,7 +163,7 @@ export default function CreateKYCPage() {
         nextId = `EFMS${maxNum + 1}`;
         setPersonalDetails(prev => ({ ...prev, employeeId: nextId }));
       });
-  }, [employeeIdSeed]);
+  }, [employeeIdSeed, autoGenerateEmployeeId]);
 
   // Update designation options when project changes
   useEffect(() => {
@@ -168,10 +175,37 @@ export default function CreateKYCPage() {
     }
   }, [personalDetails.projectName, projectList]);
 
+   // Validate employee ID format
+   const validateEmployeeId = (id: string) => {
+    const regex = /^EFMS\d+$/;
+    if (!regex.test(id)) {
+      setEmployeeIdError("Employee ID must start with 'EFMS' followed by numbers (e.g., EFMS3377)");
+      return false;
+    }
+    setEmployeeIdError(null);
+    return true;
+  };
+
   // Handle input changes for each section
   const handlePersonalChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setPersonalDetails({ ...personalDetails, [e.target.name]: e.target.value });
   };
+
+  // Handle auto-generate checkbox change
+  const handleAutoGenerateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAutoGenerateEmployeeId(e.target.checked);
+    setEmployeeIdError(null);
+    
+    if (e.target.checked) {
+      // Trigger auto-generation
+      setEmployeeIdSeed(prev => prev + 1);
+    } else {
+      // Clear the employee ID for manual entry
+      setPersonalDetails(prev => ({ ...prev, employeeId: "" }));
+    }
+  };
+
+  // Handle address change
   const handleAddressChange = (section: "permanentAddress" | "currentAddress", e: React.ChangeEvent<HTMLInputElement>) => {
     setAddressDetails(prev => {
       const updated = {
