@@ -181,6 +181,31 @@ export default function StoreDCPage() {
     return "N/A";
   };
 
+  // Helper function to fetch project details from API
+  const getProjectDetails = async (projectName: string) => {
+    try {
+      const res = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+      if (!res.ok) return { projectName, address: "N/A" };
+      
+      const data = await res.json();
+      const project = data.find((p: { projectName: string }) => 
+        p.projectName === projectName || 
+        projectName.includes(p.projectName) || 
+        p.projectName.includes(projectName)
+      );
+      
+      if (project) {
+        return {
+          projectName: project.projectName,
+          address: project.address
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching project details:", error);
+    }
+    return { projectName, address: "N/A" };
+  };
+
   useEffect(() => {
     const fetchDCs = async () => {
       setLoading(true);
@@ -484,7 +509,13 @@ export default function StoreDCPage() {
     const projectName = getProjectName(dc);
     console.log("Project name for PDF:", projectName);
     
-    doc.text(projectName, pageWidth / 2 + 4, y + 8, { maxWidth: pageWidth / 2 - 29 });
+    // Fetch project details from API
+    const projectDetails = await getProjectDetails(projectName);
+    console.log("Project details for PDF:", projectDetails);
+    
+    // Create the "To" text with project name and address
+    const toText = `${projectDetails.projectName}\n${projectDetails.address}`;
+    doc.text(toText, pageWidth / 2 + 4, y + 8, { maxWidth: pageWidth / 2 - 29 });
 
     y += 30;
 
