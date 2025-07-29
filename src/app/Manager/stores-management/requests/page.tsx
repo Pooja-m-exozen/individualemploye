@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
+import ManagerDashboardLayout  from "@/components/dashboard/ManagerDashboardLayout";
 import { FaStore, FaSearch, FaFilter, FaCheckCircle, FaTimesCircle, FaDownload, FaChevronLeft, FaChevronRight, FaClock } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -126,7 +126,7 @@ export default function StoreRequestsPage() {
   }
 
   return (
-    <ManagerDashboardLayout>
+    <ManagerDashboardLayout >
       {/* Modal for viewing details */}
       {selectedRequest && (
         <dialog ref={modalRef} open className="fixed z-50 left-0 top-0 w-full h-full flex items-center justify-center bg-black bg-opacity-40">
@@ -445,6 +445,6 @@ export default function StoreRequestsPage() {
           </div>
         </div>
       </div>
-    </ManagerDashboardLayout>
+    </ManagerDashboardLayout >
   );
 }

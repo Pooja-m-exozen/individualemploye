@@ -434,8 +434,8 @@ export default function StoreDCPage() {
     console.log("Generating PDF for DC:", dc);
     console.log("DC items:", dc.items);
     
-    // Create PDF with A4 landscape orientation for more space
-    const doc = new jsPDF('landscape', 'mm', 'a4');
+    // Create PDF with A4 portrait orientation for proper A4 sheet format
+    const doc = new jsPDF('portrait', 'mm', 'a4');
     (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = undefined;
 
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -472,23 +472,23 @@ export default function StoreDCPage() {
     // From/To boxes
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text("From:", 12, y + 3);
+    doc.text("From:", 15, y + 3);
     doc.text("To:", pageWidth / 2 + 2, y + 3);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.rect(12, y + 5, pageWidth / 2 - 18, 20);
-    doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED\n25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", 14, y + 8, { maxWidth: pageWidth / 2 - 22 });
-    doc.rect(pageWidth / 2 + 2, y + 5, pageWidth / 2 - 18, 20);
+    doc.rect(15, y + 5, pageWidth / 2 - 25, 20);
+    doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED\n25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", 17, y + 8, { maxWidth: pageWidth / 2 - 29 });
+    doc.rect(pageWidth / 2 + 2, y + 5, pageWidth / 2 - 25, 20);
     
     // Get project name using helper function
     const projectName = getProjectName(dc);
     console.log("Project name for PDF:", projectName);
     
-    doc.text(projectName, pageWidth / 2 + 4, y + 8, { maxWidth: pageWidth / 2 - 22 });
+    doc.text(projectName, pageWidth / 2 + 4, y + 8, { maxWidth: pageWidth / 2 - 29 });
 
     y += 30;
 
-    // DYNAMIC TABLE GENERATION - Based on actual uniform API data
+    // DYNAMIC TABLE GENERATION - Based on actual uniform requests for this specific DC
     const tableBody = [];
     
     // First, fetch all uniform requests to get employee data
@@ -506,31 +506,40 @@ export default function StoreDCPage() {
       console.error("Error fetching uniform requests:", error);
     }
     
-    // Get all unique uniform types from the API to create dynamic headers
-    const allUniformTypes = new Set<string>();
-    allUniformRequests.forEach((uniform: {
-      uniformType?: string[];
-    }) => {
-      if (uniform.uniformType && Array.isArray(uniform.uniformType)) {
-        uniform.uniformType.forEach((type: string) => allUniformTypes.add(type));
-      }
-    });
-    
-    // Convert to array and sort for consistent ordering
-    const dynamicUniformTypes = Array.from(allUniformTypes).sort();
-    console.log("Dynamic uniform types found:", dynamicUniformTypes);
-    
-    // Limit to ensure single page - adjust based on available space
-    const maxUniformTypes = Math.min(dynamicUniformTypes.length, 8); // Reduced to 8 for single page
-    const limitedUniformTypes = dynamicUniformTypes.slice(0, maxUniformTypes);
-    
-    // Create dynamic table headers
-    const tableHeaders = ["Sl No", "Emp ID", "Names", "DESIGNATION", "No of Set", ...limitedUniformTypes, "Amount", "Emp Sign"];
-    
     // Process each employee in the DC
     const employees = dc.customer.includes(',') 
       ? dc.customer.split(',').map(name => name.trim())
       : [dc.customer];
+    
+    // Get uniform request data for each employee in this DC
+    const employeeUniformData = [];
+    for (const employeeName of employees) {
+      const uniformData = allUniformRequests.find((u: unknown) => 
+        (u as { fullName: string }).fullName === employeeName || 
+        employeeName.includes((u as { fullName: string }).fullName) ||
+        (u as { fullName: string }).fullName.includes(employeeName)
+      );
+      if (uniformData) {
+        employeeUniformData.push(uniformData);
+      }
+    }
+    
+    // Get unique uniform types ONLY from the employees in this DC
+    const dcUniformTypes = new Set<string>();
+    employeeUniformData.forEach((uniform: {
+      uniformType?: string[];
+    }) => {
+      if (uniform.uniformType && Array.isArray(uniform.uniformType)) {
+        uniform.uniformType.forEach((type: string) => dcUniformTypes.add(type));
+      }
+    });
+    
+    // Convert to array and sort for consistent ordering
+    const dynamicUniformTypes = Array.from(dcUniformTypes).sort();
+    console.log("Uniform types for this DC:", dynamicUniformTypes);
+    
+    // Create dynamic table headers based on actual uniform types in this DC
+    const tableHeaders = ["Sl No", "Emp ID", "Names", "DESIGNATION", "No of Set", ...dynamicUniformTypes, "Amount", "Emp Sign"];
     
     // Limit to ensure single page
     const maxEmployees = Math.min(employees.length, 12); // Reduced to 12 for single page
@@ -539,16 +548,14 @@ export default function StoreDCPage() {
     for (let idx = 0; idx < limitedEmployees.length; idx++) {
       const employeeName = limitedEmployees[idx];
       
-      // Try to get uniform request data for this specific employee
-      let employeeUniformData = null;
-      if (allUniformRequests.length > 0) {
-        employeeUniformData = allUniformRequests.find((u: unknown) => 
-          (u as { fullName: string }).fullName === employeeName || 
-          employeeName.includes((u as { fullName: string }).fullName) ||
-          (u as { fullName: string }).fullName.includes(employeeName)
-        );
-        console.log(`Found uniform data for ${employeeName}:`, employeeUniformData);
-      }
+      // Get uniform request data for this specific employee
+      const employeeUniformData = allUniformRequests.find((u: unknown) => 
+        (u as { fullName: string }).fullName === employeeName || 
+        employeeName.includes((u as { fullName: string }).fullName) ||
+        (u as { fullName: string }).fullName.includes(employeeName)
+      );
+      
+      console.log(`Found uniform data for ${employeeName}:`, employeeUniformData);
       
       // Use uniform request data if available, otherwise use default
       const empId = employeeUniformData ? employeeUniformData.employeeId : `EMP${idx + 1}`;
@@ -561,20 +568,28 @@ export default function StoreDCPage() {
       console.log(`Size data for ${employeeName}:`, sizeData);
       console.log(`Uniform types for ${employeeName}:`, uniformTypes);
       
-      // Get quantity
-      const quantity = employeeUniformData ? employeeUniformData.qty : 1;
-      const noOfSet = sizeData['Accessories'] ? "Full set" : quantity.toString();
+      // Get quantity and determine "No of Set"
+      // const quantity = employeeUniformData ? employeeUniformData.qty : 1;
+      // Check if employee has "Accessories" in their uniform request to determine if it's a full set
+      const hasAccessories = sizeData && typeof sizeData === 'object' && 'Accessories' in sizeData;
+      const noOfSet = hasAccessories ? "Full set" : "NA";
       
       // Create dynamic table row with values for each uniform type
       const tableRow = [
         idx + 1,
         empId,
-        employeeName.length > 18 ? employeeName.substring(0, 18) + "..." : employeeName, // Reduced to 18 for single page
-        designation.length > 15 ? designation.substring(0, 15) + "..." : designation, // Reduced to 15 for single page
+        employeeName, // Show complete name without truncation
+        designation, // Show complete designation without truncation
         noOfSet,
-        // Add size values for each limited uniform type
-        ...limitedUniformTypes.map(uniformType => {
-          return sizeData[uniformType] || "NA";
+        // Add size values for each uniform type in this DC
+        ...dynamicUniformTypes.map(uniformType => {
+          // Check if this employee has this uniform type in their request
+          const hasUniformType = uniformTypes && uniformTypes.includes(uniformType);
+          if (hasUniformType && sizeData && sizeData[uniformType]) {
+            return sizeData[uniformType];
+          } else {
+            return "NA";
+          }
         }),
         "NA", // Amount field
         "" // Employee signature field
@@ -584,35 +599,32 @@ export default function StoreDCPage() {
       tableBody.push(tableRow);
     }
     
-    // Add empty rows to fill remaining space - limit for single page
-    const emptyRowsNeeded = Math.max(0, 12 - tableBody.length); // Reduced to 12 for single page
-    for (let i = 0; i < emptyRowsNeeded; i++) {
-      const emptyRow = ["", "", "", "", "", ...limitedUniformTypes.map(() => ""), "", ""];
-      tableBody.push(emptyRow);
-    }
+    // Only show actual data rows - no empty rows
     
-    // Calculate optimal column widths for landscape orientation
+    // Calculate optimal column widths for portrait orientation with overflow prevention
     const baseColumns = 5; // Sl No, Emp ID, Names, DESIGNATION, No of Set
-    const uniformColumns = limitedUniformTypes.length;
+    const uniformColumns = dynamicUniformTypes.length;
     
-    // Calculate optimal column widths - use full page width
+    // Calculate optimal column widths - ensure fit within A4 portrait
     const totalColumns = baseColumns + uniformColumns + 2; // +2 for Amount and Emp Sign
-    const availableWidth = pageWidth - 16; // Full width minus margins
-    const baseColumnWidth = availableWidth / totalColumns; // Distribute width evenly
+    const availableWidth = pageWidth - 30; // Increased margins to prevent overflow
+    
+    // Calculate maximum width per column to prevent overflow
+    const maxColumnWidth = Math.min(availableWidth / totalColumns, 25); // Cap at 25mm per column
     
     const columnWidths: Record<string, { cellWidth: number }> = {
-      '0': { cellWidth: baseColumnWidth }, // Sl No - dynamic width
-      '1': { cellWidth: baseColumnWidth }, // Emp ID - dynamic width
-      '2': { cellWidth: baseColumnWidth * 1.2 }, // Names - slightly wider
-      '3': { cellWidth: baseColumnWidth * 1.1 }, // DESIGNATION - slightly wider
-      '4': { cellWidth: baseColumnWidth }, // No of Set - dynamic width
+      '0': { cellWidth: Math.min(12, maxColumnWidth) }, // Sl No - compact
+      '1': { cellWidth: Math.min(20, maxColumnWidth) }, // Emp ID - compact
+      '2': { cellWidth: Math.min(35, maxColumnWidth * 1.5) }, // Names - wider but capped
+      '3': { cellWidth: Math.min(25, maxColumnWidth) }, // DESIGNATION - compact
+      '4': { cellWidth: Math.min(15, maxColumnWidth) }, // No of Set - compact
       // Dynamic uniform type columns
-      ...limitedUniformTypes.reduce((acc, _, index) => {
-        acc[String(baseColumns + index)] = { cellWidth: baseColumnWidth }; // Dynamic width for uniform types
+      ...dynamicUniformTypes.reduce((acc, _, index) => {
+        acc[String(baseColumns + index)] = { cellWidth: Math.min(18, maxColumnWidth) }; // Compact uniform types
         return acc;
       }, {} as Record<string, { cellWidth: number }>),
-      [String(baseColumns + uniformColumns)]: { cellWidth: baseColumnWidth }, // Amount - dynamic width
-      [String(baseColumns + uniformColumns + 1)]: { cellWidth: baseColumnWidth * 1.1 } // Emp Sign - slightly wider
+      [String(baseColumns + uniformColumns)]: { cellWidth: Math.min(15, maxColumnWidth) }, // Amount - compact
+      [String(baseColumns + uniformColumns + 1)]: { cellWidth: Math.min(20, maxColumnWidth) } // Emp Sign - compact
     };
     
     autoTable(doc, {
@@ -622,9 +634,10 @@ export default function StoreDCPage() {
       theme: "grid",
       headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold', fontSize: 8 }, // Reduced font size
       styles: { fontSize: 7, cellPadding: 2, textColor: 20 }, // Reduced font size and padding
-      margin: { left: 8, right: 8, top: 2, bottom: 2 }, // Minimal margins
-      tableWidth: pageWidth - 16, // Use full page width
+      margin: { left: 15, right: 15, top: 2, bottom: 2 }, // Increased margins to prevent overflow
+      tableWidth: pageWidth - 30, // Use reduced width to prevent overflow
       columnStyles: columnWidths,
+      // Prevent overflow with proper text handling
       // Remove page break logic to ensure single page
     });
 
