@@ -434,50 +434,51 @@ export default function StoreDCPage() {
     console.log("Generating PDF for DC:", dc);
     console.log("DC items:", dc.items);
     
-    const doc = new jsPDF();
+    // Create PDF with A4 landscape orientation for more space
+    const doc = new jsPDF('landscape', 'mm', 'a4');
     (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = undefined;
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    let y = 10; // Reduced starting position
+    let y = 15; // Starting position
 
-    // Company Name & Address (compact layout)
-    doc.setFontSize(12); // Reduced from 14
+    // Company Name & Address
+    doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED", pageWidth / 2, y + 5, { align: "center" });
-    doc.setFontSize(8); // Reduced from 9
+    doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED", pageWidth / 2, y, { align: "center" });
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text("25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", pageWidth / 2, y + 10, { align: "center" });
+    doc.text("25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", pageWidth / 2, y + 8, { align: "center" });
 
     // Document Title
-    doc.setFontSize(10); // Reduced from 12
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("Non-Returnable Delivery Challan", pageWidth / 2, y + 15, { align: "center" });
+    doc.text("Non-Returnable Delivery Challan", pageWidth / 2, y + 16, { align: "center" });
 
-    // Outer border (reduced height)
+    // Outer border
     doc.setDrawColor(180);
-    doc.rect(5, 4, pageWidth - 10, pageHeight - 8, 'S');
+    doc.rect(5, 5, pageWidth - 10, pageHeight - 10, 'S');
 
-    y += 18; // Reduced spacing
+    y += 25;
 
-    // NRDC No and Date row (compact)
-    doc.setFontSize(9); // Reduced from 10
+    // NRDC No and Date row
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text(`NRDC No: ${dc.dcNumber}`, 12, y);
-    doc.text(`Date: ${dc.dcDate ? dc.dcDate.split("T")[0] : ""}`, pageWidth - 60, y);
+    doc.text(`Date: ${dc.dcDate ? dc.dcDate.split("T")[0] : ""}`, pageWidth - 80, y);
 
-    y += 4; // Reduced spacing
+    y += 8;
 
-    // From/To boxes (compact)
+    // From/To boxes
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text("From:", 12, y + 3);
     doc.text("To:", pageWidth / 2 + 2, y + 3);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7); // Reduced from 9
-    doc.rect(12, y + 5, pageWidth / 2 - 18, 12); // Reduced height from 18
+    doc.setFontSize(8);
+    doc.rect(12, y + 5, pageWidth / 2 - 18, 20);
     doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED\n25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", 14, y + 8, { maxWidth: pageWidth / 2 - 22 });
-    doc.rect(pageWidth / 2 + 2, y + 5, pageWidth / 2 - 18, 12); // Reduced height
+    doc.rect(pageWidth / 2 + 2, y + 5, pageWidth / 2 - 18, 20);
     
     // Get project name using helper function
     const projectName = getProjectName(dc);
@@ -485,7 +486,7 @@ export default function StoreDCPage() {
     
     doc.text(projectName, pageWidth / 2 + 4, y + 8, { maxWidth: pageWidth / 2 - 22 });
 
-    y += 18; // Reduced spacing
+    y += 30;
 
     // DYNAMIC TABLE GENERATION - Based on actual uniform API data
     const tableBody = [];
@@ -519,8 +520,8 @@ export default function StoreDCPage() {
     const dynamicUniformTypes = Array.from(allUniformTypes).sort();
     console.log("Dynamic uniform types found:", dynamicUniformTypes);
     
-    // Limit the number of uniform types to prevent overflow
-    const maxUniformTypes = Math.min(dynamicUniformTypes.length, 10); // Increased from 6 to 10 since columns are smaller
+    // Limit to ensure single page - adjust based on available space
+    const maxUniformTypes = Math.min(dynamicUniformTypes.length, 8); // Reduced to 8 for single page
     const limitedUniformTypes = dynamicUniformTypes.slice(0, maxUniformTypes);
     
     // Create dynamic table headers
@@ -531,8 +532,8 @@ export default function StoreDCPage() {
       ? dc.customer.split(',').map(name => name.trim())
       : [dc.customer];
     
-    // Limit number of employees to prevent overflow
-    const maxEmployees = Math.min(employees.length, 12); // Increased from 8 to 12 for better height
+    // Limit to ensure single page
+    const maxEmployees = Math.min(employees.length, 12); // Reduced to 12 for single page
     const limitedEmployees = employees.slice(0, maxEmployees);
     
     for (let idx = 0; idx < limitedEmployees.length; idx++) {
@@ -568,8 +569,8 @@ export default function StoreDCPage() {
       const tableRow = [
         idx + 1,
         empId,
-        employeeName.length > 12 ? employeeName.substring(0, 12) + "..." : employeeName, // Reduced from 15 to 12
-        designation.length > 10 ? designation.substring(0, 10) + "..." : designation, // Reduced from 12 to 10
+        employeeName.length > 18 ? employeeName.substring(0, 18) + "..." : employeeName, // Reduced to 18 for single page
+        designation.length > 15 ? designation.substring(0, 15) + "..." : designation, // Reduced to 15 for single page
         noOfSet,
         // Add size values for each limited uniform type
         ...limitedUniformTypes.map(uniformType => {
@@ -583,33 +584,35 @@ export default function StoreDCPage() {
       tableBody.push(tableRow);
     }
     
-    // Add empty rows to fill remaining space (but not too many)
-    const emptyRowsNeeded = Math.max(0, 12 - tableBody.length); // Increased from 6 to 12 for better height
+    // Add empty rows to fill remaining space - limit for single page
+    const emptyRowsNeeded = Math.max(0, 12 - tableBody.length); // Reduced to 12 for single page
     for (let i = 0; i < emptyRowsNeeded; i++) {
       const emptyRow = ["", "", "", "", "", ...limitedUniformTypes.map(() => ""), "", ""];
       tableBody.push(emptyRow);
     }
     
-    // Calculate optimal column widths for better fit
+    // Calculate optimal column widths for landscape orientation
     const baseColumns = 5; // Sl No, Emp ID, Names, DESIGNATION, No of Set
     const uniformColumns = limitedUniformTypes.length;
-    // const endColumns = 2; // Amount, Emp Sign
-    // const totalColumns = baseColumns + uniformColumns + endColumns; // <-- Remove unused variable
     
-    // Calculate optimal column widths - much smaller for better fit
+    // Calculate optimal column widths - use full page width
+    const totalColumns = baseColumns + uniformColumns + 2; // +2 for Amount and Emp Sign
+    const availableWidth = pageWidth - 16; // Full width minus margins
+    const baseColumnWidth = availableWidth / totalColumns; // Distribute width evenly
+    
     const columnWidths: Record<string, { cellWidth: number }> = {
-      '0': { cellWidth: 12 }, // Sl No - reduced from 15
-      '1': { cellWidth: 18 }, // Emp ID - reduced from 20
-      '2': { cellWidth: 25 }, // Names - reduced from 35
-      '3': { cellWidth: 20 }, // DESIGNATION - reduced from 25
-      '4': { cellWidth: 15 }, // No of Set - reduced from 20
-      // Dynamic uniform type columns (much smaller width)
+      '0': { cellWidth: baseColumnWidth }, // Sl No - dynamic width
+      '1': { cellWidth: baseColumnWidth }, // Emp ID - dynamic width
+      '2': { cellWidth: baseColumnWidth * 1.2 }, // Names - slightly wider
+      '3': { cellWidth: baseColumnWidth * 1.1 }, // DESIGNATION - slightly wider
+      '4': { cellWidth: baseColumnWidth }, // No of Set - dynamic width
+      // Dynamic uniform type columns
       ...limitedUniformTypes.reduce((acc, _, index) => {
-        acc[String(baseColumns + index)] = { cellWidth: 12 }; // Much smaller width for uniform types - reduced from 15
+        acc[String(baseColumns + index)] = { cellWidth: baseColumnWidth }; // Dynamic width for uniform types
         return acc;
       }, {} as Record<string, { cellWidth: number }>),
-      [String(baseColumns + uniformColumns)]: { cellWidth: 12 }, // Amount - reduced from 15
-      [String(baseColumns + uniformColumns + 1)]: { cellWidth: 15 } // Emp Sign - reduced from 20
+      [String(baseColumns + uniformColumns)]: { cellWidth: baseColumnWidth }, // Amount - dynamic width
+      [String(baseColumns + uniformColumns + 1)]: { cellWidth: baseColumnWidth * 1.1 } // Emp Sign - slightly wider
     };
     
     autoTable(doc, {
@@ -617,33 +620,28 @@ export default function StoreDCPage() {
       head: [tableHeaders],
       body: tableBody,
       theme: "grid",
-      headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold', fontSize: 6 }, // Further reduced font size
-      styles: { fontSize: 5, cellPadding: 1.2, textColor: 20 }, // Increased cell padding from 0.3 to 1.2 for better height
-      margin: { left: 5, right: 5, top: 1, bottom: 1 }, // Minimal margins
-      tableWidth: pageWidth - 10, // Use almost full width
+      headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold', fontSize: 8 }, // Reduced font size
+      styles: { fontSize: 7, cellPadding: 2, textColor: 20 }, // Reduced font size and padding
+      margin: { left: 8, right: 8, top: 2, bottom: 2 }, // Minimal margins
+      tableWidth: pageWidth - 16, // Use full page width
       columnStyles: columnWidths,
-      didDrawPage: function(data) {
-        // Ensure we don't exceed page height
-        if (data.cursor && data.cursor.y > pageHeight - 30) {
-          doc.addPage();
-        }
-      }
+      // Remove page break logic to ensure single page
     });
 
     // Get Y after table
-    const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 20;
+    const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
 
-    // Terms & Conditions (compact)
-    doc.setFontSize(7); // Reduced from 9
+    // Terms & Conditions - compact for single page
+    doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 5);
-    doc.text("2. Goods are delivered after careful checking", 12, finalY + 9);
+    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 8);
+    doc.text("2. Goods are delivered after careful checking", 12, finalY + 12);
 
-    // Signature lines (compact)
-    const sigY = finalY + 18; // Reduced spacing
+    // Signature lines - compact for single page
+    const sigY = finalY + 20; // Reduced spacing
     doc.setDrawColor(120);
     doc.line(20, sigY, 60, sigY);
-    doc.text("Initiated by", 28, sigY + 3);
+    doc.text("Initiated by", 30, sigY + 3);
     doc.line(pageWidth / 2 - 20, sigY, pageWidth / 2 + 20, sigY);
     doc.text("Received by", pageWidth / 2 - 8, sigY + 3);
     doc.line(pageWidth - 60, sigY, pageWidth - 20, sigY);
@@ -654,28 +652,30 @@ export default function StoreDCPage() {
 
   // Download all DCs as summary PDF (styled, with logo and table)
   const handleDownloadAllDCs = () => {
-    const doc = new jsPDF();
+    // Create PDF with A4 landscape orientation for more space
+    const doc = new jsPDF('landscape', 'mm', 'a4');
     (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = undefined;
 
     const pageWidth = doc.internal.pageSize.getWidth();
-    let y = 12;
+    // const pageHeight = doc.internal.pageSize.getHeight();
+    let y = 15;
 
-    // Company Name & Address (exact match to image)
+    // Company Name & Address
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED", pageWidth / 2, y + 7, { align: "center" });
+    doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED", pageWidth / 2, y, { align: "center" });
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text("25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", pageWidth / 2, y + 13, { align: "center" });
+    doc.text("25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", pageWidth / 2, y + 8, { align: "center" });
 
-    y += 22;
+    y += 25;
 
     // Table Title
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text("Delivery Challan Summary", pageWidth / 2, y, { align: "center" });
 
-    y += 8;
+    y += 12;
 
     // Table - Only required columns: Sl.No, Customer, DC Number, Quantity, Size
     autoTable(doc, {
@@ -683,35 +683,43 @@ export default function StoreDCPage() {
       head: [["Sl.No", "Customer", "DC Number", "Quantity", "Size"]],
       body: dcData.map((dc, idx) => [
         idx + 1,
-        dc.customer,
+        dc.customer.length > 50 ? dc.customer.substring(0, 50) + "..." : dc.customer, // Increased to 50 for full data
         dc.dcNumber,
         dc.items.map(item => item.quantity).join(", "),
-        dc.items.map(item => item.size).join(", ")
+        dc.items.map(item => typeof item.size === 'string' ? item.size.substring(0, 40) + "..." : JSON.stringify(item.size).substring(0, 40) + "...").join(", ") // Increased to 40 for full data
       ]),
       theme: "grid",
-      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 10 },
-      styles: { fontSize: 9, cellPadding: 2 },
-      margin: { left: 12, right: 12 },
-      tableWidth: pageWidth - 24,
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 10 }, // Increased font size
+      styles: { fontSize: 9, cellPadding: 4, textColor: 20 }, // Increased font size and padding
+      margin: { left: 10, right: 10, top: 2, bottom: 2 }, // Minimal margins
+      tableWidth: pageWidth - 20, // Use full page width
+      columnStyles: {
+        '0': { cellWidth: 20 }, // Sl.No - increased for full data
+        '1': { cellWidth: 80 }, // Customer - increased for full data
+        '2': { cellWidth: 40 }, // DC Number - increased for full data
+        '3': { cellWidth: 30 }, // Quantity - increased for full data
+        '4': { cellWidth: 80 }  // Size - increased for full data
+      },
+      // Remove page break logic to ensure single page
     });
 
     // Get Y after table
-    const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
+    const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 40;
 
     // Terms & Conditions
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("Terms & Conditions", 14, finalY + 8);
+    doc.text("Terms & Conditions", 14, finalY + 10);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery.", 14, finalY + 13);
-    doc.text("2. Goods are delivered after careful checking.", 14, finalY + 18);
+    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery.", 14, finalY + 15);
+    doc.text("2. Goods are delivered after careful checking.", 14, finalY + 20);
 
     // Footer
     doc.setFontSize(10);
-    doc.text("Initiated by", 14, finalY + 32);
-    doc.text("Received by", 80, finalY + 32);
-    doc.text("Issued by", 150, finalY + 32);
+    doc.text("Initiated by", 14, finalY + 35);
+    doc.text("Received by", 80, finalY + 35);
+    doc.text("Issued by", 150, finalY + 35);
 
     doc.save("All_DCs_Summary.pdf");
   };

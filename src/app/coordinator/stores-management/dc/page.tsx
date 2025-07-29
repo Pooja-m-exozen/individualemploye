@@ -253,24 +253,24 @@ export default function StoreDCPage() {
   }, [getProjectNameFromUniformRequests]);
 
   // Helper function to extract project name from customer and remarks
-  const extractProjectName = (): string => {
-    // Try to extract project name from remarks first
-    // if (remarks && remarks.includes("Operations")) {
-    //   return "Operations";
-    // }
-    // if (remarks && remarks.includes("Security")) {
-    //   return "Security";
-    // }
-    // if (remarks && remarks.includes("Arvind Belair")) {
-    //   return "Arvind Belair";
-    // }
-    // // Check if customer name contains project information
-    // if (customer && customer.includes("Arvind Belair")) {
-    //   return "Arvind Belair";
-    // }
-    // Default project name
-    return "General";
-  };
+  // const extractProjectName = (): string => {
+  //   // Try to extract project name from remarks first
+  //   // if (remarks && remarks.includes("Operations")) {
+  //   //   return "Operations";
+  //   // }
+  //   // if (remarks && remarks.includes("Security")) {
+  //   //   return "Security";
+  //   // }
+  //   // if (remarks && remarks.includes("Arvind Belair")) {
+  //   //   return "Arvind Belair";
+  //   // }
+  //   // // Check if customer name contains project information
+  //   // if (customer && customer.includes("Arvind Belair")) {
+  //   //   return "Arvind Belair";
+  //   // }
+  //   // Default project name
+  //   return "General";
+  // };
 
   // Helper function to extract employee ID from customer name
   const extractEmployeeId = (customer: string): string => {
