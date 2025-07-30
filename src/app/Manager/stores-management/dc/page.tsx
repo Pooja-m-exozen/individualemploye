@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import ManagerDashboardLayout  from "@/components/dashboard/ManagerDashboardLayout";
-import { IndividualEmployeeDetails } from "@/components/dashboard/IndividualEmployeeDetails";
 import CreateDCModal from "@/components/dashboard/CreateDCmodal";
 import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter, FaPlus, FaTimes } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -418,7 +417,12 @@ export default function StoreDCPage() {
             const data = await res.json();
             if (data.success) {
               const employeeName = selectedDC.customer.split(',')[0]?.trim() || selectedDC.customer;
-              const employeeUniformRequest = data.uniforms.find((u: any) => 
+              // Specify type as unknown and cast to expected shape
+              const employeeUniformRequest = (data.uniforms as Array<{
+                fullName: string;
+                uniformType?: string[];
+                size?: Record<string, string>;
+              }>).find((u) => 
                 u.fullName === employeeName || 
                 employeeName.includes(u.fullName) ||
                 u.fullName.includes(employeeName)
@@ -596,7 +600,13 @@ export default function StoreDCPage() {
     const employeeName = dc.customer.split(',')[0]?.trim() || dc.customer;
     
     // Find the uniform request for this employee
-    const employeeUniformRequest = allUniformRequests.find((u: any) => 
+    const employeeUniformRequest = (allUniformRequests as Array<{
+      fullName: string;
+      uniformType?: string[];
+      size?: Record<string, string>;
+      employeeId?: string;
+      designation?: string;
+    }>).find((u) => 
       u.fullName === employeeName || 
       employeeName.includes(u.fullName) ||
       u.fullName.includes(employeeName)
