@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
@@ -124,49 +123,20 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<Record<string, Record<string, string>>>({}); // { [requestId]: { [type]: size } }
 
-  // Enhanced helper to find inventory item by uniform type - only match subCategory and name
+  // Only match inventory item by name, not subCategory
   const findInventoryItemByType = (type: string) => {
     const typeLower = type.trim().toLowerCase();
-    
-    // First try exact matches on subCategory and name only
+    // Only match by name
     const exactMatches = inventoryItems.filter((item: InventoryItem) => {
-      return (
-        item.name.toLowerCase() === typeLower ||
-        item.subCategory.toLowerCase() === typeLower
-      );
+      return item.name.toLowerCase() === typeLower;
     });
-    
     if (exactMatches.length > 0) {
       return exactMatches[0];
     }
-    
-    // Then try partial matches on subCategory and name only
+    // Partial match by name only
     const partialMatches = inventoryItems.filter((item: InventoryItem) => {
-      return (
-        item.name.toLowerCase().includes(typeLower) ||
-        typeLower.includes(item.name.toLowerCase()) ||
-        (item.subCategory && item.subCategory.toLowerCase().includes(typeLower)) ||
-        (typeLower.includes(item.subCategory.toLowerCase()))
-      );
+      return item.name.toLowerCase().includes(typeLower) || typeLower.includes(item.name.toLowerCase());
     });
-    
-    // Sort by relevance (name matches first, then subCategory)
-    partialMatches.sort((a, b) => {
-      const aNameMatch = a.name.toLowerCase().includes(typeLower) || typeLower.includes(a.name.toLowerCase());
-      const bNameMatch = b.name.toLowerCase().includes(typeLower) || typeLower.includes(b.name.toLowerCase());
-      
-      if (aNameMatch && !bNameMatch) return -1;
-      if (!aNameMatch && bNameMatch) return 1;
-      
-      const aSubMatch = a.subCategory.toLowerCase().includes(typeLower);
-      const bSubMatch = b.subCategory.toLowerCase().includes(typeLower);
-      
-      if (aSubMatch && !bSubMatch) return -1;
-      if (!aSubMatch && bSubMatch) return 1;
-      
-      return 0;
-    });
-    
     return partialMatches[0];
   };
 
@@ -553,27 +523,29 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
     >
       <div
         ref={modalRef}
-        className={`relative rounded-3xl shadow-2xl border-2 max-w-4xl w-full flex flex-col overflow-y-auto max-h-[95vh] transition-all duration-500 ${show ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'} ${theme === "dark" ? "bg-gradient-to-br from-[#1a2332] via-[#181f2a] to-[#1a2332] border-blue-900/50" : "bg-gradient-to-br from-white via-gray-50 to-white border-blue-200"}`}
+        // Reduced width and height
+        className={`relative rounded-2xl shadow-2xl border-2 max-w-2xl w-full flex flex-col overflow-y-auto max-h-[80vh] transition-all duration-500 ${show ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'} ${theme === "dark" ? "bg-gradient-to-br from-[#1a2332] via-[#181f2a] to-[#1a2332] border-blue-900/50" : "bg-gradient-to-br from-white via-gray-50 to-white border-blue-200"}`}
         tabIndex={-1}
       >
         {/* Enhanced Brand accent with animation */}
         <div className={`absolute left-0 top-0 w-full h-3 rounded-t-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 animate-pulse`}></div>
         
         {/* Enhanced Modal Header */}
-        <div className={`p-8 border-b sticky top-0 z-10 backdrop-blur-sm ${theme === "dark" ? "bg-[#181f2a]/90 border-blue-900/50" : "bg-white/90 border-blue-100"}`}>
+        <div className={`p-6 border-b sticky top-0 z-10 backdrop-blur-sm ${theme === "dark" ? "bg-[#181f2a]/90 border-blue-900/50" : "bg-white/90 border-blue-100"}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <Image src="/v1/employee/exozen_logo1.png" alt="Brand Logo" width={64} height={36} className="w-16 h-9 object-contain bg-white rounded-lg shadow-lg mr-4" />
+                <Image src="/v1/employee/exozen_logo1.png" alt="Brand Logo" width={64} height={36} className="w-12 h-7 object-contain bg-white rounded-lg shadow-lg mr-4" />
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
               </div>
               <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl ${theme === "dark" ? "bg-blue-900/50" : "bg-blue-100"}`}>
-                  <FaBoxOpen className={`w-8 h-8 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`} />
+                <div className={`p-2 rounded-xl ${theme === "dark" ? "bg-blue-900/50" : "bg-blue-100"}`}>
+                  <FaBoxOpen className={`w-6 h-6 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`} />
                 </div>
                 <div>
-                  <h2 className={`text-3xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Generate Delivery Challan</h2>
-                  <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Create and manage delivery challans efficiently</p>
+                  {/* Reduced font size */}
+                  <h2 className={`text-xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Generate Delivery Challan</h2>
+                  <p className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Create and manage delivery challans efficiently</p>
                 </div>
               </div>
             </div>
@@ -583,15 +555,15 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                 handleRequestClose();
               }}
               aria-label="Close modal"
-              className={`p-4 rounded-full transition-all duration-200 text-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/50 ${theme === "dark" ? "hover:bg-red-900/50 text-gray-400 hover:text-red-300" : "hover:bg-red-100 text-gray-600 hover:text-red-600"}`}
+              className={`p-3 rounded-full transition-all duration-200 text-xl focus:outline-none focus:ring-4 focus:ring-blue-500/50 ${theme === "dark" ? "hover:bg-red-900/50 text-gray-400 hover:text-red-300" : "hover:bg-red-100 text-gray-600 hover:text-red-600"}`}
             >
-              <FaTimes className="w-6 h-6" />
+              <FaTimes className="w-5 h-5" />
             </button>
           </div>
         </div>
         
         {/* Enhanced Stepper and Progress Bar */}
-        <div className="flex flex-col gap-4 px-8 pt-8 pb-4">
+        <div className="flex flex-col gap-3 px-6 pt-6 pb-3">
           <div className="flex justify-center items-center gap-2">
             {stepLabels.map((label, idx) => (
               <React.Fragment key={label}>
@@ -660,7 +632,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         {/* ARIA live region for announcements */}
         <div ref={announceRef} className="sr-only" aria-live="polite"></div>
         {/* Modal Content */}
-        <div className="p-6 md:p-10 flex flex-col gap-8 animate-fade-in">
+        <div className="p-4 md:p-5 flex flex-col gap-4 animate-fade-in">
           {saving && (
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 rounded-3xl">
               <div className={`p-8 rounded-2xl ${theme === "dark" ? "bg-gray-800" : "bg-white"} shadow-2xl`}>
@@ -682,16 +654,16 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
             <>
               {/* Step 1: Project Selection */}
               {step === 1 && (
-                <section className={`rounded-3xl border-2 shadow-2xl p-8 md:p-12 transition-all duration-500 transform hover:scale-[1.02] flex flex-col gap-6
+                <section className={`rounded-2xl border-2 shadow-2xl p-6 md:p-8 transition-all duration-500 transform hover:scale-[1.02] flex flex-col gap-4
                   ${theme === "dark" ? "bg-gradient-to-br from-[#232e3e] via-blue-950 to-blue-900 border-blue-900/50" : "bg-gradient-to-br from-blue-50 via-white to-blue-100 border-blue-200"}`}
                   aria-labelledby="step1-header">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className={`p-4 rounded-2xl ${theme === "dark" ? "bg-blue-900/50" : "bg-blue-100"}`}>
-                      <FaStore className={`w-8 h-8 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} />
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`p-3 rounded-2xl ${theme === "dark" ? "bg-blue-900/50" : "bg-blue-100"}`}>
+                      <FaStore className={`w-6 h-6 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} />
                     </div>
                     <div>
-                      <h2 id="step1-header" className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-blue-900"}`}>Project Selection</h2>
-                      <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Choose the project for your delivery challan</p>
+                      <h2 id="step1-header" className={`text-xl font-bold ${theme === "dark" ? "text-white" : "text-blue-900"}`}>Project Selection</h2>
+                      <p className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Choose the project for your delivery challan</p>
                     </div>
                   </div>
                   
@@ -708,7 +680,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                             setSelectedRequests([]);
                             setTouched(t => ({ ...t, selectedProject: true }));
                           }}
-                          className={`w-full p-6 border-2 rounded-2xl focus:ring-4 transition-all duration-300 text-lg font-medium appearance-none
+                          className={`w-full p-4 border-2 rounded-xl focus:ring-4 transition-all duration-300 text-base font-medium appearance-none
                             ${theme === "dark"
                               ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900/50 focus:border-blue-500"
                               : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500/50 focus:border-blue-500"
@@ -753,7 +725,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                       type="button"
                       disabled={!isStep1Valid}
                       onClick={() => setStep(2)}
-                      className={`px-10 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4
+                      className={`px-8 py-3 rounded-xl font-semibold text-base transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4
                         ${isStep1Valid
                           ? theme === "dark" 
                             ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25" 
@@ -838,7 +810,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                     <button
                       type="button"
                       onClick={() => setStep(1)}
-                      className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200
+                      className={`px-6 py-2 rounded-lg font-medium text-base transition-all duration-200
                         ${theme === "dark" ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
                     >
                       Back
@@ -847,7 +819,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                       type="button"
                       disabled={!isStep2Valid}
                       onClick={() => setStep(3)}
-                      className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200
+                      className={`px-6 py-2 rounded-lg font-medium text-base transition-all duration-200
                         ${isStep2Valid
                           ? theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-600 text-white hover:bg-green-700"
                           : "bg-gray-300 text-gray-500 cursor-not-allowed"
@@ -1144,7 +1116,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                         <span className="ml-1 text-xs text-gray-400" title="Name of the person or entity receiving the delivery.">(?)</span>
                       </label>
                       <input type="text" value={customer} onChange={e => { setCustomer(e.target.value); setTouched(t => ({ ...t, customer: true })); }}
-                        className={`w-full p-4 border rounded-lg focus:ring-2 transition-all duration-200
+                        className={`w-full p-3 border rounded-lg focus:ring-2 transition-all duration-200
                           ${theme === "dark"
                             ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
                             : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
@@ -1195,7 +1167,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                             ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
                             : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
                          }`} />
-                      <div className="text-xs text-gray-500 mt-1">Any additional notes for this DC (optional).</div>
+                      {/* <div className="text-xs text-gray-500 mt-1">Any additional notes for this DC (optional).</div> */}
                     </div>
                     <div className="md:col-span-2">
                       <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Address</label>
@@ -1205,7 +1177,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                             ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-indigo-900"
                             : "bg-white border-gray-200 text-gray-900 focus:ring-indigo-500"
                          }`} />
-                      <div className="text-xs text-gray-500 mt-1">Delivery address (optional).</div>
+                      {/* <div className="text-xs text-gray-500 mt-1">Delivery address (optional).</div> */}
                     </div>
                   </div>
                   {!allSizesSelected && selectedRequests.length > 0 && (
@@ -1227,7 +1199,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                     <button
                       type="button"
                       onClick={() => setStep(2)}
-                      className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200
+                      className={`px-6 py-2 rounded-lg font-medium text-base transition-all duration-200
                         ${theme === "dark" ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
                     >
                       Back
@@ -1236,7 +1208,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                       type="button"
                       onClick={handleCreateDCWithUX}
                       disabled={saving || !isStep3Valid}
-                      className={`px-8 py-3 rounded-lg font-medium text-lg flex items-center gap-2 transition-all duration-200
+                      className={`px-6 py-2 rounded-lg font-medium text-base flex items-center gap-2 transition-all duration-200
                         ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}
                         ${(saving || !isStep3Valid) ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
