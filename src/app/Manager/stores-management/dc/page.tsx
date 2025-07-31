@@ -1074,7 +1074,6 @@ export default function StoreDCPage() {
                               {/* Basic Information */}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-4">
                                 <div><b>Employee ID:</b> {item.employeeId || 'N/A'}</div>
-                                <div><b>Item Code:</b> <span id={`item-code-${i}`}>{item.itemCode || 'N/A'}</span></div>
                                 <div><b>Item Name:</b> <span id={`item-name-${i}`}>{item.name || 'N/A'}</span></div>
                                 <div><b>Requested Size:</b> <span id={`requested-size-${i}`}>Loading...</span></div>
                                 <div><b>Dispatched Size:</b> {item.size || 'N/A'}</div>
