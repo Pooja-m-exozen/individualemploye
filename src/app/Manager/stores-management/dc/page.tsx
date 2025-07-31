@@ -717,14 +717,11 @@ export default function StoreDCPage() {
     // Get Y after table
     const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
 
-    // Add modification details section - REMOVED
-    let modificationY = finalY + 5;
-
     // Terms & Conditions - compact for single page
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, modificationY + 8);
-    doc.text("2. Goods are delivered after careful checking", 12, modificationY + 12);
+    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 13);
+    doc.text("2. Goods are delivered after careful checking", 12, finalY + 17);
 
     // Signature lines - compact for single page
     const sigY = finalY + 20; // Reduced spacing
