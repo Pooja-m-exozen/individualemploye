@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import CoordinatorDashboardLayout from "@/components/dashboard/CoordinatorDashboardLayout";
-import { IndividualEmployeeDetails } from "@/components/dashboard/IndividualEmployeeDetails";
+import CoordinatorDashboardLayout  from "@/components/dashboard/CoordinatorDashboardLayout";
 import CreateDCModal from "@/components/dashboard/CreateDCmodal";
 import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter, FaPlus, FaTimes } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -410,6 +409,84 @@ export default function StoreDCPage() {
           selectedDC.customer
         );
         setUniformReq(req);
+        
+        // Fetch uniform request data to get original requested sizes and item details
+        try {
+          const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+              const employeeName = selectedDC.customer.split(',')[0]?.trim() || selectedDC.customer;
+              // Specify type as unknown and cast to expected shape
+              const employeeUniformRequest = (data.uniforms as Array<{
+                fullName: string;
+                uniformType?: string[];
+                size?: Record<string, string>;
+              }>).find((u) => 
+                u.fullName === employeeName || 
+                employeeName.includes(u.fullName) ||
+                u.fullName.includes(employeeName)
+              );
+              
+              if (employeeUniformRequest) {
+                // Update requested sizes and item details for each item
+                selectedDC.items.forEach((item, index) => {
+                  // Update requested size
+                  const requestedSizeElement = document.getElementById(`requested-size-${index}`);
+                  if (requestedSizeElement) {
+                    // Get the corresponding uniform type for this item by index
+                    const uniformType = employeeUniformRequest.uniformType?.[index] || 
+                      employeeUniformRequest.uniformType?.find((type: string) => 
+                        type.toLowerCase().includes('shirt') || 
+                        type.toLowerCase().includes('pant') ||
+                        type.toLowerCase().includes('executive')
+                      );
+                    
+                    if (uniformType && employeeUniformRequest.size && employeeUniformRequest.size[uniformType]) {
+                      requestedSizeElement.textContent = employeeUniformRequest.size[uniformType];
+                    } else {
+                      requestedSizeElement.textContent = 'N/A';
+                    }
+                  }
+                  
+                  // Update item name and code
+                  const itemNameElement = document.getElementById(`item-name-${index}`);
+                  const itemCodeElement = document.getElementById(`item-code-${index}`);
+                  
+                  if (itemNameElement) {
+                    // Get the corresponding uniform type for this item by index
+                    const uniformType = employeeUniformRequest.uniformType?.[index] || 
+                      employeeUniformRequest.uniformType?.find((type: string) => 
+                        type.toLowerCase().includes('shirt') || 
+                        type.toLowerCase().includes('pant') ||
+                        type.toLowerCase().includes('executive')
+                      );
+                    itemNameElement.textContent = uniformType || 'N/A';
+                  }
+                  
+                  if (itemCodeElement) {
+                    // Generate item code based on uniform type
+                    const uniformType = employeeUniformRequest.uniformType?.[index] || 
+                      employeeUniformRequest.uniformType?.find((type: string) => 
+                        type.toLowerCase().includes('shirt') || 
+                        type.toLowerCase().includes('pant') ||
+                        type.toLowerCase().includes('executive')
+                      );
+                    
+                    if (uniformType) {
+                      const code = uniformType.replace(/\s+/g, '-').toUpperCase();
+                      itemCodeElement.textContent = code;
+                    } else {
+                      itemCodeElement.textContent = 'N/A';
+                    }
+                  }
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching uniform request data:", error);
+        }
       } else {
         setUniformReq(null);
       }
@@ -431,20 +508,21 @@ export default function StoreDCPage() {
   const filteredDC = mappedDC.filter(dc => {
     const matchesStatus = statusFilter ? dc.status === statusFilter : true;
     const matchesSearch = search ? (
-      dc.dcNumber.toLowerCase().includes(search.toLowerCase()) ||
-      (dc.projectName || "N/A").toLowerCase().includes(search.toLowerCase())
+      (dc.dcNumber && dc.dcNumber.toLowerCase().includes(search.toLowerCase())) ||
+      ((dc.projectName || "N/A") && (dc.projectName || "N/A").toLowerCase().includes(search.toLowerCase()))
     ) : true;
     return matchesStatus && matchesSearch;
   });
 
   // Download DC as PDF (exact match to image format)
   const handleDownloadDC = async (dc: DC) => {
-    // Log the DC data for debugging
-    console.log("Generating PDF for DC:", dc);
-    console.log("DC items:", dc.items);
-    
-    // Create PDF with A4 portrait orientation for proper A4 sheet format
-    const doc = new jsPDF('portrait', 'mm', 'a4');
+    try {
+      // Log the DC data for debugging
+      console.log("Generating PDF for DC:", dc);
+      console.log("DC items:", dc.items);
+      
+      // Create PDF with A4 portrait orientation for proper A4 sheet format
+      const doc = new jsPDF('portrait', 'mm', 'a4');
     (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = undefined;
 
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -503,10 +581,7 @@ export default function StoreDCPage() {
 
     y += 30;
 
-    // DYNAMIC TABLE GENERATION - Based on actual uniform requests for this specific DC
-    const tableBody = [];
-    
-    // First, fetch all uniform requests to get employee data
+    // Fetch uniform request data to get actual uniform type names
     let allUniformRequests = [];
     try {
       const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
@@ -521,104 +596,87 @@ export default function StoreDCPage() {
       console.error("Error fetching uniform requests:", error);
     }
     
-    // Process each employee in the DC
-    const employees = dc.customer.includes(',') 
-      ? dc.customer.split(',').map(name => name.trim())
-      : [dc.customer];
+    // Get employee name from DC customer
+    const employeeName = dc.customer.split(',')[0]?.trim() || dc.customer;
     
-    // Get uniform request data for each employee in this DC
-    const employeeUniformData = [];
-    for (const employeeName of employees) {
-      const uniformData = allUniformRequests.find((u: unknown) => 
-        (u as { fullName: string }).fullName === employeeName || 
-        employeeName.includes((u as { fullName: string }).fullName) ||
-        (u as { fullName: string }).fullName.includes(employeeName)
-      );
-      if (uniformData) {
-        employeeUniformData.push(uniformData);
-      }
-    }
-    
-    // Get unique uniform types ONLY from the employees in this DC
-    const dcUniformTypes = new Set<string>();
-    employeeUniformData.forEach((uniform: {
+    // Find the uniform request for this employee
+    const employeeUniformRequest = (allUniformRequests as Array<{
+      fullName: string;
       uniformType?: string[];
-    }) => {
-      if (uniform.uniformType && Array.isArray(uniform.uniformType)) {
-        uniform.uniformType.forEach((type: string) => dcUniformTypes.add(type));
-      }
-    });
+      size?: Record<string, string>;
+      employeeId?: string;
+      designation?: string;
+    }>).find((u) => 
+      u.fullName === employeeName || 
+      employeeName.includes(u.fullName) ||
+      u.fullName.includes(employeeName)
+    );
     
-    // Convert to array and sort for consistent ordering
-    const dynamicUniformTypes = Array.from(dcUniformTypes).sort();
-    console.log("Uniform types for this DC:", dynamicUniformTypes);
+    console.log("Found uniform request for employee:", employeeUniformRequest);
     
-    // Create dynamic table headers based on actual uniform types in this DC
-    const tableHeaders = ["Sl No", "Emp ID", "Names", "DESIGNATION", "No of Set", ...dynamicUniformTypes, "Amount", "Emp Sign"];
+    // Use uniform types from the uniform request if available, otherwise use DC item names
+    const uniformTypes = employeeUniformRequest?.uniformType || [...new Set(dc.items.map(item => item.name))];
+    console.log("Uniform types for PDF headers:", uniformTypes);
+    console.log("Employee uniform request data:", employeeUniformRequest);
     
-    // Limit to ensure single page
-    const maxEmployees = Math.min(employees.length, 12); // Reduced to 12 for single page
-    const limitedEmployees = employees.slice(0, maxEmployees);
+    // Create table headers based on actual uniform types from uniform request
+    const tableHeaders = ["Sl No", "Emp ID", "Names", "DESIGNATION", "No of Set", ...uniformTypes, "Amount", "Emp Sign"];
     
-    for (let idx = 0; idx < limitedEmployees.length; idx++) {
-      const employeeName = limitedEmployees[idx];
-      
-      // Get uniform request data for this specific employee
-      const employeeUniformData = allUniformRequests.find((u: unknown) => 
-        (u as { fullName: string }).fullName === employeeName || 
-        employeeName.includes((u as { fullName: string }).fullName) ||
-        (u as { fullName: string }).fullName.includes(employeeName)
-      );
-      
-      console.log(`Found uniform data for ${employeeName}:`, employeeUniformData);
-      
-      // Use uniform request data if available, otherwise use default
-      const empId = employeeUniformData ? employeeUniformData.employeeId : `EMP${idx + 1}`;
-      const designation = employeeUniformData ? employeeUniformData.designation : "Employee";
-      
-      // Parse size data for this employee
-      const sizeData = employeeUniformData ? employeeUniformData.size : {};
-      const uniformTypes = employeeUniformData ? employeeUniformData.uniformType : [];
-      
-      console.log(`Size data for ${employeeName}:`, sizeData);
-      console.log(`Uniform types for ${employeeName}:`, uniformTypes);
-      
-      // Get quantity and determine "No of Set"
-      // const quantity = employeeUniformData ? employeeUniformData.qty : 1;
-      // Check if employee has "Accessories" in their uniform request to determine if it's a full set
-      const hasAccessories = sizeData && typeof sizeData === 'object' && 'Accessories' in sizeData;
+    // Get employee data
+    const employeeId = employeeUniformRequest?.employeeId || dc.items[0]?.employeeId || "EMP001";
+    const designation = employeeUniformRequest?.designation || "Employee";
+    
+    // Check if employee has accessories to determine "No of Set"
+    const hasAccessories = uniformTypes.some((type: string) => 
+      (type && type.toLowerCase().includes('accessories')) || 
+      (type && type.toLowerCase().includes('accessory'))
+    );
       const noOfSet = hasAccessories ? "Full set" : "NA";
       
-      // Create dynamic table row with values for each uniform type
+    // Create table row with sizes from uniform request or DC items
       const tableRow = [
-        idx + 1,
-        empId,
-        employeeName, // Show complete name without truncation
-        designation, // Show complete designation without truncation
+      1, // Sl No
+      employeeId,
+      employeeName,
+      designation,
         noOfSet,
-        // Add size values for each uniform type in this DC
-        ...dynamicUniformTypes.map(uniformType => {
-          // Check if this employee has this uniform type in their request
-          const hasUniformType = uniformTypes && uniformTypes.includes(uniformType);
-          if (hasUniformType && sizeData && sizeData[uniformType]) {
-            return sizeData[uniformType];
-          } else {
-            return "NA";
-          }
+      // Add size values for each uniform type
+      ...uniformTypes.map((uniformType: string, index: number) => {
+        // Get the corresponding DC item by index
+        const dcItem = dc.items[index];
+        
+        // If no DC item found, try to find by name matching
+        const matchingDcItem = dcItem || dc.items.find(item => 
+          (item.name && item.name === uniformType) || 
+          (item.name && item.name.toLowerCase().includes(uniformType.toLowerCase())) ||
+          (item.name && uniformType.toLowerCase().includes(item.name.toLowerCase()))
+        );
+        if (matchingDcItem && matchingDcItem.size) {
+          // Return only the dispatched size
+          return matchingDcItem.size;
+        }
+        // If not found in DC items, try to get from uniform request
+        if (employeeUniformRequest?.size && employeeUniformRequest.size[uniformType]) {
+          return employeeUniformRequest.size[uniformType];
+        }
+        return "NA";
         }),
         "NA", // Amount field
         "" // Employee signature field
       ];
       
-      console.log(`Dynamic table row for employee ${idx + 1}:`, tableRow);
-      tableBody.push(tableRow);
-    }
-    
-    // Only show actual data rows - no empty rows
+    console.log(`Table row for employee:`, tableRow);
+    console.log("DC items with modification data:", dc.items.map(item => ({
+      name: item.name,
+      size: item.size,
+      remarks: item.remarks,
+      sizeModificationData: item.sizeModificationData
+    })));
+    const tableBody = [tableRow];
     
     // Calculate optimal column widths for portrait orientation with overflow prevention
     const baseColumns = 5; // Sl No, Emp ID, Names, DESIGNATION, No of Set
-    const uniformColumns = dynamicUniformTypes.length;
+    const uniformColumns = uniformTypes.length;
     
     // Calculate optimal column widths - ensure fit within A4 portrait
     const totalColumns = baseColumns + uniformColumns + 2; // +2 for Amount and Emp Sign
@@ -634,8 +692,8 @@ export default function StoreDCPage() {
       '3': { cellWidth: Math.min(25, maxColumnWidth) }, // DESIGNATION - compact
       '4': { cellWidth: Math.min(15, maxColumnWidth) }, // No of Set - compact
       // Dynamic uniform type columns
-      ...dynamicUniformTypes.reduce((acc, _, index) => {
-        acc[String(baseColumns + index)] = { cellWidth: Math.min(18, maxColumnWidth) }; // Compact uniform types
+      ...uniformTypes.reduce((acc: Record<string, { cellWidth: number }>, _: string, index: number) => {
+        acc[String(baseColumns + index)] = { cellWidth: Math.min(25, maxColumnWidth) }; // Increased width for uniform type names
         return acc;
       }, {} as Record<string, { cellWidth: number }>),
       [String(baseColumns + uniformColumns)]: { cellWidth: Math.min(15, maxColumnWidth) }, // Amount - compact
@@ -659,11 +717,14 @@ export default function StoreDCPage() {
     // Get Y after table
     const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
 
+    // Add modification details section - REMOVED
+    let modificationY = finalY + 5;
+
     // Terms & Conditions - compact for single page
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 8);
-    doc.text("2. Goods are delivered after careful checking", 12, finalY + 12);
+    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, modificationY + 8);
+    doc.text("2. Goods are delivered after careful checking", 12, modificationY + 12);
 
     // Signature lines - compact for single page
     const sigY = finalY + 20; // Reduced spacing
@@ -676,6 +737,10 @@ export default function StoreDCPage() {
     doc.text("Issued by", pageWidth - 50, sigY + 3);
 
     doc.save(`NRDC_${dc.dcNumber}.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Error generating PDF. Please try again.");
+    }
   };
 
   // Download all DCs as summary PDF (styled, with logo and table)
@@ -753,7 +818,7 @@ export default function StoreDCPage() {
   };
 
   return (
-    <CoordinatorDashboardLayout>
+    <CoordinatorDashboardLayout >
       <div
         className={`min-h-screen flex flex-col py-8 transition-colors duration-300 ${
           theme === "dark"
@@ -975,47 +1040,66 @@ export default function StoreDCPage() {
                     <div>
                       <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>Employee Details</h3>
                       <div className="space-y-4">
-                        {/* Handle multiple employees from customer name */}
-                        {(() => {
-                          // Check if customer contains multiple names
-                          if (selectedDC.customer.includes(',')) {
-                            const customerNames = selectedDC.customer.split(',').map(name => name.trim());
-                            return customerNames.map((customerName, i) => (
+                        {/* Display DC items with actual sizes */}
+                        {selectedDC.items.map((item, i) => (
                               <div key={i} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
                                 <div className="flex items-center justify-between mb-3">
                                   <h4 className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
-                                    Employee {i + 1}: {customerName}
+                                Item {i + 1}: {item.name}
                                   </h4>
                                   <span className={`px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
-                                    ID: {extractEmployeeId(customerName)}
+                                ID: {item.employeeId || "N/A"}
                                   </span>
                                 </div>
-                                <IndividualEmployeeDetails 
-                                  employeeName={customerName} 
-                                  theme={theme} 
-                                />
+                            
+                            {/* Item Details */}
+                            <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
+                              <div className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>DC Item Details:</div>
+                              
+                              {/* Basic Information */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-4">
+                                <div><b>Employee ID:</b> {item.employeeId || 'N/A'}</div>
+                                <div><b>Item Code:</b> <span id={`item-code-${i}`}>{item.itemCode || 'N/A'}</span></div>
+                                <div><b>Item Name:</b> <span id={`item-name-${i}`}>{item.name || 'N/A'}</span></div>
+                                <div><b>Requested Size:</b> <span id={`requested-size-${i}`}>Loading...</span></div>
+                                <div><b>Dispatched Size:</b> {item.size || 'N/A'}</div>
+                                <div><b>Quantity:</b> {item.quantity || 'N/A'}</div>
+                                <div><b>Price:</b> {item.price || 'N/A'}</div>
                               </div>
-                            ));
-                          } else {
-                            // Single employee - use existing logic
-                            return selectedDC.items.map((item, i) => (
-                              <div key={i} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                                <div className="flex items-center justify-between mb-3">
-                                  <h4 className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
-                                    Employee {i + 1}: {item.individualEmployeeData ? item.individualEmployeeData.fullName : (item.name || selectedDC.customer)}
-                                  </h4>
-                                  <span className={`px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
-                                    ID: {item.individualEmployeeData ? item.individualEmployeeData.employeeId : (item.employeeId || "N/A")}
-                                  </span>
+
+                              {/* Size Modification Data */}
+                              {(item.sizeData || item.remarks) && (
+                                <div className="mt-4">
+                                  <div className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Size Change Details:</div>
+                                  <div className={`p-3 rounded border ${theme === "dark" ? "bg-yellow-900 border-yellow-700" : "bg-yellow-50 border-yellow-200"}`}>
+                                    <div className="text-sm">
+                                      <div><b>Requested Size:</b> <span id={`requested-size-${i}`}>Loading...</span></div>
+                                      <div><b>Dispatched Size:</b> {item.size || 'N/A'}</div>
+                                      <div><b>Status:</b> {
+                                        item.sizeModificationData?.modified || 
+                                        (item.remarks && item.remarks.includes('Modified from')) ? 
+                                        'Modified' : 'As Requested'
+                                      }</div>
+                                      {item.remarks && item.remarks.includes('Modified from') && (
+                                        <div><b>Note:</b> {item.remarks}</div>
+                                      )}
+                                      {item.sizeModificationData?.modificationNote && (
+                                        <div><b>Note:</b> {item.sizeModificationData.modificationNote}</div>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                                <IndividualEmployeeDetails 
-                                  employeeName={item.individualEmployeeData ? item.individualEmployeeData.fullName : (item.name || selectedDC.customer)} 
-                                  theme={theme} 
-                                />
-                              </div>
-                            ));
-                          }
-                        })()}
+                              )}
+
+                              {/* Remarks */}
+                              {item.remarks && (
+                                <div className="mt-4 text-sm">
+                                  <b>Remarks:</b> {item.remarks}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
@@ -1044,6 +1128,6 @@ export default function StoreDCPage() {
           </div>
         )}
       </div>
-    </CoordinatorDashboardLayout>
+    </CoordinatorDashboardLayout >
   );
 }

@@ -717,60 +717,8 @@ export default function StoreDCPage() {
     // Get Y after table
     const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
 
-    // Add modification details section
+    // Add modification details section - REMOVED
     let modificationY = finalY + 5;
-    
-    // Check if there are any modified items
-    const hasModifiedItems = dc.items.some((item, index) => {
-      const uniformType = employeeUniformRequest?.uniformType?.[index] || 
-        employeeUniformRequest?.uniformType?.find((type: string) => 
-          type.toLowerCase().includes('shirt') || 
-          type.toLowerCase().includes('pant') ||
-          type.toLowerCase().includes('executive')
-        );
-      
-      const requestedSize = employeeUniformRequest?.size && uniformType ? 
-        employeeUniformRequest.size[uniformType] : null;
-      
-      return requestedSize && requestedSize !== item.size;
-    });
-    
-    // Only show the modification section if there are modified items
-    if (hasModifiedItems && employeeUniformRequest && employeeUniformRequest.size) {
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text("Size Modifications:", 12, modificationY);
-      modificationY += 5;
-      
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-      
-      // Show only modified items with their requested and dispatched sizes
-      dc.items.forEach((item, index) => {
-        // Get the corresponding uniform type for this item
-        const uniformType = employeeUniformRequest?.uniformType?.[index] || 
-          employeeUniformRequest?.uniformType?.find((type: string) => 
-            type.toLowerCase().includes('shirt') || 
-            type.toLowerCase().includes('pant') ||
-            type.toLowerCase().includes('executive')
-          );
-        
-        // Get requested size from uniform request API
-        let requestedSize = 'N/A';
-        if (employeeUniformRequest?.size && uniformType && employeeUniformRequest.size[uniformType]) {
-          requestedSize = employeeUniformRequest.size[uniformType];
-        }
-        
-        // Only show items that have been modified (requested size differs from dispatched size)
-        if (requestedSize !== 'N/A' && requestedSize !== item.size) {
-          const modificationText = `${uniformType || 'Item'}: Requested ${requestedSize}, Dispatched ${item.size}`;
-          doc.text(modificationText, 15, modificationY);
-          modificationY += 4;
-        }
-      });
-      
-      modificationY += 5; // Add some space before terms
-    }
 
     // Terms & Conditions - compact for single page
     doc.setFontSize(8);
