@@ -596,87 +596,105 @@ export default function StoreDCPage() {
       console.error("Error fetching uniform requests:", error);
     }
     
-    // Get employee name from DC customer
-    const employeeName = dc.customer.split(',')[0]?.trim() || dc.customer;
+    // Parse customer names from DC
+    const customerNames = dc.customer.split(',').map(name => name.trim()).filter(name => name.length > 0);
+    console.log("Customer names from DC:", customerNames);
     
-    // Find the uniform request for this employee
-    const employeeUniformRequest = (allUniformRequests as Array<{
+    // Get all uniform types from all employees in this DC
+    const allUniformTypes = new Set<string>();
+    const employeeUniformRequests: Array<{
       fullName: string;
       uniformType?: string[];
       size?: Record<string, string>;
       employeeId?: string;
       designation?: string;
-    }>).find((u) => 
-      u.fullName === employeeName || 
-      employeeName.includes(u.fullName) ||
-      u.fullName.includes(employeeName)
-    );
+    }> = [];
     
-    console.log("Found uniform request for employee:", employeeUniformRequest);
+    // Find uniform requests for all employees in this DC
+    for (const customerName of customerNames) {
+      const employeeUniformRequest = (allUniformRequests as Array<{
+        fullName: string;
+        uniformType?: string[];
+        size?: Record<string, string>;
+        employeeId?: string;
+        designation?: string;
+      }>).find((u) => 
+        u.fullName === customerName || 
+        customerName.includes(u.fullName) ||
+        u.fullName.includes(customerName)
+      );
+      
+      if (employeeUniformRequest) {
+        employeeUniformRequests.push(employeeUniformRequest);
+        // Add all uniform types from this employee
+        if (employeeUniformRequest.uniformType) {
+          employeeUniformRequest.uniformType.forEach(type => allUniformTypes.add(type));
+        }
+      }
+    }
     
-    // Use uniform types from the uniform request if available, otherwise use DC item names
-    const uniformTypes = employeeUniformRequest?.uniformType || [...new Set(dc.items.map(item => item.name))];
-    console.log("Uniform types for PDF headers:", uniformTypes);
-    console.log("Employee uniform request data:", employeeUniformRequest);
+    console.log("Found uniform requests for employees:", employeeUniformRequests);
+    console.log("All uniform types:", Array.from(allUniformTypes));
     
-    // Create table headers based on actual uniform types from uniform request
-    const tableHeaders = ["Sl No", "Emp ID", "Names", "DESIGNATION", "No of Set", ...uniformTypes, "Amount", "Emp Sign"];
+    // Create table headers with all uniform types
+    const uniformTypesArray = Array.from(allUniformTypes);
+    const tableHeaders = ["Sl No", "Emp ID", "Names", "DESIGNATION", "No of Set", ...uniformTypesArray, "Amount", "Emp Sign"];
     
-    // Get employee data
-    const employeeId = employeeUniformRequest?.employeeId || dc.items[0]?.employeeId || "EMP001";
-    const designation = employeeUniformRequest?.designation || "Employee";
-    
-    // Check if employee has accessories to determine "No of Set"
-    const hasAccessories = uniformTypes.some((type: string) => 
-      (type && type.toLowerCase().includes('accessories')) || 
-      (type && type.toLowerCase().includes('accessory'))
-    );
+    // Create table body with all employees
+    const tableBody = customerNames.map((customerName, index) => {
+      const employeeUniformRequest = employeeUniformRequests.find(req => 
+        req.fullName === customerName || 
+        customerName.includes(req.fullName) ||
+        req.fullName.includes(customerName)
+      );
+      
+      // Get employee data
+      const employeeId = employeeUniformRequest?.employeeId || `EMP${String(index + 1).padStart(3, '0')}`;
+      const designation = employeeUniformRequest?.designation || "Employee";
+      
+      // Check if employee has accessories to determine "No of Set"
+      const hasAccessories = employeeUniformRequest?.uniformType?.some((type: string) => 
+        (type && type.toLowerCase().includes('accessories')) || 
+        (type && type.toLowerCase().includes('accessory'))
+      );
       const noOfSet = hasAccessories ? "Full set" : "NA";
       
-    // Create table row with sizes from uniform request or DC items
-      const tableRow = [
-      1, // Sl No
-      employeeId,
-      employeeName,
-      designation,
+      // Create row with sizes for each uniform type
+      const row = [
+        index + 1, // Sl No
+        employeeId,
+        customerName,
+        designation,
         noOfSet,
-      // Add size values for each uniform type
-      ...uniformTypes.map((uniformType: string, index: number) => {
-        // Get the corresponding DC item by index
-        const dcItem = dc.items[index];
-        
-        // If no DC item found, try to find by name matching
-        const matchingDcItem = dcItem || dc.items.find(item => 
-          (item.name && item.name === uniformType) || 
-          (item.name && item.name.toLowerCase().includes(uniformType.toLowerCase())) ||
-          (item.name && uniformType.toLowerCase().includes(item.name.toLowerCase()))
-        );
-        if (matchingDcItem && matchingDcItem.size) {
-          // Return only the dispatched size
-          return matchingDcItem.size;
-        }
-        // If not found in DC items, try to get from uniform request
-        if (employeeUniformRequest?.size && employeeUniformRequest.size[uniformType]) {
-          return employeeUniformRequest.size[uniformType];
-        }
-        return "NA";
+        // Add size values for each uniform type
+        ...uniformTypesArray.map((uniformType: string) => {
+          // Check if this employee has this uniform type
+          if (employeeUniformRequest?.uniformType?.includes(uniformType)) {
+            // Get size from uniform request
+            if (employeeUniformRequest.size && employeeUniformRequest.size[uniformType]) {
+              return employeeUniformRequest.size[uniformType];
+            }
+          }
+          return "NA";
         }),
         "NA", // Amount field
         "" // Employee signature field
       ];
       
-    console.log(`Table row for employee:`, tableRow);
+      return row;
+    });
+      
+    console.log(`Table body for all employees:`, tableBody);
     console.log("DC items with modification data:", dc.items.map(item => ({
       name: item.name,
       size: item.size,
       remarks: item.remarks,
       sizeModificationData: item.sizeModificationData
     })));
-    const tableBody = [tableRow];
     
     // Calculate optimal column widths for portrait orientation with overflow prevention
     const baseColumns = 5; // Sl No, Emp ID, Names, DESIGNATION, No of Set
-    const uniformColumns = uniformTypes.length;
+    const uniformColumns = uniformTypesArray.length;
     
     // Calculate optimal column widths - ensure fit within A4 portrait
     const totalColumns = baseColumns + uniformColumns + 2; // +2 for Amount and Emp Sign
@@ -692,7 +710,7 @@ export default function StoreDCPage() {
       '3': { cellWidth: Math.min(25, maxColumnWidth) }, // DESIGNATION - compact
       '4': { cellWidth: Math.min(15, maxColumnWidth) }, // No of Set - compact
       // Dynamic uniform type columns
-      ...uniformTypes.reduce((acc: Record<string, { cellWidth: number }>, _: string, index: number) => {
+      ...uniformTypesArray.reduce((acc: Record<string, { cellWidth: number }>, _: string, index: number) => {
         acc[String(baseColumns + index)] = { cellWidth: Math.min(25, maxColumnWidth) }; // Increased width for uniform type names
         return acc;
       }, {} as Record<string, { cellWidth: number }>),
