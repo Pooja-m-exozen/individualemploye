@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import ManagerDashboardLayout from '@/components/dashboard/ManagerDashboardLayout';
+import  ManagerDashboardLayout from '@/components/dashboard/ManagerDashboardLayout';
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
@@ -89,7 +89,6 @@ export default function UniformRequestsPage() {
   const [selectedUniforms, setSelectedUniforms] = useState<SelectedUniform[]>([]);
   const [uniformOptions, setUniformOptions] = useState<UniformOption[]>([]);
   const [employeeDetails, setEmployeeDetails] = useState<EmployeeDetails | null>(null);
-  const [maxQuantity, setMaxQuantity] = useState<number>(5);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [employeeImages, setEmployeeImages] = useState<{ [id: string]: string }>({});
@@ -234,12 +233,10 @@ export default function UniformRequestsPage() {
         .then(data => {
           setUniformOptions(Array.isArray(data) ? data : []);
           setEmployeeDetails(null); // No longer fetching designation here
-          setMaxQuantity(5);
         })
         .catch(() => {
           setUniformOptions([]);
           setEmployeeDetails(null);
-          setMaxQuantity(5);
           setOptionsError('Failed to fetch inventory options.');
         });
     }
@@ -272,11 +269,9 @@ export default function UniformRequestsPage() {
           if (data.success) {
             setUniformOptions(data.uniformOptions || []);
             setEmployeeDetails(data.employeeDetails || null);
-            setMaxQuantity(data.maxQuantity || 5);
           } else {
             setUniformOptions([]);
             setEmployeeDetails(null);
-            setMaxQuantity(5);
             setOptionsError(data.message || 'No options available');
           }
           setOptionsLoading(false);
@@ -284,14 +279,12 @@ export default function UniformRequestsPage() {
         .catch(() => {
           setUniformOptions([]);
           setEmployeeDetails(null);
-          setMaxQuantity(5);
           setOptionsError('Failed to fetch uniform options.');
           setOptionsLoading(false);
         });
     } else if (!showCreateModal) {
       setUniformOptions([]);
       setEmployeeDetails(null);
-      setMaxQuantity(5);
       setOptionsError(null);
     }
   }, [showCreateModal, newRequest.employeeId]);
@@ -335,7 +328,7 @@ export default function UniformRequestsPage() {
   }, [requests]);
 
   return (
-    <ManagerDashboardLayout>
+    < ManagerDashboardLayout>
       <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'} flex flex-col py-8 pt-8`}>
         <div className="max-w-7xl mx-auto w-full">
           {/* Header */}
@@ -477,7 +470,7 @@ export default function UniformRequestsPage() {
                       )}
                     </div>
                     <div>
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items (Max total qty: {maxQuantity})</label>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items</label>
                       {optionsLoading ? (
                         <div className="text-blue-400">Loading options...</div>
                       ) : optionsError ? (
@@ -503,7 +496,6 @@ export default function UniformRequestsPage() {
                                       <input
                                         type="number"
                                         min={1}
-                                        max={maxQuantity}
                                         defaultValue={1}
                                         className="w-16 border rounded px-1 py-0.5"
                                         id={`qty-${option.type}-${sizeOrSet}`}
@@ -516,13 +508,6 @@ export default function UniformRequestsPage() {
                                         onClick={() => {
                                           const qtyInput = document.getElementById(`qty-${option.type}-${sizeOrSet}`) as HTMLInputElement;
                                           const qty = Number(qtyInput?.value || 1);
-                                          // Prevent exceeding maxQuantity
-                                          const totalQty = selectedUniforms.reduce((acc, u) => acc + u.qty, 0) + qty;
-                                          if (totalQty > maxQuantity) {
-                                            setToast({ type: 'error', message: `Total quantity cannot exceed ${maxQuantity}` });
-                                            setTimeout(() => setToast(null), 3500);
-                                            return;
-                                          }
                                           setSelectedUniforms(prev => [
                                             ...prev,
                                             {
@@ -772,6 +757,6 @@ export default function UniformRequestsPage() {
           
         </div>
       </div>
-    </ManagerDashboardLayout>
+    </ ManagerDashboardLayout>
   );
 }
