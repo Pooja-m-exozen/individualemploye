@@ -78,8 +78,14 @@ const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string,
     return onLeave.leaveType;
   }
 
-  // Only consider truly non-working days (Sunday and Government Holidays) for Comp Off
+  // If it's a holiday and employee worked, consider as Comp Off
   if (isHoliday(date)) {
+    if (punchInTime && punchOutTime) return 'CF';
+    return 'H';
+  }
+
+  // If it's Sunday and employee worked, consider as Comp Off
+  if (date.getDay() === 0) {
     if (punchInTime && punchOutTime) return 'CF';
     return 'H';
   }

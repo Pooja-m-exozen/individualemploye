@@ -53,6 +53,60 @@ interface ApiRegularizationRequest {
   regularizedBy?: string;
 }
 
+// Helper functions for day type logic (consistent with other attendance pages)
+const governmentHolidayMap: { [key: string]: string } = {
+  '2025-01-14': 'Makar Sankranti',
+  '2025-01-26': 'Republic Day',
+  '2025-02-26': 'Maha Shivratri',
+  '2025-03-30': 'Ugadi',
+  '2025-03-31': 'Eid al Fitr',
+  '2025-04-10': 'Mahavira Janma Kalyanaka',
+  '2025-04-14': 'Ambedkar Jayanti',
+  '2025-05-01': 'Labour Day',
+  '2025-08-08': 'Varamahalakshmi',
+  '2025-08-15': 'Independence Day',
+  '2025-08-27': 'Ganesh Chaturthi',
+  '2025-10-02': 'Gandhi Jayanti',
+};
+
+const governmentHolidays = Object.keys(governmentHolidayMap);
+
+const getDayType = (date: string, year: number, month: number) => {
+  const dateStr = date.split('T')[0];
+  const d = new Date(dateStr);
+  
+  if (governmentHolidays.includes(dateStr)) {
+    return governmentHolidayMap[dateStr] || 'Holiday';
+  }
+  
+  if (d.getDay() === 0) {
+    return 'Sunday';
+  }
+  
+  if (d.getDay() === 6) {
+    const weekNumber = Math.ceil((d.getDate() + (new Date(year, month - 1, 1).getDay())) / 7);
+    if (weekNumber === 2) {
+      return 'Working Day'; // 2nd Saturday is now a working day
+    } else if (weekNumber === 4) {
+      return 'Working Day'; // 4th Saturday is now a working day
+    }
+  }
+  
+  return 'Working Day';
+};
+
+// Helper function to determine if attendance should be considered Comp Off
+const shouldBeCompOff = (record: AttendanceRecord, dayType: string): boolean => {
+  // If it's a holiday or Sunday and employee worked, consider as Comp Off
+  if ((dayType !== 'Working Day') && record.punchInTime && record.punchOutTime) {
+    const inTime = new Date(record.punchInTime);
+    const outTime = new Date(record.punchOutTime);
+    const hoursWorked = (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
+    return hoursWorked >= 4; // 4+ hours worked on holiday/Sunday = Comp Off
+  }
+  return false;
+};
+
 const AttendanceManagementPage = () => {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("View Attendance");
@@ -228,6 +282,7 @@ const AttendanceManagementPage = () => {
           'Designation': employee ? employee.designation : '',
           'Project': record.projectName,
           'Date': record.date,
+          'Day Type': getDayType(record.date, new Date().getFullYear(), new Date().getMonth() + 1),
           'Status': record.status,
           'Punch In': record.punchInTime || '',
           'Punch Out': record.punchOutTime || ''
@@ -240,7 +295,7 @@ const AttendanceManagementPage = () => {
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(exportData);
       ws['!cols'] = [
-        { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 18 }
+        { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 18 }, { wch: 18 }
       ];
       XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
       XLSX.writeFile(wb, `Exozen_Ops_Attendance_${fromDate}_to_${toDate}.xlsx`);
@@ -516,6 +571,7 @@ const AttendanceManagementPage = () => {
                       <th className={`px-6 py-4 text-left text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Employee ID</th>
                       <th className={`px-6 py-4 text-left text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Project</th>
                       <th className={`px-6 py-4 text-left text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Date</th>
+                      <th className={`px-6 py-4 text-left text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Day Type</th>
                       <th className={`px-6 py-4 text-left text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-black'} uppercase tracking-wider`}>Status</th>
                     </tr>
                   </thead>
@@ -557,18 +613,30 @@ const AttendanceManagementPage = () => {
                                 day: 'numeric'
                               })}
                             </td>
+                            <td className={`px-6 py-4 ${theme === 'dark' ? 'text-gray-200' : 'text-black'}`}>
+                              {getDayType(record.date, new Date().getFullYear(), new Date().getMonth() + 1)}
+                            </td>
                             <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                record.status === 'Present'
-                                  ? theme === 'dark' 
-                                    ? 'bg-green-900/30 text-green-400' 
-                                    : 'bg-green-100 text-green-800'
-                                  : theme === 'dark'
-                                    ? 'bg-red-900/30 text-red-400'
-                                    : 'bg-red-100 text-red-800'
-                              }`}>
-                                {record.status}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                  record.status === 'Present'
+                                    ? theme === 'dark' 
+                                      ? 'bg-green-900/30 text-green-400' 
+                                      : 'bg-green-100 text-green-800'
+                                    : theme === 'dark'
+                                      ? 'bg-red-900/30 text-red-400'
+                                      : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {record.status}
+                                </span>
+                                {shouldBeCompOff(record, getDayType(record.date, new Date().getFullYear(), new Date().getMonth() + 1)) && (
+                                  <span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${
+                                    theme === 'light' ? 'bg-cyan-100 text-cyan-700' : 'bg-cyan-900 text-cyan-300'
+                                  }`}>
+                                    Comp Off
+                                  </span>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );

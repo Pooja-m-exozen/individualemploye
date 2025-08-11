@@ -489,8 +489,18 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
       return leaveType + ' Leave';
     }
 
-    // Only consider non-working days (Sunday, Holidays) for Comp Off, not 2nd/4th Saturdays
-    if ((dayType === 'Sunday' || dayType === 'Holiday') && record.punchInTime && record.punchOutTime) {
+    // If it's a holiday and employee worked, consider as Comp Off
+    if (dayType !== 'Working Day' && dayType !== 'Sunday' && record.punchInTime && record.punchOutTime) {
+      const inTime = record.punchInUtc || record.punchInTime;
+      const outTime = record.punchOutUtc || record.punchOutTime;
+      const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
+      if (hoursWorked >= 4) {
+        return 'Comp Off';
+      }
+    }
+
+    // If it's Sunday and employee worked, consider as Comp Off
+    if (dayType === 'Sunday' && record.punchInTime && record.punchOutTime) {
       const inTime = record.punchInUtc || record.punchInTime;
       const outTime = record.punchOutUtc || record.punchOutTime;
       const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));

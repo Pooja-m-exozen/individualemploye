@@ -99,6 +99,18 @@ const getDayType = (date: string, year: number, month: number) => {
   return 'Working Day';
 };
 
+// Helper function to determine if attendance should be considered Comp Off
+const shouldBeCompOff = (record: Attendance, dayType: string): boolean => {
+  // If it's a holiday or Sunday and employee worked, consider as Comp Off
+  if ((dayType !== 'Working Day') && record.punchInTime && record.punchOutTime) {
+    const inTime = new Date(record.punchInTime);
+    const outTime = new Date(record.punchOutTime);
+    const hoursWorked = (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
+    return hoursWorked >= 4; // 4+ hours worked on holiday/Sunday = Comp Off
+  }
+  return false;
+};
+
 const EmployeeSummaryPage = (): JSX.Element => {
   const { theme } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -469,11 +481,20 @@ const EmployeeSummaryPage = (): JSX.Element => {
                                       }`}>
                                         {getDayType(record.date, new Date().getFullYear(), new Date().getMonth() + 1)}
                                       </td>
-                                      <td className={`px-4 py-3 text-sm ${
-                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
-                                      }`}>
-                                        {record.status}
-                                      </td>
+                                                                        <td className={`px-4 py-3 text-sm ${
+                                    theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                  }`}>
+                                    <div className="flex items-center gap-2">
+                                      <span>{record.status}</span>
+                                      {shouldBeCompOff(record, getDayType(record.date, new Date().getFullYear(), new Date().getMonth() + 1)) && (
+                                        <span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${
+                                          theme === 'light' ? 'bg-cyan-100 text-cyan-700' : 'bg-cyan-900 text-cyan-300'
+                                        }`}>
+                                          Comp Off
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
                                       <td className={`px-4 py-3 text-sm ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'
                                       }`}>
