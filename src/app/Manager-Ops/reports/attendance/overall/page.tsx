@@ -34,8 +34,18 @@ interface LeaveRecord {
 }
 
 const GOVERNMENT_HOLIDAYS = [
-  { date: '2024-01-26', description: 'Republic Day' },
-  { date: '2024-08-15', description: 'Independence Day' },
+  { date: '2025-01-14', description: 'Makar Sankranti' },
+  { date: '2025-01-26', description: 'Republic Day' },
+  { date: '2025-02-26', description: 'Maha Shivratri' },
+  { date: '2025-03-30', description: 'Ugadi' },
+  { date: '2025-03-31', description: 'Eid al Fitr' },
+  { date: '2025-04-10', description: 'Mahavira Janma Kalyanaka' },
+  { date: '2025-04-14', description: 'Ambedkar Jayanti' },
+  { date: '2025-05-01', description: 'Labour Day' },
+  { date: '2025-08-08', description: 'Varamahalakshmi' },
+  { date: '2025-08-15', description: 'Independence Day' },
+  { date: '2025-08-27', description: 'Ganesh Chaturthi' },
+  { date: '2025-10-02', description: 'Gandhi Jayanti' },
 ];
 
 const isSecondOrFourthSaturday = (date: Date): boolean => {
@@ -48,7 +58,8 @@ const isHoliday = (date: Date): boolean => {
   const day = date.getDay();
   const dateString = date.toISOString().split('T')[0];
   if (day === 0) return true;
-  if (isSecondOrFourthSaturday(date)) return true;
+  // 2nd and 4th Saturdays are now working days, not holidays
+  // if (isSecondOrFourthSaturday(date)) return true;
   return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
 };
 
@@ -74,6 +85,7 @@ const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], status?: string,
     return onLeave.leaveType;
   }
 
+  // Only consider truly non-working days (Sunday and Government Holidays) for Comp Off
   if (isHoliday(date)) {
     if (punchInTime && punchOutTime) return 'CF';
     return 'H';

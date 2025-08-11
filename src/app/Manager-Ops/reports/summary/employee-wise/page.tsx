@@ -57,6 +57,48 @@ interface LeaveHistory {
   reason: string;
 }
 
+// Helper functions for day type logic (consistent with other attendance pages)
+const governmentHolidayMap: { [key: string]: string } = {
+  '2025-01-14': 'Makar Sankranti', // Makar Sankranti
+  '2025-01-26': 'Republic Day', // Republic Day
+  '2025-02-26': 'Maha Shivratri', //Maha Shivratri
+  '2025-03-30': 'Ugadi', //Ugadi
+  '2025-03-31': 'Eid al Fitr', //Eid al Fitr
+  '2025-04-10': 'Mahavira Janma Kalyanaka', //Mahavira Janma Kalyanaka
+  '2025-04-14': 'Ambedkar Jayanti', //Ambedkar Jayanti
+  '2025-05-01': 'Labour Day', //Labour Day
+  '2025-08-08': 'Varamahalakshmi', //Varamahalakshmi
+  '2025-08-15': 'Independence Day', // Independence Day
+  '2025-08-27': 'Ganesh Chaturthi', // Ganesh Chaturthi
+  '2025-10-02': 'Gandhi Jayanti', // Gandhi Jayanti
+};
+
+const governmentHolidays = Object.keys(governmentHolidayMap);
+
+const getDayType = (date: string, year: number, month: number) => {
+  const dateStr = date.split('T')[0];
+  const d = new Date(dateStr);
+  
+  if (governmentHolidays.includes(dateStr)) {
+    return governmentHolidayMap[dateStr] || 'Holiday';
+  }
+  
+  if (d.getDay() === 0) {
+    return 'Sunday';
+  }
+  
+  if (d.getDay() === 6) {
+    const weekNumber = Math.ceil((d.getDate() + (new Date(year, month - 1, 1).getDay())) / 7);
+    if (weekNumber === 2) {
+      return 'Working Day'; // 2nd Saturday is now a working day
+    } else if (weekNumber === 4) {
+      return 'Working Day'; // 4th Saturday is now a working day
+    }
+  }
+  
+  return 'Working Day';
+};
+
 const EmployeeSummaryPage = (): JSX.Element => {
   const { theme } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -168,6 +210,7 @@ const EmployeeSummaryPage = (): JSX.Element => {
     const attendanceSheet = XLSX.utils.json_to_sheet(
       attendance.map((record) => ({
         Date: new Date(record.date).toLocaleDateString(),
+        "Day Type": getDayType(record.date, new Date().getFullYear(), new Date().getMonth() + 1),
         Status: record.status,
         "Check-In": record.punchInTime,
         "Check-Out": record.punchOutTime,
@@ -207,7 +250,7 @@ const EmployeeSummaryPage = (): JSX.Element => {
     doc.text('Attendance Details', 14, 50);
     autoTable(doc, {
       startY: 55,
-      head: [['Date', 'Status', 'Total Working Hours']],
+      head: [['Date', 'Day Type', 'Status', 'Total Working Hours']],
       body: attendance.map((record: Attendance) => {
         const workingHours = record.punchInTime && record.punchOutTime
           ? ((new Date(record.punchOutTime).getTime() - new Date(record.punchInTime).getTime()) / (1000 * 60 * 60)).toFixed(2)
@@ -215,6 +258,7 @@ const EmployeeSummaryPage = (): JSX.Element => {
         
         return [
           new Date(record.date).toLocaleDateString(),
+          getDayType(record.date, new Date().getFullYear(), new Date().getMonth() + 1),
           record.status,
           workingHours
         ];
@@ -395,6 +439,7 @@ const EmployeeSummaryPage = (): JSX.Element => {
                               }`}>
                                 <tr>
                                   <th className="px-4 py-3 text-left text-sm font-semibold">Date</th>
+                                  <th className="px-4 py-3 text-left text-sm font-semibold">Day Type</th>
                                   <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
                                   <th className="px-4 py-3 text-left text-sm font-semibold">Total Working Hours</th>
                                 </tr>
@@ -418,6 +463,11 @@ const EmployeeSummaryPage = (): JSX.Element => {
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'
                                       }`}>
                                         {new Date(record.date).toLocaleDateString()}
+                                      </td>
+                                      <td className={`px-4 py-3 text-sm ${
+                                        theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+                                      }`}>
+                                        {getDayType(record.date, new Date().getFullYear(), new Date().getMonth() + 1)}
                                       </td>
                                       <td className={`px-4 py-3 text-sm ${
                                         theme === 'light' ? 'text-gray-700' : 'text-gray-300'

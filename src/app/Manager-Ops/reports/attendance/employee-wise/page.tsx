@@ -174,15 +174,18 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
   ];
 
   const governmentHolidayMap: { [key: string]: string } = {
-    '2024-01-26': 'Republic Day',
-    '2024-03-25': 'Holi',
-    '2024-04-09': 'Ram Navami',
-    '2024-05-01': 'Labor Day',
-    '2024-08-15': 'Independence Day',
-    '2024-10-02': 'Gandhi Jayanti',
-    '2024-11-14': 'Diwali',
-    '2024-12-25': 'Christmas',
-    '2025-05-01': 'Labor Day',
+  '2025-01-14': 'Makar Sankranti', // Makar Sankranti
+  '2025-01-26': 'Republic Day', // Republic Day
+  '2025-02-26': 'Maha Shivratri', //Maha Shivratri
+  '2025-03-30': 'Ugadi', //Ugadi
+  '2025-03-31': 'Eid al Fitr', //Eid al Fitr
+  '2025-04-10': 'Mahavira Janma Kalyanaka', //Mahavira Janma Kalyanaka
+  '2025-04-14': 'Ambedkar Jayanti', //Ambedkar Jayanti
+  '2025-05-01': 'Labour Day', //Labour Day
+  '2025-08-08': 'Varamahalakshmi', //Varamahalakshmi
+  '2025-08-15': 'Independence Day', // Independence Day
+  '2025-08-27': 'Ganesh Chaturthi', // Ganesh Chaturthi
+  '2025-10-02': 'Gandhi Jayanti', // Gandhi Jayanti
   };
 
   const governmentHolidays = Object.keys(governmentHolidayMap);
@@ -470,9 +473,9 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
     if (d.getDay() === 6) {
       const weekNumber = Math.ceil((d.getDate() + (new Date(year, month - 1, 1).getDay())) / 7);
       if (weekNumber === 2) {
-        return '2nd Saturday';
+        return 'Working Day'; // Changed from '2nd Saturday' to 'Working Day'
       } else if (weekNumber === 4) {
-        return '4th Saturday';
+        return 'Working Day'; // Changed from '4th Saturday' to 'Working Day'
       }
     }
     
@@ -486,7 +489,8 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
       return leaveType + ' Leave';
     }
 
-    if (dayType !== 'Working Day' && record.punchInTime && record.punchOutTime) {
+    // Only consider non-working days (Sunday, Holidays) for Comp Off, not 2nd/4th Saturdays
+    if ((dayType === 'Sunday' || dayType === 'Holiday') && record.punchInTime && record.punchOutTime) {
       const inTime = record.punchInUtc || record.punchInTime;
       const outTime = record.punchOutUtc || record.punchOutTime;
       const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));

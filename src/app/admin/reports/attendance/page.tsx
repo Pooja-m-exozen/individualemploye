@@ -36,8 +36,18 @@ interface LeaveRecord {
 }
 
 const GOVERNMENT_HOLIDAYS = [
-  { date: '2024-01-26', description: 'Republic Day' },
-  { date: '2024-08-15', description: 'Independence Day' },
+  { date: '2025-01-14', description: 'Makar Sankranti' }, // Makar Sankranti
+  { date: '2025-01-26', description: 'Republic Day' }, // Republic Day
+  { date: '2025-02-26', description: 'Maha Shivratri' }, //Maha Shivratri
+  { date: '2025-03-30', description: 'Ugadi' }, //Ugadi
+  { date: '2025-03-31', description: 'Eid al Fitr' }, //Eid al Fitr
+  { date: '2025-04-10', description: 'Mahavira Janma Kalyanaka' }, //Mahavira Janma Kalyanaka
+  { date: '2025-04-14', description: 'Ambedkar Jayanti' }, //Ambedkar Jayanti
+  { date: '2025-05-01', description: 'Labour Day' }, //Labour Day
+  { date: '2025-08-08', description: 'Varamahalakshmi' }, //Varamahalakshmi
+  { date: '2025-08-15', description: 'Independence Day' }, // Independence Day
+  { date: '2025-08-27', description: 'Ganesh Chaturthi' }, // Ganesh Chaturthi
+  { date: '2025-10-02', description: 'Gandhi Jayanti' }, // Gandhi Jayanti
 ];
 
 const isSecondOrFourthSaturday = (date: Date): boolean => {
