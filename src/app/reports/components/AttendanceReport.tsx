@@ -140,6 +140,7 @@ interface MonthlySummary {
   halfDays: number;
   partiallyAbsentDays: number;
   weekOffs: number;
+  weekOffsWorked?: number;
   holidays: number;
   el: number;
   sl: number;
@@ -627,6 +628,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               'Half Days',
               'Partially Absent',
               'Total Weekoff',
+              'Week Offs Worked',
               'Holidays',
               'EL',
               'SL',
@@ -641,6 +643,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               monthlySummary.halfDays,
               monthlySummary.partiallyAbsentDays,
               monthlySummary.weekOffs,
+              monthlySummary.weekOffsWorked || 0,
               monthlySummary.holidays,
               monthlySummary.el,
               monthlySummary.sl,
@@ -659,11 +662,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               3: { cellWidth: 15 },
               4: { cellWidth: 18 },
               5: { cellWidth: 15 },
-              6: { cellWidth: 15 },
+              6: { cellWidth: 18 },
               7: { cellWidth: 15 },
               8: { cellWidth: 15 },
-              9: { cellWidth: 20 },
-              10: { cellWidth: 15 }
+              9: { cellWidth: 15 },
+              10: { cellWidth: 15 },
+              11: { cellWidth: 15 },
+              12: { cellWidth: 15 }
             },
             margin: { left: 10, right: 10 }
           });
@@ -676,7 +681,17 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           yPosition += 8;
           doc.setFontSize(10);
           doc.setTextColor(0, 0, 0);
-          const totalPayableDays = monthlySummary.presentDays + monthlySummary.regularizedPresentDays + (monthlySummary.halfDays / 2) + monthlySummary.weekOffs + monthlySummary.el + monthlySummary.cl + monthlySummary.sl;
+          const totalPayableDays = monthlySummary.presentDays + 
+                                  monthlySummary.regularizedPresentDays + 
+                                  (monthlySummary.halfDays / 2) + 
+                                  monthlySummary.partiallyAbsentDays + 
+                                  monthlySummary.weekOffs + 
+                                  (monthlySummary.weekOffsWorked || 0) + 
+                                  monthlySummary.el + 
+                                  monthlySummary.cl + 
+                                  monthlySummary.sl + 
+                                  monthlySummary.compOff + 
+                                  monthlySummary.holidays;
           const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
           doc.text(`Total Days: ${monthlySummary.totalDays}`, 12, yPosition);
           yPosition += 7;

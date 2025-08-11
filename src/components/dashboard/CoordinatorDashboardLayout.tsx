@@ -113,7 +113,7 @@ const CoordinatorDashboardLayout = ({ children }: CoordinatorDashboardLayoutProp
     { label: "Attendance", icon: <FaTasks />, href: "/v1/employee/coordinator/attendance-management" },
     { label: "KYC Management", icon: <FaUser />, href: "/v1/employee/coordinator/kyc-management" },
     { label: "ID Card Management", icon: <FaIdCard />, href: "/v1/employee/coordinator/id-card-management" },
-    { label: "Uniform Management", icon: <FaTshirt />, href: "/v1/employee/coordinator/uniform-management/requests" },
+    // { label: "Uniform Management", icon: <FaTshirt />, href: "/v1/employee/coordinator/uniform-management/requests" },
     {
       label: "Stores Management",
       icon: <FaClipboardList />,
@@ -123,6 +123,15 @@ const CoordinatorDashboardLayout = ({ children }: CoordinatorDashboardLayoutProp
         { label: "Requests", icon: <FaClipboardList />, href: "/v1/employee/coordinator/stores-management/requests" },
       ],
     },
+      {
+        label: "Uniform Management",
+        icon: <FaTshirt />,
+        subItems: [
+          { label: "Requests", icon: <FaClipboardList />, href: "/v1/employee/coordinator/uniform-management/requests" },
+          { label: "View", icon: <FaClipboardList />, href: "/v1/employee/coordinator/uniform-management/view" },
+          { label: "Project Wise Applicable", icon: <FaClipboardList />, href: "/v1/employee/coordinator/uniform-management/project-wise-applicable" },
+        ]
+      },
     {
       label: "Reports",
       icon: <FaClipboardList />,
@@ -415,4 +424,4 @@ const CoordinatorDashboardLayout = ({ children }: CoordinatorDashboardLayoutProp
   );
 };
 
-export default CoordinatorDashboardLayout; 
+export default CoordinatorDashboardLayout;

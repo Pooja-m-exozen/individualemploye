@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from "react";
-import CoordinatorDashboardLayout from '@/components/dashboard/CoordinatorDashboardLayout';
+import React, { useEffect, useState } from "react";
+import  CoordinatorDashboardLayout from '@/components/dashboard/CoordinatorDashboardLayout';
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 // import Select from "react-select";
-import { useSearchParams, useRouter } from "next/navigation";
 
 interface UniformRequest {
   _id: string;
@@ -67,7 +66,7 @@ interface UniformApiResponse {
   updatedAt?: string;
 }
 
-function ClientRequestsPage() {
+export default function UniformRequestsPage() {
   const { theme } = useTheme();
   const [requests, setRequests] = useState<UniformRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,27 +89,13 @@ function ClientRequestsPage() {
   const [selectedUniforms, setSelectedUniforms] = useState<SelectedUniform[]>([]);
   const [uniformOptions, setUniformOptions] = useState<UniformOption[]>([]);
   const [employeeDetails, setEmployeeDetails] = useState<EmployeeDetails | null>(null);
-  const [maxQuantity, setMaxQuantity] = useState<number>(5);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [employeeImages, setEmployeeImages] = useState<{ [id: string]: string }>({});
-  const searchParams = useSearchParams();
-  const router = useRouter();
 
   useEffect(() => {
     fetchRequests();
   }, []);
-
-  useEffect(() => {
-    const create = searchParams!.get("create");
-    const employeeId = searchParams!.get("employeeId");
-    if (create === "1") {
-      setShowCreateModal(true);
-      if (employeeId && !newRequest.employeeId) {
-        setNewRequest(r => ({ ...r, employeeId }));
-      }
-    }
-  }, [searchParams, newRequest.employeeId]);
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -248,12 +233,10 @@ function ClientRequestsPage() {
         .then(data => {
           setUniformOptions(Array.isArray(data) ? data : []);
           setEmployeeDetails(null); // No longer fetching designation here
-          setMaxQuantity(5);
         })
         .catch(() => {
           setUniformOptions([]);
           setEmployeeDetails(null);
-          setMaxQuantity(5);
           setOptionsError('Failed to fetch inventory options.');
         });
     }
@@ -286,11 +269,9 @@ function ClientRequestsPage() {
           if (data.success) {
             setUniformOptions(data.uniformOptions || []);
             setEmployeeDetails(data.employeeDetails || null);
-            setMaxQuantity(data.maxQuantity || 5);
           } else {
             setUniformOptions([]);
             setEmployeeDetails(null);
-            setMaxQuantity(5);
             setOptionsError(data.message || 'No options available');
           }
           setOptionsLoading(false);
@@ -298,14 +279,12 @@ function ClientRequestsPage() {
         .catch(() => {
           setUniformOptions([]);
           setEmployeeDetails(null);
-          setMaxQuantity(5);
           setOptionsError('Failed to fetch uniform options.');
           setOptionsLoading(false);
         });
     } else if (!showCreateModal) {
       setUniformOptions([]);
       setEmployeeDetails(null);
-      setMaxQuantity(5);
       setOptionsError(null);
     }
   }, [showCreateModal, newRequest.employeeId]);
@@ -349,7 +328,7 @@ function ClientRequestsPage() {
   }, [requests]);
 
   return (
-    <CoordinatorDashboardLayout>
+    < CoordinatorDashboardLayout>
       <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'} flex flex-col py-8 pt-8`}>
         <div className="max-w-7xl mx-auto w-full">
           {/* Header */}
@@ -464,14 +443,7 @@ function ClientRequestsPage() {
                 <div className="p-8 border-b">
                   <button
                     className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      // Remove query params for best UX
-                      const params = new URLSearchParams(searchParams!.toString());
-                      params.delete('create');
-                      params.delete('employeeId');
-                      router.replace(`/coordinator/uniform-management/requests${params.toString() ? '?' + params.toString() : ''}`);
-                    }}
+                    onClick={() => setShowCreateModal(false)}
                     title="Close"
                   >×</button>
                   <h2 className={`text-2xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>
@@ -498,7 +470,7 @@ function ClientRequestsPage() {
                       )}
                     </div>
                     <div>
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items (Max total qty: {maxQuantity})</label>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items</label>
                       {optionsLoading ? (
                         <div className="text-blue-400">Loading options...</div>
                       ) : optionsError ? (
@@ -524,7 +496,6 @@ function ClientRequestsPage() {
                                       <input
                                         type="number"
                                         min={1}
-                                        max={maxQuantity}
                                         defaultValue={1}
                                         className="w-16 border rounded px-1 py-0.5"
                                         id={`qty-${option.type}-${sizeOrSet}`}
@@ -537,13 +508,6 @@ function ClientRequestsPage() {
                                         onClick={() => {
                                           const qtyInput = document.getElementById(`qty-${option.type}-${sizeOrSet}`) as HTMLInputElement;
                                           const qty = Number(qtyInput?.value || 1);
-                                          // Prevent exceeding maxQuantity
-                                          const totalQty = selectedUniforms.reduce((acc, u) => acc + u.qty, 0) + qty;
-                                          if (totalQty > maxQuantity) {
-                                            setToast({ type: 'error', message: `Total quantity cannot exceed ${maxQuantity}` });
-                                            setTimeout(() => setToast(null), 3500);
-                                            return;
-                                          }
                                           setSelectedUniforms(prev => [
                                             ...prev,
                                             {
@@ -793,14 +757,6 @@ function ClientRequestsPage() {
           
         </div>
       </div>
-    </CoordinatorDashboardLayout>
-  );
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ClientRequestsPage />
-    </Suspense>
+    </ CoordinatorDashboardLayout>
   );
 }

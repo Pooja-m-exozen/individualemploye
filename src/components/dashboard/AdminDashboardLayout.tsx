@@ -14,6 +14,7 @@ import {
   FaPlaneDeparture,
   FaTimes,
   FaCog,
+  FaClipboardList,
   FaChartBar,
 } from "react-icons/fa";
 import Image from "next/image";
@@ -199,6 +200,7 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
         { label: "Employee Report", icon: <FaUsers />, href: "/v1/employee/admin/reports/employee" },
         { label: "Attendance Report", icon: <FaCalendarAlt />, href: "/v1/employee/admin/reports/attendance" },
         { label: "Stock Report", icon: <FaChartBar />, href: "/v1/employee/admin/reports/stock" },
+        { label: "DC", icon: <FaClipboardList />, href: "/v1/employee/admin/reports/dc" },
       ],
     },
   ];

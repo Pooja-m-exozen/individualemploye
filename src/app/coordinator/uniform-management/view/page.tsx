@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { FaTshirt, FaSearch, FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaUser, FaTable, FaThLarge, FaDownload, FaEye, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-import CoordinatorDashboardLayout from '@/components/dashboard/CoordinatorDashboardLayout';
+import  CoordinatorDashboardLayout from '@/components/dashboard/CoordinatorDashboardLayout';
 import { useTheme } from "@/context/ThemeContext";
 
 interface UniformRequest {
@@ -105,7 +105,7 @@ const UniformViewPage = () => {
 	}, [viewModal]);
 
 	return (
-		<CoordinatorDashboardLayout>
+		< CoordinatorDashboardLayout>
 			<div className={`${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'}`}>
 				<div className="max-w-7xl mx-auto w-full px-4">
 					{/* Header */}
@@ -124,30 +124,6 @@ const UniformViewPage = () => {
 							<p className="text-lg text-blue-100">Browse all uniform requests and their statuses</p>
 						</div>
 					</div>
-				</div>
-
-				{/* Tabs for Uniform Requests/View */}
-				<div className="flex gap-2 mb-8 w-full max-w-5xl mx-auto">
-					<a
-						href="/v1/employee/coordinator/uniform-management/requests"
-						className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
-							theme === 'dark'
-							? 'bg-gray-700 border-transparent text-gray-300 hover:text-blue-300'
-							: 'bg-gray-100 border-transparent text-gray-500 hover:text-blue-700'
-						}`}
-					>
-						Uniform Requests
-					</a>
-					<button
-						className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
-							theme === 'dark'
-							? 'bg-gray-800 border-blue-400 text-blue-400'
-							: 'bg-white border-blue-600 text-blue-700'
-						}`}
-						style={{ borderBottomWidth: '3px' }}
-					>
-						View Uniform Requests
-					</button>
 				</div>
 
 				{/* Content Area */}
@@ -480,7 +456,7 @@ const UniformViewPage = () => {
 					</div>
 				</div>
 			)}
-		</CoordinatorDashboardLayout>
+		</ CoordinatorDashboardLayout>
 	);
 };
 

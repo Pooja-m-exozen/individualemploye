@@ -1,17 +1,12 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import CoordinatorDashboardLayout  from "@/components/dashboard/CoordinatorDashboardLayout";
-import CreateDCModal from "@/components/dashboard/CreateDCmodal";
-import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter, FaPlus, FaTimes } from "react-icons/fa";
+import AdminDashboardLayout  from "@/components/dashboard/AdminDashboardLayout";
+import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter, FaTimes, FaProjectDiagram } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const guidelines = [
-  "All DC records are updated in real-time as per store records.",
-  "Click 'View' to see more details about each DC.",
-  "Contact the stores team for any discrepancies.",
-];
+
 
 // TypeScript types for API response
 interface DCItem {
@@ -128,13 +123,29 @@ export default function StoreDCPage() {
   const { theme } = useTheme();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
+  const [projectFilter, setProjectFilter] = useState("All Projects");
   const [dcData, setDcData] = useState<DC[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDC, setSelectedDC] = useState<DC | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [uniformReq, setUniformReq] = useState<unknown>(null);
+  const [projects, setProjects] = useState<Array<{ projectName: string; address: string }>>([]);
+
+  // Fetch projects from API
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+      if (!res.ok) return;
+      const data = await res.json();
+      setProjects(data);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+    }
+  };
+
+  // Project options for dropdown
+  const projectOptions = ["All Projects", ...projects.map(p => p.projectName)];
 
   // Helper function to get project name from uniform requests
   const getProjectNameFromUniformRequests = useCallback(async (customer: string): Promise<string> => {
@@ -210,6 +221,10 @@ export default function StoreDCPage() {
     }
     return { projectName, address: "N/A" };
   };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
 
   useEffect(() => {
     const fetchDCs = async () => {
@@ -337,69 +352,7 @@ export default function StoreDCPage() {
     return null;
   };
 
-  // Function to refresh DC data
-  const refreshDCData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("https://inventory.zenapi.co.in/api/inventory/outward-dc");
-      
-      if (!res.ok) {
-        throw new Error(`Failed to fetch DCs: ${res.status} ${res.statusText}`);
-      }
-      
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("API returned non-JSON response");
-      }
-      
-      const data: ApiResponse = await res.json();
-      
-      // Process the actual API response structure with project names
-      const processedDCs = await Promise.all(data.dcs.map(async (dc) => {
-        // Get actual project name from uniform requests
-        const actualProjectName = await getProjectNameFromUniformRequests(dc.customer);
-        
-        return {
-          ...dc,
-          // Use actual project name from uniform requests
-          projectName: actualProjectName,
-          // Process items to match our expected structure
-          items: dc.items.map(item => ({
-            ...item,
-            // Extract employee data from customer name
-            employeeId: extractEmployeeId(dc.customer),
-            name: item.name, // Keep the original item name (uniform type)
-            designation: "Employee", // Default designation
-            // Use the size from API response (this is the modified/selected size)
-            size: item.size || "",
-            quantity: item.quantity || 1,
-            // Create individualEmployeeData from available information
-            individualEmployeeData: {
-              employeeId: extractEmployeeId(dc.customer),
-              fullName: extractEmployeeName(dc.customer),
-              designation: "Employee",
-              uniformType: [item.name], // Use item name as uniform type
-              size: { [item.name]: item.size }, // Create size object
-              qty: item.quantity || 1,
-              projectName: actualProjectName
-            }
-          }))
-        };
-      }));
-      
-      setDcData(processedDCs);
-    } catch (err: unknown) {
-      console.error("Error refreshing DCs:", err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Unknown error occurred while refreshing DCs");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   useEffect(() => {
     async function fetchUniform() {
@@ -511,7 +464,9 @@ export default function StoreDCPage() {
       (dc.dcNumber && dc.dcNumber.toLowerCase().includes(search.toLowerCase())) ||
       ((dc.projectName || "N/A") && (dc.projectName || "N/A").toLowerCase().includes(search.toLowerCase()))
     ) : true;
-    return matchesStatus && matchesSearch;
+    const matchesProject = projectFilter === "All Projects" || 
+      (dc.projectName && dc.projectName === projectFilter);
+    return matchesStatus && matchesSearch && matchesProject;
   });
 
   // Download DC as PDF (exact match to image format)
@@ -747,7 +702,7 @@ export default function StoreDCPage() {
     (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = undefined;
 
     const pageWidth = doc.internal.pageSize.getWidth();
-    // const pageHeight = doc.internal.pageSize.getHeight();
+    const pageHeight = doc.internal.pageSize.getHeight();
     let y = 15;
 
     // Company Name & Address
@@ -767,55 +722,86 @@ export default function StoreDCPage() {
 
     y += 12;
 
-    // Table - Only required columns: Sl.No, Customer, DC Number, Quantity, Size
+    // Filter information
+    if (projectFilter !== "All Projects") {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Filtered by Project: ${projectFilter}`, 14, y);
+      y += 8;
+    }
+
+    // Table - Enhanced columns with better data
     autoTable(doc, {
       startY: y,
-      head: [["Sl.No", "Customer", "DC Number", "Quantity", "Size"]],
-      body: dcData.map((dc, idx) => [
+      head: [["Sl.No", "DC Number", "Date", "Project Name", "Customer", "Items Count", "Status"]],
+      body: filteredDC.map((dc, idx) => [
         idx + 1,
-        dc.customer.length > 50 ? dc.customer.substring(0, 50) + "..." : dc.customer, // Increased to 50 for full data
         dc.dcNumber,
-        dc.items.map(item => item.quantity).join(", "),
-        dc.items.map(item => typeof item.size === 'string' ? item.size.substring(0, 40) + "..." : JSON.stringify(item.size).substring(0, 40) + "...").join(", ") // Increased to 40 for full data
+        dc.dcDate ? dc.dcDate.split('T')[0] : '',
+        dc.projectName || "N/A",
+        dc.customer.length > 30 ? dc.customer.substring(0, 30) + "..." : dc.customer,
+        dc.items.length,
+        dc.status
       ]),
       theme: "grid",
-      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 10 }, // Increased font size
-      styles: { fontSize: 9, cellPadding: 4, textColor: 20 }, // Increased font size and padding
-      margin: { left: 10, right: 10, top: 2, bottom: 2 }, // Minimal margins
-      tableWidth: pageWidth - 20, // Use full page width
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 10 },
+      styles: { fontSize: 9, cellPadding: 4, textColor: 20 },
+      margin: { left: 10, right: 10, top: 2, bottom: 2 },
+      tableWidth: pageWidth - 20,
       columnStyles: {
-        '0': { cellWidth: 20 }, // Sl.No - increased for full data
-        '1': { cellWidth: 80 }, // Customer - increased for full data
-        '2': { cellWidth: 40 }, // DC Number - increased for full data
-        '3': { cellWidth: 30 }, // Quantity - increased for full data
-        '4': { cellWidth: 80 }  // Size - increased for full data
+        '0': { cellWidth: 15 }, // Sl.No
+        '1': { cellWidth: 35 }, // DC Number
+        '2': { cellWidth: 25 }, // Date
+        '3': { cellWidth: 40 }, // Project Name
+        '4': { cellWidth: 50 }, // Customer
+        '5': { cellWidth: 20 }, // Items Count
+        '6': { cellWidth: 25 }  // Status
       },
-      // Remove page break logic to ensure single page
+      didDrawPage: function () {
+        // Add page numbers
+        const pageCount = doc.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.text(`Page ${i} of ${pageCount}`, pageWidth - 25, pageHeight - 10);
+        }
+      }
     });
 
     // Get Y after table
     const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 40;
 
+    // Summary information
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Summary", 14, finalY + 10);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(`Total DCs: ${filteredDC.length}`, 14, finalY + 15);
+    if (projectFilter !== "All Projects") {
+      doc.text(`Filtered Project: ${projectFilter}`, 14, finalY + 20);
+    }
+
     // Terms & Conditions
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("Terms & Conditions", 14, finalY + 10);
+    doc.text("Terms & Conditions", 14, finalY + 35);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery.", 14, finalY + 15);
-    doc.text("2. Goods are delivered after careful checking.", 14, finalY + 20);
+    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery.", 14, finalY + 40);
+    doc.text("2. Goods are delivered after careful checking.", 14, finalY + 45);
 
     // Footer
     doc.setFontSize(10);
-    doc.text("Initiated by", 14, finalY + 35);
-    doc.text("Received by", 80, finalY + 35);
-    doc.text("Issued by", 150, finalY + 35);
+    doc.text("Initiated by", 14, finalY + 60);
+    doc.text("Received by", 80, finalY + 60);
+    doc.text("Issued by", 150, finalY + 60);
 
-    doc.save("All_DCs_Summary.pdf");
+    doc.save(`DCs_Summary_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   return (
-    <CoordinatorDashboardLayout >
+    <AdminDashboardLayout >
       <div
         className={`min-h-screen flex flex-col py-8 transition-colors duration-300 ${
           theme === "dark"
@@ -842,50 +828,11 @@ export default function StoreDCPage() {
             <h1 className="text-3xl font-bold text-white mb-1">Delivery Challans (DC)</h1>
             <p className="text-white text-base opacity-90">View and manage DC records</p>
           </div>
-          <button
-            className={`flex items-center gap-2 px-5 py-3 rounded-lg text-base font-semibold shadow transition border-2 ${theme === "dark" ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" : "bg-blue-600 text-white border-blue-700 hover:bg-blue-700"}`}
-            onClick={() => setShowCreate(true)}
-          >
-            <FaPlus className="w-4 h-4" />
-            Create DC
-          </button>
         </div>
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-8 px-4">
-          {/* Left Panel - Info/Guidelines */}
-          <div className="lg:w-1/3 w-full">
-            <div
-              className={`rounded-xl p-6 border shadow-sm sticky top-8 transition-colors duration-300 ${
-                theme === "dark"
-                  ? "bg-gray-900 border-blue-900"
-                  : "bg-white border-blue-100"
-              }`}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-50 text-blue-600"}`}>
-                  <FaInfoCircle className="w-5 h-5" />
-                </div>
-                <h2 className={`text-lg font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>DC Guidelines</h2>
-              </div>
-              <ul className="space-y-4">
-                {guidelines.map((g, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className={`p-2 rounded-lg ${theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-50 text-green-600"}`}><FaBoxOpen className="w-4 h-4" /></span>
-                    <span className={`text-sm leading-relaxed ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>{g}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className={`mt-8 p-4 rounded-xl border text-blue-700 transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-blue-800 text-blue-200" : "bg-blue-50 border-blue-100 text-blue-700"}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <FaStore className="w-4 h-4" />
-                  <span className="font-semibold">Need Help?</span>
-                </div>
-                <p className="text-sm">Contact <span className="font-medium">stores@zenployee.com</span> for support.</p>
-              </div>
-            </div>
-          </div>
-          {/* Right Panel - Search, Filter, DC Table */}
-          <div className="flex-1 flex flex-col gap-6">
+        <div className="max-w-7xl mx-auto w-full px-4">
+          {/* Search, Filter, and DC Table */}
+          <div className="flex flex-col gap-6">
             {/* Download All DCs PDF Button */}
             <div className="flex justify-end mb-2">
               <button
@@ -896,80 +843,218 @@ export default function StoreDCPage() {
                 Download All DCs PDF
               </button>
             </div>
-            {/* Search and Filter Row */}
-            <div className="flex flex-col md:flex-row gap-4 mb-2 items-start md:items-center">
-              <div className="relative w-full md:w-1/2">
-                <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
-                <input
-                  type="text"
-                  placeholder="Search by DC number or project name..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
-                />
+            {/* Search and Filter Section */}
+            <div className={`rounded-xl p-6 border shadow-sm transition-colors duration-300 ${
+              theme === "dark" ? "bg-gray-900 border-blue-900" : "bg-white border-blue-100"
+            }`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-50 text-blue-600"}`}>
+                  <FaSearch className="w-5 h-5" />
+                </div>
+                <h3 className={`text-lg font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>Search & Filter</h3>
               </div>
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                <FaFilter className={`w-5 h-5 mr-2 ${theme === "dark" ? "text-blue-200" : "text-blue-600"}`} />
-                <select
-                  value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
-                  className={`px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
-                >
-                  <option value="">All Status</option>
-                  {statusOptions.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Search Input */}
+                <div className="relative">
+                  <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+                  <input
+                    type="text"
+                    placeholder="Search by DC number or project name..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark" 
+                        ? "bg-gray-800 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" 
+                        : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"
+                    }`}
+                  />
+                </div>
+                
+                {/* Status Filter */}
+                <div className="relative">
+                  <FaFilter className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+                  <select
+                    value={statusFilter}
+                    onChange={e => setStatusFilter(e.target.value)}
+                    className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-colors duration-200 ${
+                      theme === "dark" 
+                        ? "bg-gray-800 border-gray-700 text-gray-100 focus:ring-blue-900" 
+                        : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  >
+                    <option value="">All Status</option>
+                    {statusOptions.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Project Filter */}
+                <div className="relative">
+                  <FaFilter className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+                  <select
+                    value={projectFilter}
+                    onChange={e => setProjectFilter(e.target.value)}
+                    className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-colors duration-200 ${
+                      theme === "dark" 
+                        ? "bg-gray-800 border-gray-700 text-gray-100 focus:ring-blue-900" 
+                        : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  >
+                    {projectOptions.map(project => (
+                      <option key={project} value={project}>{project}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              {/* Results Summary */}
+              <div className="mt-4 flex items-center justify-between">
+                <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                  Showing <span className="font-semibold">{filteredDC.length}</span> of <span className="font-semibold">{mappedDC.length}</span> DC records
+                </div>
+                {search || statusFilter || projectFilter !== "All Projects" ? (
+                  <button
+                    onClick={() => {
+                      setSearch("");
+                      setStatusFilter("");
+                      setProjectFilter("All Projects");
+                    }}
+                    className={`text-sm px-3 py-1 rounded-lg border transition-colors ${
+                      theme === "dark" 
+                        ? "border-gray-600 text-gray-300 hover:bg-gray-800" 
+                        : "border-gray-300 text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    Clear Filters
+                  </button>
+                ) : null}
               </div>
             </div>
             {/* DC Table */}
-            <div className="w-full rounded-2xl shadow-xl transition-colors duration-300">
-              {/* Restrict height and enable both scrollbars */}
-              <div className="w-full h-[320px] overflow-x-auto overflow-y-auto">
-                {/* Increase min-w to force horizontal scroll on smaller screens */}
-                <table className={`min-w-[800px] table-fixed divide-y ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
-                  <thead className={theme === "dark" ? "bg-blue-950" : "bg-blue-50"}>
+            <div className={`rounded-xl border shadow-xl transition-colors duration-300 ${
+              theme === "dark" ? "border-blue-900 bg-gray-900" : "border-blue-100 bg-white"
+            }`}>
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <h3 className={`text-lg font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                    Delivery Challans
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                      Total: {filteredDC.length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Table Container */}
+              <div className="w-full max-h-[500px] overflow-x-auto overflow-y-auto">
+                <table className={`min-w-full divide-y ${theme === "dark" ? "divide-gray-700" : "divide-gray-200"}`}>
+                  <thead className={theme === "dark" ? "bg-gray-800" : "bg-gray-50"}>
                     <tr>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Number</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Date</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Project Name</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Status</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Actions</th>
+                      <th className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                        DC Number
+                      </th>
+                      <th className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                        Date
+                      </th>
+                      <th className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                        Project Name
+                      </th>
+                      <th className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                        Status
+                      </th>
+                      <th className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                        Actions
+                      </th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700" : "divide-gray-200"}`}>
                     {loading ? (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-blue-600 font-semibold">Loading DC records...</td>
+                        <td colSpan={5} className="px-6 py-12 text-center">
+                          <div className="flex items-center justify-center">
+                            <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${theme === "dark" ? "border-blue-400" : "border-blue-600"}`}></div>
+                            <span className={`ml-3 text-lg font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                              Loading DC records...
+                            </span>
+                          </div>
+                        </td>
                       </tr>
                     ) : error ? (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-red-600 font-semibold">{error}</td>
+                        <td colSpan={5} className="px-6 py-12 text-center">
+                          <div className={`text-lg font-semibold text-red-600 ${theme === "dark" ? "text-red-400" : "text-red-600"}`}>
+                            {error}
+                          </div>
+                        </td>
                       </tr>
                     ) : filteredDC.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="text-center py-12 text-gray-500">No DC records found.</td>
+                        <td colSpan={5} className="px-6 py-12 text-center">
+                          <div className={`text-lg ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                            No DC records found.
+                          </div>
+                        </td>
                       </tr>
                     ) : (
                       filteredDC.map((dc, idx) => (
-                        <tr key={idx} className={`transition ${theme === "dark" ? "hover:bg-blue-950" : "hover:bg-blue-100"}`}>
-                          <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{dc.dcNumber}</td>
-                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
-                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{dc.projectName || "N/A"}</td>
-                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{dc.status}</td>
-                          <td className="px-4 py-3">
+                        <tr key={idx} className={`transition-colors duration-200 ${
+                          theme === "dark" 
+                            ? "hover:bg-gray-800" 
+                            : "hover:bg-gray-50"
+                        }`}>
+                          <td className={`px-6 py-4 font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                            {dc.dcNumber}
+                          </td>
+                          <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                            {dc.dcDate ? dc.dcDate.split('T')[0] : ''}
+                          </td>
+                          <td className={`px-6 py-4 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              theme === "dark" 
+                                ? "bg-blue-900 text-blue-200" 
+                                : "bg-blue-100 text-blue-800"
+                            }`}>
+                              {dc.projectName || "N/A"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              dc.status === "Issued" 
+                                ? theme === "dark" 
+                                  ? "bg-green-900 text-green-200" 
+                                  : "bg-green-100 text-green-800"
+                                : theme === "dark" 
+                                  ? "bg-yellow-900 text-yellow-200" 
+                                  : "bg-yellow-100 text-yellow-800"
+                            }`}>
+                              {dc.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
                             <div className="flex gap-2">
                               <button
-                                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition ${theme === "dark" ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" : "bg-blue-600 text-white border-blue-700 hover:bg-blue-700"}`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors duration-200 ${
+                                  theme === "dark" 
+                                    ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" 
+                                    : "bg-blue-600 text-white border-blue-700 hover:bg-blue-700"
+                                }`}
                                 onClick={() => setSelectedDC(dc)}
                               >
                                 View
                               </button>
                               <button
-                                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition ${theme === "dark" ? "bg-green-900 text-green-200 border-green-700 hover:bg-green-800" : "bg-green-600 text-white border-green-700 hover:bg-green-700"}`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors duration-200 ${
+                                  theme === "dark" 
+                                    ? "bg-green-900 text-green-200 border-green-700 hover:bg-green-800" 
+                                    : "bg-green-600 text-white border-green-700 hover:bg-green-700"
+                                }`}
                                 onClick={() => handleDownloadDC(dc)}
                               >
-                                Download DC
+                                Download
                               </button>
                             </div>
                           </td>
@@ -982,49 +1067,77 @@ export default function StoreDCPage() {
             </div>
             {/* DC Details Modal */}
             {selectedDC && (
-              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-                <div className={`rounded-2xl shadow-2xl max-w-4xl w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
-                  <button
-                    className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
-                    onClick={() => setSelectedDC(null)}
-                  >
-                    <FaTimes className="w-6 h-6" />
-                  </button>
-                  <h2 className={`text-2xl font-bold mb-6 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
-                    <FaBoxOpen className="w-6 h-6" />
-                    Delivery Challan Details
-                  </h2>
-                  <div className={`space-y-6 max-h-[70vh] overflow-y-auto pr-2`}> 
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className={`rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+                  {/* Modal Header */}
+                  <div className={`p-6 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-50 text-blue-600"}`}>
+                          <FaBoxOpen className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h2 className={`text-2xl font-bold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                            Delivery Challan Details
+                          </h2>
+                          <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                            DC Number: {selectedDC.dcNumber}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        className={`p-2 rounded-lg transition-colors duration-200 ${
+                          theme === "dark" 
+                            ? "text-gray-400 hover:text-gray-200 hover:bg-gray-800" 
+                            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                        }`}
+                        onClick={() => setSelectedDC(null)}
+                      >
+                        <FaTimes className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className={`p-6 space-y-6 max-h-[calc(90vh-120px)] overflow-y-auto`}> 
                     {/* DC Basic Info */}
-                    <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
-                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Information</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className={`p-6 rounded-xl border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-600"}`}>
+                          <FaStore className="w-4 h-4" />
+                        </div>
+                        <h3 className={`text-lg font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>DC Information</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                          <span className="font-semibold text-sm">DC Number:</span>
-                          <div className="text-lg font-bold">{selectedDC.dcNumber}</div>
+                          <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>DC Number</span>
+                          <div className={`text-lg font-bold mt-1 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>{selectedDC.dcNumber}</div>
                         </div>
                         <div>
-                          <span className="font-semibold text-sm">Date:</span>
-                          <div className="text-lg">{selectedDC.dcDate ? selectedDC.dcDate.split('T')[0] : ''}</div>
+                          <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Date</span>
+                          <div className={`text-lg mt-1 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>{selectedDC.dcDate ? selectedDC.dcDate.split('T')[0] : ''}</div>
                         </div>
                         <div>
-                          <span className="font-semibold text-sm">Project Name:</span>
-                          <div className="text-lg">{getProjectName(selectedDC)}</div>
+                          <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Project Name</span>
+                          <div className={`text-lg mt-1 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>{getProjectName(selectedDC)}</div>
                         </div>
                       </div>
                     </div>
 
                     {/* Project Information */}
-                    <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
-                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>Project Information</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className={`p-6 rounded-xl border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-600"}`}>
+                          <FaProjectDiagram className="w-4 h-4" />
+                        </div>
+                        <h3 className={`text-lg font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>Project Information</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <span className="font-semibold text-sm">Project Name:</span>
-                          <div className="text-lg">{getProjectName(selectedDC)}</div>
+                          <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Project Name</span>
+                          <div className={`text-lg mt-1 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>{getProjectName(selectedDC)}</div>
                         </div>
                         <div>
-                          <span className="font-semibold text-sm">Total Employees:</span>
-                          <div className="text-lg">
+                          <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Total Employees</span>
+                          <div className={`text-lg mt-1 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
                             {selectedDC.customer.includes(',') 
                               ? selectedDC.customer.split(',').length 
                               : selectedDC.items.length}
@@ -1034,54 +1147,106 @@ export default function StoreDCPage() {
                     </div>
 
                     {/* Employee Details */}
-                    <div>
-                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>Employee Details</h3>
+                    <div className={`p-6 rounded-xl border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-purple-900 text-purple-200" : "bg-purple-100 text-purple-600"}`}>
+                          <FaBoxOpen className="w-4 h-4" />
+                        </div>
+                        <h3 className={`text-lg font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>Employee Details</h3>
+                      </div>
                       <div className="space-y-4">
                         {/* Display DC items with actual sizes */}
                         {selectedDC.items.map((item, i) => (
-                              <div key={i} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                                <div className="flex items-center justify-between mb-3">
+                              <div key={i} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-white border-gray-200"}`}>
+                                <div className="flex items-center justify-between mb-4">
                                   <h4 className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
-                                Item {i + 1}: {item.name}
+                                    Item {i + 1}: {item.name}
                                   </h4>
-                                  <span className={`px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
-                                ID: {item.employeeId || "N/A"}
+                                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
+                                    ID: {item.employeeId || "N/A"}
                                   </span>
                                 </div>
                             
                             {/* Item Details */}
-                            <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
-                              <div className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>DC Item Details:</div>
+                            <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-gray-600 border-gray-500" : "bg-gray-50 border-gray-200"}`}>
+                              <div className={`font-semibold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>DC Item Details:</div>
                               
                               {/* Basic Information */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-4">
-                                <div><b>Employee ID:</b> {item.employeeId || 'N/A'}</div>
-                                <div><b>Item Code:</b> <span id={`item-code-${i}`}>{item.itemCode || 'N/A'}</span></div>
-                                <div><b>Item Name:</b> <span id={`item-name-${i}`}>{item.name || 'N/A'}</span></div>
-                                <div><b>Requested Size:</b> <span id={`requested-size-${i}`}>Loading...</span></div>
-                                <div><b>Dispatched Size:</b> {item.size || 'N/A'}</div>
-                                <div><b>Quantity:</b> {item.quantity || 'N/A'}</div>
-                                <div><b>Price:</b> {item.price || 'N/A'}</div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
+                                <div className="flex justify-between">
+                                  <span className={`font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Employee ID:</span>
+                                  <span className={theme === "dark" ? "text-gray-100" : "text-gray-900"}>{item.employeeId || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className={`font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Item Code:</span>
+                                  <span className={theme === "dark" ? "text-gray-100" : "text-gray-900"} id={`item-code-${i}`}>{item.itemCode || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className={`font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Item Name:</span>
+                                  <span className={theme === "dark" ? "text-gray-100" : "text-gray-900"} id={`item-name-${i}`}>{item.name || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className={`font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Requested Size:</span>
+                                  <span className={theme === "dark" ? "text-gray-100" : "text-gray-900"} id={`requested-size-${i}`}>Loading...</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className={`font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Dispatched Size:</span>
+                                  <span className={theme === "dark" ? "text-gray-100" : "text-gray-900"}>{item.size || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className={`font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Quantity:</span>
+                                  <span className={theme === "dark" ? "text-gray-100" : "text-gray-900"}>{item.quantity || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className={`font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>Price:</span>
+                                  <span className={theme === "dark" ? "text-gray-100" : "text-gray-900"}>{item.price || 'N/A'}</span>
+                                </div>
                               </div>
 
                               {/* Size Modification Data */}
                               {(item.sizeData || item.remarks) && (
                                 <div className="mt-4">
-                                  <div className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Size Change Details:</div>
-                                  <div className={`p-3 rounded border ${theme === "dark" ? "bg-yellow-900 border-yellow-700" : "bg-yellow-50 border-yellow-200"}`}>
-                                    <div className="text-sm">
-                                      <div><b>Requested Size:</b> <span id={`requested-size-${i}`}>Loading...</span></div>
-                                      <div><b>Dispatched Size:</b> {item.size || 'N/A'}</div>
-                                      <div><b>Status:</b> {
-                                        item.sizeModificationData?.modified || 
-                                        (item.remarks && item.remarks.includes('Modified from')) ? 
-                                        'Modified' : 'As Requested'
-                                      }</div>
+                                  <div className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Size Change Details:</div>
+                                  <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-yellow-900 border-yellow-700" : "bg-yellow-50 border-yellow-200"}`}>
+                                    <div className="space-y-2 text-sm">
+                                      <div className="flex justify-between">
+                                        <span className={`font-medium ${theme === "dark" ? "text-yellow-200" : "text-yellow-800"}`}>Requested Size:</span>
+                                        <span className={theme === "dark" ? "text-yellow-100" : "text-yellow-900"} id={`requested-size-${i}`}>Loading...</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className={`font-medium ${theme === "dark" ? "text-yellow-200" : "text-yellow-800"}`}>Dispatched Size:</span>
+                                        <span className={theme === "dark" ? "text-yellow-100" : "text-yellow-900"}>{item.size || 'N/A'}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className={`font-medium ${theme === "dark" ? "text-yellow-200" : "text-yellow-800"}`}>Status:</span>
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                          (item.sizeModificationData?.modified || 
+                                          (item.remarks && item.remarks.includes('Modified from'))) 
+                                            ? theme === "dark" 
+                                              ? "bg-orange-900 text-orange-200" 
+                                              : "bg-orange-100 text-orange-800"
+                                            : theme === "dark" 
+                                              ? "bg-green-900 text-green-200" 
+                                              : "bg-green-100 text-green-800"
+                                        }`}>
+                                          {(item.sizeModificationData?.modified || 
+                                          (item.remarks && item.remarks.includes('Modified from'))) 
+                                            ? 'Modified' 
+                                            : 'As Requested'
+                                          }
+                                        </span>
+                                      </div>
                                       {item.remarks && item.remarks.includes('Modified from') && (
-                                        <div><b>Note:</b> {item.remarks}</div>
+                                        <div className="pt-2 border-t border-yellow-300 dark:border-yellow-600">
+                                          <span className={`font-medium ${theme === "dark" ? "text-yellow-200" : "text-yellow-800"}`}>Note:</span>
+                                          <span className={`ml-2 ${theme === "dark" ? "text-yellow-100" : "text-yellow-900"}`}>{item.remarks}</span>
+                                        </div>
                                       )}
                                       {item.sizeModificationData?.modificationNote && (
-                                        <div><b>Note:</b> {item.sizeModificationData.modificationNote}</div>
+                                        <div className="pt-2 border-t border-yellow-300 dark:border-yellow-600">
+                                          <span className={`font-medium ${theme === "dark" ? "text-yellow-200" : "text-yellow-800"}`}>Note:</span>
+                                          <span className={`ml-2 ${theme === "dark" ? "text-yellow-100" : "text-yellow-900"}`}>{item.sizeModificationData.modificationNote}</span>
+                                        </div>
                                       )}
                                     </div>
                                   </div>
@@ -1102,8 +1267,18 @@ export default function StoreDCPage() {
 
                     {/* Remarks */}
                     {selectedDC.remarks && (
-                      <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-yellow-900 border-yellow-700" : "bg-yellow-50 border-yellow-200"}`}>
-                        <span className="font-semibold">Remarks:</span> {selectedDC.remarks}
+                      <div className={`p-6 rounded-xl border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-yellow-900 text-yellow-200" : "bg-yellow-100 text-yellow-600"}`}>
+                            <FaInfoCircle className="w-4 h-4" />
+                          </div>
+                          <h3 className={`text-lg font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>Remarks</h3>
+                        </div>
+                        <div className={`p-4 rounded-lg ${theme === "dark" ? "bg-gray-700" : "bg-white"}`}>
+                          <p className={`${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                            {selectedDC.remarks}
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1112,19 +1287,8 @@ export default function StoreDCPage() {
             )}
           </div>
         </div>
-        {/* Create DC Modal */}
-        {showCreate && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <CreateDCModal
-              onClose={() => setShowCreate(false)}
-              theme={theme}
-              setDcData={setDcData}
-              dcData={dcData}
-              refreshDCData={refreshDCData}
-            />
-          </div>
-        )}
+
       </div>
-    </CoordinatorDashboardLayout >
+    </AdminDashboardLayout >
   );
 }
