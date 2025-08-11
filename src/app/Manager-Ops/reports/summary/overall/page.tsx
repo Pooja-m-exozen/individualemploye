@@ -87,18 +87,11 @@ const GOVERNMENT_HOLIDAYS = [
     { date: '2025-10-02', description: 'Gandhi Jayanti' },
 ];
 
-const isSecondOrFourthSaturday = (date: Date): boolean => {
-  if (date.getDay() !== 6) return false;
-  const saturday = Math.floor((date.getDate() - 1) / 7) + 1;
-  return saturday === 2 || saturday === 4;
-};
-
 const isHoliday = (date: Date): boolean => {
   const day = date.getDay();
   const dateString = date.toISOString().split('T')[0];
   if (day === 0) return true;
   // 2nd and 4th Saturdays are now working days, not holidays
-  // if (isSecondOrFourthSaturday(date)) return true;
   return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
 };
 
