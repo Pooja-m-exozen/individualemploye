@@ -212,6 +212,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         '2024-03-25': 'Holi',
         '2024-04-09': 'Ram Navami',
         '2024-05-01': 'Labor Day',
+        '2024-08-08': 'Varmahalski Holiday',
         '2024-08-15': 'Independence Day',
         '2024-10-02': 'Gandhi Jayanti',
         '2024-11-14': 'Diwali',
@@ -222,6 +223,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         '2025-03-14': 'Holi',
         '2025-04-09': 'Ram Navami',
         '2025-05-01': 'Labor Day',
+        '2025-08-08': 'Varmahalski Holiday',
         '2025-08-15': 'Independence Day',
         '2025-10-02': 'Gandhi Jayanti',
         '2025-11-03': 'Diwali',
@@ -232,6 +234,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         '2026-03-03': 'Holi',
         '2026-03-29': 'Ram Navami',
         '2026-05-01': 'Labor Day',
+        '2026-08-08': 'Varmahalski Holiday',
         '2026-08-15': 'Independence Day',
         '2026-10-02': 'Gandhi Jayanti',
         '2026-10-23': 'Diwali',
@@ -242,6 +245,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         '2027-03-22': 'Holi',
         '2027-03-18': 'Ram Navami',
         '2027-05-01': 'Labor Day',
+        '2027-08-08': 'Varmahalski Holiday',
         '2027-08-15': 'Independence Day',
         '2027-10-02': 'Gandhi Jayanti',
         '2027-11-12': 'Diwali',
@@ -252,6 +256,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         '2028-03-10': 'Holi',
         '2028-04-06': 'Ram Navami',
         '2028-05-01': 'Labor Day',
+        '2028-08-08': 'Varmahalski Holiday',
         '2028-08-15': 'Independence Day',
         '2028-10-02': 'Gandhi Jayanti',
         '2028-10-30': 'Diwali',
@@ -287,9 +292,9 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         const dateStr = date.split('T')[0];
         const d = new Date(dateStr);
         
-        // Debug logging for August 15th
-        if (dateStr.includes('08-15')) {
-            console.log('Checking August 15th:', {
+        // Debug logging for August holidays
+        if (dateStr.includes('08-08') || dateStr.includes('08-15')) {
+            console.log('Checking August holiday:', {
                 dateStr,
                 year,
                 month,
@@ -517,6 +522,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         const project = record.projectName ? record.projectName.trim().toLowerCase() : '';
         const isArvind = project === 'arvind technical';
         const isExozenOps = project === 'exozen - ops';
+        const isExozenIT = project === 'exozen - it';
+        const isExozenFMS = project === 'exozen - fms';
 
         if (isArvind) {
             // For Arvind Technical, only allow Comp Off for working on Sunday
@@ -532,6 +539,16 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             // For Exozen - Ops, all Saturdays are working days, so no Comp Off for 2nd/4th Sat
             // Do NOT give Comp Off for 2nd/4th Saturday, only for holidays and Sundays
             if ((dayType === 'Holiday' || dayType === 'Sunday') && record.punchInTime && record.punchOutTime) {
+                const inTime = record.punchInUtc || record.punchInTime;
+                const outTime = record.punchOutUtc || record.punchOutTime;
+                const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
+                if (hoursWorked >= 4) {
+                    return 'Comp Off';
+                }
+            }
+        } else if (isExozenIT || isExozenFMS) {
+            // For Exozen-IT and Exozen-FMS, give Comp Off for working on holidays, 2nd/4th Sat, or Sunday
+            if (dayType !== 'Working Day' && record.punchInTime && record.punchOutTime) {
                 const inTime = record.punchInUtc || record.punchInTime;
                 const outTime = record.punchOutUtc || record.punchOutTime;
                 const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
