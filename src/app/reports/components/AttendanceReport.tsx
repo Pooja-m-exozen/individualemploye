@@ -207,6 +207,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     ];
 
     const governmentHolidayMap: { [key: string]: string } = {
+        // 2024 Holidays
         '2024-01-26': 'Republic Day',
         '2024-03-25': 'Holi',
         '2024-04-09': 'Ram Navami',
@@ -215,7 +216,46 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         '2024-10-02': 'Gandhi Jayanti',
         '2024-11-14': 'Diwali',
         '2024-12-25': 'Christmas',
+        
+        // 2025 Holidays
+        '2025-01-26': 'Republic Day',
+        '2025-03-14': 'Holi',
+        '2025-04-09': 'Ram Navami',
         '2025-05-01': 'Labor Day',
+        '2025-08-15': 'Independence Day',
+        '2025-10-02': 'Gandhi Jayanti',
+        '2025-11-03': 'Diwali',
+        '2025-12-25': 'Christmas',
+        
+        // 2026 Holidays
+        '2026-01-26': 'Republic Day',
+        '2026-03-03': 'Holi',
+        '2026-03-29': 'Ram Navami',
+        '2026-05-01': 'Labor Day',
+        '2026-08-15': 'Independence Day',
+        '2026-10-02': 'Gandhi Jayanti',
+        '2026-10-23': 'Diwali',
+        '2026-12-25': 'Christmas',
+        
+        // 2027 Holidays
+        '2027-01-26': 'Republic Day',
+        '2027-03-22': 'Holi',
+        '2027-03-18': 'Ram Navami',
+        '2027-05-01': 'Labor Day',
+        '2027-08-15': 'Independence Day',
+        '2027-10-02': 'Gandhi Jayanti',
+        '2027-11-12': 'Diwali',
+        '2027-12-25': 'Christmas',
+        
+        // 2028 Holidays
+        '2028-01-26': 'Republic Day',
+        '2028-03-10': 'Holi',
+        '2028-04-06': 'Ram Navami',
+        '2028-05-01': 'Labor Day',
+        '2028-08-15': 'Independence Day',
+        '2028-10-02': 'Gandhi Jayanti',
+        '2028-10-30': 'Diwali',
+        '2028-12-25': 'Christmas',
     };
 
     const governmentHolidays = Object.keys(governmentHolidayMap);
@@ -246,6 +286,25 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const getDayType = (date: string, year: number, month: number, projectName?: string) => {
         const dateStr = date.split('T')[0];
         const d = new Date(dateStr);
+        
+        // Debug logging for August 15th
+        if (dateStr.includes('08-15')) {
+            console.log('Checking August 15th:', {
+                dateStr,
+                year,
+                month,
+                projectName,
+                isHoliday: governmentHolidays.includes(dateStr),
+                holidayName: governmentHolidayMap[dateStr]
+            });
+        }
+        
+        // Check for government holidays FIRST (before any other logic)
+        if (governmentHolidays.includes(dateStr)) {
+            console.log('Found holiday:', dateStr, governmentHolidayMap[dateStr]);
+            return governmentHolidayMap[dateStr] || 'Holiday';
+        }
+        
         // Special rule for 'Arvind Technical' and 'Exozen - Ops'
         if (
             projectName &&
@@ -260,10 +319,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             // For these projects, all Saturdays are working days
             return 'Working Day';
         }
+        
         // Default logic for other projects
-        if (governmentHolidays.includes(dateStr)) {
-            return governmentHolidayMap[dateStr] || 'Holiday';
-        }
         if (d.getDay() === 0) {
             return 'Sunday';
         }
