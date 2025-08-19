@@ -409,84 +409,6 @@ export default function StoreDCPage() {
           selectedDC.customer
         );
         setUniformReq(req);
-        
-        // Fetch uniform request data to get original requested sizes and item details
-        try {
-          const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success) {
-              const employeeName = selectedDC.customer.split(',')[0]?.trim() || selectedDC.customer;
-              // Specify type as unknown and cast to expected shape
-              const employeeUniformRequest = (data.uniforms as Array<{
-                fullName: string;
-                uniformType?: string[];
-                size?: Record<string, string>;
-              }>).find((u) => 
-                u.fullName === employeeName || 
-                employeeName.includes(u.fullName) ||
-                u.fullName.includes(employeeName)
-              );
-              
-              if (employeeUniformRequest) {
-                // Update requested sizes and item details for each item
-                selectedDC.items.forEach((item, index) => {
-                  // Update requested size
-                  const requestedSizeElement = document.getElementById(`requested-size-${index}`);
-                  if (requestedSizeElement) {
-                    // Get the corresponding uniform type for this item by index
-                    const uniformType = employeeUniformRequest.uniformType?.[index] || 
-                      employeeUniformRequest.uniformType?.find((type: string) => 
-                        type.toLowerCase().includes('shirt') || 
-                        type.toLowerCase().includes('pant') ||
-                        type.toLowerCase().includes('executive')
-                      );
-                    
-                    if (uniformType && employeeUniformRequest.size && employeeUniformRequest.size[uniformType]) {
-                      requestedSizeElement.textContent = employeeUniformRequest.size[uniformType];
-                    } else {
-                      requestedSizeElement.textContent = 'N/A';
-                    }
-                  }
-                  
-                  // Update item name and code
-                  const itemNameElement = document.getElementById(`item-name-${index}`);
-                  const itemCodeElement = document.getElementById(`item-code-${index}`);
-                  
-                  if (itemNameElement) {
-                    // Get the corresponding uniform type for this item by index
-                    const uniformType = employeeUniformRequest.uniformType?.[index] || 
-                      employeeUniformRequest.uniformType?.find((type: string) => 
-                        type.toLowerCase().includes('shirt') || 
-                        type.toLowerCase().includes('pant') ||
-                        type.toLowerCase().includes('executive')
-                      );
-                    itemNameElement.textContent = uniformType || 'N/A';
-                  }
-                  
-                  if (itemCodeElement) {
-                    // Generate item code based on uniform type
-                    const uniformType = employeeUniformRequest.uniformType?.[index] || 
-                      employeeUniformRequest.uniformType?.find((type: string) => 
-                        type.toLowerCase().includes('shirt') || 
-                        type.toLowerCase().includes('pant') ||
-                        type.toLowerCase().includes('executive')
-                      );
-                    
-                    if (uniformType) {
-                      const code = uniformType.replace(/\s+/g, '-').toUpperCase();
-                      itemCodeElement.textContent = code;
-                    } else {
-                      itemCodeElement.textContent = 'N/A';
-                    }
-                  }
-                });
-              }
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching uniform request data:", error);
-        }
       } else {
         setUniformReq(null);
       }
@@ -596,87 +518,105 @@ export default function StoreDCPage() {
       console.error("Error fetching uniform requests:", error);
     }
     
-    // Get employee name from DC customer
-    const employeeName = dc.customer.split(',')[0]?.trim() || dc.customer;
+    // Parse customer names from DC
+    const customerNames = dc.customer.split(',').map(name => name.trim()).filter(name => name.length > 0);
+    console.log("Customer names from DC:", customerNames);
     
-    // Find the uniform request for this employee
-    const employeeUniformRequest = (allUniformRequests as Array<{
+    // Get all uniform types from all employees in this DC
+    const allUniformTypes = new Set<string>();
+    const employeeUniformRequests: Array<{
       fullName: string;
       uniformType?: string[];
       size?: Record<string, string>;
       employeeId?: string;
       designation?: string;
-    }>).find((u) => 
-      u.fullName === employeeName || 
-      employeeName.includes(u.fullName) ||
-      u.fullName.includes(employeeName)
-    );
+    }> = [];
     
-    console.log("Found uniform request for employee:", employeeUniformRequest);
+    // Find uniform requests for all employees in this DC
+    for (const customerName of customerNames) {
+      const employeeUniformRequest = (allUniformRequests as Array<{
+        fullName: string;
+        uniformType?: string[];
+        size?: Record<string, string>;
+        employeeId?: string;
+        designation?: string;
+      }>).find((u) => 
+        u.fullName === customerName || 
+        customerName.includes(u.fullName) ||
+        u.fullName.includes(customerName)
+      );
+      
+      if (employeeUniformRequest) {
+        employeeUniformRequests.push(employeeUniformRequest);
+        // Add all uniform types from this employee
+        if (employeeUniformRequest.uniformType) {
+          employeeUniformRequest.uniformType.forEach(type => allUniformTypes.add(type));
+        }
+      }
+    }
     
-    // Use uniform types from the uniform request if available, otherwise use DC item names
-    const uniformTypes = employeeUniformRequest?.uniformType || [...new Set(dc.items.map(item => item.name))];
-    console.log("Uniform types for PDF headers:", uniformTypes);
-    console.log("Employee uniform request data:", employeeUniformRequest);
+    console.log("Found uniform requests for employees:", employeeUniformRequests);
+    console.log("All uniform types:", Array.from(allUniformTypes));
     
-    // Create table headers based on actual uniform types from uniform request
-    const tableHeaders = ["Sl No", "Emp ID", "Names", "DESIGNATION", "No of Set", ...uniformTypes, "Amount", "Emp Sign"];
+    // Create table headers with all uniform types
+    const uniformTypesArray = Array.from(allUniformTypes);
+    const tableHeaders = ["Sl No", "Emp ID", "Names", "DESIGNATION", "No of Set", ...uniformTypesArray, "Amount", "Emp Sign"];
     
-    // Get employee data
-    const employeeId = employeeUniformRequest?.employeeId || dc.items[0]?.employeeId || "EMP001";
-    const designation = employeeUniformRequest?.designation || "Employee";
-    
-    // Check if employee has accessories to determine "No of Set"
-    const hasAccessories = uniformTypes.some((type: string) => 
-      (type && type.toLowerCase().includes('accessories')) || 
-      (type && type.toLowerCase().includes('accessory'))
-    );
+    // Create table body with all employees
+    const tableBody = customerNames.map((customerName, index) => {
+      const employeeUniformRequest = employeeUniformRequests.find(req => 
+        req.fullName === customerName || 
+        customerName.includes(req.fullName) ||
+        req.fullName.includes(customerName)
+      );
+      
+      // Get employee data
+      const employeeId = employeeUniformRequest?.employeeId || `EMP${String(index + 1).padStart(3, '0')}`;
+      const designation = employeeUniformRequest?.designation || "Employee";
+      
+      // Check if employee has accessories to determine "No of Set"
+      const hasAccessories = employeeUniformRequest?.uniformType?.some((type: string) => 
+        (type && type.toLowerCase().includes('accessories')) || 
+        (type && type.toLowerCase().includes('accessory'))
+      );
       const noOfSet = hasAccessories ? "Full set" : "NA";
       
-    // Create table row with sizes from uniform request or DC items
-      const tableRow = [
-      1, // Sl No
-      employeeId,
-      employeeName,
-      designation,
+      // Create row with sizes for each uniform type
+      const row = [
+        index + 1, // Sl No
+        employeeId,
+        customerName,
+        designation,
         noOfSet,
-      // Add size values for each uniform type
-      ...uniformTypes.map((uniformType: string, index: number) => {
-        // Get the corresponding DC item by index
-        const dcItem = dc.items[index];
-        
-        // If no DC item found, try to find by name matching
-        const matchingDcItem = dcItem || dc.items.find(item => 
-          (item.name && item.name === uniformType) || 
-          (item.name && item.name.toLowerCase().includes(uniformType.toLowerCase())) ||
-          (item.name && uniformType.toLowerCase().includes(item.name.toLowerCase()))
-        );
-        if (matchingDcItem && matchingDcItem.size) {
-          // Return only the dispatched size
-          return matchingDcItem.size;
-        }
-        // If not found in DC items, try to get from uniform request
-        if (employeeUniformRequest?.size && employeeUniformRequest.size[uniformType]) {
-          return employeeUniformRequest.size[uniformType];
-        }
-        return "NA";
+        // Add size values for each uniform type
+        ...uniformTypesArray.map((uniformType: string) => {
+          // Check if this employee has this uniform type
+          if (employeeUniformRequest?.uniformType?.includes(uniformType)) {
+            // Get size from uniform request
+            if (employeeUniformRequest.size && employeeUniformRequest.size[uniformType]) {
+              return employeeUniformRequest.size[uniformType];
+            }
+          }
+          return "NA";
         }),
         "NA", // Amount field
         "" // Employee signature field
       ];
       
-    console.log(`Table row for employee:`, tableRow);
+      return row;
+    });
+      
+    console.log(`Table body for all employees:`, tableBody);
     console.log("DC items with modification data:", dc.items.map(item => ({
       name: item.name,
       size: item.size,
       remarks: item.remarks,
       sizeModificationData: item.sizeModificationData
     })));
-    const tableBody = [tableRow];
     
     // Calculate optimal column widths for portrait orientation with overflow prevention
     const baseColumns = 5; // Sl No, Emp ID, Names, DESIGNATION, No of Set
-    const uniformColumns = uniformTypes.length;
+    const uniformColumns = uniformTypesArray.length;
     
     // Calculate optimal column widths - ensure fit within A4 portrait
     const totalColumns = baseColumns + uniformColumns + 2; // +2 for Amount and Emp Sign
@@ -692,7 +632,7 @@ export default function StoreDCPage() {
       '3': { cellWidth: Math.min(25, maxColumnWidth) }, // DESIGNATION - compact
       '4': { cellWidth: Math.min(15, maxColumnWidth) }, // No of Set - compact
       // Dynamic uniform type columns
-      ...uniformTypes.reduce((acc: Record<string, { cellWidth: number }>, _: string, index: number) => {
+      ...uniformTypesArray.reduce((acc: Record<string, { cellWidth: number }>, _: string, index: number) => {
         acc[String(baseColumns + index)] = { cellWidth: Math.min(25, maxColumnWidth) }; // Increased width for uniform type names
         return acc;
       }, {} as Record<string, { cellWidth: number }>),
@@ -995,6 +935,29 @@ export default function StoreDCPage() {
                     Delivery Challan Details
                   </h2>
                   <div className={`space-y-6 max-h-[70vh] overflow-y-auto pr-2`}> 
+                    {/* DC Summary */}
+                    <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
+                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>DC Summary</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                          <span className="font-semibold text-sm">DC Number:</span>
+                          <div className="text-lg font-bold">{selectedDC.dcNumber}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-sm">Date:</span>
+                          <div className="text-lg">{selectedDC.dcDate ? selectedDC.dcDate.split('T')[0] : ''}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-sm">Project:</span>
+                          <div className="text-lg">{getProjectName(selectedDC)}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-sm">Total Employees:</span>
+                          <div className="text-lg">{selectedDC.customer.split(',').length}</div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* DC Basic Info */}
                     <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
                       <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Information</h3>
@@ -1014,89 +977,79 @@ export default function StoreDCPage() {
                       </div>
                     </div>
 
-                    {/* Project Information */}
-                    <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
-                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>Project Information</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <span className="font-semibold text-sm">Project Name:</span>
-                          <div className="text-lg">{getProjectName(selectedDC)}</div>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-sm">Total Employees:</span>
-                          <div className="text-lg">
-                            {selectedDC.customer.includes(',') 
-                              ? selectedDC.customer.split(',').length 
-                              : selectedDC.items.length}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+
 
                     {/* Employee Details */}
                     <div>
                       <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>Employee Details</h3>
                       <div className="space-y-4">
-                        {/* Display DC items with actual sizes */}
-                        {selectedDC.items.map((item, i) => (
-                              <div key={i} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                                <div className="flex items-center justify-between mb-3">
-                                  <h4 className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
-                                Item {i + 1}: {item.name}
-                                  </h4>
-                                  <span className={`px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
-                                ID: {item.employeeId || "N/A"}
-                                  </span>
-                                </div>
-                            
-                            {/* Item Details */}
-                            <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
-                              <div className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>DC Item Details:</div>
-                              
-                              {/* Basic Information */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-4">
-                                <div><b>Employee ID:</b> {item.employeeId || 'N/A'}</div>
-                                <div><b>Item Code:</b> <span id={`item-code-${i}`}>{item.itemCode || 'N/A'}</span></div>
-                                <div><b>Item Name:</b> <span id={`item-name-${i}`}>{item.name || 'N/A'}</span></div>
-                                <div><b>Requested Size:</b> <span id={`requested-size-${i}`}>Loading...</span></div>
-                                <div><b>Dispatched Size:</b> {item.size || 'N/A'}</div>
-                                <div><b>Quantity:</b> {item.quantity || 'N/A'}</div>
-                                <div><b>Price:</b> {item.price || 'N/A'}</div>
+                        {/* Parse customer names and display employee information */}
+                        {selectedDC.customer.split(',').map((customerName, i) => {
+                          const trimmedName = customerName.trim();
+                          const employeeId = `EMP${String(i + 1).padStart(3, '0')}`;
+                          
+                          return (
+                            <div key={i} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                                  Employee {i + 1}: {trimmedName}
+                                </h4>
+                                <span className={`px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
+                                  ID: {employeeId}
+                                </span>
                               </div>
+                              
+                              {/* Employee Information */}
+                              <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
+                                <div className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Employee Information:</div>
+                                
+                                {/* Basic Information */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-4">
+                                  <div><b>Employee ID:</b> {employeeId}</div>
+                                  <div><b>Full Name:</b> {trimmedName}</div>
+                                  <div><b>Designation:</b> Employee</div>
+                                  <div><b>Project:</b> {getProjectName(selectedDC)}</div>
+                                </div>
 
-                              {/* Size Modification Data */}
-                              {(item.sizeData || item.remarks) && (
+                                {/* Uniform Items for this Employee */}
                                 <div className="mt-4">
-                                  <div className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Size Change Details:</div>
+                                  <div className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Uniform Items:</div>
+                                  <div className="space-y-2">
+                                    {selectedDC.items.map((item, itemIndex) => (
+                                      <div key={itemIndex} className={`p-3 rounded border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-gray-100 border-gray-300"}`}>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                                          <div><b>Item:</b> {item.name || 'N/A'}</div>
+                                          <div><b>Size:</b> {item.size || 'N/A'}</div>
+                                          <div><b>Quantity:</b> {item.quantity || 'N/A'}</div>
+                                        </div>
+                                        {item.remarks && (
+                                          <div className="mt-2 text-xs text-gray-600">
+                                            <b>Note:</b> {item.remarks}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Size Information */}
+                                <div className="mt-4">
+                                  <div className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Size Details:</div>
                                   <div className={`p-3 rounded border ${theme === "dark" ? "bg-yellow-900 border-yellow-700" : "bg-yellow-50 border-yellow-200"}`}>
                                     <div className="text-sm">
-                                      <div><b>Requested Size:</b> <span id={`requested-size-${i}`}>Loading...</span></div>
-                                      <div><b>Dispatched Size:</b> {item.size || 'N/A'}</div>
-                                      <div><b>Status:</b> {
-                                        item.sizeModificationData?.modified || 
-                                        (item.remarks && item.remarks.includes('Modified from')) ? 
-                                        'Modified' : 'As Requested'
-                                      }</div>
-                                      {item.remarks && item.remarks.includes('Modified from') && (
-                                        <div><b>Note:</b> {item.remarks}</div>
-                                      )}
-                                      {item.sizeModificationData?.modificationNote && (
-                                        <div><b>Note:</b> {item.sizeModificationData.modificationNote}</div>
-                                      )}
+                                      <div><b>Dispatched Sizes:</b></div>
+                                      {selectedDC.items.map((item, itemIndex) => (
+                                        <div key={itemIndex} className="ml-4 mt-1">
+                                          • {item.name}: {item.size || 'N/A'}
+                                        </div>
+                                      ))}
                                     </div>
                                   </div>
                                 </div>
-                              )}
-
-                              {/* Remarks */}
-                              {item.remarks && (
-                                <div className="mt-4 text-sm">
-                                  <b>Remarks:</b> {item.remarks}
-                                </div>
-                              )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
 
