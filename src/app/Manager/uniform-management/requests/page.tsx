@@ -80,7 +80,61 @@ export default function UniformRequestsPage() {
     employeeId: string;
     qty: number;
     remarks: string;
-  }>({ employeeId: "", qty: 1, remarks: "" });
+    replacementType: 'New' | 'Replacement';
+    replacedEmployeeId: string | null;
+  }>({ 
+    employeeId: "", 
+    qty: 1, 
+    remarks: "",
+    replacementType: 'New',
+    replacedEmployeeId: null
+  });
+
+  // Reset modal state when opening
+  const handleOpenModal = () => {
+    setShowCreateModal(true);
+    setNewRequest({ 
+      employeeId: "", 
+      qty: 1, 
+      remarks: "",
+      replacementType: 'New',
+      replacedEmployeeId: null
+    });
+    setSelectedUniforms([]);
+    setUniformOptions([]);
+    setEmployeeDetails(null);
+    setOptionsError(null);
+    setOptionsLoading(false);
+    setProjectEmployees([]);
+  };
+
+  // Fetch project employees when replacement type is selected
+  const fetchProjectEmployees = async (projectName: string) => {
+    try {
+      // Fetch all KYC records and filter by project
+      const res = await fetch("https://cafm.zenapi.co.in/api/kyc");
+      const data = await res.json();
+      if (data.kycForms) {
+        // Filter employees by project and exclude the current employee
+        const projectEmployees = data.kycForms
+          .filter((kyc: any) => 
+            kyc.personalDetails?.projectName === projectName && 
+            kyc.personalDetails?.employeeId !== newRequest.employeeId
+          )
+          .map((kyc: any) => ({
+            employeeId: kyc.personalDetails.employeeId,
+            fullName: kyc.personalDetails.fullName,
+            designation: kyc.personalDetails.designation
+          }));
+        setProjectEmployees(projectEmployees);
+      } else {
+        setProjectEmployees([]);
+      }
+    } catch (error) {
+      console.error('Error fetching project employees:', error);
+      setProjectEmployees([]);
+    }
+  };
   const [createLoading, setCreateLoading] = useState(false);
   // Pagination and filter state
   const [currentPage, setCurrentPage] = useState(1);
@@ -92,6 +146,11 @@ export default function UniformRequestsPage() {
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [employeeImages, setEmployeeImages] = useState<{ [id: string]: string }>({});
+  const [projectEmployees, setProjectEmployees] = useState<Array<{
+    employeeId: string;
+    fullName: string;
+    designation: string;
+  }>>([]);
 
   useEffect(() => {
     fetchRequests();
@@ -173,102 +232,131 @@ export default function UniformRequestsPage() {
     }
   };
 
-  // Update handleCreateRequest to use uniformItems
-  const handleCreateRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newRequest.employeeId || selectedUniforms.length === 0) {
-      setToast({ type: "error", message: "Please fill all required fields and add at least one uniform item." });
-      setTimeout(() => setToast(null), 3500);
-      return;
-    }
-    setCreateLoading(true);
+  // Update handleCreateRequest to match backend requirements
+const handleCreateRequest = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!newRequest.employeeId || selectedUniforms.length === 0 || 
+      (newRequest.replacementType === 'Replacement' && !newRequest.replacedEmployeeId)) {
+    setToast({ 
+      type: "error", 
+      message: "Please fill all required fields including replaced employee ID if replacement type is selected." 
+    });
+    setTimeout(() => setToast(null), 3500);
+    return;
+  }
+  
+  // Calculate total quantity and validate against max allowed
+  const totalQuantity = selectedUniforms.reduce((acc, u) => acc + u.qty, 0);
+  if (totalQuantity > 5) {
+    setToast({ 
+      type: "error", 
+      message: "Total quantity cannot exceed 5 sets per request." 
+    });
+    setTimeout(() => setToast(null), 3500);
+    return;
+  }
+
+  setCreateLoading(true);
+  
+  // Add validation for replacement type
+  if (newRequest.replacementType === 'Replacement' && !newRequest.replacedEmployeeId) {
+    setToast({ 
+      type: "error", 
+      message: "Replaced employee ID is required when replacement type is 'Replacement'" 
+    });
+    setTimeout(() => setToast(null), 3500);
+    setCreateLoading(false);
+    return;
+  }
+  
+  try {
+    // Prepare uniform data according to backend structure
     const uniformType = selectedUniforms.map(u => u.type);
     const size: { [key: string]: string } = {};
-    selectedUniforms.forEach(u => { size[u.type] = u.size; });
+    selectedUniforms.forEach(u => { 
+      size[u.type] = u.size; 
+    });
+    
     const qty = selectedUniforms.reduce((acc, u) => acc + u.qty, 0);
-    const body = {
+    
+    // Backend expects this exact structure
+    const requestBody = {
       uniformType,
       size,
       qty,
-      remarks: newRequest.remarks,
-      designation: employeeDetails?.designation || ""
+      remarks: newRequest.remarks || '',
+      replacementType: newRequest.replacementType,
+      replacedEmployeeId: newRequest.replacementType === 'Replacement' ? newRequest.replacedEmployeeId : null,
+      manpowerRemarks: newRequest.remarks || ''
     };
-    try {
-      const res = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${newRequest.employeeId}/request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (!res.ok || data.success === false) {
-        const errorMsg = data.message || "Failed to create uniform request.";
-        setToast({ type: "error", message: errorMsg });
-        setCreateLoading(false);
-        setTimeout(() => setToast(null), 3500);
-        return;
-      }
-      setShowCreateModal(false);
-      setNewRequest({ employeeId: "", qty: 1, remarks: "" });
-      setSelectedUniforms([]);
-      setCreateLoading(false);
-      setToast({ type: "success", message: "Uniform request created successfully." });
-      setTimeout(() => setToast(null), 3500);
-      // Refresh the list after creation
-      await fetchRequests();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create uniform request.";
-      setToast({ type: "error", message });
+
+    const res = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${newRequest.employeeId}/request`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json" 
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const data = await res.json();
+    
+    if (!res.ok || data.success === false) {
+      const errorMsg = data.message || "Failed to create uniform request.";
+      setToast({ type: "error", message: errorMsg });
       setCreateLoading(false);
       setTimeout(() => setToast(null), 3500);
+      return;
     }
-  };
 
-  // Fetch inventory items when modal opens
-  useEffect(() => {
-    if (showCreateModal) {
-      setOptionsLoading(true);
-      setOptionsError(null);
-      fetch("https://inventory.zenapi.co.in/api/inventory/items")
-        .then(res => res.json())
-        .then(data => {
-          setUniformOptions(Array.isArray(data) ? data : []);
-          setEmployeeDetails(null); // No longer fetching designation here
-        })
-        .catch(() => {
-          setUniformOptions([]);
-          setEmployeeDetails(null);
-          setOptionsError('Failed to fetch inventory options.');
-        });
-    }
-  }, [showCreateModal]);
+    // Success - reset form and close modal
+    setShowCreateModal(false);
+    setNewRequest({ 
+      employeeId: "", 
+      qty: 1, 
+      remarks: "",
+      replacementType: 'New',
+      replacedEmployeeId: null
+    });
+    setSelectedUniforms([]);
+    setCreateLoading(false);
+    
+    setToast({ 
+      type: "success", 
+      message: `Uniform request created successfully! Set count: ${data.setCount || '1'}` 
+    });
+    setTimeout(() => setToast(null), 3500);
+    
+    // Refresh the list after creation
+    await fetchRequests();
+    
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to create uniform request.";
+    setToast({ type: "error", message });
+    setCreateLoading(false);
+    setTimeout(() => setToast(null), 3500);
+  }
+};
 
-  // Fetch employee designation when employeeId changes
-  useEffect(() => {
-    if (showCreateModal && newRequest.employeeId) {
-      fetch(`https://cafm.zenapi.co.in/api/kyc/${newRequest.employeeId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.kycData && data.kycData.personalDetails && data.kycData.personalDetails.designation) {
-            setEmployeeDetails(data.kycData.personalDetails);
-          } else {
-            setEmployeeDetails(null);
-          }
-        })
-        .catch(() => setEmployeeDetails(null));
-    }
-  }, [showCreateModal, newRequest.employeeId]);
+
+
+
 
   // Fetch uniform options when employeeId changes and modal is open
   useEffect(() => {
     if (showCreateModal && newRequest.employeeId) {
       setOptionsLoading(true);
       setOptionsError(null);
+      console.log('Fetching uniform options for:', newRequest.employeeId);
+      
       fetch(`https://cafm.zenapi.co.in/api/uniforms/${newRequest.employeeId}/options`)
         .then(res => res.json())
         .then(data => {
+          console.log('Uniform options API response:', data);
           if (data.success) {
             setUniformOptions(data.uniformOptions || []);
             setEmployeeDetails(data.employeeDetails || null);
+            setOptionsError(null); // Clear any previous errors
           } else {
             setUniformOptions([]);
             setEmployeeDetails(null);
@@ -276,7 +364,8 @@ export default function UniformRequestsPage() {
           }
           setOptionsLoading(false);
         })
-        .catch(() => {
+        .catch((error) => {
+          console.error('Error fetching uniform options:', error);
           setUniformOptions([]);
           setEmployeeDetails(null);
           setOptionsError('Failed to fetch uniform options.');
@@ -347,7 +436,7 @@ export default function UniformRequestsPage() {
               <p className="text-lg text-blue-100">Approve or reject pending uniform requests</p>
             </div>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={handleOpenModal}
               className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold shadow hover:from-green-600 hover:to-green-700 transition focus:outline-none focus:ring-2 focus:ring-green-400"
             >
               <FaPlus /> Create Request
@@ -469,13 +558,72 @@ export default function UniformRequestsPage() {
                         </div>
                       )}
                     </div>
+                    
+                    {/* Replacement Type Selection */}
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
+                        Replacement Type *
+                      </label>
+                      <select
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                          theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'
+                        }`}
+                        value={newRequest.replacementType}
+                        onChange={e => {
+                          const newType = e.target.value as 'New' | 'Replacement';
+                          setNewRequest(r => ({ ...r, replacementType: newType, replacedEmployeeId: null }));
+                          
+                          // If replacement is selected and we have employee details, fetch project employees
+                          if (newType === 'Replacement' && employeeDetails?.projectName) {
+                            fetchProjectEmployees(employeeDetails.projectName);
+                          } else {
+                            setProjectEmployees([]);
+                          }
+                        }}
+                        required
+                      >
+                        <option value="New">New Employee</option>
+                        <option value="Replacement">Replacement</option>
+                      </select>
+                    </div>
+
+                    {/* Show replaced employee field if replacement type is selected */}
+                    {newRequest.replacementType === 'Replacement' && (
+                      <div>
+                        <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
+                          Select Replaced Employee *
+                        </label>
+                        <select
+                          className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                            theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'
+                          }`}
+                          value={newRequest.replacedEmployeeId || ''}
+                          onChange={e => setNewRequest(r => ({ ...r, replacedEmployeeId: e.target.value }))}
+                          required
+                        >
+                          <option value="">Select an employee to replace...</option>
+                          {projectEmployees.map(emp => (
+                            <option key={emp.employeeId} value={emp.employeeId}>
+                              {emp.employeeId} - {emp.fullName} ({emp.designation})
+                            </option>
+                          ))}
+                        </select>
+                        {projectEmployees.length === 0 && (
+                          <div className="mt-1 text-sm text-orange-500">
+                            Loading employees from project: {employeeDetails?.projectName}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
                     <div>
                       <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items</label>
+                      
+
+                      
                       {optionsLoading ? (
                         <div className="text-blue-400">Loading options...</div>
-                      ) : optionsError ? (
-                        <div className="text-red-500">{optionsError}</div>
-                      ) : (
+                      ) : uniformOptions.length > 0 ? (
                         <div className="overflow-x-auto max-h-64 border rounded-lg mb-2">
                           <table className="min-w-full text-xs">
                             <thead>
@@ -525,6 +673,10 @@ export default function UniformRequestsPage() {
                             </tbody>
                           </table>
                         </div>
+                      ) : optionsError ? (
+                        <div className="text-red-500">{optionsError}</div>
+                      ) : (
+                        <div className="text-gray-500">No uniform options available for this employee.</div>
                       )}
                     </div>
                     {/* Selected Uniforms Table */}
@@ -565,6 +717,27 @@ export default function UniformRequestsPage() {
                         onChange={e => setNewRequest(r => ({ ...r, remarks: e.target.value }))}
                       />
                     </div>
+                    
+                    {/* Set Count Information */}
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Set Count Information</label>
+                      <div className={`px-3 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-600'}`}>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span>Current selection:</span>
+                            <span className={`font-semibold ${selectedUniforms.length > 0 ? 'text-blue-600' : 'text-gray-500'}`}>
+                              {selectedUniforms.reduce((acc, u) => acc + u.qty, 0)} sets
+                            </span>
+                          </div>
+                          {employeeDetails && (
+                            <div className="flex justify-between items-center text-sm">
+                              <span>Previous requests:</span>
+                              <span className="text-orange-600">1 set (Shirt: 40, Pant: 36)</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </form>
                 </div>
 
@@ -572,7 +745,7 @@ export default function UniformRequestsPage() {
                   <button
                     type="submit"
                     form="createRequestForm"
-                    disabled={createLoading || !newRequest.employeeId || selectedUniforms.length === 0}
+                    disabled={createLoading || !newRequest.employeeId || selectedUniforms.length === 0 || selectedUniforms.reduce((acc, u) => acc + u.qty, 0) > 5}
                     className={`w-full py-2 rounded-xl font-bold shadow transition-all disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
                   >
                     {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}

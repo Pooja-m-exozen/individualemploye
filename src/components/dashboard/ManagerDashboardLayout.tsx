@@ -65,6 +65,7 @@ const menuItems = [
       { label: "Requests", href: "/Manager/stores-management/requests" },
       { label: "In Stock", href: "/Manager/stores-management/in-stock" },
       { label: "DC", href: "/Manager/stores-management/dc" },
+      { label: "Bulk Issue", href: "/Manager/stores-management/bulk-issue" },
     ]
   },
   {

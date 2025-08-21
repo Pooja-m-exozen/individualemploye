@@ -173,7 +173,22 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         const data: UniformApiResponse = await res.json();
         if (data.success) {
           const uniqueProjects = Array.from(new Set(data.uniforms.map(u => u.projectName)));
-          setProjectList(uniqueProjects);
+          console.log('Available projects from API:', uniqueProjects);
+          // Filter out generic project names
+          const validProjects = uniqueProjects.filter(project => 
+            project && 
+            project.trim() !== "" && 
+            project !== "General" && 
+            project !== "N/A" && 
+            !project.toLowerCase().includes("general")
+          );
+          console.log('Filtered valid projects:', validProjects);
+          setProjectList(validProjects);
+          
+          // Warn if no valid projects found
+          if (validProjects.length === 0) {
+            console.warn('No valid projects found. All projects seem to have generic names.');
+          }
         }
       } catch {
         // setError("Failed to fetch projects");
@@ -221,6 +236,18 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
       setSaveDCError("Please select at least one uniform request.");
       return;
     }
+
+    // Validate project selection
+    if (!selectedProject || selectedProject.trim() === "") {
+      setSaveDCError("Please select a project first.");
+      return;
+    }
+
+    // Ensure project name is not generic
+    if (selectedProject === "General" || selectedProject === "N/A" || selectedProject.toLowerCase().includes("general")) {
+      setSaveDCError("Please select a specific project, not a generic one.");
+      return;
+    }
     try {
       // Create items array from selected requests with size modification tracking
       const items = selectedRequests.flatMap(selectedRequest => {
@@ -255,7 +282,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
 
       // Create payload with modified sizes properly stored
       const payload = {
-        customer: selectedRequests.map(req => req.fullName).join(", "),
+        customer: selectedProject || "General", // Use project name as customer instead of employee names
         dcNumber,
         dcDate,
         remarks,
@@ -275,6 +302,24 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
           })
         }))
       };
+
+      // Log the payload for debugging
+      console.log('DC Payload being sent:', payload);
+      console.log('Selected Project:', selectedProject);
+      console.log('Customer field:', payload.customer);
+      console.log('Address field:', payload.address);
+
+      // Final validation - show user what will be sent
+      if (payload.customer === "General" || payload.customer === "N/A" || !payload.customer.trim()) {
+        setSaveDCError(`Invalid customer name: "${payload.customer}". Please select a valid project.`);
+        return;
+      }
+
+      // Confirm with user what will be sent
+      const confirmMessage = `DC will be created with:\nCustomer: ${payload.customer}\nAddress: ${payload.address}\nItems: ${payload.items.length}\n\nProceed?`;
+      if (!confirm(confirmMessage)) {
+        return;
+      }
 
       // First, create the DC
       const res = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc', {
@@ -736,6 +781,9 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                       <label className={`block mb-3 font-semibold text-lg ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
                         Select Project <span className="text-red-500">*</span>
                       </label>
+                      <p className={`text-sm mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                        Only projects with specific names (not "General" or generic names) are shown.
+                      </p>
                       <div className="relative">
                         <select
                           value={selectedProject}
@@ -752,9 +800,13 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                           aria-required="true"
                         >
                           <option value="">Choose a project from the list</option>
-                          {projectList.map(project => (
-                            <option key={project} value={project}>{project}</option>
-                          ))}
+                          {projectList.length > 0 ? (
+                            projectList.map(project => (
+                              <option key={project} value={project}>{project}</option>
+                            ))
+                          ) : (
+                            <option value="" disabled>No valid projects available</option>
+                          )}
                         </select>
                         <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
                           <div className={`w-5 h-5 border-2 border-r-0 border-b-0 transform rotate-45 ${theme === "dark" ? "border-gray-400" : "border-gray-500"}`}></div>
@@ -767,6 +819,24 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                         </div>
                       )}
                     </div>
+                    
+                    {/* Project Selection Summary */}
+                    {selectedProject && (
+                      <div className={`p-4 rounded-2xl ${theme === "dark" ? "bg-green-900/20" : "bg-green-50"}`}>
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-green-800" : "bg-green-100"}`}>
+                            <FaCheckCircle className={`w-5 h-5 ${theme === "dark" ? "text-green-300" : "text-green-600"}`} />
+                          </div>
+                          <div>
+                            <h4 className={`font-semibold ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>Project Selected</h4>
+                            <p className={`text-sm ${theme === "dark" ? "text-green-300" : "text-green-700"}`}>
+                              <strong>Project:</strong> {selectedProject}<br/>
+                              <strong>Note:</strong> This project name will be used as the customer name in the generated DC.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     <div className={`p-4 rounded-2xl ${theme === "dark" ? "bg-blue-900/20" : "bg-blue-50"}`}>
                       <div className="flex items-start gap-3">
