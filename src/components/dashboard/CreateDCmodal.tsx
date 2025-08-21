@@ -276,6 +276,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         }))
       };
 
+      // First, create the DC
       const res = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -285,6 +286,69 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
       const data = await res.json();
 
       if (data.success) {
+        // Now call the issue API to update the backend
+        try {
+          // Filter items to only include those with sufficient stock
+          const validItems = items.filter(item => {
+            const inventoryItem = findInventoryItemByType(item.name);
+            if (!inventoryItem) {
+              console.warn(`No inventory item found for: ${item.name}`);
+              return false;
+            }
+            
+            // Check if the requested size exists and has sufficient stock
+            const sizeInventory = inventoryItem.sizeInventory.find(si => si.size === item.size);
+            if (!sizeInventory) {
+              console.warn(`Size ${item.size} not found in inventory for ${item.name}`);
+              return false;
+            }
+            
+            if (sizeInventory.quantity < 1) {
+              console.warn(`Insufficient stock for ${item.name} (Size ${item.size}). Available: ${sizeInventory.quantity}`);
+              return false;
+            }
+            
+            return true;
+          });
+
+          const issuePayload = {
+            issueTo: customer,
+            department: selectedProject || "General",
+            purpose: "Uniform Distribution",
+            address: address || "N/A",
+            items: validItems.map(item => {
+              // Find the inventory item to get the correct item ID
+              const inventoryItem = findInventoryItemByType(item.name);
+              return {
+                id: inventoryItem?._id || item.id, // Use inventory item ID if available, fallback to request ID
+                quantity: 1, // Each item gets 1 piece (standard uniform distribution)
+                size: item.size,
+                employeeId: item.employeeId
+              };
+            })
+          };
+
+          console.log('Original items:', items);
+          console.log('Valid items after stock check:', validItems);
+          console.log('Issue API payload:', issuePayload);
+          
+          const issueRes = await fetch('https://inventory.zenapi.co.in/api/inventory/issue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(issuePayload),
+          });
+
+          if (issueRes.ok) {
+            const issueData = await issueRes.json();
+            console.log('Issue API response:', issueData);
+          } else {
+            const errorData = await issueRes.json().catch(() => ({}));
+            console.warn('Issue API failed:', issueRes.status, issueRes.statusText, errorData);
+          }
+        } catch (issueError) {
+          console.error('Error calling issue API:', issueError);
+          // Don't fail the DC creation if issue API fails
+        }
         // Create enhanced DC data with size modification tracking
         const enhancedItems = items.map(item => {
           // Parse size data if it exists

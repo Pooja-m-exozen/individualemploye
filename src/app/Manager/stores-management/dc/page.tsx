@@ -100,19 +100,40 @@ async function fetchUniformRequestForCustomer(employeeId: string, fullName: stri
     
     const data = await res.json();
     if (data.success) {
+      console.log("🔍 Searching for uniform request with:", { employeeId, fullName });
+      console.log("🔍 Available uniforms:", data.uniforms.length);
+      
       // Try to match by employeeId first, then by fullName
       const byEmployeeId = data.uniforms.find((u: unknown) => (u as { employeeId: string }).employeeId === employeeId);
-      if (byEmployeeId) return byEmployeeId;
+      if (byEmployeeId) {
+        console.log("🔍 Found by employeeId:", byEmployeeId);
+        return byEmployeeId;
+      }
       
       const byFullName = data.uniforms.find((u: unknown) => (u as { fullName: string }).fullName === fullName);
-      if (byFullName) return byFullName;
+      if (byFullName) {
+        console.log("🔍 Found by fullName:", byFullName);
+        return byFullName;
+      }
       
       // If no exact match, try partial name match
-      const partialMatch = data.uniforms.find((u: unknown) => 
-        (u as { fullName: string }).fullName.toLowerCase().includes(fullName.toLowerCase()) ||
-        fullName.toLowerCase().includes((u as { fullName: string }).fullName.toLowerCase())
-      );
-      return partialMatch || null;
+      const partialMatch = data.uniforms.find((u: unknown) => {
+        const uniformFullName = (u as { fullName: string }).fullName;
+        const matches = uniformFullName.toLowerCase().includes(fullName.toLowerCase()) ||
+                       fullName.toLowerCase().includes(uniformFullName.toLowerCase());
+        if (matches) {
+          console.log("🔍 Found partial match:", { uniformFullName, fullName });
+        }
+        return matches;
+      });
+      
+      if (partialMatch) {
+        console.log("🔍 Returning partial match:", partialMatch);
+        return partialMatch;
+      }
+      
+      console.log("🔍 No match found for:", { employeeId, fullName });
+      return null;
     }
   } catch (error) {
     console.error("Error fetching uniform request:", error);
@@ -253,16 +274,16 @@ export default function StoreDCPage() {
               // Use the size from API response (this is the modified/selected size)
               size: item.size || "",
               quantity: item.quantity || 1,
-              // Create individualEmployeeData from available information
-              individualEmployeeData: {
-                employeeId: extractEmployeeId(dc.customer),
-                fullName: extractEmployeeName(dc.customer),
-                designation: "Employee",
-                uniformType: [item.name], // Use item name as uniform type
-                size: { [item.name]: item.size }, // Create size object
-                qty: item.quantity || 1,
-                projectName: actualProjectName
-              }
+                          // Create individualEmployeeData from available information
+            individualEmployeeData: {
+              employeeId: extractEmployeeId(dc.customer),
+              fullName: extractEmployeeName(dc.customer),
+              designation: "Employee",
+              uniformType: [item.name], // Use item name as uniform type
+              size: { [item.name]: item.size }, // Create size object
+              qty: dc.items.reduce((total, dcItem) => total + (dcItem.quantity || 1), 0), // Total quantity for all items
+              projectName: actualProjectName
+            }
             }))
           };
         }));
@@ -381,7 +402,7 @@ export default function StoreDCPage() {
               designation: "Employee",
               uniformType: [item.name], // Use item name as uniform type
               size: { [item.name]: item.size }, // Create size object
-              qty: item.quantity || 1,
+              qty: dc.items.reduce((total, dcItem) => total + (dcItem.quantity || 1), 0), // Total quantity for all items
               projectName: actualProjectName
             }
           }))
@@ -404,89 +425,17 @@ export default function StoreDCPage() {
   useEffect(() => {
     async function fetchUniform() {
       if (selectedDC) {
+        console.log("🔍 Fetching uniform request for DC:", selectedDC.dcNumber);
+        console.log("🔍 DC customer:", selectedDC.customer);
+        console.log("🔍 DC items:", selectedDC.items);
+        
         const req = await fetchUniformRequestForCustomer(
           selectedDC.items[0]?.employeeId,
           selectedDC.customer
         );
-        setUniformReq(req);
         
-        // Fetch uniform request data to get original requested sizes and item details
-        try {
-          const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success) {
-              const employeeName = selectedDC.customer.split(',')[0]?.trim() || selectedDC.customer;
-              // Specify type as unknown and cast to expected shape
-              const employeeUniformRequest = (data.uniforms as Array<{
-                fullName: string;
-                uniformType?: string[];
-                size?: Record<string, string>;
-              }>).find((u) => 
-                u.fullName === employeeName || 
-                employeeName.includes(u.fullName) ||
-                u.fullName.includes(employeeName)
-              );
-              
-              if (employeeUniformRequest) {
-                // Update requested sizes and item details for each item
-                selectedDC.items.forEach((item, index) => {
-                  // Update requested size
-                  const requestedSizeElement = document.getElementById(`requested-size-${index}`);
-                  if (requestedSizeElement) {
-                    // Get the corresponding uniform type for this item by index
-                    const uniformType = employeeUniformRequest.uniformType?.[index] || 
-                      employeeUniformRequest.uniformType?.find((type: string) => 
-                        type.toLowerCase().includes('shirt') || 
-                        type.toLowerCase().includes('pant') ||
-                        type.toLowerCase().includes('executive')
-                      );
-                    
-                    if (uniformType && employeeUniformRequest.size && employeeUniformRequest.size[uniformType]) {
-                      requestedSizeElement.textContent = employeeUniformRequest.size[uniformType];
-                    } else {
-                      requestedSizeElement.textContent = 'N/A';
-                    }
-                  }
-                  
-                  // Update item name and code
-                  const itemNameElement = document.getElementById(`item-name-${index}`);
-                  const itemCodeElement = document.getElementById(`item-code-${index}`);
-                  
-                  if (itemNameElement) {
-                    // Get the corresponding uniform type for this item by index
-                    const uniformType = employeeUniformRequest.uniformType?.[index] || 
-                      employeeUniformRequest.uniformType?.find((type: string) => 
-                        type.toLowerCase().includes('shirt') || 
-                        type.toLowerCase().includes('pant') ||
-                        type.toLowerCase().includes('executive')
-                      );
-                    itemNameElement.textContent = uniformType || 'N/A';
-                  }
-                  
-                  if (itemCodeElement) {
-                    // Generate item code based on uniform type
-                    const uniformType = employeeUniformRequest.uniformType?.[index] || 
-                      employeeUniformRequest.uniformType?.find((type: string) => 
-                        type.toLowerCase().includes('shirt') || 
-                        type.toLowerCase().includes('pant') ||
-                        type.toLowerCase().includes('executive')
-                      );
-                    
-                    if (uniformType) {
-                      const code = uniformType.replace(/\s+/g, '-').toUpperCase();
-                      itemCodeElement.textContent = code;
-                    } else {
-                      itemCodeElement.textContent = 'N/A';
-                    }
-                  }
-                });
-              }
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching uniform request data:", error);
-        }
+        console.log("🔍 Fetched uniform request:", req);
+        setUniformReq(req);
       } else {
         setUniformReq(null);
       }
@@ -669,10 +618,21 @@ export default function StoreDCPage() {
         // Add size values for each uniform type
         ...uniformTypesArray.map((uniformType: string) => {
           // Check if this employee has this uniform type
-          if (employeeUniformRequest?.uniformType?.includes(uniformType)) {
+          if (employeeUniformRequest?.uniformType?.some((type: string) => 
+            type.trim() === uniformType.trim() || 
+            type.trim().toLowerCase() === uniformType.trim().toLowerCase()
+          )) {
             // Get size from uniform request
             if (employeeUniformRequest.size && employeeUniformRequest.size[uniformType]) {
               return employeeUniformRequest.size[uniformType];
+            }
+            // Try to find size by trimmed comparison
+            const matchingType = employeeUniformRequest.uniformType.find((type: string) => 
+              type.trim() === uniformType.trim() || 
+              type.trim().toLowerCase() === uniformType.trim().toLowerCase()
+            );
+            if (matchingType && employeeUniformRequest.size && employeeUniformRequest.size[matchingType]) {
+              return employeeUniformRequest.size[matchingType];
             }
           }
           return "NA";
@@ -1013,6 +973,29 @@ export default function StoreDCPage() {
                     Delivery Challan Details
                   </h2>
                   <div className={`space-y-6 max-h-[70vh] overflow-y-auto pr-2`}> 
+                    {/* DC Summary */}
+                    <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
+                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>DC Summary</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                          <span className="font-semibold text-sm">DC Number:</span>
+                          <div className="text-lg font-bold">{selectedDC.dcNumber}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-sm">Date:</span>
+                          <div className="text-lg">{selectedDC.dcDate ? selectedDC.dcDate.split('T')[0] : ''}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-sm">Project:</span>
+                          <div className="text-lg">{getProjectName(selectedDC)}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-sm">Total Employees:</span>
+                          <div className="text-lg">{selectedDC.customer.split(',').length}</div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* DC Basic Info */}
                     <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
                       <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Information</h3>
@@ -1032,88 +1015,108 @@ export default function StoreDCPage() {
                       </div>
                     </div>
 
-                    {/* Project Information */}
-                    <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
-                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>Project Information</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <span className="font-semibold text-sm">Project Name:</span>
-                          <div className="text-lg">{getProjectName(selectedDC)}</div>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-sm">Total Employees:</span>
-                          <div className="text-lg">
-                            {selectedDC.customer.includes(',') 
-                              ? selectedDC.customer.split(',').length 
-                              : selectedDC.items.length}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+
 
                     {/* Employee Details */}
                     <div>
                       <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>Employee Details</h3>
                       <div className="space-y-4">
-                        {/* Display DC items with actual sizes */}
-                        {selectedDC.items.map((item, i) => (
-                              <div key={i} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                                <div className="flex items-center justify-between mb-3">
-                                  <h4 className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
-                                Item {i + 1}: {item.name}
-                                  </h4>
-                                  <span className={`px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
-                                ID: {item.employeeId || "N/A"}
-                                  </span>
-                                </div>
-                            
-                            {/* Item Details */}
-                            <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
-                              <div className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>DC Item Details:</div>
-                              
-                              {/* Basic Information */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-4">
-                                <div><b>Employee ID:</b> {item.employeeId || 'N/A'}</div>
-                                <div><b>Item Name:</b> <span id={`item-name-${i}`}>{item.name || 'N/A'}</span></div>
-                                <div><b>Requested Size:</b> <span id={`requested-size-${i}`}>Loading...</span></div>
-                                <div><b>Dispatched Size:</b> {item.size || 'N/A'}</div>
-                                <div><b>Quantity:</b> {item.quantity || 'N/A'}</div>
-                                <div><b>Price:</b> {item.price || 'N/A'}</div>
+                        {/* Parse customer names and display employee information */}
+                        {selectedDC.customer.split(',').map((customerName, i) => {
+                          const trimmedName = customerName.trim();
+                          const employeeId = `EMP${String(i + 1).padStart(3, '0')}`;
+                          
+                          return (
+                            <div key={i} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                                  Employee {i + 1}: {trimmedName}
+                                </h4>
+                                <span className={`px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
+                                  ID: {employeeId}
+                                </span>
                               </div>
+                              
+                              {/* Employee Information */}
+                              <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
+                                <div className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Employee Information:</div>
+                                
+                                {/* Basic Information */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-4">
+                                  <div><b>Employee ID:</b> {(() => {
+                                    // Try to get employee ID from uniform request data
+                                    const employeeUniformRequest = uniformReq as any;
+                                    return employeeUniformRequest?.employeeId || employeeId;
+                                  })()}</div>
+                                  <div><b>Full Name:</b> {trimmedName}</div>
+                                  <div><b>Designation:</b> {(() => {
+                                    // Try to get designation from uniform request data
+                                    const employeeUniformRequest = uniformReq as any;
+                                    return employeeUniformRequest?.designation || 'Employee';
+                                  })()}</div>
+                                  <div><b>Project:</b> {(() => {
+                                    // Try to get project name from uniform request data
+                                    const employeeUniformRequest = uniformReq as any;
+                                    return employeeUniformRequest?.projectName || getProjectName(selectedDC);
+                                  })()}</div>
+                                </div>
 
-                              {/* Size Modification Data */}
-                              {(item.sizeData || item.remarks) && (
+                                {/* Uniform Items for this Employee */}
                                 <div className="mt-4">
-                                  <div className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Size Change Details:</div>
-                                  <div className={`p-3 rounded border ${theme === "dark" ? "bg-yellow-900 border-yellow-700" : "bg-yellow-50 border-yellow-200"}`}>
-                                    <div className="text-sm">
-                                      <div><b>Requested Size:</b> <span id={`requested-size-${i}`}>Loading...</span></div>
-                                      <div><b>Dispatched Size:</b> {item.size || 'N/A'}</div>
-                                      <div><b>Status:</b> {
-                                        item.sizeModificationData?.modified || 
-                                        (item.remarks && item.remarks.includes('Modified from')) ? 
-                                        'Modified' : 'As Requested'
-                                      }</div>
-                                      {item.remarks && item.remarks.includes('Modified from') && (
-                                        <div><b>Note:</b> {item.remarks}</div>
-                                      )}
-                                      {item.sizeModificationData?.modificationNote && (
-                                        <div><b>Note:</b> {item.sizeModificationData.modificationNote}</div>
-                                      )}
-                                    </div>
+                                  <div className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Uniform Items:</div>
+                                  <div className="space-y-2">
+                                    {/* Get uniform request data for this specific employee */}
+                                    {(() => {
+                                      // Try to find uniform request data for this employee
+                                      const employeeUniformRequest = uniformReq as any;
+                                      if (employeeUniformRequest && employeeUniformRequest.uniformType && employeeUniformRequest.size) {
+                                        // Display uniform items from the uniform request data
+                                        return employeeUniformRequest.uniformType.map((uniformType: string, typeIndex: number) => {
+                                          const size = employeeUniformRequest.size[uniformType] || 'N/A';
+                                          // Calculate total quantity for this employee from DC items
+                                          const totalQty = selectedDC.items.reduce((total, dcItem) => total + (dcItem.quantity || 1), 0);
+                                          
+                                          return (
+                                            <div key={typeIndex} className={`p-3 rounded border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-gray-100 border-gray-300"}`}>
+                                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                                                <div><b>Item:</b> {uniformType.trim()}</div>
+                                                <div><b>Size:</b> {size}</div>
+                                                <div><b>Dispatched Size:</b> {size}</div>
+                                              </div>
+                                              {employeeUniformRequest.remarks && (
+                                                <div className="mt-2 text-xs text-gray-600">
+                                                  <b>Note:</b> {employeeUniformRequest.remarks}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        });
+                                      } else {
+                                        // Fallback to DC items if no uniform request data
+                                        return selectedDC.items.map((item, itemIndex) => (
+                                          <div key={itemIndex} className={`p-3 rounded border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-gray-100 border-gray-300"}`}>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                                              <div><b>Item:</b> {item.name || 'N/A'}</div>
+                                              <div><b>Size:</b> {item.size || 'N/A'}</div>
+                                              <div><b>Dispatched Size:</b> {item.size || 'N/A'}</div>
+                                            </div>
+                                            {item.remarks && (
+                                              <div className="mt-2 text-xs text-gray-600">
+                                                <b>Note:</b> {item.remarks}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ));
+                                      }
+                                    })()}
                                   </div>
                                 </div>
-                              )}
 
-                              {/* Remarks */}
-                              {item.remarks && (
-                                <div className="mt-4 text-sm">
-                                  <b>Remarks:</b> {item.remarks}
-                                </div>
-                              )}
+
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
 
