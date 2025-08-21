@@ -97,7 +97,7 @@ const CoordinatorDashboardLayout = ({ children }: CoordinatorDashboardLayoutProp
 
   const handleLogout = () => {
     logout();
-    window.location.href = "/v1/employee/login";
+    window.location.href = "/v1/employee/login"; // Use full path since window.location.href doesn't add basePath
   };
 
   const toggleSubmenu = (label: string) => {

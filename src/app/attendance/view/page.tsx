@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { 
   FaCalendarAlt, 
-  FaCheckCircle, 
+  // FaCheckCircle, 
   
   FaExclamationCircle, 
   
@@ -16,7 +16,7 @@ import {
   FaClock,
   
   
-  FaClock as FaClockIcon,
+  // FaClock as FaClockIcon,
   FaSignInAlt,
   FaSignOutAlt,
 } from 'react-icons/fa';
@@ -29,7 +29,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday} from 'date-fns';
 import { CircularProgressbar as OriginalCircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import { calculateHoursUtc } from '../../utils/attendanceUtils';
+// import { calculateHoursUtc } from '../../utils/attendanceUtils';
 import type { FC } from 'react';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
@@ -78,6 +78,38 @@ function ViewAttendanceContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 5;
   const [selectedActivity, setSelectedActivity] = useState<AttendanceRecord | null>(null);
+
+  // Helper function to format time to HH:mm:ss format - same as AttendanceReport.tsx
+  const formatTime = (dateString: string | null): string => {
+    if (!dateString) return '-';
+    // If it's already in HH:mm:ss or HH:mm format
+    const timeMatch = dateString.match(/(\d{2}:\d{2}:\d{2})/);
+    if (timeMatch) {
+        return timeMatch[1];
+    }
+    const timeMatchShort = dateString.match(/(\d{2}:\d{2})/);
+    if (timeMatchShort) {
+        return timeMatchShort[1];
+    }
+    // Try parsing as a full date string
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+        // If the time is 00:00:00, treat as missing
+        const h = date.getHours();
+        const m = date.getMinutes();
+        const s = date.getSeconds();
+        if (h === 0 && m === 0 && s === 0) return '-';
+        // Convert to Indian Standard Time (IST = UTC+5:30)
+        const istTime = new Date(date.getTime() + (5.5 * 60 * 60 * 1000));
+        return istTime.toLocaleTimeString('en-GB', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit',
+          timeZone: 'Asia/Kolkata'
+        });
+    }
+    return '-';
+  };
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -511,17 +543,15 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"><FaCalendarAlt className="inline mr-1 text-blue-500" /> Date</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"><FaCheckCircle className="inline mr-1 text-green-500" /> Status</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"><FaSignInAlt className="inline mr-1 text-emerald-500" /> Punch In</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"><FaSignOutAlt className="inline mr-1 text-amber-500" /> Punch Out</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"><FaClockIcon className="inline mr-1 text-indigo-500" /> Hours</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {paginatedActivities.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">No records found</td>
+                      <td colSpan={4} className="px-6 py-12 text-center text-gray-500">No records found</td>
                 </tr>
                   ) : paginatedActivities.map((activity: AttendanceRecord, idx: number) => {
                     const isTodayRow = activity.date === format(new Date(), 'yyyy-MM-dd');
@@ -541,29 +571,13 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {activity.status === 'Holiday' ? (
-                            <span className="text-blue-600 font-bold">Holiday</span>
-                          ) : (activity.punchInUtc && activity.punchOutUtc && activity.totalHoursWorked !== '0') ? (
-                            <span className="font-bold text-base text-black flex items-center gap-2">
-                              <FaClockIcon className="text-indigo-500" /> {activity.totalHoursWorked}
-                            </span>
-                          ) : <span className="text-gray-400">-</span>}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
                           {activity.punchInTime ? (
-                            <span className="font-bold text-base text-black">{activity.punchInTime}</span>
+                            <span className="text-base text-gray-700">{formatTime(activity.punchInTime)}</span>
                           ) : <span className="text-gray-400">-</span>}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {activity.punchOutTime ? (
-                            <span className="font-bold text-base text-black">{activity.punchOutTime}</span>
-                          ) : <span className="text-gray-400">-</span>}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {activity.punchInTime && activity.punchOutTime ? (
-                            <span className="font-bold text-base text-black flex items-center gap-2">
-                              <FaClockIcon className="text-indigo-500" /> {calculateHoursUtc(activity.punchInUtc, activity.punchOutUtc)}
-                            </span>
+                            <span className="text-base text-gray-700">{formatTime(activity.punchOutTime)}</span>
                           ) : <span className="text-gray-400">-</span>}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -659,11 +673,11 @@ const getDayBackgroundColor = (activity: AttendanceRecord | undefined, isCurrent
                     </div>
                   <div>
                       <span className="block text-xs text-gray-500 mb-1">Punch In Time</span>
-                      <span className="font-medium text-gray-900">{selectedActivity.punchInTime || '-'}</span>
+                      <span className="text-gray-900">{formatTime(selectedActivity.punchInTime)}</span>
                   </div>
                 <div>
                       <span className="block text-xs text-gray-500 mb-1">Punch Out Time</span>
-                      <span className="font-medium text-gray-900">{selectedActivity.punchOutTime || '-'}</span>
+                      <span className="text-gray-900">{formatTime(selectedActivity.punchOutTime)}</span>
                   </div>
                 <div>
                       <span className="block text-xs text-gray-500 mb-1">Late?</span>
