@@ -136,7 +136,7 @@ const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
   }, []);
 
   const toggleSidebar = () => setSidebarExpanded(!isSidebarExpanded);
-  const handleLogout = () => { logout(); window.location.href = "/login"; };
+  const handleLogout = () => { logout(); window.location.href = "/v1/employee/login"; };
 
   return (
     <div className={`min-h-screen flex ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"} transition-colors duration-200`}>

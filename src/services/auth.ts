@@ -71,7 +71,7 @@ export const logout = () => {
   localStorage.removeItem(EXPIRES_AT_KEY);
   localStorage.removeItem('userEmail');
   localStorage.removeItem(EMPLOYEE_ID_KEY);
-  window.location.href = '/v1/employee/login'; // Redirect to login page
+  window.location.href = '/v1/employee/login'; // Use full path since window.location.href doesn't add basePath
 };
 
 export const isAuthenticated = (): boolean => {

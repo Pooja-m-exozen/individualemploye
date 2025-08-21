@@ -69,14 +69,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   useEffect(() => {
     const checkAuth = () => {
       if (!isAuthenticated()) {
-        router.replace('/v1/employee/login');
+        router.replace('/login');
         return;
       }
 
       const userRole = getUserRole();
       if (!userRole) {
         logout();
-        router.replace('/v1/employee/login');
+        router.replace('/login');
         return;
       }
     };
@@ -131,7 +131,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
 
 const handleLogout = () => {
   logout(); // your logout function (e.g., clearing tokens or session)
-  router.replace('/v1/employee/login'); // navigate to login screen
+  router.replace('/login'); // navigate to login screen
 };
 
 
