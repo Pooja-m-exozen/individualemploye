@@ -47,6 +47,17 @@ interface DCItem {
   _id: string;
 }
 
+interface UniformRequestData {
+  employeeId: string;
+  fullName: string;
+  designation: string;
+  projectName: string;
+  uniformType: string[];
+  size: Record<string, string>;
+  qty: number;
+  remarks?: string;
+}
+
 interface DC {
   _id: string;
   customer: string;
@@ -81,7 +92,7 @@ interface ApiResponse {
 // }
 
 // Helper function to fetch uniform request for a customer
-async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<unknown> {
+async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<UniformRequestData | null> {
   try {
     const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
     
@@ -104,21 +115,28 @@ async function fetchUniformRequestForCustomer(employeeId: string, fullName: stri
       console.log("🔍 Available uniforms:", data.uniforms.length);
       
       // Try to match by employeeId first, then by fullName
-      const byEmployeeId = data.uniforms.find((u: unknown) => (u as { employeeId: string }).employeeId === employeeId);
+      const byEmployeeId = data.uniforms.find((u: unknown) => {
+        const uniform = u as UniformRequestData;
+        return uniform.employeeId === employeeId;
+      });
       if (byEmployeeId) {
         console.log("🔍 Found by employeeId:", byEmployeeId);
-        return byEmployeeId;
+        return byEmployeeId as UniformRequestData;
       }
       
-      const byFullName = data.uniforms.find((u: unknown) => (u as { fullName: string }).fullName === fullName);
+      const byFullName = data.uniforms.find((u: unknown) => {
+        const uniform = u as UniformRequestData;
+        return uniform.fullName === fullName;
+      });
       if (byFullName) {
         console.log("🔍 Found by fullName:", byFullName);
-        return byFullName;
+        return byFullName as UniformRequestData;
       }
       
       // If no exact match, try partial name match
       const partialMatch = data.uniforms.find((u: unknown) => {
-        const uniformFullName = (u as { fullName: string }).fullName;
+        const uniform = u as UniformRequestData;
+        const uniformFullName = uniform.fullName;
         const matches = uniformFullName.toLowerCase().includes(fullName.toLowerCase()) ||
                        fullName.toLowerCase().includes(uniformFullName.toLowerCase());
         if (matches) {
@@ -129,7 +147,7 @@ async function fetchUniformRequestForCustomer(employeeId: string, fullName: stri
       
       if (partialMatch) {
         console.log("🔍 Returning partial match:", partialMatch);
-        return partialMatch;
+        return partialMatch as UniformRequestData;
       }
       
       console.log("🔍 No match found for:", { employeeId, fullName });
@@ -154,8 +172,7 @@ export default function StoreDCPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDC, setSelectedDC] = useState<DC | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [uniformReq, setUniformReq] = useState<unknown>(null);
+  const [uniformReq, setUniformReq] = useState<UniformRequestData | null>(null);
 
   // Helper function to get project name from uniform requests
   const getProjectNameFromUniformRequests = useCallback(async (customer: string): Promise<string> => {
@@ -1045,18 +1062,18 @@ export default function StoreDCPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-4">
                                   <div><b>Employee ID:</b> {(() => {
                                     // Try to get employee ID from uniform request data
-                                    const employeeUniformRequest = uniformReq as any;
+                                    const employeeUniformRequest = uniformReq;
                                     return employeeUniformRequest?.employeeId || employeeId;
                                   })()}</div>
                                   <div><b>Full Name:</b> {trimmedName}</div>
                                   <div><b>Designation:</b> {(() => {
                                     // Try to get designation from uniform request data
-                                    const employeeUniformRequest = uniformReq as any;
+                                    const employeeUniformRequest = uniformReq;
                                     return employeeUniformRequest?.designation || 'Employee';
                                   })()}</div>
                                   <div><b>Project:</b> {(() => {
                                     // Try to get project name from uniform request data
-                                    const employeeUniformRequest = uniformReq as any;
+                                    const employeeUniformRequest = uniformReq;
                                     return employeeUniformRequest?.projectName || getProjectName(selectedDC);
                                   })()}</div>
                                 </div>
@@ -1068,13 +1085,11 @@ export default function StoreDCPage() {
                                     {/* Get uniform request data for this specific employee */}
                                     {(() => {
                                       // Try to find uniform request data for this employee
-                                      const employeeUniformRequest = uniformReq as any;
+                                      const employeeUniformRequest = uniformReq;
                                       if (employeeUniformRequest && employeeUniformRequest.uniformType && employeeUniformRequest.size) {
                                         // Display uniform items from the uniform request data
                                         return employeeUniformRequest.uniformType.map((uniformType: string, typeIndex: number) => {
                                           const size = employeeUniformRequest.size[uniformType] || 'N/A';
-                                          // Calculate total quantity for this employee from DC items
-                                          const totalQty = selectedDC.items.reduce((total, dcItem) => total + (dcItem.quantity || 1), 0);
                                           
                                           return (
                                             <div key={typeIndex} className={`p-3 rounded border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-gray-100 border-gray-300"}`}>
