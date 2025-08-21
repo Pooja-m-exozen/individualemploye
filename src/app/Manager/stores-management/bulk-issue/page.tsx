@@ -694,8 +694,8 @@ export default function BulkIssuePage() {
     return `DC-${year}${month}${day}-${timestamp}`;
   };
 
-  // Create DC from bulk issue items
-  const createDCFromBulkIssue = async () => {
+  // Create simplified DC that matches existing API format
+  const createSimplifiedDC = async () => {
     if (selectedItems.length === 0) {
       showToast({ message: "No items to create DC for", type: "error" });
       return;
@@ -711,97 +711,56 @@ export default function BulkIssuePage() {
       return;
     }
 
-    if (selectedProject.projectName === "General" || selectedProject.projectName === "N/A") {
-      showToast({ message: "Please select a specific project, not a generic one.", type: "error" });
-      return;
-    }
-
-    if (!selectedProject.address && !bulkIssueData.address) {
-      showToast({ message: "Project address is required. Please add an address to the project or bulk issue data.", type: "error" });
-      return;
-    }
-
     setIsCreatingDC(true);
     try {
       const dcNumber = generateDCNumber();
       
-      // Enhanced DC payload with proper formatting
-      const dcPayload = {
+      // Simplified payload that matches existing API format exactly
+      const simplifiedPayload = {
         customer: selectedProject.projectName,
         dcNumber: dcNumber,
         dcDate: bulkIssueData.issueDate,
-        remarks: `Bulk issue for ${selectedDesignations.join(', ')} - ${selectedProject.projectName}. Purpose: ${bulkIssueData.purpose || 'Uniform distribution'}`,
+        remarks: `Bulk issue for ${selectedDesignations.join(', ')} - ${selectedProject.projectName}`,
         address: selectedProject.address || bulkIssueData.address || "NA",
         items: selectedItems.map(item => ({
-          id: item.itemId,
-          employeeId: item.employeeId,
-          itemCode: item.itemCode,
-          name: item.itemName, // Use item name instead of employee name
-          size: item.size,
+          id: item.itemId, // API expects 'id' field, not 'itemId'
           quantity: item.quantity,
-          price: "",
-          remarks: `Employee: ${item.employeeName} | Designation: ${selectedDesignations.join(', ')} | Project: ${selectedProject.projectName}`
+          size: item.size
         }))
       };
 
-      console.log('Enhanced DC Payload being sent:', dcPayload);
-      console.log('Customer field in payload:', dcPayload.customer);
-      console.log('Project name being used:', selectedProject.projectName);
-      console.log('Selected Items details:', selectedItems);
-      console.log('Project details:', selectedProject);
-      
-      if (dcPayload.customer === "General" || dcPayload.customer === "N/A" || !dcPayload.customer.trim()) {
-        showToast({ 
-          message: `Invalid customer name: "${dcPayload.customer}". Please select a valid project.`, 
-          type: "error" 
-        });
-        return;
-      }
-      
-      const confirmMessage = `DC will be created with:\n\nCustomer: ${dcPayload.customer}\nAddress: ${dcPayload.address}\nItems: ${dcPayload.items.length}\nDesignations: ${selectedDesignations.join(', ')}\nPurpose: ${bulkIssueData.purpose || 'Uniform distribution'}\n\nProceed?`;
-      if (!confirm(confirmMessage)) {
-        return;
-      }
+      console.log('Simplified DC Payload being sent:', simplifiedPayload);
+      console.log('This matches the existing API format exactly');
 
       const response = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dcPayload),
+        body: JSON.stringify(simplifiedPayload),
       });
 
       if (response.ok) {
         const result = await response.json();
-        console.log('DC API Response:', result);
+        console.log('Simplified DC API Response:', result);
         
         if (result.success) {
           showToast({ 
-            message: `DC created successfully! DC Number: ${dcNumber}, DC ID: ${result.dcId}`, 
+            message: `Simplified DC created successfully! DC Number: ${dcNumber}`, 
             type: "success" 
           });
           
-          // Enhanced DC record with all details
+          // Store the simplified DC record
           const dcRecord = {
-            _id: result.dcId,
+            _id: result.dcId || dcNumber,
             dcNumber: dcNumber,
             customer: selectedProject.projectName,
-            projectName: selectedProject.projectName,
-            projectAddress: selectedProject.address || bulkIssueData.address || "NA",
             dcDate: bulkIssueData.issueDate,
-            remarks: `Bulk issue for ${selectedDesignations.join(', ')} - ${selectedProject.projectName}. Purpose: ${bulkIssueData.purpose || 'Uniform distribution'}`,
-            designations: selectedDesignations,
-            purpose: bulkIssueData.purpose || 'Uniform distribution',
+            remarks: `Bulk issue for ${selectedDesignations.join(', ')} - ${selectedProject.projectName}`,
+            address: selectedProject.address || bulkIssueData.address || "NA",
             items: selectedItems.map(item => ({
               itemId: item.itemId,
-              itemName: item.itemName,
-              itemCode: item.itemCode,
-              employeeId: item.employeeId,
-              employeeName: item.employeeName,
-              size: item.size,
               quantity: item.quantity,
-              remarks: item.remarks || `Bulk issue for ${selectedDesignations.join(', ')} - ${selectedProject.projectName}`
+              size: item.size
             })),
-            totalItems: selectedItems.length,
-            totalQuantity: selectedItems.reduce((sum, item) => sum + item.quantity, 0),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             __v: 0
@@ -814,27 +773,27 @@ export default function BulkIssuePage() {
           setSelectedItems([]);
           
           showToast({ 
-            message: `DC ${dcNumber} created successfully with ${dcRecord.totalItems} items for ${dcRecord.totalQuantity} pieces!`, 
+            message: `Simplified DC ${dcNumber} created successfully!`, 
             type: "success" 
           });
         } else {
           showToast({ 
-            message: result.message || "Failed to create DC", 
+            message: result.message || "Failed to create simplified DC", 
             type: "error" 
           });
         }
       } else {
         const errorData = await response.json();
-        console.error('DC API Error Response:', errorData);
+        console.error('Simplified DC API Error Response:', errorData);
         showToast({ 
-          message: errorData.message || "Failed to create DC", 
+          message: errorData.message || "Failed to create simplified DC", 
           type: "error" 
         });
       }
     } catch (error) {
-      console.error("Error creating DC:", error);
+      console.error("Error creating simplified DC:", error);
       showToast({ 
-        message: "Error creating DC. Please try again.", 
+        message: "Error creating simplified DC. Please try again.", 
         type: "error" 
       });
     } finally {
@@ -975,15 +934,25 @@ export default function BulkIssuePage() {
         dcDate: bulkIssueData.issueDate,
         remarks: `Final bulk issue: ${bulkIssueData.purpose} for ${selectedDesignations.join(', ')} - ${selectedProject.projectName}`,
         address: selectedProject.address || bulkIssueData.address || "NA",
+        // Try different field names that the API might expect
+        projectName: selectedProject.projectName,
+        projectAddress: selectedProject.address || bulkIssueData.address || "NA",
+        designations: selectedDesignations,
+        purpose: bulkIssueData.purpose,
+        issueTo: bulkIssueData.issueTo,
         items: selectedItems.map(item => ({
-          id: item.itemId,
+          id: item.itemId, // API expects 'id' field, not 'itemId'
           employeeId: item.employeeId,
           itemCode: item.itemCode,
           name: item.itemName, // Use item name instead of employee name
+          itemName: item.itemName, // Try both name and itemName
           size: item.size,
           quantity: item.quantity,
           price: "",
-          remarks: `Employee: ${item.employeeName} | Designation: ${selectedDesignations.join(', ')} | Project: ${selectedProject.projectName} | Purpose: ${bulkIssueData.purpose}`
+          remarks: `Employee: ${item.employeeName} | Designation: ${selectedDesignations.join(', ')} | Project: ${selectedProject.projectName} | Purpose: ${bulkIssueData.purpose}`,
+          // Add additional fields that might be needed
+          designation: selectedDesignations.join(', '),
+          project: selectedProject.projectName
         }))
       };
 
@@ -993,6 +962,35 @@ export default function BulkIssuePage() {
       console.log('Bulk Issue Data:', bulkIssueData);
       console.log('Customer field in payload:', finalDCPayload.customer);
       console.log('Project name being used:', selectedProject.projectName);
+      
+      // Validate the payload before sending
+      if (!finalDCPayload.customer || finalDCPayload.customer.trim() === "") {
+        showToast({ 
+          message: `Invalid customer name: "${finalDCPayload.customer}". Please select a valid project.`, 
+          type: "error" 
+        });
+        return;
+      }
+      
+      if (finalDCPayload.items.length === 0) {
+        showToast({ 
+          message: "No items in payload. Please add items before creating DC.", 
+          type: "error" 
+        });
+        return;
+      }
+      
+      // Log each item to ensure they have proper data
+      finalDCPayload.items.forEach((item, index) => {
+        console.log(`Final Item ${index + 1}:`, {
+          id: item.id,
+          name: item.name,
+          size: item.size,
+          quantity: item.quantity,
+          employeeId: item.employeeId,
+          remarks: item.remarks
+        });
+      });
 
       const dcResponse = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc', {
         method: 'POST',
@@ -1120,6 +1118,9 @@ export default function BulkIssuePage() {
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
   };
+
+  
+
 
   return (
     <ManagerDashboardLayout>
@@ -1250,40 +1251,44 @@ export default function BulkIssuePage() {
 
             {/* Outward DC Table */}
             {!dcLoading && outwardDCs.length > 0 && (
-              <div className={`rounded-xl border shadow-lg ${
-                theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"
-              }`}>
-                <div className="overflow-x-auto w-full custom-scrollbar">
-                  <table className="w-full min-w-[1200px] divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className={`${theme === "dark" ? "bg-gray-800" : "bg-gray-50"}`}>
+              <div className="w-full rounded-2xl shadow-xl transition-colors duration-300">
+                {/* Restrict height and enable both scrollbars */}
+                <div className="w-full h-[400px] overflow-x-auto overflow-y-auto">
+                  {/* Increase min-w to force horizontal scroll on smaller screens */}
+                  <table className={`min-w-[800px] table-fixed divide-y ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+                    <thead className={theme === "dark" ? "bg-blue-950" : "bg-blue-50"}>
                       <tr>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-32 sticky left-0 z-10 ${theme === "dark" ? "text-gray-300 bg-gray-800" : "text-gray-500 bg-gray-50"}`}>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
                           DC Number
                         </th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-24 ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
                           Date
                         </th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-48 ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
                           Customer
                         </th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-20 ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
                           Items
                         </th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-32 ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>
+                        <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
                           Actions
                         </th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700 bg-gray-900" : "divide-gray-200 bg-white"}`}>
-                      {currentDCs.map((dc) => (
-                        <tr key={dc._id} className={`${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-gray-50"} transition-colors duration-200`}>
-                          <td className={`px-4 py-4 whitespace-nowrap text-sm font-medium sticky left-0 z-10 ${theme === "dark" ? "text-blue-200 bg-gray-900" : "text-blue-600 bg-white"}`}>
+                      {currentDCs.map((dc, index) => (
+                        <tr key={dc._id} className={`transition ${theme === "dark" ? "hover:bg-blue-950" : "hover:bg-blue-100"}`}>
+                          <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-gray-100" : "text-black"}`}>
                             {dc.dcNumber}
                           </td>
-                          <td className={`px-4 py-4 whitespace-nowrap text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>
-                            {new Date(dc.dcDate).toLocaleDateString()}
+                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>
+                            {new Date(dc.dcDate).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
                           </td>
-                          <td className={`px-4 py-4 text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>
+                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>
                             <div className="max-w-[200px]">
                               <div className="font-medium truncate" title={dc.customer}>
                                 {dc.customer}
@@ -1306,7 +1311,7 @@ export default function BulkIssuePage() {
                               })()}
                             </div>
                           </td>
-                          <td className={`px-4 py-4 whitespace-nowrap text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>
+                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>
                             <div className="flex flex-col gap-1">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-700"
@@ -1330,24 +1335,24 @@ export default function BulkIssuePage() {
                               })()}
                             </div>
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm">
-                            <div className="flex items-center gap-2">
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
                               <button
                                 onClick={() => handleViewDC(dc)}
-                                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition ${
                                   theme === "dark" 
-                                    ? "bg-blue-800 text-blue-200 hover:bg-blue-700" 
-                                    : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                    ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" 
+                                    : "bg-blue-600 text-white border-blue-700 hover:bg-blue-700"
                                 }`}
                               >
                                 View
                               </button>
                               <button
                                 onClick={() => handleDownloadDC(dc)}
-                                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition ${
                                   theme === "dark" 
-                                    ? "bg-green-800 text-green-200 hover:bg-green-700" 
-                                    : "bg-green-100 text-green-700 hover:bg-green-200"
+                                    ? "bg-green-900 text-green-200 border-green-700 hover:bg-green-800" 
+                                    : "bg-green-600 text-white border-green-700 hover:bg-green-700"
                                 }`}
                               >
                                 Download
@@ -1360,54 +1365,100 @@ export default function BulkIssuePage() {
                   </table>
                 </div>
                 
-                {/* Pagination Controls */}
-                <div className={`flex items-center justify-between p-4 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                  <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
-                    Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, outwardDCs.length)} of {outwardDCs.length} entries
+                {/* Enhanced Pagination Controls */}
+                <div className={`flex items-center justify-between p-6 border-t ${
+                  theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"
+                }`}>
+                  <div className={`text-sm font-medium ${
+                    theme === "dark" ? "text-gray-300" : "text-gray-600"
+                  }`}>
+                    <span className="font-semibold text-blue-600">
+                      {indexOfFirstItem + 1}
+                    </span>
+                    {" to "}
+                    <span className="font-semibold text-blue-600">
+                      {Math.min(indexOfLastItem, outwardDCs.length)}
+                    </span>
+                    {" of "}
+                    <span className="font-semibold text-blue-600">
+                      {outwardDCs.length}
+                    </span>
+                    {" entries"}
                   </div>
-                  <div className="flex items-center gap-2">
+                  
+                  <div className="flex items-center gap-3">
                     <button
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
                         currentPage === 1
                           ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                           : theme === "dark"
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : "bg-blue-600 text-white hover:bg-blue-700"
+                            ? "bg-gray-700 text-gray-200 hover:bg-gray-600 hover:shadow-lg"
+                            : "bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md border border-gray-300"
                       }`}
                     >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
                       Previous
                     </button>
-                    {Array.from({ length: totalPages }, (_, index) => (
-                      <button
-                        key={index + 1}
-                        onClick={() => handlePageChange(index + 1)}
-                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                          currentPage === index + 1
-                            ? theme === "dark"
-                              ? "bg-blue-700 text-white"
-                              : "bg-blue-600 text-white"
-                            : theme === "dark"
-                              ? "bg-gray-700 text-gray-200 hover:bg-blue-600 hover:text-white"
-                              : "bg-gray-200 text-gray-700 hover:bg-blue-600 hover:text-white"
-                        }`}
-                      >
-                        {index + 1}
-                      </button>
-                    ))}
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, index) => {
+                        const pageNumber = index + 1;
+                        const isCurrentPage = currentPage === pageNumber;
+                        const isNearCurrent = Math.abs(currentPage - pageNumber) <= 2;
+                        
+                        if (isNearCurrent || pageNumber === 1 || pageNumber === totalPages) {
+                          return (
+                            <button
+                              key={pageNumber}
+                              onClick={() => handlePageChange(pageNumber)}
+                              className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                                isCurrentPage
+                                  ? theme === "dark"
+                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/25"
+                                    : "bg-blue-600 text-white shadow-lg shadow-blue-500/25"
+                                  : theme === "dark"
+                                    ? "bg-gray-700 text-gray-200 hover:bg-gray-600 hover:shadow-lg"
+                                    : "bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md border border-gray-300"
+                              }`}
+                            >
+                              {pageNumber}
+                            </button>
+                          );
+                        } else if (pageNumber === currentPage - 3 || pageNumber === currentPage + 3) {
+                          return (
+                            <span
+                              key={pageNumber}
+                              className={`px-3 py-2 text-sm ${
+                                theme === "dark" ? "text-gray-400" : "text-gray-500"
+                              }`}
+                            >
+                              ...
+                            </span>
+                          );
+                        }
+                        return null;
+                      })}
+                    </div>
+                    
                     <button
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
                         currentPage === totalPages
                           ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                           : theme === "dark"
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : "bg-blue-600 text-white hover:bg-blue-700"
+                            ? "bg-gray-700 text-gray-200 hover:bg-gray-600 hover:shadow-lg"
+                            : "bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md border border-gray-300"
                       }`}
                     >
                       Next
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -1416,12 +1467,30 @@ export default function BulkIssuePage() {
 
             {/* Empty State */}
             {!dcLoading && outwardDCs.length === 0 && (
-              <div className={`text-center py-12 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                <FaBoxOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">No Outward DCs Found</h3>
-                <p className="text-sm">No delivery challans have been created yet.</p>
-                <div className="mt-4 text-xs opacity-75">
-                  Debug: dcLoading={dcLoading.toString()}, outwardDCs.length={outwardDCs.length}
+              <div className="w-full rounded-2xl shadow-xl transition-colors duration-300">
+                <div className={`text-center py-12 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+                  <FaBoxOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium mb-2">No Outward DCs Found</h3>
+                  <p className="text-sm">No delivery challans have been created yet.</p>
+                  <div className="mt-4 text-xs opacity-75">
+                    Debug: dcLoading={dcLoading.toString()}, outwardDCs.length={outwardDCs.length}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Loading State */}
+            {dcLoading && (
+              <div className="w-full rounded-2xl shadow-xl transition-colors duration-300">
+                <div className={`text-center py-12 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+                  <div className="flex items-center justify-center mb-4">
+                    <svg className="animate-spin w-8 h-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">Loading Outward DCs</h3>
+                  <p className="text-sm">Please wait while we fetch the latest delivery challans...</p>
                 </div>
               </div>
             )}
@@ -1863,7 +1932,7 @@ export default function BulkIssuePage() {
                     Cancel
                   </button>
                   <button
-                    onClick={createDCFromBulkIssue}
+                    onClick={createSimplifiedDC}
                     disabled={selectedItems.length === 0 || isCreatingDC}
                     className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
                       selectedItems.length > 0 && !isCreatingDC
@@ -1884,7 +1953,7 @@ export default function BulkIssuePage() {
                     ) : (
                       <>
                         <FaBoxOpen className="w-4 h-4" />
-                        Create DC from Bulk Issue
+                        Create DC
                       </>
                     )}
                   </button>
