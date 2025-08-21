@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { 
   FaCalendarAlt, 
-  FaCheckCircle, 
+  // FaCheckCircle, 
   
   FaExclamationCircle, 
   
@@ -16,7 +16,7 @@ import {
   FaClock,
   
   
-  FaClock as FaClockIcon,
+  // FaClock as FaClockIcon,
   FaSignInAlt,
   FaSignOutAlt,
 } from 'react-icons/fa';
@@ -29,7 +29,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday} from 'date-fns';
 import { CircularProgressbar as OriginalCircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import { calculateHoursUtc } from '../../utils/attendanceUtils';
+// import { calculateHoursUtc } from '../../utils/attendanceUtils';
 import type { FC } from 'react';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
