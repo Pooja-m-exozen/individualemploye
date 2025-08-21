@@ -1272,7 +1272,7 @@ export default function BulkIssuePage() {
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {uniform.sizes.map((size) => {
-                                const availableQty = uniform.sizeInventory?.find(si => si.size === size)?.quantity || 0;
+                                const availableQty = getAvailableQuantity(uniform, size);
                                 const selectedUniform = selectedUniforms.find(u => u.name === uniform.name && u.size === size);
                                 const currentQty = selectedUniform?.quantity || 0;
                                 
