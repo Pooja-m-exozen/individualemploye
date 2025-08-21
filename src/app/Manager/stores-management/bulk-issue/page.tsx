@@ -74,13 +74,7 @@ interface UniformMapping {
   isActive: boolean;
 }
 
-interface UniformItem {
-  name: string;
-  category: string;
-  subCategory: string;
-  description: string;
-  availableSizes: string[];
-}
+
 
 interface OutwardDC {
   _id: string;
@@ -256,7 +250,7 @@ export default function BulkIssuePage() {
           setOutwardDCs(fallbackData);
         }
         
-        console.log("Final outwardDCs state:", outwardDCs);
+
       } catch (err) {
         console.error("Error fetching outward DCs:", err);
         setDcError("Failed to fetch outward DCs");
