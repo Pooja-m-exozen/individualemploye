@@ -782,7 +782,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                         Select Project <span className="text-red-500">*</span>
                       </label>
                       <p className={`text-sm mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                        Only projects with specific names (not "General" or generic names) are shown.
+                        Only projects with specific names (not &quot;General&quot; or generic names) are shown.
                       </p>
                       <div className="relative">
                         <select

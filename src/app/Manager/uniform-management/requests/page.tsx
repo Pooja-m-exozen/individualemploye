@@ -117,11 +117,11 @@ export default function UniformRequestsPage() {
       if (data.kycForms) {
         // Filter employees by project and exclude the current employee
         const projectEmployees = data.kycForms
-          .filter((kyc: any) => 
+          .filter((kyc: { personalDetails?: { projectName?: string; employeeId?: string } }) => 
             kyc.personalDetails?.projectName === projectName && 
             kyc.personalDetails?.employeeId !== newRequest.employeeId
           )
-          .map((kyc: any) => ({
+          .map((kyc: { personalDetails: { employeeId: string; fullName: string; designation: string } }) => ({
             employeeId: kyc.personalDetails.employeeId,
             fullName: kyc.personalDetails.fullName,
             designation: kyc.personalDetails.designation

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaStore, FaBoxOpen, FaSearch, FaFilter, FaPlus, FaTimes, FaCheckCircle, FaExclamationTriangle, FaDownload, FaUpload, FaUsers, FaTshirt, FaCalendarAlt } from "react-icons/fa";
+import { FaStore, FaBoxOpen, FaSearch, FaPlus, FaTimes, FaExclamationTriangle, FaUsers, FaTshirt, FaCalendarAlt } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { showToast } from "@/components/Toast";
 
@@ -107,8 +107,6 @@ interface OutwardDC {
 
 export default function BulkIssuePage() {
   const { theme } = useTheme();
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10; // Number of items per page
@@ -143,9 +141,6 @@ export default function BulkIssuePage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [uniformMappings, setUniformMappings] = useState<UniformMapping[]>([]);
-  const [availableUniforms, setAvailableUniforms] = useState<InventoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [outwardDCs, setOutwardDCs] = useState<OutwardDC[]>([]);
   const [dcLoading, setDcLoading] = useState(false);
   const [dcError, setDcError] = useState<string | null>(null);
@@ -153,8 +148,6 @@ export default function BulkIssuePage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedDesignations, setSelectedDesignations] = useState<string[]>([]);
   const [selectedUniforms, setSelectedUniforms] = useState<Array<{name: string, quantity: number, size: string}>>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
 
   const [isCreatingDC, setIsCreatingDC] = useState(false);
   const [bulkIssueData, setBulkIssueData] = useState<BulkIssueRequest>({
@@ -169,7 +162,6 @@ export default function BulkIssuePage() {
   // Fetch inventory items, employees, and projects on component mount
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
       try {
         const inventoryRes = await fetch("https://inventory.zenapi.co.in/api/inventory/items");
         const inventoryData = await inventoryRes.json();
@@ -185,13 +177,10 @@ export default function BulkIssuePage() {
         
         if (inventoryData && Array.isArray(inventoryData)) {
           setInventoryItems(inventoryData);
-          const uniqueCategories = Array.from(new Set(inventoryData.map((item: InventoryItem) => item.category)));
-          setCategories(uniqueCategories);
-          setFilteredItems(inventoryData);
         }
         
         if (employeesData && employeesData.kycData) {
-          const employeeList = employeesData.kycData.map((kyc: any) => ({
+          const employeeList = employeesData.kycData.map((kyc: { personalDetails?: { employeeId?: string; fullName?: string; designation?: string; projectName?: string; department?: string } }) => ({
             employeeId: kyc.personalDetails?.employeeId || "",
             fullName: kyc.personalDetails?.fullName || "",
             designation: kyc.personalDetails?.designation || "",
@@ -214,9 +203,6 @@ export default function BulkIssuePage() {
         }
       } catch (err) {
         console.error("Error fetching data:", err);
-        setError("Failed to fetch inventory items, employees, projects, and uniform mappings");
-      } finally {
-        setLoading(false);
       }
     };
     
@@ -298,211 +284,20 @@ export default function BulkIssuePage() {
       console.log("Refresh - Raw API response:", data);
       
       if (data && data.success && Array.isArray(data.data)) {
-        console.log("Refresh - Using data.data (success format)");
         setOutwardDCs(data.data);
       } else if (Array.isArray(data)) {
-        console.log("Refresh - Using data directly (array format)");
         setOutwardDCs(data);
       } else if (data && data.dcs && Array.isArray(data.dcs)) {
-        console.log("Refresh - Using data.dcs format");
         setOutwardDCs(data.dcs);
       } else {
-        console.warn("Refresh - Unexpected outward DC data format:", data);
-        setOutwardDCs([]);
+        console.warn("Unexpected outward DC data format during refresh:", data);
       }
-      setDcError(null);
     } catch (err) {
       console.error("Error refreshing outward DCs:", err);
       setDcError("Failed to refresh outward DCs");
     } finally {
       setDcLoading(false);
     }
-  };
-
-  // Handle viewing DC details
-  const handleViewDC = (dc: OutwardDC) => {
-    // Try to get additional details from local storage
-    const localDCs = JSON.parse(localStorage.getItem('bulk_dcs') || '[]');
-    const localDC = localDCs.find((local: any) => local.dcNumber === dc.dcNumber);
-    
-    let details = `DC Number: ${dc.dcNumber}\n`;
-    details += `Date: ${new Date(dc.dcDate).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })}\n`;
-    details += `Customer: ${dc.customer}\n`;
-    details += `Address: ${dc.address || 'N/A'}\n`;
-    details += `Items: ${dc.items.length}\n`;
-    details += `Remarks: ${dc.remarks || 'N/A'}`;
-    
-    // Add enhanced details if available
-    if (localDC) {
-      details += `\n\n--- Enhanced Details ---\n`;
-      if (localDC.designations) {
-        details += `Designations: ${localDC.designations.join(', ')}\n`;
-      }
-      if (localDC.purpose) {
-        details += `Purpose: ${localDC.purpose}\n`;
-      }
-      if (localDC.totalQuantity) {
-        details += `Total Quantity: ${localDC.totalQuantity} pieces\n`;
-      }
-      if (localDC.projectAddress) {
-        details += `Project Address: ${localDC.projectAddress}\n`;
-      }
-      
-      // Add item breakdown
-      if (localDC.items && localDC.items.length > 0) {
-        details += `\n--- Item Breakdown ---\n`;
-        localDC.items.forEach((item: any, index: number) => {
-          details += `${index + 1}. ${item.itemName || 'Unknown Item'}\n`;
-          details += `   Code: ${item.itemCode || 'N/A'}\n`;
-          details += `   Size: ${item.size || 'N/A'}\n`;
-          details += `   Quantity: ${item.quantity || 'N/A'}\n`;
-          if (item.employeeName) {
-            details += `   Employee: ${item.employeeName}\n`;
-          }
-          if (item.remarks) {
-            details += `   Remarks: ${item.remarks}\n`;
-          }
-          details += '\n';
-        });
-      }
-    } else {
-      // Fallback to basic item details
-      details += `\n\n--- Item Details ---\n`;
-      dc.items.forEach((item, index) => {
-        details += `${index + 1}. ${item.name || 'Unknown Item'}\n`;
-        details += `   Size: ${item.size || 'N/A'}\n`;
-        details += `   Quantity: ${item.quantity || 'N/A'}\n`;
-        if (item.remarks) {
-          details += `   Remarks: ${item.remarks}\n`;
-        }
-        details += '\n';
-      });
-    }
-    
-    showToast({ message: details, type: "info" });
-  };
-
-  // Handle downloading DC
-  const handleDownloadDC = (dc: OutwardDC) => {
-    const dcData = {
-      dcNumber: dc.dcNumber,
-      date: new Date(dc.dcDate).toLocaleDateString(),
-      customer: dc.customer,
-      address: dc.address || 'N/A',
-      items: dc.items,
-      remarks: dc.remarks || 'N/A'
-    };
-
-    const dataStr = JSON.stringify(dcData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${dc.dcNumber}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    showToast({ message: `Downloaded ${dc.dcNumber}`, type: "success" });
-  };
-
-  // Handle search and filtering
-  useEffect(() => {
-    let filtered = inventoryItems;
-    
-    if (search.trim()) {
-      filtered = filtered.filter(item => 
-        item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.itemCode.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    
-    if (categoryFilter) {
-      filtered = filtered.filter(item => item.category === categoryFilter);
-    }
-    
-    setFilteredItems(filtered);
-  }, [search, categoryFilter, inventoryItems]);
-
-  // Handle project selection
-  const handleProjectChange = (projectName: string) => {
-    const project = projects.find(p => p.projectName === projectName);
-    console.log('Project selected:', projectName, 'Project object:', project);
-    
-    if (!project) {
-      console.error('No project found for name:', projectName);
-      showToast({ message: "Project not found. Please try selecting again.", type: "error" });
-      return;
-    }
-    
-    if (!project.projectName || project.projectName.trim() === "") {
-      console.error('Project has no name:', project);
-      showToast({ message: "Selected project has no name. Please select a different project.", type: "error" });
-      return;
-    }
-    
-    setSelectedProject(project);
-    setSelectedDesignations([]);
-    setSelectedUniforms([]);
-    setBulkIssueData(prev => ({ 
-      ...prev, 
-      department: projectName,
-      address: project?.address || ""
-    }));
-    
-    console.log('Project set successfully:', project);
-  };
-
-  // Handle designation selection
-  const handleDesignationChange = (designation: string, checked: boolean) => {
-    if (checked) {
-      setSelectedDesignations(prev => [...prev, designation]);
-    } else {
-      setSelectedDesignations(prev => prev.filter(d => d !== designation));
-    }
-    setSelectedUniforms([]);
-  };
-
-  // Get available designations for selected project
-  const getAvailableDesignations = () => {
-    if (!selectedProject) return [];
-    return selectedProject.designationWiseCount ? Object.keys(selectedProject.designationWiseCount) : [];
-  };
-
-  // Get available uniforms for selected project and designations
-  const getAvailableUniforms = () => {
-    if (!selectedProject || selectedDesignations.length === 0) return [];
-    
-    const availableUniforms: InventoryItem[] = [];
-    
-    selectedDesignations.forEach(designation => {
-      const mapping = uniformMappings.find(m => 
-        m.project === selectedProject.projectName && 
-        m.designations.includes(designation)
-      );
-      
-      if (mapping) {
-        mapping.uniformTypes.forEach(uniformType => {
-          const inventoryItem = inventoryItems.find(item => item.name === uniformType);
-          if (inventoryItem && !availableUniforms.find(u => u._id === inventoryItem._id)) {
-            availableUniforms.push(inventoryItem);
-          }
-        });
-      }
-    });
-    
-    return availableUniforms;
-  };
-
-  // Get employees filtered by selected project
-  const getProjectEmployees = () => {
-    if (!selectedProject) return employees;
-    return employees.filter(emp => emp.projectName === selectedProject.projectName);
   };
 
   // Handle uniform selection and quantity
@@ -526,15 +321,41 @@ export default function BulkIssuePage() {
     });
   };
 
-  // Create mock employee data for bulk issues
-  const createMockEmployeeForBulkIssue = (designations: string[], projectName: string) => {
-    return {
-      employeeId: `BULK_${Date.now()}`,
-      fullName: `Bulk Issue - ${designations.join(', ')}`,
-      designation: designations.join(', '),
-      projectName: projectName,
-      department: projectName
-    };
+  // Get available designations for selected project
+  const getAvailableDesignations = () => {
+    if (!selectedProject) return [];
+    return selectedProject.designationWiseCount ? Object.keys(selectedProject.designationWiseCount) : [];
+  };
+
+  // Get available uniforms for selected project and designations
+  const getAvailableUniforms = () => {
+    if (!selectedProject || selectedDesignations.length === 0) return [];
+    
+    const availableUniforms: InventoryItem[] = [];
+    
+    selectedDesignations.forEach((designation: string) => {
+      const mapping = uniformMappings.find(m => 
+        m.project === selectedProject.projectName && 
+        m.designations.includes(designation)
+      );
+      
+      if (mapping) {
+        mapping.uniformTypes.forEach(uniformType => {
+          const inventoryItem = inventoryItems.find(item => item.name === uniformType);
+          if (inventoryItem && !availableUniforms.find(u => u._id === inventoryItem._id)) {
+            availableUniforms.push(inventoryItem);
+          }
+        });
+      }
+    });
+    
+    return availableUniforms;
+  };
+
+  // Get available quantity for an item and size
+  const getAvailableQuantity = (item: InventoryItem, size: string) => {
+    const sizeInfo = item.sizeInventory.find((si: { size: string; quantity: number }) => si.size === size);
+    return sizeInfo?.quantity || 0;
   };
 
   // Create bulk issue entries
@@ -599,34 +420,6 @@ export default function BulkIssuePage() {
     return entries;
   };
 
-  // Add uniforms to bulk issue
-  const addUniformsToBulkIssue = async () => {
-    if (selectedUniforms.length === 0) {
-      showToast({ message: "Please select at least one uniform with quantity", type: "error" });
-      return;
-    }
-
-    if (!selectedProject || selectedDesignations.length === 0) {
-      showToast({ message: "Please select both project and at least one designation", type: "error" });
-      return;
-    }
-
-    try {
-      const newEntries = createBulkIssueEntries(selectedUniforms, selectedProject, selectedDesignations);
-      
-      setSelectedItems(prev => [...prev, ...newEntries]);
-      showToast({ message: `Added ${newEntries.length} items to bulk issue`, type: "success" });
-      setSelectedUniforms([]);
-      
-    } catch (error) {
-      console.error("Error processing uniforms:", error);
-      showToast({ 
-        message: "Error processing uniforms. Please try again.", 
-        type: "error" 
-      });
-    }
-  };
-
   // Show DC popup for uniforms
   const showDCPopupForUniforms = () => {
     if (selectedUniforms.length === 0) {
@@ -649,31 +442,52 @@ export default function BulkIssuePage() {
         });
         return;
       }
-      
-      setSelectedItems(prev => [...prev, ...newEntries]);
+
+      // Create DC for uniforms
+      const dcNumber = generateDCNumber();
+      const dcPayload = {
+        customer: selectedProject.projectName,
+        dcNumber: dcNumber,
+        dcDate: new Date().toISOString().split('T')[0],
+        remarks: `Bulk issue: ${selectedUniforms.map(u => `${u.name} (${u.quantity} ${u.size})`).join(', ')} for ${selectedDesignations.join(', ')} - ${selectedProject.projectName}`,
+        address: selectedProject.address || "NA",
+        items: newEntries.map(item => ({
+          itemId: item.itemId,
+          quantity: item.quantity,
+          size: item.size,
+          employeeId: item.employeeId,
+          name: item.employeeName,
+          itemCode: item.itemCode,
+          price: "0",
+          remarks: item.remarks
+        }))
+      };
+
+      // Store DC locally
+      const localDCs = JSON.parse(localStorage.getItem('bulk_dcs') || '[]');
+      const newDC = {
+        ...dcPayload,
+        dcId: `local_${Date.now()}`,
+        totalItems: newEntries.length,
+        totalQuantity: newEntries.reduce((sum, item) => sum + item.quantity, 0),
+        designations: selectedDesignations,
+        projectName: selectedProject.projectName
+      };
+      localDCs.push(newDC);
+      localStorage.setItem('bulk_dcs', JSON.stringify(localDCs));
+
       showToast({ 
-        message: `Added ${newEntries.length} items to bulk issue for ${selectedProject.projectName} - ${selectedDesignations.join(', ')}`, 
+        message: `DC ${dcNumber} created successfully with ${newEntries.length} items! Use 'Export DCs' to move to main DC system.`, 
         type: "success" 
       });
+
+      // Clear selections
       setSelectedUniforms([]);
+      setSelectedProject(null);
+      setSelectedDesignations([]);
       
-      // Show summary of what was added
-      const summary: Record<string, { totalQty: number; sizes: Set<string> }> = {};
-      newEntries.forEach(item => {
-        if (!summary[item.itemName]) {
-          summary[item.itemName] = { totalQty: 0, sizes: new Set() };
-        }
-        summary[item.itemName].totalQty += item.quantity;
-        summary[item.itemName].sizes.add(item.size);
-      });
-      
-      const summaryText = Object.entries(summary)
-        .map(([itemName, details]) => 
-          `${itemName}: ${details.totalQty} pieces (sizes: ${Array.from(details.sizes).join(', ')})`
-        )
-        .join('\n');
-      
-      console.log('Bulk Issue Summary:', summaryText);
+      // Refresh outward DCs to show the new DC
+      refreshOutwardDCs();
       
     } catch (error) {
       console.error("Error processing uniforms:", error);
@@ -684,14 +498,34 @@ export default function BulkIssuePage() {
     }
   };
 
-  // Generate unique DC number
+  // Generate DC number
   const generateDCNumber = () => {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const timestamp = Date.now().toString().slice(-6);
-    return `DC-${year}${month}${day}-${timestamp}`;
+    const now = new Date();
+    const dateStr = now.getFullYear().toString() + 
+                   (now.getMonth() + 1).toString().padStart(2, '0') + 
+                   now.getDate().toString().padStart(2, '0');
+    const timeStr = now.getHours().toString().padStart(2, '0') + 
+                   now.getMinutes().toString().padStart(2, '0') + 
+                   now.getSeconds().toString().padStart(2, '0');
+    return `DC-${dateStr}-${timeStr}`;
+  };
+
+  // Handle view DC
+  const handleViewDC = (dc: OutwardDC) => {
+    console.log("Viewing DC:", dc);
+    showToast({ 
+      message: `Viewing DC ${dc.dcNumber}`, 
+      type: "info" 
+    });
+  };
+
+  // Handle download DC
+  const handleDownloadDC = (dc: OutwardDC) => {
+    console.log("Downloading DC:", dc);
+    showToast({ 
+      message: `Downloading DC ${dc.dcNumber}`, 
+      type: "info" 
+    });
   };
 
   // Create simplified DC that matches existing API format
@@ -801,314 +635,6 @@ export default function BulkIssuePage() {
     }
   };
 
-  // Export bulk DCs to main DC system
-  const exportBulkDCsToMainSystem = () => {
-    try {
-      const bulkDCs = JSON.parse(localStorage.getItem('bulk_dcs') || '[]');
-      if (bulkDCs.length === 0) {
-        showToast({ 
-          message: "No bulk DCs to export", 
-          type: "info" 
-        });
-        return;
-      }
-
-      const existingDCs = JSON.parse(localStorage.getItem('dcs') || '[]');
-      const updatedDCs = [...existingDCs, ...bulkDCs];
-      localStorage.setItem('dcs', JSON.stringify(updatedDCs));
-      
-      localStorage.removeItem('bulk_dcs');
-      
-      showToast({ 
-        message: `${bulkDCs.length} bulk DC(s) exported to main DC system`, 
-        type: "success" 
-      });
-      
-    } catch (error) {
-      console.error("Error exporting bulk DCs:", error);
-      showToast({ 
-        message: "Error exporting bulk DCs", 
-        type: "error" 
-      });
-    }
-  };
-
-  // Get locally stored DCs
-  const getLocalDCs = () => {
-    const dcs = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('dc_')) {
-        try {
-          const dcData = JSON.parse(localStorage.getItem(key) || '{}');
-          dcs.push({ key, ...dcData });
-        } catch (e) {
-          console.error('Error parsing local DC data:', e);
-        }
-      }
-    }
-    return dcs;
-  };
-
-  // Show local DCs info
-  const showLocalDCsInfo = () => {
-    const localDCs = getLocalDCs();
-    const bulkDCs = JSON.parse(localStorage.getItem('bulk_dcs') || '[]');
-    
-    if (localDCs.length > 0 || bulkDCs.length > 0) {
-      const totalDCs = localDCs.length + bulkDCs.length;
-      showToast({ 
-        message: `${totalDCs} DC(s) stored locally (${localDCs.length} regular, ${bulkDCs.length} bulk)`, 
-        type: "info" 
-      });
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Regular DCs:', localDCs);
-        console.log('Bulk DCs:', bulkDCs);
-      }
-    } else {
-      showToast({ 
-        message: "No DCs stored locally", 
-        type: "info" 
-      });
-    }
-  };
-
-  const handleAddItem = (item: InventoryItem, size: string, quantity: number, employeeId: string, remarks?: string) => {
-    const employee = employees.find(emp => emp.employeeId === employeeId);
-    if (!employee) return;
-
-    const newItem: BulkIssueItem = {
-      itemId: item._id,
-      itemName: item.name,
-      itemCode: item.itemCode,
-      size,
-      quantity,
-      employeeId,
-      employeeName: employee.fullName,
-      remarks
-    };
-
-    setSelectedItems(prev => [...prev, newItem]);
-    showToast({ message: "Item added to bulk issue list", type: "success" });
-  };
-
-  const handleRemoveItem = (index: number) => {
-    setSelectedItems(prev => prev.filter((_, i) => i !== index));
-    showToast({ message: "Item removed from bulk issue list", type: "info" });
-  };
-
-  const handleSubmitBulkIssue = async () => {
-    if (selectedItems.length === 0) {
-      showToast({ message: "Please add at least one item", type: "error" });
-      return;
-    }
-
-    if (!bulkIssueData.issueTo || !bulkIssueData.department || !bulkIssueData.purpose) {
-      showToast({ message: "Please fill in all required fields (Issue To, Project, and Purpose)", type: "error" });
-      return;
-    }
-
-    if (!selectedProject) {
-      showToast({ message: "Please select a project first", type: "error" });
-      return;
-    }
-
-    if (!selectedProject.projectName) {
-      showToast({ message: "Project information is incomplete. Please reselect the project.", type: "error" });
-      return;
-    }
-
-    if (selectedProject.projectName === "General" || selectedProject.projectName === "N/A" || !selectedProject.projectName.trim()) {
-      showToast({ message: "Please select a valid project with a proper name", type: "error" });
-      return;
-    }
-
-    try {
-      const finalDCNumber = generateDCNumber();
-      
-      // Enhanced final DC payload with proper formatting
-      const finalDCPayload = {
-        customer: selectedProject.projectName,
-        dcNumber: finalDCNumber,
-        dcDate: bulkIssueData.issueDate,
-        remarks: `Final bulk issue: ${bulkIssueData.purpose} for ${selectedDesignations.join(', ')} - ${selectedProject.projectName}`,
-        address: selectedProject.address || bulkIssueData.address || "NA",
-        // Try different field names that the API might expect
-        projectName: selectedProject.projectName,
-        projectAddress: selectedProject.address || bulkIssueData.address || "NA",
-        designations: selectedDesignations,
-        purpose: bulkIssueData.purpose,
-        issueTo: bulkIssueData.issueTo,
-        items: selectedItems.map(item => ({
-          id: item.itemId, // API expects 'id' field, not 'itemId'
-          employeeId: item.employeeId,
-          itemCode: item.itemCode,
-          name: item.itemName, // Use item name instead of employee name
-          itemName: item.itemName, // Try both name and itemName
-          size: item.size,
-          quantity: item.quantity,
-          price: "",
-          remarks: `Employee: ${item.employeeName} | Designation: ${selectedDesignations.join(', ')} | Project: ${selectedProject.projectName} | Purpose: ${bulkIssueData.purpose}`,
-          // Add additional fields that might be needed
-          designation: selectedDesignations.join(', '),
-          project: selectedProject.projectName
-        }))
-      };
-
-      console.log('Enhanced Final DC Payload being sent:', finalDCPayload);
-      console.log('Selected Project:', selectedProject);
-      console.log('Selected Items:', selectedItems);
-      console.log('Bulk Issue Data:', bulkIssueData);
-      console.log('Customer field in payload:', finalDCPayload.customer);
-      console.log('Project name being used:', selectedProject.projectName);
-      
-      // Validate the payload before sending
-      if (!finalDCPayload.customer || finalDCPayload.customer.trim() === "") {
-        showToast({ 
-          message: `Invalid customer name: "${finalDCPayload.customer}". Please select a valid project.`, 
-          type: "error" 
-        });
-        return;
-      }
-      
-      if (finalDCPayload.items.length === 0) {
-        showToast({ 
-          message: "No items in payload. Please add items before creating DC.", 
-          type: "error" 
-        });
-        return;
-      }
-      
-      // Log each item to ensure they have proper data
-      finalDCPayload.items.forEach((item, index) => {
-        console.log(`Final Item ${index + 1}:`, {
-          id: item.id,
-          name: item.name,
-          size: item.size,
-          quantity: item.quantity,
-          employeeId: item.employeeId,
-          remarks: item.remarks
-        });
-      });
-
-      const dcResponse = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalDCPayload),
-      });
-
-      if (dcResponse.ok) {
-        const dcResult = await dcResponse.json();
-        
-        if (dcResult.success) {
-          // Enhanced final DC record with all details
-          const finalDCRecord = {
-            _id: dcResult.dcId,
-            dcNumber: finalDCNumber,
-            customer: selectedProject.projectName,
-            projectName: selectedProject.projectName,
-            projectAddress: selectedProject.address || bulkIssueData.address || "NA",
-            dcDate: bulkIssueData.issueDate,
-            remarks: `Final bulk issue: ${bulkIssueData.purpose} for ${selectedDesignations.join(', ')} - ${selectedProject.projectName}`,
-            designations: selectedDesignations,
-            purpose: bulkIssueData.purpose,
-            issueTo: bulkIssueData.issueTo,
-            items: selectedItems.map(item => ({
-              itemId: item.itemId,
-              itemName: item.itemName,
-              itemCode: item.itemCode,
-              employeeId: item.employeeId,
-              employeeName: item.employeeName,
-              size: item.size,
-              quantity: item.quantity,
-              remarks: item.remarks || `Bulk issue for ${selectedProject.projectName}`
-            })),
-            totalItems: selectedItems.length,
-            totalQuantity: selectedItems.reduce((sum, item) => sum + item.quantity, 0),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            __v: 0
-          };
-
-          const existingDCs = JSON.parse(localStorage.getItem('bulk_dcs') || '[]');
-          existingDCs.push(finalDCRecord);
-          localStorage.setItem('bulk_dcs', JSON.stringify(existingDCs));
-
-          const payload = {
-            ...bulkIssueData,
-            items: selectedItems.map(item => ({
-              id: item.itemId,
-              quantity: item.quantity,
-              size: item.size,
-              employeeId: item.employeeId
-            }))
-          };
-
-          const response = await fetch('https://inventory.zenapi.co.in/api/inventory/issue', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            showToast({ 
-              message: `Bulk issue created successfully! DC Number: ${finalDCNumber}, DC ID: ${dcResult.dcId}`, 
-              type: "success" 
-            });
-            
-            setSelectedItems([]);
-            setBulkIssueData({
-              issueTo: "",
-              department: "",
-              purpose: "",
-              address: "",
-              issueDate: new Date().toISOString().split('T')[0],
-              items: []
-            });
-            setSelectedProject(null);
-            setShowCreateModal(false);
-            
-            showToast({ 
-              message: `Complete! Bulk issue submitted and DC ${finalDCNumber} created with ${finalDCRecord.totalItems} items for ${finalDCRecord.totalQuantity} pieces. Use 'Export DCs' to move to main DC system.`, 
-              type: "success" 
-            });
-            
-          } else {
-            const errorData = await response.json();
-            showToast({ 
-              message: errorData.message || "Failed to create bulk issue", 
-              type: "error" 
-            });
-          }
-        } else {
-          showToast({ 
-            message: dcResult.message || "Failed to create DC for bulk issue", 
-            type: "error" 
-          });
-        }
-      } else {
-        const errorData = await dcResponse.json();
-        showToast({ 
-          message: errorData.message || "Failed to create DC for bulk issue", 
-          type: "error" 
-        });
-      }
-    } catch (error) {
-      console.error("Error creating bulk issue:", error);
-      showToast({ 
-        message: "An error occurred while creating bulk issue", 
-        type: "error" 
-      });
-    }
-  };
-
-  const getAvailableQuantity = (item: InventoryItem, size: string) => {
-    const sizeInfo = item.sizeInventory.find(si => si.size === size);
-    return sizeInfo?.quantity || 0;
-  };
-
   // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -1118,9 +644,6 @@ export default function BulkIssuePage() {
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
   };
-
-  
-
 
   return (
     <ManagerDashboardLayout>
@@ -1276,7 +799,7 @@ export default function BulkIssuePage() {
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700 bg-gray-900" : "divide-gray-200 bg-white"}`}>
-                      {currentDCs.map((dc, index) => (
+                      {currentDCs.map((dc) => (
                         <tr key={dc._id} className={`transition ${theme === "dark" ? "hover:bg-blue-950" : "hover:bg-blue-100"}`}>
                           <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-gray-100" : "text-black"}`}>
                             {dc.dcNumber}
@@ -1299,7 +822,7 @@ export default function BulkIssuePage() {
                               {/* Try to get enhanced project info from local storage */}
                               {(() => {
                                 const localDCs = JSON.parse(localStorage.getItem('bulk_dcs') || '[]');
-                                const localDC = localDCs.find((local: any) => local.dcNumber === dc.dcNumber);
+                                const localDC = localDCs.find((local: { dcNumber: string; designations?: string[] }) => local.dcNumber === dc.dcNumber);
                                 if (localDC && localDC.designations) {
                                   return (
                                     <div className={`text-xs mt-1 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`}>
@@ -1321,7 +844,7 @@ export default function BulkIssuePage() {
                               {/* Try to get enhanced item info from local storage */}
                               {(() => {
                                 const localDCs = JSON.parse(localStorage.getItem('bulk_dcs') || '[]');
-                                const localDC = localDCs.find((local: any) => local.dcNumber === dc.dcNumber);
+                                const localDC = localDCs.find((local: { dcNumber: string; totalQuantity?: number }) => local.dcNumber === dc.dcNumber);
                                 if (localDC && localDC.totalQuantity) {
                                   return (
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -1551,7 +1074,7 @@ export default function BulkIssuePage() {
                     </label>
                     <select
                       value={bulkIssueData.department}
-                      onChange={e => handleProjectChange(e.target.value)}
+                      onChange={e => setBulkIssueData(prev => ({ ...prev, department: e.target.value }))}
                       className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
                         theme === "dark"
                           ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
@@ -1582,7 +1105,13 @@ export default function BulkIssuePage() {
                               <input
                                 type="checkbox"
                                 checked={selectedDesignations.includes(designation)}
-                                onChange={(e) => handleDesignationChange(designation, e.target.checked)}
+                                onChange={(e) => setSelectedDesignations(prev => {
+                                  if (e.target.checked) {
+                                    return [...prev, designation];
+                                  } else {
+                                    return prev.filter(d => d !== designation);
+                                  }
+                                })}
                                 className={`w-4 h-4 rounded border-2 focus:ring-2 focus:ring-offset-0 transition-colors ${
                                   theme === "dark"
                                     ? "bg-gray-700 border-gray-500 text-blue-400 focus:ring-blue-900"
@@ -1890,7 +1419,7 @@ export default function BulkIssuePage() {
                               </td>
                               <td className="px-3 py-2 text-sm">
                                 <button
-                                  onClick={() => handleRemoveItem(index)}
+                                  onClick={() => setSelectedItems(prev => prev.filter((_, i) => i !== index))}
                                   className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                                     theme === "dark" 
                                       ? "bg-red-800 text-red-200 hover:bg-red-700" 
@@ -1932,7 +1461,10 @@ export default function BulkIssuePage() {
                     Cancel
                   </button>
                   <button
-                    onClick={createSimplifiedDC}
+                    onClick={() => {
+                      setIsCreatingDC(true);
+                      createSimplifiedDC();
+                    }}
                     disabled={selectedItems.length === 0 || isCreatingDC}
                     className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
                       selectedItems.length > 0 && !isCreatingDC
