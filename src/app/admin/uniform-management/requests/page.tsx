@@ -107,6 +107,9 @@ export default function UniformRequestsPage() {
     fullName: string;
     designation: string;
   }>>([]);
+  
+  // Add state for form values
+  const [formValues, setFormValues] = useState<{ [key: string]: { size: string; qty: number } }>({});
 
   // Reset modal state when opening
   const handleOpenModal = () => {
@@ -119,6 +122,7 @@ export default function UniformRequestsPage() {
       replacedEmployeeId: null
     });
     setSelectedUniforms([]);
+    setFormValues({});
     setUniformOptions([]);
     setEmployeeDetails(null);
     setOptionsError(null);
@@ -419,6 +423,8 @@ export default function UniformRequestsPage() {
       setMaxQuantity(5);
       setOptionsError(null);
       setProjectEmployees([]);
+      setSelectedUniforms([]);
+      setFormValues({});
     }
   }, [showCreateModal, newRequest.employeeId, newRequest.replacementType]);
 
@@ -439,6 +445,12 @@ export default function UniformRequestsPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [search, statusFilter]);
+
+  // Debug: Monitor selectedUniforms changes
+  useEffect(() => {
+    console.log('selectedUniforms state changed:', selectedUniforms);
+    console.log('selectedUniforms.length:', selectedUniforms.length);
+  }, [selectedUniforms]);
 
   // Fetch employee images for requests
   useEffect(() => {
@@ -576,7 +588,24 @@ export default function UniformRequestsPage() {
                 <div className="p-8 border-b">
                   <button
                     className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setNewRequest({ 
+                        employeeId: "", 
+                        qty: 1, 
+                        remarks: "",
+                        replacementType: 'New',
+                        replacedEmployeeId: null
+                      });
+                      setSelectedUniforms([]);
+                      setFormValues({});
+                      setUniformOptions([]);
+                      setEmployeeDetails(null);
+                      setMaxQuantity(5);
+                      setOptionsError(null);
+                      setOptionsLoading(false);
+                      setProjectEmployees([]);
+                    }}
                     title="Close"
                   >×</button>
                   <h2 className={`text-2xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>
@@ -718,7 +747,27 @@ export default function UniformRequestsPage() {
                                       <select
                                         className="w-20 border rounded px-1 py-0.5 text-xs"
                                         id={`size-${option.type}`}
-                                        defaultValue={sizesArray[0] || ''}
+                                        value={formValues[option.type]?.size || sizesArray[0] || ''}
+                                        onChange={(e) => {
+                                          const newSize = e.target.value;
+                                          setFormValues(prev => ({
+                                            ...prev,
+                                            [option.type]: {
+                                              ...prev[option.type],
+                                              size: newSize,
+                                              qty: prev[option.type]?.qty || 1
+                                            }
+                                          }));
+                                          
+                                          // Update selectedUniforms if this item is already selected
+                                          if (selectedUniforms.some(u => u.type === option.type)) {
+                                            setSelectedUniforms(prev => prev.map(u => 
+                                              u.type === option.type 
+                                                ? { ...u, size: newSize }
+                                                : u
+                                            ));
+                                          }
+                                        }}
                                       >
                                         {sizesArray.map((size: string) => (
                                           <option key={size} value={size}>{size}</option>
@@ -730,9 +779,28 @@ export default function UniformRequestsPage() {
                                         type="number"
                                         min={1}
                                         max={maxQuantity}
-                                        defaultValue={1}
+                                        value={formValues[option.type]?.qty || 1}
                                         className="w-16 border rounded px-1 py-0.5"
                                         id={`qty-${option.type}`}
+                                        onChange={(e) => {
+                                          const newQty = Number(e.target.value);
+                                          setFormValues(prev => ({
+                                            ...prev,
+                                            [option.type]: {
+                                              size: prev[option.type]?.size || sizesArray[0] || '',
+                                              qty: newQty
+                                            }
+                                          }));
+                                          
+                                          // Update selectedUniforms if this item is already selected
+                                          if (selectedUniforms.some(u => u.type === option.type)) {
+                                            setSelectedUniforms(prev => prev.map(u => 
+                                              u.type === option.type 
+                                                ? { ...u, qty: newQty }
+                                                : u
+                                            ));
+                                          }
+                                        }}
                                       />
                                     </td>
                                     <td className="px-2 py-1">
@@ -744,10 +812,9 @@ export default function UniformRequestsPage() {
                                             : 'bg-blue-500 text-white hover:bg-blue-600'
                                         }`}
                                         onClick={() => {
-                                          const sizeSelect = document.getElementById(`size-${option.type}`) as HTMLSelectElement;
-                                          const qtyInput = document.getElementById(`qty-${option.type}`) as HTMLInputElement;
-                                          const selectedSize = sizeSelect?.value || sizesArray[0];
-                                          const qty = Number(qtyInput?.value || 1);
+                                          const currentFormValues = formValues[option.type];
+                                          const selectedSize = currentFormValues?.size || sizesArray[0] || '';
+                                          const qty = currentFormValues?.qty || 1;
                                           
                                           // Check if this item type is already selected (regardless of size)
                                           const isAlreadySelected = selectedUniforms.some(u => u.type === option.type);
@@ -755,6 +822,12 @@ export default function UniformRequestsPage() {
                                           if (isAlreadySelected) {
                                             // Remove the item if already selected
                                             setSelectedUniforms(prev => prev.filter(u => u.type !== option.type));
+                                            // Also remove from formValues
+                                            setFormValues(prev => {
+                                              const newValues = { ...prev };
+                                              delete newValues[option.type];
+                                              return newValues;
+                                            });
                                           } else {
                                             // Prevent exceeding maxQuantity
                                             const totalQty = selectedUniforms.reduce((acc, u) => acc + u.qty, 0) + qty;
@@ -772,6 +845,14 @@ export default function UniformRequestsPage() {
                                                 qty
                                               }
                                             ]);
+                                            // Ensure formValues has the current values
+                                            setFormValues(prev => ({
+                                              ...prev,
+                                              [option.type]: {
+                                                size: selectedSize,
+                                                qty
+                                              }
+                                            }));
                                           }
                                         }}
                                         title={

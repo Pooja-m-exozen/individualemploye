@@ -93,6 +93,9 @@ export default function UniformRequestsPage() {
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [employeeImages, setEmployeeImages] = useState<{ [id: string]: string }>({});
+  
+  // Add state for form values
+  const [formValues, setFormValues] = useState<{ [key: string]: { size: string; qty: number } }>({});
 
   useEffect(() => {
     fetchRequests();
@@ -174,6 +177,7 @@ export default function UniformRequestsPage() {
       setShowCreateModal(false);
       setNewRequest({ employeeId: "", qty: 1, remarks: "" });
       setSelectedUniforms([]);
+      setFormValues({});
       setCreateLoading(false);
       setToast({ type: "success", message: "Uniform request created successfully." });
       setTimeout(() => setToast(null), 3500);
@@ -249,6 +253,8 @@ export default function UniformRequestsPage() {
       setEmployeeDetails(null);
       setMaxQuantity(5);
       setOptionsError(null);
+      setSelectedUniforms([]);
+      setFormValues({});
     }
   }, [showCreateModal, newRequest.employeeId]);
 
@@ -268,6 +274,12 @@ export default function UniformRequestsPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [search, statusFilter]);
+
+  // Debug: Monitor selectedUniforms changes
+  useEffect(() => {
+    console.log('selectedUniforms state changed:', selectedUniforms);
+    console.log('selectedUniforms.length:', selectedUniforms.length);
+  }, [selectedUniforms]);
 
   // Fetch employee images for requests
   useEffect(() => {
@@ -309,7 +321,17 @@ export default function UniformRequestsPage() {
               <p className="text-lg text-blue-100">Approve or reject pending uniform requests</p>
             </div>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                setShowCreateModal(true);
+                setNewRequest({ employeeId: "", qty: 1, remarks: "" });
+                setSelectedUniforms([]);
+                setFormValues({});
+                setUniformOptions([]);
+                setEmployeeDetails(null);
+                setMaxQuantity(5);
+                setOptionsLoading(false);
+                setOptionsError(null);
+              }}
               className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold shadow hover:from-green-600 hover:to-green-700 transition focus:outline-none focus:ring-2 focus:ring-green-400"
             >
               <FaPlus /> Create Request
@@ -378,7 +400,17 @@ export default function UniformRequestsPage() {
                 )}
                 <button
                   className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setNewRequest({ employeeId: "", qty: 1, remarks: "" });
+                    setSelectedUniforms([]);
+                    setFormValues({});
+                    setUniformOptions([]);
+                    setEmployeeDetails(null);
+                    setMaxQuantity(5);
+                    setOptionsLoading(false);
+                    setOptionsError(null);
+                  }}
                   title="Close"
                 >×</button>
                 <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}><FaTshirt /> Create Uniform Request</h2>
@@ -427,9 +459,19 @@ export default function UniformRequestsPage() {
                                       type="number"
                                       min={1}
                                       max={maxQuantity}
-                                      defaultValue={1}
+                                      value={formValues[`${option.type}-${sizeOrSet}`]?.qty || 1}
                                       className="w-16 border rounded px-1 py-0.5"
                                       id={`qty-${option.type}-${sizeOrSet}`}
+                                      onChange={(e) => {
+                                        const newQty = Number(e.target.value);
+                                        setFormValues(prev => ({
+                                          ...prev,
+                                          [`${option.type}-${sizeOrSet}`]: {
+                                            size: sizeOrSet,
+                                            qty: newQty
+                                          }
+                                        }));
+                                      }}
                                     />
                                   </td>
                                   <td className="px-2 py-1">
@@ -437,8 +479,9 @@ export default function UniformRequestsPage() {
                                       type="button"
                                       className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
                                       onClick={() => {
-                                        const qtyInput = document.getElementById(`qty-${option.type}-${sizeOrSet}`) as HTMLInputElement;
-                                        const qty = Number(qtyInput?.value || 1);
+                                        const currentFormValues = formValues[`${option.type}-${sizeOrSet}`];
+                                        const qty = currentFormValues?.qty || 1;
+                                        
                                         // Prevent exceeding maxQuantity
                                         const totalQty = selectedUniforms.reduce((acc, u) => acc + u.qty, 0) + qty;
                                         if (totalQty > maxQuantity) {
@@ -446,6 +489,7 @@ export default function UniformRequestsPage() {
                                           setTimeout(() => setToast(null), 3500);
                                           return;
                                         }
+                                        
                                         setSelectedUniforms(prev => [
                                           ...prev,
                                           {
@@ -454,6 +498,15 @@ export default function UniformRequestsPage() {
                                             qty
                                           }
                                         ]);
+                                        
+                                        // Ensure formValues has the current values
+                                        setFormValues(prev => ({
+                                          ...prev,
+                                          [`${option.type}-${sizeOrSet}`]: {
+                                            size: sizeOrSet,
+                                            qty
+                                          }
+                                        }));
                                       }}
                                     >Add</button>
                                   </td>

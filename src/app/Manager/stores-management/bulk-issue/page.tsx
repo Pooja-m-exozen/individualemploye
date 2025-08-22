@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaStore, FaBoxOpen, FaSearch, FaFilter, FaPlus, FaTimes, FaCheckCircle, FaExclamationTriangle, FaDownload, FaUpload, FaUsers, FaTshirt, FaCalendarAlt } from "react-icons/fa";
+import { FaStore, FaBoxOpen, FaSearch,FaPlus, FaTimes, FaExclamationTriangle, FaDownload, FaUsers, FaTshirt, FaCalendarAlt } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { showToast } from "@/components/Toast";
 
@@ -74,13 +74,6 @@ interface UniformMapping {
   isActive: boolean;
 }
 
-interface UniformItem {
-  name: string;
-  category: string;
-  subCategory: string;
-  description: string;
-  availableSizes: string[];
-}
 
 interface Issue {
   _id: string;
@@ -154,7 +147,6 @@ export default function BulkIssuePage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [uniformMappings, setUniformMappings] = useState<UniformMapping[]>([]);
-  const [availableUniforms, setAvailableUniforms] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -1383,10 +1375,6 @@ export default function BulkIssuePage() {
     }
   };
 
-  const getAvailableQuantity = (item: InventoryItem, size: string) => {
-    const sizeInfo = item.sizeInventory.find(si => si.size === size);
-    return sizeInfo?.quantity || 0;
-  };
 
   // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
