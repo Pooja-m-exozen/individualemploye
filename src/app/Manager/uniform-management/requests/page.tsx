@@ -31,7 +31,8 @@ interface UniformRequest {
 interface UniformOption {
   type: string;
   sizes?: string[];
-  set?: string[];
+  set?: string;
+  sizeInventory?: { size: string; quantity: number; unit: string }[]; // Added for inventory info
 }
 interface EmployeeDetails {
   employeeId: string;
@@ -86,7 +87,7 @@ export default function UniformRequestsPage() {
     employeeId: "", 
     qty: 1, 
     remarks: "",
-    replacementType: 'New',
+    replacementType: 'New', // Always initialize with a value
     replacedEmployeeId: null
   });
 
@@ -97,7 +98,7 @@ export default function UniformRequestsPage() {
       employeeId: "", 
       qty: 1, 
       remarks: "",
-      replacementType: 'New',
+      replacementType: 'New', // Always set to 'New' for consistency
       replacedEmployeeId: null
     });
     setSelectedUniforms([]);
@@ -315,7 +316,7 @@ const handleCreateRequest = async (e: React.FormEvent) => {
       employeeId: "", 
       qty: 1, 
       remarks: "",
-      replacementType: 'New',
+      replacementType: 'New', // Always reset to 'New' for consistency
       replacedEmployeeId: null
     });
     setSelectedUniforms([]);
@@ -349,18 +350,53 @@ const handleCreateRequest = async (e: React.FormEvent) => {
       setOptionsError(null);
       console.log('Fetching uniform options for:', newRequest.employeeId);
       
-      fetch(`https://cafm.zenapi.co.in/api/uniforms/${newRequest.employeeId}/options`)
-        .then(res => res.json())
-        .then(data => {
-          console.log('Uniform options API response:', data);
-          if (data.success) {
-            setUniformOptions(data.uniformOptions || []);
-            setEmployeeDetails(data.employeeDetails || null);
-            setOptionsError(null); // Clear any previous errors
+      // Fetch both uniform options and inventory data
+      Promise.all([
+        fetch(`https://cafm.zenapi.co.in/api/uniforms/${newRequest.employeeId}/options`),
+        fetch("https://inventory.zenapi.co.in/api/inventory/items")
+      ])
+        .then(responses => Promise.all(responses.map(res => res.json())))
+        .then(([uniformData, inventoryData]) => {
+          console.log('Uniform options API response:', uniformData);
+          console.log('Inventory API response:', inventoryData);
+          
+          if (uniformData.success) {
+            let uniformOptions = uniformData.uniformOptions || [];
+            setEmployeeDetails(uniformData.employeeDetails || null);
+            setOptionsError(null);
+            
+            // If replacement type is selected, fetch project employees
+            if (newRequest.replacementType === 'Replacement' && uniformData.employeeDetails?.projectName) {
+              fetchProjectEmployees(uniformData.employeeDetails.projectName);
+            }
+            
+            // Merge inventory data with uniform options
+            if (Array.isArray(inventoryData)) {
+              uniformOptions = uniformOptions.map((option: UniformOption) => {
+                // Find matching inventory item by type/name
+                const inventoryItem = inventoryData.find(inv => 
+                  inv.name === option.type || 
+                  inv.type === option.type ||
+                  inv.itemCode?.includes(option.type.toUpperCase())
+                );
+                
+                if (inventoryItem && inventoryItem.sizeInventory) {
+                  return {
+                    ...option,
+                    sizeInventory: inventoryItem.sizeInventory,
+                    // Also update sizes array to include all available sizes from inventory
+                    sizes: inventoryItem.sizes || option.sizes
+                  };
+                }
+                return option;
+              });
+            }
+            
+            setUniformOptions(uniformOptions);
           } else {
             setUniformOptions([]);
             setEmployeeDetails(null);
-            setOptionsError(data.message || 'No options available');
+            setOptionsError(uniformData.message || 'No options available');
           }
           setOptionsLoading(false);
         })
@@ -375,8 +411,9 @@ const handleCreateRequest = async (e: React.FormEvent) => {
       setUniformOptions([]);
       setEmployeeDetails(null);
       setOptionsError(null);
+      setProjectEmployees([]);
     }
-  }, [showCreateModal, newRequest.employeeId]);
+  }, [showCreateModal, newRequest.employeeId, newRequest.replacementType]);
 
 
   // Filtered requests by search and status
@@ -617,9 +654,36 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                     )}
                     
                     <div>
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items</label>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items (Complete selection = 1 Set)</label>
                       
-
+                      {/* Complete Set Indicator */}
+                      {uniformOptions.length > 0 && (
+                        <div className={`mb-3 p-3 rounded-lg border-2 ${
+                          selectedUniforms.length === uniformOptions.length 
+                            ? 'bg-green-50 border-green-300 text-green-800' 
+                            : 'bg-blue-50 border-blue-300 text-blue-800'
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            {selectedUniforms.length === uniformOptions.length ? (
+                              <>
+                                <span className="text-green-600 text-lg">✓</span>
+                                <span className="font-semibold">Complete Uniform Set Selected!</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-blue-600 text-lg">ℹ</span>
+                                <span className="font-semibold">Select all items to complete 1 uniform set</span>
+                              </>
+                            )}
+                          </div>
+                          <div className="text-sm mt-1">
+                            {selectedUniforms.length} of {uniformOptions.length} items selected
+                            {selectedUniforms.length === uniformOptions.length && (
+                              <span className="ml-2 font-semibold text-green-700">= 1 Complete Set</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       
                       {optionsLoading ? (
                         <div className="text-blue-400">Loading options...</div>
@@ -628,48 +692,87 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                           <table className="min-w-full text-xs">
                             <thead>
                               <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
-                                <th className="px-2 py-1">Type</th>
-                                <th className="px-2 py-1">Size/Set</th>
-                                <th className="px-2 py-1">Qty</th>
+                                <th className="px-2 py-1">Set Type</th>
+                                <th className="px-2 py-1">Set Contents</th>
+                                <th className="px-2 py-1">Request Qty</th>
                                 <th className="px-2 py-1"></th>
                               </tr>
                             </thead>
                             <tbody>
-                              {uniformOptions.map(option => (
-                                (option.sizes || option.set)?.map((sizeOrSet: string) => (
-                                  <tr key={option.type + sizeOrSet}>
+                              {uniformOptions.map(option => {
+                                // Get sizes array, handling both sizes and set properties
+                                const sizesArray = option.sizes || (option.set ? (Array.isArray(option.set) ? option.set : [option.set]) : []);
+                                
+                                return (
+                                  <tr key={option.type}>
                                     <td className="px-2 py-1">{option.type}</td>
-                                    <td className="px-2 py-1">{sizeOrSet}</td>
+                                    <td className="px-2 py-1">
+                                      <select
+                                        className="w-20 border rounded px-1 py-0.5 text-xs"
+                                        id={`size-${option.type}`}
+                                        defaultValue={sizesArray[0] || ''}
+                                      >
+                                        {sizesArray.map((size: string) => (
+                                          <option key={size} value={size}>{size}</option>
+                                        ))}
+                                      </select>
+                                    </td>
                                     <td className="px-2 py-1">
                                       <input
                                         type="number"
                                         min={1}
                                         defaultValue={1}
                                         className="w-16 border rounded px-1 py-0.5"
-                                        id={`qty-${option.type}-${sizeOrSet}`}
+                                        id={`qty-${option.type}`}
                                       />
                                     </td>
                                     <td className="px-2 py-1">
                                       <button
                                         type="button"
-                                        className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                                        className={`px-2 py-1 rounded text-xs font-semibold transition-all ${
+                                          selectedUniforms.some(u => u.type === option.type)
+                                            ? 'bg-green-500 text-white cursor-default'
+                                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                                        }`}
                                         onClick={() => {
-                                          const qtyInput = document.getElementById(`qty-${option.type}-${sizeOrSet}`) as HTMLInputElement;
+                                          const sizeSelect = document.getElementById(`size-${option.type}`) as HTMLSelectElement;
+                                          const qtyInput = document.getElementById(`qty-${option.type}`) as HTMLInputElement;
+                                          const selectedSize = sizeSelect?.value || sizesArray[0];
                                           const qty = Number(qtyInput?.value || 1);
-                                          setSelectedUniforms(prev => [
-                                            ...prev,
-                                            {
-                                              type: option.type,
-                                              size: sizeOrSet,
-                                              qty
-                                            }
-                                          ]);
+                                          
+                                          // Check if this item type is already selected (regardless of size)
+                                          const isAlreadySelected = selectedUniforms.some(u => u.type === option.type);
+                                          
+                                          if (isAlreadySelected) {
+                                            // Remove the item if already selected
+                                            setSelectedUniforms(prev => prev.filter(u => u.type !== option.type));
+                                          } else {
+                                            // Add the item
+                                            setSelectedUniforms(prev => [
+                                              ...prev,
+                                              {
+                                                type: option.type,
+                                                size: selectedSize,
+                                                qty
+                                              }
+                                            ]);
+                                          }
                                         }}
-                                      >Add</button>
+                                        title={
+                                          selectedUniforms.some(u => u.type === option.type)
+                                            ? 'Click to remove from request'
+                                            : 'Add to request'
+                                        }
+                                      >
+                                        {selectedUniforms.some(u => u.type === option.type)
+                                          ? '✓'
+                                          : 'Add'
+                                        }
+                                      </button>
                                     </td>
                                   </tr>
-                                ))
-                              ))}
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -718,26 +821,6 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                       />
                     </div>
                     
-                    {/* Set Count Information */}
-                    <div>
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Set Count Information</label>
-                      <div className={`px-3 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-600'}`}>
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span>Current selection:</span>
-                            <span className={`font-semibold ${selectedUniforms.length > 0 ? 'text-blue-600' : 'text-gray-500'}`}>
-                              {selectedUniforms.reduce((acc, u) => acc + u.qty, 0)} sets
-                            </span>
-                          </div>
-                          {employeeDetails && (
-                            <div className="flex justify-between items-center text-sm">
-                              <span>Previous requests:</span>
-                              <span className="text-orange-600">1 set (Shirt: 40, Pant: 36)</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
                   </form>
                 </div>
 

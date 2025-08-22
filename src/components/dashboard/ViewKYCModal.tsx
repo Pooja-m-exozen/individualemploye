@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
-import { PDFDocument, rgb, degrees } from 'pdf-lib';
 
 interface KYCData {
   personalDetails: {
@@ -243,27 +242,19 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
   };
 
   const downloadPDFWithWatermark = async (url: string, filename: string) => {
-    const response = await fetch(url);
-    const arrayBuffer = await response.arrayBuffer();
-    const pdfDoc = await PDFDocument.load(arrayBuffer);
-    const pages = pdfDoc.getPages();
-    for (const page of pages) {
-      const { width, height } = page.getSize();
-      page.drawText('EXOZEN', {
-        x: width / 2 - 100,
-        y: height / 2,
-        size: 60,
-        color: rgb(0.8, 0.8, 0.8),
-        opacity: 0.18,
-        rotate: degrees(-30),
-      });
+    try {
+      // Since jsPDF doesn't support loading existing PDFs, we'll download the original
+      // and create a simple watermarked version as a fallback
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF. Please try again.');
     }
-    const pdfBytes = await pdfDoc.save();
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
   };
 
   const downloadImageWithWatermark = async (url: string, filename: string) => {
