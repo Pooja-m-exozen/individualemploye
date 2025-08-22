@@ -90,8 +90,6 @@ export default function UniformRequestsPage() {
   });
   const [createLoading, setCreateLoading] = useState(false);
   // Pagination and filter state
-  const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 10;
   const [statusFilter, setStatusFilter] = useState<'All' | 'Approved' | 'Pending'>('All');
   const [selectedUniforms, setSelectedUniforms] = useState<SelectedUniform[]>([]);
   const [uniformOptions, setUniformOptions] = useState<UniformOption[]>([]);
@@ -386,12 +384,11 @@ export default function UniformRequestsPage() {
       req.employee.employeeId.toLowerCase().includes(search.toLowerCase()))
   );
 
-  // Pagination logic for table view
-  const totalRows = filteredRequests.length;
+  // Filtered requests ready for display
 
-  // Reset to page 1 if filter/search changes
+  // Reset filters when search/status changes
   useEffect(() => {
-    setCurrentPage(1);
+    // Reset any filters if needed
   }, [search, statusFilter]);
 
   // Debug: Monitor selectedUniforms changes
@@ -434,7 +431,7 @@ export default function UniformRequestsPage() {
         }));
       }
     }
-  }, [searchParams, newRequest.employeeId, fetchProjectEmployees]);
+  }, [searchParams, newRequest.employeeId]);
 
   return (
     <ManagerOpsLayout>
