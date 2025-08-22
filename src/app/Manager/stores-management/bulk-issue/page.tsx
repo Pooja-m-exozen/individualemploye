@@ -105,8 +105,6 @@ interface Issue {
 
 export default function BulkIssuePage() {
   const { theme } = useTheme();
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10; // Number of items per page
@@ -147,8 +145,6 @@ export default function BulkIssuePage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [uniformMappings, setUniformMappings] = useState<UniformMapping[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [issuesLoading, setIssuesLoading] = useState(false);
   const [issuesError, setIssuesError] = useState<string | null>(null);
@@ -156,8 +152,6 @@ export default function BulkIssuePage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedDesignations, setSelectedDesignations] = useState<string[]>([]);
   const [selectedUniforms, setSelectedUniforms] = useState<Array<{name: string, quantity: number, size: string}>>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
 
   const [isCreatingIssue, setIsCreatingIssue] = useState(false);
   const [bulkIssueData, setBulkIssueData] = useState<BulkIssueRequest>({
@@ -174,7 +168,6 @@ export default function BulkIssuePage() {
   // Fetch inventory items, employees, and projects on component mount
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
       try {
         const inventoryRes = await fetch("https://inventory.zenapi.co.in/api/inventory/items");
         const inventoryData = await inventoryRes.json();
@@ -190,13 +183,10 @@ export default function BulkIssuePage() {
         
         if (inventoryData && Array.isArray(inventoryData)) {
           setInventoryItems(inventoryData);
-          const uniqueCategories = Array.from(new Set(inventoryData.map((item: InventoryItem) => item.category)));
-          setCategories(uniqueCategories);
-          setFilteredItems(inventoryData);
         }
         
         if (employeesData && employeesData.kycData) {
-          const employeeList = employeesData.kycData.map((kyc: any) => ({
+          const employeeList = employeesData.kycData.map((kyc: { personalDetails?: { employeeId?: string; fullName?: string; designation?: string; projectName?: string; department?: string } }) => ({
             employeeId: kyc.personalDetails?.employeeId || "",
             fullName: kyc.personalDetails?.fullName || "",
             designation: kyc.personalDetails?.designation || "",
@@ -219,9 +209,6 @@ export default function BulkIssuePage() {
         }
       } catch (err) {
         console.error("Error fetching data:", err);
-        setError("Failed to fetch inventory items, employees, projects, and uniform mappings");
-      } finally {
-        setLoading(false);
       }
     };
     
@@ -552,172 +539,9 @@ export default function BulkIssuePage() {
     });
   };
 
-  // Handle printing issue details
-  const handlePrintIssue = (issue: Issue) => {
-    // Create a print-friendly version of the issue details
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Issue Report - ${issue._id}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
-            .section { margin-bottom: 30px; }
-            .section h3 { color: #2563eb; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
-            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-            .info-item { margin-bottom: 15px; }
-            .label { font-weight: bold; color: #374151; }
-            .value { color: #111827; }
-            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-            th { background-color: #f3f4f6; font-weight: bold; }
-            .summary { background-color: #eff6ff; padding: 20px; border-radius: 8px; }
-            .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; }
-            .summary-item .number { font-size: 24px; font-weight: bold; color: #2563eb; }
-            .summary-item .label { color: #374151; font-size: 14px; }
-            @media print { body { margin: 0; } .no-print { display: none; } }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Issue Report</h1>
-            <p>Generated on ${new Date().toLocaleString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}</p>
-          </div>
 
-          <div class="section">
-            <h3>Issue Information</h3>
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="label">Issue ID:</span>
-                <span class="value">${issue._id}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Issue Date:</span>
-                <span class="value">${new Date(issue.issueDate).toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Issue To:</span>
-                <span class="value">${issue.issueTo}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Department:</span>
-                <span class="value">${issue.department}</span>
-              </div>
-              <div class="info-item" style="grid-column: 1 / -1;">
-                <span class="label">Purpose:</span>
-                <span class="value">${issue.purpose || 'No purpose specified'}</span>
-              </div>
-            </div>
-          </div>
 
-          <div class="section">
-            <h3>Items Details</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Item Name</th>
-                  <th>Code</th>
-                  <th>Category</th>
-                  <th>Sub-Category</th>
-                  <th>Size</th>
-                  <th>Quantity</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${issue.items.map(item => `
-                  <tr>
-                    <td>${item.itemId?.name || 'Unknown Item'}</td>
-                    <td>${item.itemId?.itemCode || 'N/A'}</td>
-                    <td>${item.itemId?.category || 'N/A'}</td>
-                    <td>${item.itemId?.subCategory || 'N/A'}</td>
-                    <td>${item.size || 'N/A'}</td>
-                    <td>${item.quantity}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
 
-          <div class="section">
-            <div class="summary">
-              <h3>Summary</h3>
-              <div class="summary-grid">
-                <div class="summary-item">
-                  <div class="number">${issue.items.length}</div>
-                  <div class="label">Total Items</div>
-                </div>
-                <div class="summary-item">
-                  <div class="number">${issue.items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</div>
-                  <div class="label">Total Pieces</div>
-                </div>
-                <div class="summary-item">
-                  <div class="number">${new Date(issue.issueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                  <div class="label">Issue Date</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="no-print" style="text-align: center; margin-top: 40px;">
-            <button onclick="window.print()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer;">
-              Print Report
-            </button>
-            <button onclick="window.close()" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
-              Close
-            </button>
-          </div>
-        </body>
-      </html>
-    `;
-
-    // Open print window
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.focus();
-      
-      // Auto-print after a short delay
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    } else {
-      showToast({ 
-        message: "Please allow popups to print the report", 
-        type: "info"
-      });
-    }
-  };
-
-  // Handle search and filtering
-  useEffect(() => {
-    let filtered = inventoryItems;
-    
-    if (search.trim()) {
-      filtered = filtered.filter(item => 
-        item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.itemCode.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    
-    if (categoryFilter) {
-      filtered = filtered.filter(item => item.category === categoryFilter);
-    }
-    
-    setFilteredItems(filtered);
-  }, [search, categoryFilter, inventoryItems]);
 
   // Handle project selection
   const handleProjectChange = (projectName: string) => {
@@ -789,11 +613,7 @@ export default function BulkIssuePage() {
     return availableUniforms;
   };
 
-  // Get employees filtered by selected project
-  const getProjectEmployees = () => {
-    if (!selectedProject) return employees;
-    return employees.filter(emp => emp.projectName === selectedProject.projectName);
-  };
+
 
   // Handle uniform selection and quantity
   const handleUniformSelection = (uniformName: string, size: string, quantity: number) => {
@@ -816,16 +636,7 @@ export default function BulkIssuePage() {
     });
   };
 
-  // Create mock employee data for bulk issues
-  const createMockEmployeeForBulkIssue = (designations: string[], projectName: string) => {
-    return {
-      employeeId: `BULK_${Date.now()}`,
-      fullName: `Bulk Issue - ${designations.join(', ')}`,
-      designation: designations.join(', '),
-      projectName: projectName,
-      department: projectName
-    };
-  };
+
 
   // Create bulk issue entries
   const createBulkIssueEntries = (uniforms: Array<{name: string, quantity: number, size: string}>, project: Project, designations: string[]) => {
@@ -889,33 +700,7 @@ export default function BulkIssuePage() {
     return entries;
   };
 
-  // Add uniforms to bulk issue
-  const addUniformsToBulkIssue = async () => {
-    if (selectedUniforms.length === 0) {
-      showToast({ message: "Please select at least one uniform with quantity", type: "error" });
-      return;
-    }
 
-    if (!selectedProject || selectedDesignations.length === 0) {
-      showToast({ message: "Please select both project and at least one designation", type: "error" });
-      return;
-    }
-
-    try {
-      const newEntries = createBulkIssueEntries(selectedUniforms, selectedProject, selectedDesignations);
-      
-      setSelectedItems(prev => [...prev, ...newEntries]);
-      showToast({ message: `Added ${newEntries.length} items to bulk issue`, type: "success" });
-      setSelectedUniforms([]);
-      
-    } catch (error) {
-      console.error("Error processing uniforms:", error);
-      showToast({ 
-        message: "Error processing uniforms. Please try again.", 
-        type: "error" 
-      });
-    }
-  };
 
   // Show DC popup for uniforms
   const showDCPopupForUniforms = () => {

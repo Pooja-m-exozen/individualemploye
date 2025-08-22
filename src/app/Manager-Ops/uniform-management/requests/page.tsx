@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import ManagerOpsLayout from '@/components/dashboard/ManagerOpsLayout';
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -99,7 +99,6 @@ export default function UniformRequestsPage() {
   const [selectedUniforms, setSelectedUniforms] = useState<SelectedUniform[]>([]);
   const [uniformOptions, setUniformOptions] = useState<UniformOption[]>([]);
   const [employeeDetails, setEmployeeDetails] = useState<EmployeeDetails | null>(null);
-  const [maxQuantity, setMaxQuantity] = useState<number>(5);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [employeeImages, setEmployeeImages] = useState<{ [id: string]: string }>({});
@@ -112,7 +111,6 @@ export default function UniformRequestsPage() {
   // Add state for form values
   const [formValues, setFormValues] = useState<{ [key: string]: { size: string; qty: number } }>({});
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   // Reset modal state when opening
   const handleOpenModal = () => {
@@ -134,7 +132,7 @@ export default function UniformRequestsPage() {
   };
 
   // Fetch project employees when replacement type is selected
-  const fetchProjectEmployees = async (projectName: string) => {
+  const fetchProjectEmployees = useCallback(async (projectName: string) => {
     try {
       // Fetch all KYC records and filter by project
       const res = await fetch("https://cafm.zenapi.co.in/api/kyc");
@@ -159,7 +157,7 @@ export default function UniformRequestsPage() {
       console.error('Error fetching project employees:', error);
       setProjectEmployees([]);
     }
-  };
+  }, [newRequest.employeeId]);
 
   useEffect(() => {
     fetchRequests();
@@ -326,12 +324,10 @@ export default function UniformRequestsPage() {
         .then(data => {
           setUniformOptions(Array.isArray(data) ? data : []);
           setEmployeeDetails(null); // No longer fetching designation here
-          setMaxQuantity(5);
         })
         .catch(() => {
           setUniformOptions([]);
           setEmployeeDetails(null);
-          setMaxQuantity(5);
           setOptionsError('Failed to fetch inventory options.');
         });
     }
@@ -679,423 +675,4 @@ export default function UniformRequestsPage() {
                           ))}
                         </select>
                         {projectEmployees.length === 0 && (
-                          <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>
-                            No other employees found in this project. Please select a different project or contact HR.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    <div>
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items (Complete selection = 1 Set)</label>
-                      
-                      {/* Complete Set Indicator */}
-                      {uniformOptions.length > 0 && (
-                        <div className={`mb-3 p-3 rounded-lg border-2 ${
-                          selectedUniforms.length === uniformOptions.length 
-                            ? 'bg-green-50 border-green-300 text-green-800' 
-                            : 'bg-blue-50 border-blue-300 text-blue-800'
-                        }`}>
-                          <div className="flex items-center gap-2">
-                            {selectedUniforms.length === uniformOptions.length ? (
-                              <>
-                                <span className="text-green-600 text-lg">✓</span>
-                                <span className="font-semibold">Complete Uniform Set Selected!</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="text-blue-600 text-lg">ℹ</span>
-                                <span className="font-semibold">Select all items to complete 1 uniform set</span>
-                              </>
-                            )}
-                          </div>
-                          <div className="text-sm mt-1">
-                            {selectedUniforms.length} of {uniformOptions.length} items selected
-                            {selectedUniforms.length === uniformOptions.length && (
-                              <span className="ml-2 font-semibold text-green-700">= 1 Complete Set</span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {optionsLoading ? (
-                        <div className="text-blue-400">Loading options...</div>
-                      ) : uniformOptions.length > 0 ? (
-                        <div className="overflow-x-auto max-h-64 border rounded-lg mb-2">
-                          <table className="min-w-full text-xs">
-                            <thead>
-                              <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
-                                <th className="px-2 py-1">Set Type</th>
-                                <th className="px-2 py-1">Set Contents</th>
-                                <th className="px-2 py-1">Request Qty</th>
-                                <th className="px-2 py-1"></th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {uniformOptions.map(option => {
-                                // Get sizes array, handling both sizes and set properties
-                                const sizesArray = option.sizes || (option.set ? (Array.isArray(option.set) ? option.set : [option.set]) : []);
-                                
-                                return (
-                                  <tr key={option.type}>
-                                    <td className="px-2 py-1">{option.type}</td>
-                                    <td className="px-2 py-1">
-                                      <select
-                                        className="w-20 border rounded px-1 py-0.5 text-xs"
-                                        id={`size-${option.type}`}
-                                        value={formValues[option.type]?.size || sizesArray[0] || ''}
-                                        onChange={(e) => {
-                                          const newSize = e.target.value;
-                                          setFormValues(prev => ({
-                                            ...prev,
-                                            [option.type]: {
-                                              ...prev[option.type],
-                                              size: newSize,
-                                              qty: prev[option.type]?.qty || 1
-                                            }
-                                          }));
-                                          
-                                          // Update selectedUniforms if this item is already selected
-                                          if (selectedUniforms.some(u => u.type === option.type)) {
-                                            setSelectedUniforms(prev => prev.map(u => 
-                                              u.type === option.type 
-                                                ? { ...u, size: newSize }
-                                                : u
-                                            ));
-                                          }
-                                        }}
-                                      >
-                                        {sizesArray.map((size: string) => (
-                                          <option key={size} value={size}>{size}</option>
-                                        ))}
-                                      </select>
-                                    </td>
-                                    <td className="px-2 py-1">
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        value={formValues[option.type]?.qty || 1}
-                                        className="w-16 border rounded px-1 py-0.5"
-                                        id={`qty-${option.type}`}
-                                        onChange={(e) => {
-                                          const newQty = Number(e.target.value);
-                                          setFormValues(prev => ({
-                                            ...prev,
-                                            [option.type]: {
-                                              size: prev[option.type]?.size || sizesArray[0] || '',
-                                              qty: newQty
-                                            }
-                                          }));
-                                          
-                                          // Update selectedUniforms if this item is already selected
-                                          if (selectedUniforms.some(u => u.type === option.type)) {
-                                            setSelectedUniforms(prev => prev.map(u => 
-                                              u.type === option.type 
-                                                ? { ...u, qty: newQty }
-                                                : u
-                                            ));
-                                          }
-                                        }}
-                                      />
-                                    </td>
-                                    <td className="px-2 py-1">
-                                      <button
-                                        type="button"
-                                        className={`px-2 py-1 rounded text-xs font-semibold transition-all ${
-                                          selectedUniforms.some(u => u.type === option.type)
-                                            ? 'bg-green-500 text-white cursor-default'
-                                            : 'bg-blue-500 text-white hover:bg-blue-600'
-                                        }`}
-                                        onClick={() => {
-                                          const currentFormValues = formValues[option.type];
-                                          const selectedSize = currentFormValues?.size || sizesArray[0] || '';
-                                          const qty = currentFormValues?.qty || 1;
-                                          
-                                          // Check if this item type is already selected (regardless of size)
-                                          const isAlreadySelected = selectedUniforms.some(u => u.type === option.type);
-                                          
-                                          if (isAlreadySelected) {
-                                            // Remove the item if already selected
-                                            setSelectedUniforms(prev => prev.filter(u => u.type !== option.type));
-                                            // Also remove from formValues
-                                            setFormValues(prev => {
-                                              const newValues = { ...prev };
-                                              delete newValues[option.type];
-                                              return newValues;
-                                            });
-                                          } else {
-                                            // Add the item
-                                            setSelectedUniforms(prev => [
-                                              ...prev,
-                                              {
-                                                type: option.type,
-                                                size: selectedSize,
-                                                qty
-                                              }
-                                            ]);
-                                            // Ensure formValues has the current values
-                                            setFormValues(prev => ({
-                                              ...prev,
-                                              [option.type]: {
-                                                size: selectedSize,
-                                                qty
-                                              }
-                                            }));
-                                          }
-                                        }}
-                                        title={
-                                          selectedUniforms.some(u => u.type === option.type)
-                                            ? 'Click to remove from request'
-                                            : 'Add to request'
-                                        }
-                                      >
-                                        {selectedUniforms.some(u => u.type === option.type)
-                                          ? '✓'
-                                          : 'Add'
-                                        }
-                                      </button>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : optionsError ? (
-                        <div className="text-red-500">{optionsError}</div>
-                      ) : (
-                        <div className="text-gray-500">No uniform options available for this employee.</div>
-                      )}
-                    </div>
-                    {/* Selected Uniforms Table */}
-                    {selectedUniforms.length > 0 && (
-                      <div className="mb-2">
-                        <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Selected Items</label>
-                        <table className="min-w-full text-xs border rounded">
-                          <thead>
-                            <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
-                              <th className="px-2 py-1">Type</th>
-                              <th className="px-2 py-1">Size/Set</th>
-                              <th className="px-2 py-1">Qty</th>
-                              <th className="px-2 py-1"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedUniforms.map((u, idx) => (
-                              <tr key={u.type + u.size}>
-                                <td className="px-2 py-1">{u.type}</td>
-                                <td className="px-2 py-1">{u.size}</td>
-                                <td className="px-2 py-1">{u.qty}</td>
-                                <td className="px-2 py-1">
-                                  <button type="button" className="text-red-500" onClick={() => setSelectedUniforms(prev => prev.filter((_, i) => i !== idx))}>Remove</button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                    <div>
-                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Remarks</label>
-                      <input
-                        type="text"
-                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
-                        placeholder="Remarks..."
-                        value={newRequest.remarks}
-                        onChange={e => setNewRequest(r => ({ ...r, remarks: e.target.value }))}
-                      />
-                    </div>
-                  </form>
-                </div>
-
-                <div className="p-8 border-t">
-                  <button
-                    type="submit"
-                    form="createRequestForm"
-                    disabled={createLoading || !newRequest.employeeId || selectedUniforms.length === 0}
-                    className={`w-full py-2 rounded-xl font-bold shadow transition-all disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
-                  >
-                    {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}
-                    Create Request
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          {/* Requests List (Card or Table View) */}
-          <div className={`w-full max-w-5xl mx-auto ${loading ? 'animate-pulse' : ''}`}>
-            {loading ? (
-              <div className="py-10 text-center">
-                <p className={`text-lg ${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'}`}>Loading requests...</p>
-              </div>
-            ) : error ? (
-              <div className="py-10 text-center">
-                <p className={`text-lg font-semibold ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>{error}</p>
-              </div>
-            ) : filteredRequests.length === 0 ? (
-              <div className="py-10 text-center">
-                <p className={`text-lg ${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'}`}>No uniform requests found.</p>
-              </div>
-            ) : viewMode === 'card' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredRequests.map(request => (
-                  <div key={request._id} className={`p-5 rounded-2xl shadow-lg transition-all duration-300 ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-16 h-16 rounded-full overflow-hidden">
-                        <Image src={employeeImages[request.employee.employeeId] || '/file.svg'} alt={request.employee.fullName} width={64} height={64} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{request.employee.fullName}</h3>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{request.employee.designation} - {request.employee.projectName}</p>
-                        {request.employee.gender && (
-                          <p className={`text-xs ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Gender: {request.employee.gender}</p>
-                        )}
-                        {request.requestDate && (
-                          <p className={`text-xs ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Requested: {new Date(request.requestDate).toLocaleDateString()}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 mb-4">
-                      <div className="flex items-center justify-between">
-                        <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Status:</span>
-                        <span className={`text-sm ${request.status === 'Approved' ? 'text-green-500' : request.status === 'Rejected' ? 'text-red-500' : 'text-yellow-500'}`}>{request.status}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Items & Sizes:</span>
-                        <div className="flex flex-wrap gap-2">
-                          {request.requestedItems.map(item => (
-                            <span key={item} className={`text-xs rounded-full py-1 px-3 ${theme === 'dark' ? 'bg-blue-900 text-blue-100' : 'bg-blue-50 text-blue-700'}`}>
-                              {item}{request.sizes && request.sizes[item] ? ` (${request.sizes[item]})` : ''}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      {request.qty && (
-                        <div className="flex items-center justify-between">
-                          <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Quantity:</span>
-                          <span className="text-sm">{request.qty}</span>
-                        </div>
-                      )}
-                      {request.remarks && (
-                        <div className="flex items-center justify-between">
-                          <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Remarks:</span>
-                          <span className="text-sm">{request.remarks}</span>
-                        </div>
-                      )}
-                    </div>
-                    {request.status === 'Pending' ? (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleAction(request.employee.employeeId, 'approve')}
-                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-green-500 text-white hover:bg-green-600`}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleAction(request.employee.employeeId, 'reject')}
-                          className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none bg-red-500 text-white hover:bg-red-600`}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <span className="px-4 py-2 rounded-lg font-semibold">{request.status}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-2xl shadow-lg">
-                <table className={`min-w-full divide-y divide-gray-200 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-                  <thead className={theme === 'dark' ? 'bg-gray-700 sticky top-0 z-10' : 'bg-gray-50 sticky top-0 z-10'}>
-                    <tr>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}></th>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Employee ID</th>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Name</th>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Designation</th>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Project</th>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Gender</th>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Request Date</th>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Status</th>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Requested Items (Size)</th>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Qty</th>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Remarks</th>
-                      <th className={theme === 'dark' ? 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white' : 'px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500'}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {paginatedRequests.map(request => (
-                      <tr key={request._id} className={theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700 transition' : 'bg-white hover:bg-blue-50 transition'}>
-                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm font-medium text-white' : 'px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'}></td>
-                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.employee.employeeId}</td>
-                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.employee.fullName}</td>
-                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.employee.designation}</td>
-                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.employee.projectName}</td>
-                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.employee.gender || ''}</td>
-                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.requestDate ? new Date(request.requestDate).toLocaleDateString() : ''}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${request.status === 'Approved' ? 'bg-green-100 text-green-700' : request.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{request.status}</span>
-                        </td>
-                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>
-                          <div className="flex flex-wrap gap-2">
-                            {request.requestedItems.map(item => (
-                              <span key={item} className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${theme === 'dark' ? 'bg-blue-900 text-blue-100' : 'bg-blue-50 text-blue-700'}`}>
-                                {item}{request.sizes && request.sizes[item] ? ` (${request.sizes[item]})` : ''}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.qty || ''}</td>
-                        <td className={theme === 'dark' ? 'px-6 py-4 whitespace-nowrap text-sm text-white' : 'px-6 py-4 whitespace-nowrap text-sm text-gray-500'}>{request.remarks || ''}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {request.status === 'Pending' ? (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleAction(request.employee.employeeId, 'approve')}
-                                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 bg-green-500 text-white hover:bg-green-600`}
-                                title="Approve this request"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleAction(request.employee.employeeId, 'reject')}
-                                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none shadow-md border border-transparent hover:scale-105 bg-red-500 text-white hover:bg-red-600`}
-                                title="Reject this request"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="px-4 py-2 rounded-lg font-semibold">{request.status}</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {/* Pagination Controls */}
-                <div className="flex justify-between items-center py-4 px-2">
-                  <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Page {currentPage} of {totalPages}</span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all focus:outline-none ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : theme === 'dark' ? 'bg-blue-800 text-white hover:bg-blue-900' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                    >Previous</button>
-                    <button
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all focus:outline-none ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : theme === 'dark' ? 'bg-blue-800 text-white hover:bg-blue-900' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                    >Next</button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          
-        </div>
-      </div>
-    </ManagerOpsLayout>
-  );
-}
+                          <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`
