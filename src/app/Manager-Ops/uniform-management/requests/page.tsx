@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, Suspense } from "react";
 import ManagerOpsLayout from '@/components/dashboard/ManagerOpsLayout';
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -67,7 +67,7 @@ interface UniformApiResponse {
   updatedAt?: string;
 }
 
-export default function UniformRequestsPage() {
+function UniformRequestsPageContent() {
   const { theme } = useTheme();
   const [requests, setRequests] = useState<UniformRequest[]>([]);
   const [search, setSearch] = useState("");
@@ -869,5 +869,20 @@ export default function UniformRequestsPage() {
         </div>
       </div>
     </ManagerOpsLayout>
+  );
+}
+
+export default function UniformRequestsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <FaSpinner className="animate-spin w-8 h-8 mx-auto mb-4" />
+          <p>Loading uniform management...</p>
+        </div>
+      </div>
+    }>
+      <UniformRequestsPageContent />
+    </Suspense>
   );
 }
