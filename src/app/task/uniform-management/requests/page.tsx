@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState, useCallback } from "react";
 import TaskDashboardLayout from "@/components/dashboard/TaskDashboardLayout";
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -136,7 +136,7 @@ function UniformRequestsPage() {
   };
 
   // Fetch project employees when replacement type is selected
-  const fetchProjectEmployees = async (projectName: string) => {
+  const fetchProjectEmployees = useCallback(async (projectName: string) => {
     try {
       // Fetch all KYC records and filter by project
       const res = await fetch("https://cafm.zenapi.co.in/api/kyc");
@@ -161,7 +161,7 @@ function UniformRequestsPage() {
       console.error('Error fetching project employees:', error);
       setProjectEmployees([]);
     }
-  };
+  }, [newRequest.employeeId]);
 
   useEffect(() => {
     fetchRequests();
@@ -369,7 +369,7 @@ function UniformRequestsPage() {
       setSelectedUniforms([]);
       setFormValues({});
     }
-  }, [showCreateModal, newRequest.employeeId, newRequest.replacementType]);
+  }, [showCreateModal, newRequest.employeeId, newRequest.replacementType, fetchProjectEmployees]);
 
   // Filtered requests by search and status
   const filteredRequests = requests.filter(req =>
