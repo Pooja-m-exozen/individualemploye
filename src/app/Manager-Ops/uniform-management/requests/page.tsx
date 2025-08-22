@@ -375,16 +375,9 @@ export default function UniformRequestsPage() {
       setSelectedUniforms([]);
       setFormValues({});
     }
-  }, [showCreateModal, newRequest.employeeId, newRequest.replacementType]);
+  }, [showCreateModal, newRequest.employeeId, newRequest.replacementType, fetchProjectEmployees]);
 
-  // Filtered requests by search and status
-  const filteredRequests = requests.filter(req =>
-    (statusFilter === 'All' || req.status === statusFilter) &&
-    (req.employee.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      req.employee.employeeId.toLowerCase().includes(search.toLowerCase()))
-  );
 
-  // Filtered requests ready for display
 
   // Reset filters when search/status changes
   useEffect(() => {
