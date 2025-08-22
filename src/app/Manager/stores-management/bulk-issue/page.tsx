@@ -254,7 +254,7 @@ export default function BulkIssuePage() {
   useEffect(() => {
     console.log("issues state changed:", issues);
     console.log("issues length:", issues.length);
-  }, []);
+  }, [issues]);
 
   // Refresh issues
   const refreshIssues = async () => {
@@ -758,15 +758,7 @@ export default function BulkIssuePage() {
     }
   };
 
-  // Generate unique issue number
-  const generateIssueNumber = () => {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const timestamp = Date.now().toString().slice(-6);
-    return `ISSUE-${year}${month}${day}-${timestamp}`;
-  };
+
 
   // Create DC from bulk issue items
 
