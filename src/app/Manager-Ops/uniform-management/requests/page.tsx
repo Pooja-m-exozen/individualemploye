@@ -675,4 +675,255 @@ export default function UniformRequestsPage() {
                           ))}
                         </select>
                         {projectEmployees.length === 0 && (
-                          <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`
+                          <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                            No other employees found in this project. Please select a different project or contact HR.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Select Uniform Items (Complete selection = 1 Set)</label>
+                      
+                      {/* Complete Set Indicator */}
+                      {uniformOptions.length > 0 && (
+                        <div className={`mb-3 p-3 rounded-lg border-2 ${
+                          selectedUniforms.length === uniformOptions.length 
+                            ? 'bg-green-50 border-green-300 text-green-800' 
+                            : 'bg-blue-50 border-blue-300 text-blue-800'
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            {selectedUniforms.length === uniformOptions.length ? (
+                              <>
+                                <span className="text-green-600 text-lg">✓</span>
+                                <span className="font-semibold">Complete Uniform Set Selected!</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-blue-600 text-lg">ℹ</span>
+                                <span className="font-semibold">Select all items to complete 1 uniform set</span>
+                              </>
+                            )}
+                          </div>
+                          <div className="text-sm mt-1">
+                            {selectedUniforms.length} of {uniformOptions.length} items selected
+                            {selectedUniforms.length === uniformOptions.length && (
+                              <span className="ml-2 font-semibold text-green-700">= 1 Complete Set</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {optionsLoading ? (
+                        <div className="text-blue-400">Loading options...</div>
+                      ) : optionsError ? (
+                        <div className="text-red-500">{optionsError}</div>
+                      ) : (
+                        <div className="overflow-x-auto max-h-64 border rounded-lg mb-2">
+                          <table className="min-w-full text-xs">
+                            <thead>
+                              <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
+                                <th className="px-2 py-1">Type</th>
+                                <th className="px-2 py-1">Size/Set</th>
+                                <th className="px-2 py-1">Request Qty</th>
+                                <th className="px-2 py-1"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {uniformOptions.map(option => {
+                                // Get sizes array, handling both sizes and set properties
+                                const sizesArray = option.sizes || (option.set ? (Array.isArray(option.set) ? option.set : [option.set]) : []);
+                                
+                                return (
+                                  <tr key={option.type}>
+                                    <td className="px-2 py-1">{option.type}</td>
+                                    <td className="px-2 py-1">
+                                      <select
+                                        className="w-20 border rounded px-1 py-0.5 text-xs"
+                                        id={`size-${option.type}`}
+                                        value={formValues[option.type]?.size || sizesArray[0] || ''}
+                                        onChange={(e) => {
+                                          const newSize = e.target.value;
+                                          setFormValues(prev => ({
+                                            ...prev,
+                                            [option.type]: {
+                                              ...prev[option.type],
+                                              size: newSize,
+                                              qty: prev[option.type]?.qty || 1
+                                            }
+                                          }));
+                                          
+                                          // Update selectedUniforms if this item is already selected
+                                          if (selectedUniforms.some(u => u.type === option.type)) {
+                                            setSelectedUniforms(prev => prev.map(u => 
+                                              u.type === option.type 
+                                                ? { ...u, size: newSize }
+                                                : u
+                                            ));
+                                          }
+                                        }}
+                                      >
+                                        {sizesArray.map((size: string) => (
+                                          <option key={size} value={size}>{size}</option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        max={5}
+                                        value={formValues[option.type]?.qty || 1}
+                                        className="w-16 border rounded px-1 py-0.5"
+                                        id={`qty-${option.type}`}
+                                        onChange={(e) => {
+                                          const newQty = Number(e.target.value);
+                                          setFormValues(prev => ({
+                                            ...prev,
+                                            [option.type]: {
+                                              size: prev[option.type]?.size || sizesArray[0] || '',
+                                              qty: newQty
+                                            }
+                                          }));
+                                          
+                                          // Update selectedUniforms if this item is already selected
+                                          if (selectedUniforms.some(u => u.type === option.type)) {
+                                            setSelectedUniforms(prev => prev.map(u => 
+                                              u.type === option.type 
+                                                ? { ...u, qty: newQty }
+                                                : u
+                                            ));
+                                          }
+                                        }}
+                                      />
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <button
+                                        type="button"
+                                        className={`px-2 py-1 rounded text-xs font-semibold transition-all ${
+                                          selectedUniforms.some(u => u.type === option.type)
+                                            ? 'bg-green-500 text-white cursor-default'
+                                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                                        }`}
+                                        onClick={() => {
+                                          const currentFormValues = formValues[option.type];
+                                          const selectedSize = currentFormValues?.size || sizesArray[0] || '';
+                                          const qty = currentFormValues?.qty || 1;
+                                          
+                                          // Check if this item type is already selected (regardless of size)
+                                          const isAlreadySelected = selectedUniforms.some(u => u.type === option.type);
+                                          
+                                          if (isAlreadySelected) {
+                                            // Remove the item if already selected
+                                            setSelectedUniforms(prev => prev.filter(u => u.type !== option.type));
+                                            // Also remove from formValues
+                                            setFormValues(prev => {
+                                              const newValues = { ...prev };
+                                              delete newValues[option.type];
+                                              return newValues;
+                                            });
+                                          } else {
+                                            // Add the item
+                                            setSelectedUniforms(prev => [
+                                              ...prev,
+                                              {
+                                                type: option.type,
+                                                size: selectedSize,
+                                                qty
+                                              }
+                                            ]);
+                                            // Ensure formValues has the current values
+                                            setFormValues(prev => ({
+                                              ...prev,
+                                              [option.type]: {
+                                                size: selectedSize,
+                                                qty
+                                              }
+                                            }));
+                                          }
+                                        }}
+                                        title={
+                                          selectedUniforms.some(u => u.type === option.type)
+                                            ? 'Click to remove from request'
+                                            : 'Add to request'
+                                        }
+                                      >
+                                        {selectedUniforms.some(u => u.type === option.type)
+                                          ? '✓'
+                                          : 'Add'
+                                        }
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                    {/* Selected Uniforms Table */}
+                    {selectedUniforms.length > 0 && (
+                      <div className="mb-2">
+                        <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Selected Items</label>
+                        <table className="min-w-full text-xs border rounded">
+                          <thead>
+                            <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
+                              <th className="px-2 py-1">Type</th>
+                              <th className="px-2 py-1">Size/Set</th>
+                              <th className="px-2 py-1">Qty</th>
+                              <th className="px-2 py-1"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedUniforms.map((u, idx) => (
+                              <tr key={u.type + u.size}>
+                                <td className="px-2 py-1">{u.type}</td>
+                                <td className="px-2 py-1">{u.size}</td>
+                                <td className="px-2 py-1">{u.qty}</td>
+                                <td className="px-2 py-1">
+                                  <button type="button" className="text-red-500" onClick={() => setSelectedUniforms(prev => prev.filter((_, i) => i !== idx))}>Remove</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>Remarks</label>
+                      <input
+                        type="text"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'}`}
+                        placeholder="Remarks..."
+                        value={newRequest.remarks}
+                        onChange={e => setNewRequest(r => ({ ...r, remarks: e.target.value }))}
+                      />
+                    </div>
+                  </form>
+                </div>
+
+                <div className="p-8 border-t">
+                  <button
+                    type="submit"
+                    form="createRequestForm"
+                    disabled={createLoading || !newRequest.employeeId || selectedUniforms.length === 0}
+                    className={`w-full py-2 rounded-xl font-bold shadow transition-all disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
+                  >
+                    {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}
+                    Create Request
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Main content would go here */}
+          <div className="text-center py-20">
+            <h2 className="text-2xl font-bold mb-4">Uniform Management System</h2>
+            <p className="text-lg">Create and manage uniform requests for your team.</p>
+          </div>
+        </div>
+      </div>
+    </ManagerOpsLayout>
+  );
+}
