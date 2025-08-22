@@ -700,7 +700,33 @@ export default function BulkIssuePage() {
     return entries;
   };
 
+  // Add uniforms to bulk issue
+  const addUniformsToBulkIssue = async () => {
+    if (selectedUniforms.length === 0) {
+      showToast({ message: "Please select at least one uniform with quantity", type: "error" });
+      return;
+    }
 
+    if (!selectedProject || selectedDesignations.length === 0) {
+      showToast({ message: "Please select both project and at least one designation", type: "error" });
+      return;
+    }
+
+    try {
+      const newEntries = createBulkIssueEntries(selectedUniforms, selectedProject, selectedDesignations);
+      
+      setSelectedItems(prev => [...prev, ...newEntries]);
+      showToast({ message: `Added ${newEntries.length} items to bulk issue`, type: "success" });
+      setSelectedUniforms([]);
+      
+    } catch (error) {
+      console.error("Error processing uniforms:", error);
+      showToast({ 
+        message: "Error processing uniforms. Please try again.", 
+        type: "error" 
+      });
+    }
+  };
 
   // Show DC popup for uniforms
   const showDCPopupForUniforms = () => {

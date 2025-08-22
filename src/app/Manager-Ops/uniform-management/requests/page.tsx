@@ -4,8 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import ManagerOpsLayout from '@/components/dashboard/ManagerOpsLayout';
 import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-import Image from "next/image";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 // import Select from "react-select";
 
 interface UniformRequest {
@@ -71,8 +70,6 @@ interface UniformApiResponse {
 export default function UniformRequestsPage() {
   const { theme } = useTheme();
   const [requests, setRequests] = useState<UniformRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showInstructions, setShowInstructions] = useState(true);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -164,14 +161,10 @@ export default function UniformRequestsPage() {
   }, []);
 
   const fetchRequests = async () => {
-    setLoading(true);
-    setError(null);
     try {
       const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
       const data = await res.json();
       if (!res.ok || data.success === false) {
-        setError(data.message || "Failed to fetch uniform requests.");
-        setLoading(false);
         return;
       }
       // Map API data to your UniformRequest interface
@@ -195,49 +188,12 @@ export default function UniformRequestsPage() {
         updatedAt: item.updatedAt,
       }));
       setRequests(mapped);
-      setLoading(false);
     } catch {
-      setError("Failed to fetch uniform requests.");
-      setLoading(false);
+      // Handle error silently
     }
   };
 
-  // Update handleAction to use the new API endpoint and improve table UI/UX
-  const handleAction = async (employeeId: string, action: "approve" | "reject") => {
-    setError(null);
-    try {
-      const endpoint = `https://cafm.zenapi.co.in/api/uniforms/${employeeId}/${action}`;
-      const remarks = action === 'approve' ? 'Approved by admin' : 'Rejected by admin';
-      const res = await fetch(endpoint, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remarks })
-      });
-      const data = await res.json();
-      if (!res.ok || data.success === false) {
-        const message = data.message || `Failed to ${action} uniform request.`;
-        setError(message);
-        setToast({ type: "error", message });
-        setTimeout(() => setToast(null), 3500);
-        return;
-      }
-      // Only update status, do not remove
-      setRequests(prev =>
-        prev.map(req =>
-          req._id === employeeId
-            ? { ...req, status: action === 'approve' ? 'Approved' : 'Rejected' }
-            : req
-        )
-      );
-      setToast({ type: "success", message: `Uniform request ${action}d successfully.` });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : `Failed to ${action} uniform request.`;
-      setError(message);
-      setToast({ type: "error", message });
-    } finally {
-      setTimeout(() => setToast(null), 3500);
-    }
-  };
+
 
   // Update handleCreateRequest to use uniformItems
   const handleCreateRequest = async (e: React.FormEvent) => {
@@ -432,8 +388,6 @@ export default function UniformRequestsPage() {
 
   // Pagination logic for table view
   const totalRows = filteredRequests.length;
-  const totalPages = Math.ceil(totalRows / rowsPerPage);
-  const paginatedRequests = filteredRequests.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   // Reset to page 1 if filter/search changes
   useEffect(() => {
@@ -480,7 +434,7 @@ export default function UniformRequestsPage() {
         }));
       }
     }
-  }, [searchParams, newRequest.employeeId]);
+  }, [searchParams, newRequest.employeeId, fetchProjectEmployees]);
 
   return (
     <ManagerOpsLayout>
