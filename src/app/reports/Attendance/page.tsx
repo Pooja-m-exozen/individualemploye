@@ -52,6 +52,14 @@ const AttendancePage = () => {
       const data = await response.json();
       
       if (data.attendance) {
+        // Debug logging for August 15 records
+        const august15Records = data.attendance.filter((rec: AttendanceRecord) => 
+          rec.date.includes('08-15') || rec.date.includes('2025-08-15')
+        );
+        if (august15Records.length > 0) {
+          console.log('Found August 15 records from API:', august15Records);
+        }
+        
         setAttendanceData(data.attendance.map((rec: AttendanceRecord) => ({
           ...rec,
           punchInLatitude: rec.punchInLatitude,

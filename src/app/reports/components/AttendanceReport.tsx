@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { FaFileExcel, FaFilePdf, FaCalendar, FaChevronLeft,  } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
@@ -265,13 +264,48 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
     const governmentHolidays = Object.keys(governmentHolidayMap);
 
+    // Test function to verify holiday detection
+    const testHolidayDetection = () => {
+        const testDate = '2025-08-15';
+        console.log('Testing holiday detection for:', testDate);
+        console.log('Is in governmentHolidays:', governmentHolidays.includes(testDate));
+        console.log('Holiday name:', governmentHolidayMap[testDate]);
+        console.log('All 2025 holidays:', governmentHolidays.filter(h => h.startsWith('2025')));
+    };
+
+    // Run test on component mount
+    useEffect(() => {
+        testHolidayDetection();
+    }, []);
+
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 5 }, (_, i) => currentYear + 2 - i);
 
     // Transform attendanceData using the shared logic
-    const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord =>
-        transformAttendanceRecord(record)
-    );
+    const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord => {
+        // Debug logging for August 15
+        if (record.date.includes('08-15') || record.date.includes('2025-08-15')) {
+            console.log('Processing August 15 record:', {
+                originalDate: record.date,
+                splitDate: record.date.split('T')[0],
+                isHoliday: governmentHolidays.includes(record.date.split('T')[0]),
+                holidayName: governmentHolidayMap[record.date.split('T')[0]]
+            });
+        }
+        return transformAttendanceRecord(record);
+    });
+
+    // Debug: Log all processed data with their calculated statuses
+    useEffect(() => {
+        if (processedAttendanceData.length > 0) {
+            console.log('All processed attendance data:', processedAttendanceData.map(record => ({
+                date: record.date,
+                dayType: getDayType(record.date, selectedYear, selectedMonth, record.projectName || undefined),
+                calculatedStatus: getAttendanceStatus(record, getDayType(record.date, selectedYear, selectedMonth, record.projectName || undefined)),
+                originalStatus: record.status
+            })));
+        }
+    }, [processedAttendanceData, selectedYear, selectedMonth]);
 
     const downloadExcel = () => {
         const worksheet = XLSX.utils.json_to_sheet(
@@ -289,7 +323,14 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     };
 
     const getDayType = (date: string, year: number, month: number, projectName?: string) => {
-        const dateStr = date.split('T')[0];
+        // Handle different date formats
+        let dateStr = date;
+        if (date.includes('T')) {
+            dateStr = date.split('T')[0];
+        } else if (date.includes(' ')) {
+            dateStr = date.split(' ')[0];
+        }
+        
         const d = new Date(dateStr);
         
         // Debug logging for August holidays
@@ -300,7 +341,10 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 month,
                 projectName,
                 isHoliday: governmentHolidays.includes(dateStr),
-                holidayName: governmentHolidayMap[dateStr]
+                holidayName: governmentHolidayMap[dateStr],
+                fullDate: date,
+                splitDate: date.split('T')[0],
+                normalizedDate: dateStr
             });
         }
         
@@ -518,6 +562,34 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         if (leaveType) {
             return leaveType + ' Leave';
         }
+
+        // Check if this is a government holiday FIRST (highest priority)
+        const dateStr = record.date.split('T')[0];
+        // Also try to handle different date formats
+        let normalizedDate = dateStr;
+        if (record.date.includes('T')) {
+            normalizedDate = record.date.split('T')[0];
+        } else if (record.date.includes(' ')) {
+            normalizedDate = record.date.split(' ')[0];
+        } else {
+            normalizedDate = record.date;
+        }
+        
+        if (governmentHolidays.includes(normalizedDate)) {
+            console.log('Government holiday detected:', normalizedDate, governmentHolidayMap[normalizedDate]);
+            // If it's a government holiday and employee worked, check for Comp Off
+            if (record.punchInTime && record.punchOutTime) {
+                const inTime = record.punchInUtc || record.punchInTime;
+                const outTime = record.punchOutUtc || record.punchOutTime;
+                const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
+                if (hoursWorked >= 4) {
+                    return 'Comp Off';
+                }
+            }
+            // If no work done on holiday, return Holiday
+            return 'Holiday';
+        }
+
         // Normalize project name
         const project = record.projectName ? record.projectName.trim().toLowerCase() : '';
         const isArvind = project === 'arvind technical';
@@ -567,6 +639,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 }
             }
         }
+        
         // Regular day status calculation
         if (record.punchInTime && record.punchOutTime) {
             const inTime = record.punchInUtc || record.punchInTime;
@@ -1053,7 +1126,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     };
 
     // In your component's main render logic, process the attendance data
-    const processedData = enrichWithLocations(attendanceData);
+    const processedData = enrichWithLocations(processedAttendanceData);
 
     // Helper to batch fetch addresses for all records
     const fetchAllAddresses = async (records: ExtendedRawAttendanceRecord[]) => {
@@ -1630,6 +1703,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               )}
         </div>
       );
-};
+    };
 
-export default AttendanceReport;
+    export default AttendanceReport;

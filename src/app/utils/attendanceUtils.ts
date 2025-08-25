@@ -3,15 +3,60 @@
 import { RawAttendanceRecord, TransformedAttendanceRecord } from '../types/attendance';
 
 export const GOVT_HOLIDAYS = [
+  // 2024 Holidays
   '2024-01-26', // Republic Day
   '2024-03-25', // Holi
   '2024-04-09', // Ram Navami
   '2024-05-01', // Labor Day
+  '2024-08-08', // Varmahalski Holiday
   '2024-08-15', // Independence Day
   '2024-10-02', // Gandhi Jayanti
   '2024-11-14', // Diwali
   '2024-12-25', // Christmas
-  '2025-05-01', // Example: May Day
+  
+  // 2025 Holidays
+  '2025-01-26', // Republic Day
+  '2025-03-14', // Holi
+  '2025-04-09', // Ram Navami
+  '2025-05-01', // Labor Day
+  '2025-08-08', // Varmahalski Holiday
+  '2025-08-15', // Independence Day
+  '2025-10-02', // Gandhi Jayanti
+  '2025-11-03', // Diwali
+  '2025-12-25', // Christmas
+  
+  // 2026 Holidays
+  '2026-01-26', // Republic Day
+  '2026-03-03', // Holi
+  '2026-03-29', // Ram Navami
+  '2026-05-01', // Labor Day
+  '2026-08-08', // Varmahalski Holiday
+  '2026-08-15', // Independence Day
+  '2026-10-02', // Gandhi Jayanti
+  '2026-10-23', // Diwali
+  '2026-12-25', // Christmas
+  
+  // 2027 Holidays
+  '2027-01-26', // Republic Day
+  '2027-03-22', // Holi
+  '2027-03-18', // Ram Navami
+  '2027-05-01', // Labor Day
+  '2027-08-08', // Varmahalski Holiday
+  '2027-08-15', // Independence Day
+  '2027-10-02', // Gandhi Jayanti
+  '2027-11-12', // Diwali
+  '2027-12-25', // Christmas
+  
+  // 2028 Holidays
+  '2028-01-26', // Republic Day
+  '2028-03-10', // Holi
+  '2028-04-06', // Ram Navami
+  '2028-05-01', // Labor Day
+  '2028-08-08', // Varmahalski Holiday
+  '2028-08-15', // Independence Day
+  '2028-10-02', // Gandhi Jayanti
+  '2028-10-30', // Diwali
+  '2028-12-25', // Christmas
 ];
 
 export function isHoliday(dateStr: string): boolean {
