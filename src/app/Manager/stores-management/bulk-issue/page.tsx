@@ -238,7 +238,7 @@ export default function BulkIssuePage() {
           setIssues([]);
         }
         
-        console.log("Final issues state:", issues);
+
       } catch (err) {
         console.error("Error fetching issues:", err);
         setIssuesError("Failed to fetch issues");

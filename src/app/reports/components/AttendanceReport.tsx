@@ -90,11 +90,7 @@ interface LeaveHistory {
     lastUpdated: string;
 }
 
-interface LocationDetail {
-    latitude: number;
-    longitude: number;
-    address: string | null;
-}
+
 
 
 
