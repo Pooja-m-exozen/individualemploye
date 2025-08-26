@@ -256,19 +256,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
     const governmentHolidays = Object.keys(governmentHolidayMap);
 
-    // Test function to verify holiday detection
-    const testHolidayDetection = () => {
-        const testDate = '2025-08-15';
-        console.log('Testing holiday detection for:', testDate);
-        console.log('Is in governmentHolidays:', governmentHolidays.includes(testDate));
-        console.log('Holiday name:', governmentHolidayMap[testDate]);
-        console.log('All 2025 holidays:', governmentHolidays.filter(h => h.startsWith('2025')));
-    };
 
-    // Run test on component mount
-    useEffect(() => {
-        testHolidayDetection();
-    }, []);
 
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 5 }, (_, i) => currentYear + 2 - i);
@@ -287,17 +275,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         return transformAttendanceRecord(record);
     });
 
-    // Debug: Log all processed data with their calculated statuses
-    useEffect(() => {
-        if (processedAttendanceData.length > 0) {
-            console.log('All processed attendance data:', processedAttendanceData.map(record => ({
-                date: record.date,
-                dayType: getDayType(record.date, selectedYear, selectedMonth, record.projectName || undefined),
-                calculatedStatus: getAttendanceStatus(record, getDayType(record.date, selectedYear, selectedMonth, record.projectName || undefined)),
-                originalStatus: record.status
-            })));
-        }
-    }, [processedAttendanceData, selectedYear, selectedMonth]);
+
 
     const downloadExcel = () => {
         const worksheet = XLSX.utils.json_to_sheet(
