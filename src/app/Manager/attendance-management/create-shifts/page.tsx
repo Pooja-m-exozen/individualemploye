@@ -38,6 +38,18 @@ interface ShiftMapping {
   shift: string;
 }
 
+interface KYCForm {
+  _id: string;
+  personalDetails: {
+    employeeId?: string;
+    empId?: string;
+    fullName?: string;
+    name?: string;
+    designation?: string;
+    projectName?: string;
+  };
+}
+
 export default function CreateShiftsPage() {
   const { theme } = useTheme();
   const [activeSection, setActiveSection] = useState("addShift");
@@ -94,8 +106,8 @@ export default function CreateShiftsPage() {
           const employeesData = await employeesRes.json();
           const kycForms = Array.isArray(employeesData.kycForms) ? employeesData.kycForms : [];
           const processedEmployees: Employee[] = kycForms
-            .filter((form: any) => form.personalDetails?.projectName && form.personalDetails?.designation)
-            .map((form: any) => ({
+            .filter((form: KYCForm) => form.personalDetails?.projectName && form.personalDetails?.designation)
+            .map((form: KYCForm) => ({
               _id: form._id,
               employeeId: form.personalDetails?.employeeId || form.personalDetails?.empId || "",
               fullName: form.personalDetails?.fullName || form.personalDetails?.name || "",

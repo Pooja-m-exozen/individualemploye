@@ -96,20 +96,16 @@ interface LocationDetail {
     address: string | null;
 }
 
-// Extend the base interface and add location details
-interface ExtendedRawAttendanceRecord extends BaseRawAttendanceRecord {
-    punchInLocation?: LocationDetail;
-    punchOutLocation?: LocationDetail;
-}
+
 
 interface AttendanceReportProps {
     loading: boolean;
-    attendanceData: ExtendedRawAttendanceRecord[];
+    attendanceData: BaseRawAttendanceRecord[];
     selectedMonth: number;
     selectedYear: number;
     handleMonthChange: (month: number) => void;
     handleYearChange: (year: number) => void;
-    handleViewRecord: (record: ExtendedRawAttendanceRecord) => void;
+    handleViewRecord: (record: BaseRawAttendanceRecord) => void;
     handleBack: () => void;
     fetchReportData: () => Promise<void>;
     formatDate: (dateString: string) => string;
@@ -191,7 +187,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     employeeId,
     theme
 }) => {
-    const [selectedRecord, setSelectedRecord] = useState<ExtendedRawAttendanceRecord | null>(null);
+    const [selectedRecord, setSelectedRecord] = useState<TransformedAttendanceRecord | null>(null);
     const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistory[]>([]);
     const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
@@ -282,7 +278,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const years = Array.from({ length: 5 }, (_, i) => currentYear + 2 - i);
 
     // Transform attendanceData using the shared logic
-    const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord => {
+    const processedAttendanceData = attendanceData.map((record: BaseRawAttendanceRecord): TransformedAttendanceRecord => {
         // Debug logging for August 15
         if (record.date.includes('08-15') || record.date.includes('2025-08-15')) {
             console.log('Processing August 15 record:', {
@@ -383,27 +379,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         }
         return 'Working Day';
     };
-
- const enrichWithLocations = (data: ExtendedRawAttendanceRecord[]): ExtendedRawAttendanceRecord[] => {
-  return data.map(record => ({
-    ...record,
-    punchInLocation: record.punchInLatitude && record.punchInLongitude
-      ? {
-          latitude: record.punchInLatitude,
-          longitude: record.punchInLongitude,
-          address: null
-        }
-      : undefined,
-    punchOutLocation: record.punchOutLatitude && record.punchOutLongitude
-      ? {
-          latitude: record.punchOutLatitude,
-          longitude: record.punchOutLongitude,
-          address: null
-        }
-      : undefined
-  }));
-};
-
 
     // Replace the reverseGeocode function in this block with the enhanced version
     const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
@@ -557,7 +532,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     };
 
     // Update the getAttendanceStatus function
-    const getAttendanceStatus = (record: ExtendedRawAttendanceRecord, dayType: string) => {
+    const getAttendanceStatus = (record: TransformedAttendanceRecord, dayType: string) => {
         const leaveType = isLeaveDate(record.date);
         if (leaveType) {
             return leaveType + ' Leave';
@@ -660,7 +635,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         let yPosition = 15;
 
         // If a date range is selected, filter records for that range; otherwise, use the full month
-        let filteredRecords;
+        let filteredRecords: TransformedAttendanceRecord[];
         let reportTitle = `Attendance Report - ${months[selectedMonth - 1]} ${selectedYear}`;
         let singlePage = false;
         if (fromDateForPDF && toDateForPDF) {
@@ -708,7 +683,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             return calculateHoursUtc(inTime, outTime);
         };
 
-        const tableRows = filteredRecords.map((record: ExtendedRawAttendanceRecord) => {
+        const tableRows = filteredRecords.map((record: TransformedAttendanceRecord) => {
             const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName || undefined);
             const status = getAttendanceStatus(record, dayType);
             let hoursWorked = 'Incomplete';
@@ -1126,10 +1101,11 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     };
 
     // In your component's main render logic, process the attendance data
-    const processedData = enrichWithLocations(processedAttendanceData);
+    // Location data is now processed in transformAttendanceRecord, so no need for enrichWithLocations
+    const processedData: TransformedAttendanceRecord[] = processedAttendanceData;
 
     // Helper to batch fetch addresses for all records
-    const fetchAllAddresses = async (records: ExtendedRawAttendanceRecord[]) => {
+    const fetchAllAddresses = async (records: TransformedAttendanceRecord[]) => {
       const getAddress = async (lat?: number, lng?: number) => {
         if (!lat || !lng) return 'N/A';
         return await reverseGeocode(lat, lng);
@@ -1503,8 +1479,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     </tr>
                   </thead>
                   <tbody className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {processedData.map((record: ExtendedRawAttendanceRecord, index) => {
-                        const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
+                    {processedData.map((record: TransformedAttendanceRecord, index) => {
+                        const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName || undefined);
                         let hoursWorkedNum = 0;
                         let hoursWorkedStr = '';
                         if (record.punchInTime && record.punchOutTime) {

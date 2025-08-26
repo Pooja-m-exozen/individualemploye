@@ -32,6 +32,16 @@ export interface TransformedAttendanceRecord {
     punchInPhoto: string | null;
     punchOutPhoto: string | null;
     status: string;
+    punchInLocation?: {
+        latitude: number;
+        longitude: number;
+        address: string | null;
+    };
+    punchOutLocation?: {
+        latitude: number;
+        longitude: number;
+        address: string | null;
+    };
 }
 
 export interface MonthlySummary {

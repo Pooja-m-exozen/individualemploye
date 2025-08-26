@@ -250,11 +250,7 @@ export default function BulkIssuePage() {
     fetchIssues();
   }, []);
 
-  // Debug effect to monitor issues state changes
-  useEffect(() => {
-    console.log("issues state changed:", issues);
-    console.log("issues length:", issues.length);
-  }, [issues]);
+
 
   // Refresh issues
   const refreshIssues = async () => {

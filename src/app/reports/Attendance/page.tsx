@@ -5,32 +5,12 @@ import AttendanceReport from '../components/AttendanceReport';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { getEmployeeId, isAuthenticated } from '@/services/auth';
 import { useTheme } from "@/context/ThemeContext";
-
-interface AttendanceRecord {
-  _id: string;
-  employeeId: string;
-  projectName: string | null;
-  designation: string | null;
-  date: string;
-  punchInTime: string | null;
-  punchOutTime: string | null;
-  punchInPhoto: string | null;
-  punchOutPhoto: string | null;
-  punchInUtc?: string;
-  punchOutUtc?: string;
-  status?: string;
-  isLate?: boolean;
-  remarks?: string;
-  punchInLatitude?: number;
-  punchInLongitude?: number;
-  punchOutLatitude?: number;
-  punchOutLongitude?: number;
-}
+import { RawAttendanceRecord } from '@/app/types/attendance';
 
 const AttendancePage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
+  const [attendanceData, setAttendanceData] = useState<RawAttendanceRecord[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [employeeId, setEmployeeId] = useState<string>('');
@@ -53,20 +33,15 @@ const AttendancePage = () => {
       
       if (data.attendance) {
         // Debug logging for August 15 records
-        const august15Records = data.attendance.filter((rec: AttendanceRecord) => 
+        const august15Records = data.attendance.filter((rec: RawAttendanceRecord) => 
           rec.date.includes('08-15') || rec.date.includes('2025-08-15')
         );
         if (august15Records.length > 0) {
           console.log('Found August 15 records from API:', august15Records);
         }
         
-        setAttendanceData(data.attendance.map((rec: AttendanceRecord) => ({
-          ...rec,
-          punchInLatitude: rec.punchInLatitude,
-          punchInLongitude: rec.punchInLongitude,
-          punchOutLatitude: rec.punchOutLatitude,
-          punchOutLongitude: rec.punchOutLongitude,
-        })));
+        // Pass the raw data to AttendanceReport, which will handle transformation
+        setAttendanceData(data.attendance);
       } else {
         setAttendanceData([]);
       }
@@ -94,7 +69,7 @@ const AttendancePage = () => {
     setSelectedYear(year);
   };
 
-  const handleViewRecord = (record: AttendanceRecord) => {
+  const handleViewRecord = (record: RawAttendanceRecord) => {
     // Implement view record functionality
     console.log('Viewing record:', record);
   };

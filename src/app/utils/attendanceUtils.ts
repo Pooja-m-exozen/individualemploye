@@ -128,6 +128,16 @@ export function transformAttendanceRecord(record: RawAttendanceRecord): Transfor
     designation: record.designation,
     punchInPhoto: record.punchInPhoto,
     punchOutPhoto: record.punchOutPhoto,
-    status: record.status || 'Absent'
+    status: record.status || 'Absent',
+    punchInLocation: record.punchInLatitude && record.punchInLongitude ? {
+      latitude: record.punchInLatitude,
+      longitude: record.punchInLongitude,
+      address: null
+    } : undefined,
+    punchOutLocation: record.punchOutLatitude && record.punchOutLongitude ? {
+      latitude: record.punchOutLatitude,
+      longitude: record.punchOutLongitude,
+      address: null
+    } : undefined
   };
 }
