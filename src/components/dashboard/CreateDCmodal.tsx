@@ -205,8 +205,13 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
         const data: UniformApiResponse = await res.json();
         if (data.success) {
+          // Only show projects that are NOT generic
           const filteredRequests = data.uniforms.filter(
-            req => req.projectName === selectedProject && req.approvalStatus === 'Approved'
+            req => req.projectName === selectedProject && 
+                   req.approvalStatus === 'Approved' &&
+                   req.projectName !== "General" &&
+                   req.projectName !== "N/A" &&
+                   !req.projectName.toLowerCase().includes("general")
           );
           setUniformRequests(filteredRequests);
         }
@@ -280,27 +285,46 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         });
       });
 
-      // Create payload with modified sizes properly stored
+      // Create payload with modified sizes properly stored and employee details
       const payload = {
-        customer: selectedProject || "General", // Use project name as customer instead of employee names
+        customer: selectedProject, // Use actual project name as customer
+        projectName: selectedProject, // Store project name in dedicated field
         dcNumber,
         dcDate,
         remarks,
         address,
-        items: items.map(item => ({
-          id: item.id,
-          employeeId: item.employeeId,
-          itemCode: item.itemCode,
-          name: item.name,
-          size: item.size, // This will be the modified size
-          quantity: item.quantity,
-          price: item.price,
-          remarks: item.remarks,
-          // Store modification info in remarks if size was modified
-          ...(item.sizeData && JSON.parse(item.sizeData).modified && {
-            remarks: `${item.remarks || ''} [Modified from ${JSON.parse(item.sizeData).original} to ${item.size}]`
-          })
-        }))
+        items: items.map(item => {
+          // Find the original uniform request to get employee details
+          const originalRequest = selectedRequests.find(req => req._id === item.id);
+          
+          return {
+            id: item.id,
+            employeeId: item.employeeId,
+            itemCode: item.itemCode,
+            name: item.name,
+            size: item.size, // This will be the modified size
+            quantity: item.quantity,
+            price: item.price,
+            remarks: item.remarks,
+            // Store employee details for PDF generation
+            designation: originalRequest?.designation || "Employee",
+            uniformType: originalRequest?.uniformType || [item.name],
+            // Store modification info in remarks if size was modified
+            ...(item.sizeData && JSON.parse(item.sizeData).modified && {
+              remarks: `${item.remarks || ''} [Modified from ${JSON.parse(item.sizeData).original} to ${item.size}]`
+            }),
+            // Store individual employee data for easy access
+            individualEmployeeData: {
+              employeeId: item.employeeId,
+              fullName: originalRequest?.fullName || "Unknown",
+              designation: originalRequest?.designation || "Employee",
+              uniformType: originalRequest?.uniformType || [item.name],
+              size: { [item.name]: item.size },
+              qty: item.quantity,
+              projectName: selectedProject
+            }
+          };
+        })
       };
 
       // Log the payload for debugging
