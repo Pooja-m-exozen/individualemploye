@@ -793,10 +793,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                                   monthlySummary.sl + 
                                   monthlySummary.compOff + 
                                   monthlySummary.holidays;
-          const attendancePercentage = monthlySummary.totalDays > 0 ? ((totalPayableDays / monthlySummary.totalDays) * 100).toFixed(2) : '0.00';
+          
+          // Cap totalPayableDays to not exceed totalDays
+          const cappedPayableDays = Math.min(totalPayableDays, monthlySummary.totalDays);
+          const attendancePercentage = monthlySummary.totalDays > 0 ? Math.min(((cappedPayableDays / monthlySummary.totalDays) * 100), 100).toFixed(2) : '0.00';
           doc.text(`Total Days: ${monthlySummary.totalDays}`, 12, yPosition);
           yPosition += 7;
-          doc.text(`Total Payable Days: ${totalPayableDays}`, 12, yPosition);
+          doc.text(`Total Payable Days: ${cappedPayableDays}`, 12, yPosition);
           yPosition += 7;
           doc.text(`Attendance Percentage: ${attendancePercentage}%`, 12, yPosition);
         } else {
@@ -926,9 +929,12 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
           // Summary text
           const totalWorkingDays = filteredRecords.length;
-          // Attendance Percentage (keep as is)
-          const attendancePercentage = totalWorkingDays > 0 ? ((totalPayableDays / totalWorkingDays) * 100).toFixed(2) : '0.00';
-          let totalPayableText = `Total Payable Days: ${totalPayableDays}`;
+          
+          // Cap totalPayableDays to not exceed totalWorkingDays
+          const cappedPayableDays = Math.min(totalPayableDays, totalWorkingDays);
+          const attendancePercentage = totalWorkingDays > 0 ? Math.min(((cappedPayableDays / totalWorkingDays) * 100), 100).toFixed(2) : '0.00';
+          
+          let totalPayableText = `Total Payable Days: ${cappedPayableDays}`;
           if (compOffGained > 0) {
             totalPayableText += ` (Comp Off Gained: ${compOffGained})`;
           }
@@ -1159,6 +1165,43 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         margin: { left: 15 }
       });
       doc.save(`location_report_${selectedMonth}_${selectedYear}.pdf`);
+    };
+
+    // Export Location Report (Excel)
+    const downloadLocationExcel = async () => {
+      // Filter records for the selected month/year
+      const filteredRecords = processedData.filter(record => {
+        const dateObj = new Date(record.date);
+        return dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
+      });
+      
+      // Fetch addresses for all records
+      const recordsWithAddresses = await fetchAllAddresses(filteredRecords);
+      
+      // Prepare data for Excel export - same fields as PDF
+      const excelData = recordsWithAddresses.map(record => ({
+        'Date': formatDate(record.date),
+        'Check-in Location': record.punchInResolvedAddress || 'N/A',
+        'Check-out Location': record.punchOutResolvedAddress || 'N/A'
+      }));
+
+      // Create worksheet
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      
+      // Set column widths
+      const columnWidths = [
+        { wch: 12 }, // Date
+        { wch: 60 }, // Check-in Location
+        { wch: 60 }  // Check-out Location
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Create workbook and add worksheet
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Location Report');
+      
+      // Save the file
+      XLSX.writeFile(workbook, `location_report_${selectedMonth}_${selectedYear}.xlsx`);
     };
 
     // Add this function after downloadLocationPDF
@@ -1412,6 +1455,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     >
                         <FaFilePdf className="w-4 h-4" />
                         Export Location Report (PDF)
+                    </button>
+                    <button
+                        onClick={downloadLocationExcel}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                        <FaFileExcel className="w-4 h-4" />
+                        Export Location Report (Excel)
                     </button>
                     <button
                         onClick={downloadRegularizationHistoryPDF}

@@ -87,7 +87,8 @@ const isSecondOrFourthSaturday = (date: Date): boolean => {
 
 const isHoliday = (date: Date, projectName?: string): boolean => {
   const day = date.getDay();
-  const dateString = date.toISOString().split('T')[0];
+  // Use local date string to avoid timezone issues
+  const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   
   // For Exozen - Ops project: only Sundays are holidays, 2nd and 4th Saturdays are working days
   if (projectName === "Exozen - Ops") {
@@ -202,6 +203,32 @@ interface LeaveHistoryResponse {
   leaveHistory: LeaveRecord[];
 }
 
+interface MonthlySummaryResponse {
+  success: boolean;
+  message: string;
+  data: {
+    employeeId: string;
+    month: string;
+    year: string;
+    summary: {
+      totalDays: number;
+      presentDays: number;
+      halfDays: number;
+      partiallyAbsentDays: number;
+      weekOffs: number;
+      weekOffsWorked: number;
+      holidays: number;
+      el: number;
+      sl: number;
+      cl: number;
+      compOff: number;
+      compOffEarned: number;
+      regularizedPresentDays: number;
+      lop: number;
+    };
+  };
+}
+
 const OverallSummaryPage = (): JSX.Element => {
   const { theme } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -222,6 +249,7 @@ const OverallSummaryPage = (): JSX.Element => {
   const [downloadDropdownOpen, setDownloadDropdownOpen] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [monthlySummaryData, setMonthlySummaryData] = useState<Record<string, MonthlySummaryResponse['data']['summary']>>({});
 
   const daysInMonth = new Date(year, month, 0).getDate();
 
@@ -287,22 +315,20 @@ const OverallSummaryPage = (): JSX.Element => {
         const summaryPromises = employees.map(emp =>
           fetch(`https://cafm.zenapi.co.in/api/attendance/${emp.employeeId}/monthly-summary?month=${month}&year=${year}`)
             .then(res => res.json())
-            .then(data => ({
+            .then((data: MonthlySummaryResponse) => ({
               employeeId: emp.employeeId,
-              lop: data.data?.summary?.lop ?? 0,
-              weekOffs: data.data?.summary?.weekOffs ?? 0,
+              summary: data.data?.summary || null,
             }))
         );
         
         const allSummaryData = await Promise.all(summaryPromises);
-        const lopMap: Record<string, number> = {};
-        const weekOffMap: Record<string, number> = {};
-        allSummaryData.forEach(data => {
-          lopMap[data.employeeId] = data.lop;
-          weekOffMap[data.employeeId] = data.weekOffs;
+        const summaryMap: Record<string, MonthlySummaryResponse['data']['summary']> = {};
+        allSummaryData.forEach((data: { employeeId: string; summary: MonthlySummaryResponse['data']['summary'] | null }) => {
+          if (data.summary) {
+            summaryMap[data.employeeId] = data.summary;
+          }
         });
-        // setLopData(lopMap); // Removed as per edit hint
-        // setWeekOffData(weekOffMap); // Removed as per edit hint
+        setMonthlySummaryData(summaryMap);
       } catch (error) {
         console.error("Error fetching summary data:", error);
       } finally {
@@ -334,7 +360,7 @@ const OverallSummaryPage = (): JSX.Element => {
 
           for (let day = 1; day <= daysInMonth; day++) {
             const currentDate = new Date(year, month - 1, day);
-            const dateString = currentDate.toISOString().split('T')[0];
+            const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
             
             const dayRecord = employeeAttendance.find((record) => {
               const recordDate = new Date(record.date);
@@ -409,9 +435,32 @@ const OverallSummaryPage = (): JSX.Element => {
             return a.status === status && d <= today;
         }).length;
 
-        const payableDays = getPayableDays(empAttendance);
-        const lop = daysInMonth - payableDays;
-        const clCount = getCount('CL');
+        // Use monthly summary API data if available for more accurate calculations
+        const monthlySummary = monthlySummaryData[employee.employeeId];
+        let payableDays, lop, clCount;
+        
+        if (monthlySummary) {
+          // Calculate total payable days including all components
+          const totalPayableDays = monthlySummary.presentDays + 
+                                monthlySummary.holidays + 
+                                monthlySummary.el + 
+                                monthlySummary.sl + 
+                                monthlySummary.cl + 
+                                monthlySummary.compOff + 
+                                monthlySummary.regularizedPresentDays + 
+                                (monthlySummary.halfDays / 2) + 
+                                monthlySummary.weekOffs + 
+                                (monthlySummary.weekOffsWorked || 0);
+          
+          // Cap payable days to not exceed total days
+          payableDays = Math.min(totalPayableDays, monthlySummary.totalDays);
+          lop = monthlySummary.lop;
+          clCount = monthlySummary.cl;
+        } else {
+          payableDays = getPayableDays(empAttendance);
+          lop = daysInMonth - payableDays;
+          clCount = getCount('CL');
+        }
 
         return [
             employee.fullName,
@@ -455,9 +504,32 @@ const OverallSummaryPage = (): JSX.Element => {
               return a.status === status && d <= today;
           }).length;
 
-          const payableDays = getPayableDays(empAttendance);
-          const lop = daysInMonth - payableDays;
-          const clCount = getCount('CL');
+          // Use monthly summary API data if available for more accurate calculations
+          const monthlySummary = monthlySummaryData[employee.employeeId];
+          let payableDays, lop, clCount;
+          
+          if (monthlySummary) {
+            // Calculate total payable days including all components
+            const totalPayableDays = monthlySummary.presentDays + 
+                                  monthlySummary.holidays + 
+                                  monthlySummary.el + 
+                                  monthlySummary.sl + 
+                                  monthlySummary.cl + 
+                                  monthlySummary.compOff + 
+                                  monthlySummary.regularizedPresentDays + 
+                                  (monthlySummary.halfDays / 2) + 
+                                  monthlySummary.weekOffs + 
+                                  (monthlySummary.weekOffsWorked || 0);
+            
+            // Cap payable days to not exceed total days
+            payableDays = Math.min(totalPayableDays, monthlySummary.totalDays);
+            lop = monthlySummary.lop;
+            clCount = monthlySummary.cl;
+          } else {
+            payableDays = getPayableDays(empAttendance);
+            lop = daysInMonth - payableDays;
+            clCount = getCount('CL');
+          }
 
           return {
               'Employee Name': employee.fullName,
@@ -736,9 +808,35 @@ const OverallSummaryPage = (): JSX.Element => {
                     const cflCount = getCount('CFL');
                     const elCount = getCount('EL');
                     const slCount = getCount('SL');
-                    const payableDays = getPayableDays(empAttendance);
-                    const lop = daysInMonth - payableDays;
-                    const clCount = getCount('CL');
+                    
+                    // Use monthly summary API data if available, otherwise fallback to calculated values
+                    const monthlySummary = monthlySummaryData[employee.employeeId];
+                    let payableDays, lop, clCount, weekOffs;
+                    
+                    if (monthlySummary) {
+                      // Calculate total payable days including all components
+                      const totalPayableDays = monthlySummary.presentDays + 
+                                            monthlySummary.holidays + 
+                                            monthlySummary.el + 
+                                            monthlySummary.sl + 
+                                            monthlySummary.cl + 
+                                            monthlySummary.compOff + 
+                                            monthlySummary.regularizedPresentDays + 
+                                            (monthlySummary.halfDays / 2) + 
+                                            monthlySummary.weekOffs + 
+                                            (monthlySummary.weekOffsWorked || 0);
+                      
+                      // Cap payable days to not exceed total days
+                      payableDays = Math.min(totalPayableDays, monthlySummary.totalDays);
+                      lop = monthlySummary.lop;
+                      clCount = monthlySummary.cl;
+                      weekOffs = monthlySummary.weekOffs;
+                    } else {
+                      payableDays = getPayableDays(empAttendance);
+                      lop = daysInMonth - payableDays;
+                      clCount = getCount('CL');
+                      weekOffs = getWeekOffsInMonth(year, month, employee.projectName);
+                    }
                     return (
                       <tr key={employee.employeeId} className={`transition-colors duration-150 ${theme === 'dark' ? 'hover:bg-gray-700/50' : 'hover:bg-blue-50/50'}`}>
                         <td className={`py-3 pl-4 pr-8 sticky left-0 bg-inherit z-10 whitespace-nowrap w-48 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}> 
@@ -753,7 +851,7 @@ const OverallSummaryPage = (): JSX.Element => {
                         <td className={`p-3 text-center font-bold w-20 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>{daysInMonth}</td>
                         <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-green-900' : 'bg-green-100'}`}>{presentDays}</td>
                         <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-red-900' : 'bg-red-100'}`}>{absentDays}</td>
-                        <td className={`p-3 text-center font-bold w-20 ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{loadingLop ? '...' : getWeekOffsInMonth(year, month, employee.projectName)}</td>
+                        <td className={`p-3 text-center font-bold w-20 ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{loadingLop ? '...' : weekOffs}</td>
                         <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-cyan-900' : 'bg-cyan-100'}`}>{cfCount}</td>
                         <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{cflCount}</td>
                         <td className={`p-3 text-center font-bold w-16 ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{elCount}</td>
