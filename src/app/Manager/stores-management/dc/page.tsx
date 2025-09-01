@@ -912,7 +912,7 @@ export default function StoreDCPage() {
           (type && type.toLowerCase().includes('accessories')) ||
           (type && type.toLowerCase().includes('accessory'))
         );
-        const noOfSet = hasAccessories ? "Full set" : "1";
+        const noOfSet = hasAccessories ? "Full set" : "N/A";
        
         // Create row with sizes for each uniform type
         const row = [

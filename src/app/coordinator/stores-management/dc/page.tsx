@@ -570,6 +570,7 @@ export default function StoreDCPage() {
   // 3. Shows customer address when available, falls back to customer name
   // 4. Handles long customer names by truncating if necessary
   // 5. Uses DC-specific items while fetching employee details from uniforms API
+  // 6. Automatically switches to landscape orientation for better visibility when many columns
   const handleDownloadDC = async (dc: DC) => {
     try {
       setPdfLoading(dc.dcNumber);
@@ -578,435 +579,461 @@ export default function StoreDCPage() {
       console.log("Generating PDF for DC:", dc);
       console.log("DC items:", dc.items);
      
-      // Create PDF with A4 portrait orientation for proper A4 sheet format
-      const doc = new jsPDF('portrait', 'mm', 'a4');
-    (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = undefined;
-
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    let y = 15; // Starting position
-
-    // Company Name & Address
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED", pageWidth / 2, y, { align: "center" });
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.text("25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", pageWidth / 2, y + 8, { align: "center" });
-
-    // Document Title
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Non-Returnable Delivery Challan", pageWidth / 2, y + 16, { align: "center" });
-
-    // Outer border
-    doc.setDrawColor(180);
-    doc.rect(5, 5, pageWidth - 10, pageHeight - 10, 'S');
-
-    y += 25;
-
-    // NRDC No and Date row
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text(`NRDC No: ${dc.dcNumber}`, 12, y);
-    doc.text(`Date: ${dc.dcDate ? dc.dcDate.split("T")[0] : ""}`, pageWidth - 80, y);
-
-    y += 8;
-
-    // From/To boxes
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text("From:", 15, y + 3);
-    doc.text("To:", pageWidth / 2 + 2, y + 3);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.rect(15, y + 5, pageWidth / 2 - 25, 20);
-    doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED\n25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", 17, y + 8, { maxWidth: pageWidth / 2 - 29 });
-    doc.rect(pageWidth / 2 + 2, y + 5, pageWidth / 2 - 25, 20);
-   
-    // Use the actual project name from the created DC, not extracted from other sources
-    const projectName = dc.projectName || dc.customer;
-    console.log("Project name for PDF (from DC):", projectName);
-   
-    // If project name is still generic, try to get it from the first item's individualEmployeeData
-    let finalProjectName = projectName;
-    if (dc.items && dc.items.length > 0 && dc.items[0].individualEmployeeData?.projectName) {
-      finalProjectName = dc.items[0].individualEmployeeData.projectName;
-      console.log("Using project name from individualEmployeeData:", finalProjectName);
-    }
-   
-    // Ensure we don't use "N/A" as project name
-    if (!finalProjectName || finalProjectName === "N/A" || finalProjectName === "General") {
-      finalProjectName = dc.customer || "Project Details";
-    }
-   
-    // Fetch customer address from project API
-    let customerAddress = "";
-    try {
-      const projectRes = await fetch("https://cafm.zenapi.co.in/api/project/projects");
-      if (projectRes.ok) {
-        const projectData = await projectRes.json();
-        // Try to find project by customer name with better matching logic
-        const customerNames = dc.customer.split(',').map(name => name.trim());
-        let matchingProject = null;
-       
-        // First try exact match
-        matchingProject = projectData.find((p: { projectName: string; address?: string }) =>
-          customerNames.some(customerName => customerName === p.projectName)
-        );
-       
-        // If no exact match, try partial match
-        if (!matchingProject) {
-          matchingProject = projectData.find((p: { projectName: string; address?: string }) =>
-            customerNames.some(customerName =>
-              customerName.toLowerCase().includes(p.projectName.toLowerCase()) ||
-              p.projectName.toLowerCase().includes(customerName.toLowerCase())
-            )
-          );
-        }
-       
-        if (matchingProject && matchingProject.address) {
-          customerAddress = matchingProject.address;
-          console.log(`Found address for customer ${dc.customer}: ${customerAddress}`);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching customer address:", error);
-    }
-   
-    // Create the "To" text with project name and address (avoid duplication)
-    let toText = `${finalProjectName}`;
-   
-    // Add customer address if found, otherwise add customer name as fallback
-    if (customerAddress && customerAddress.trim() !== "" && customerAddress !== "N/A" && customerAddress !== "Address not available") {
-      toText += `\n${customerAddress}`;
-    } else if (dc.customer && dc.customer.trim() !== "N/A" && dc.customer.trim() !== "") {
-      // Only add customer name if it's different from the project name to avoid duplication
-      if (finalProjectName !== dc.customer) {
-        // Handle long customer names by truncating if necessary
-        const customerName = dc.customer.length > 50 ? dc.customer.substring(0, 50) + "..." : dc.customer;
-        toText += `\n${customerName}`;
-      }
-    }
-   
-    // If still no address, try to use a default address for known projects
-    if (finalProjectName.toLowerCase().includes('skootr')) {
-      toText += `\n213, Rainmakers Workspace, Mahatma Gandhi Road, Ramanashree Arcade, Bengaluru, 560001, Karnataka, INDIA`;
-    }
-   
-    // Log the final "To" text for debugging
-    console.log("Final 'To' text for PDF:", toText);
-   
-    // Try to get better project information after we fetch employee data
-    doc.text(toText, pageWidth / 2 + 4, y + 8, { maxWidth: pageWidth / 2 - 29 });
-
-    y += 30;
-
-    // Fetch employee data from uniforms API to get proper employee information
-    console.log("Fetching employee data from uniforms API for DC:", dc.dcNumber);
-    // Using let because employeeData is modified with push() operations
-    // eslint-disable-next-line prefer-const
-    let employeeData: Array<{
-      employeeId: string;
-      fullName: string;
-      designation: string;
-      uniformType: string[];
-      size: Record<string, string>;
-      projectName: string;
-    }> = [];
-   
-    try {
-      const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.employeeGroups) {
-          console.log("Using new API structure with employeeGroups:", data.employeeGroups.length, "employees");
-         
-          // Parse customer names from DC
-          const customerNames = dc.customer.split(',').map(name => name.trim());
-          console.log("DC customer names:", customerNames);
-         
-          // Match employees by customer names
-          data.employeeGroups.forEach((group: { fullName?: string; employeeId?: string; designation?: string; projectName?: string; requests?: Array<{ uniformType?: string[]; size?: Record<string, string> }> }) => {
-            const groupName = group.fullName?.trim();
-            if (groupName) {
-              // Check if this employee matches any customer name in the DC
-              const isMatchingEmployee = customerNames.some(customerName => {
-                // Try exact match first
-                if (customerName === groupName) return true;
+      // Fetch employee data from uniforms API to get proper employee information
+      console.log("Fetching employee data from uniforms API for DC:", dc.dcNumber);
+      // Using let because employeeData is modified with push() operations
+      // eslint-disable-next-line prefer-const
+      let employeeData: Array<{
+        employeeId: string;
+        fullName: string;
+        designation: string;
+        uniformType: string[];
+        size: Record<string, string>;
+        projectName: string;
+      }> = [];
+     
+      try {
+        const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.employeeGroups) {
+            console.log("Using new API structure with employeeGroups:", data.employeeGroups.length, "employees");
+           
+            // Parse customer names from DC
+            const customerNames = dc.customer.split(',').map(name => name.trim());
+            console.log("DC customer names:", customerNames);
+           
+            // Match employees by customer names
+            data.employeeGroups.forEach((group: { fullName?: string; employeeId?: string; designation?: string; projectName?: string; requests?: Array<{ uniformType?: string[]; size?: Record<string, string> }> }) => {
+              const groupName = group.fullName?.trim();
+              if (groupName) {
+                // Check if this employee matches any customer name in the DC
+                const isMatchingEmployee = customerNames.some(customerName => {
+                  // Try exact match first
+                  if (customerName === groupName) return true;
+                 
+                  // Try partial match
+                  if (customerName.toLowerCase().includes(groupName.toLowerCase()) ||
+                      groupName.toLowerCase().includes(customerName.toLowerCase())) return true;
+                 
+                  // Try matching by project name if customer name doesn't match
+                  if (group.projectName && 
+                      (group.projectName === dc.projectName || 
+                       group.projectName === dc.customer ||
+                       (dc.projectName && dc.projectName.toLowerCase().includes(group.projectName.toLowerCase())) ||
+                       (group.projectName && group.projectName.toLowerCase().includes(dc.projectName?.toLowerCase() || '')))) {
+                    return true;
+                  }
+                 
+                  return false;
+                });
                
-                // Try partial match
-                if (customerName.toLowerCase().includes(groupName.toLowerCase()) ||
-                    groupName.toLowerCase().includes(customerName.toLowerCase())) return true;
-               
-                // Try matching by project name if customer name doesn't match
+                if (isMatchingEmployee) {
+                  const employeeInfo = {
+                    employeeId: group.employeeId || `EMP${String(employeeData.length + 1).padStart(3, '0')}`,
+                    fullName: group.fullName || "Unknown Employee",
+                    designation: group.designation || "Employee",
+                    uniformType: group.requests?.[0]?.uniformType || [],
+                    size: group.requests?.[0]?.size || {},
+                    projectName: group.projectName || dc.projectName || dc.customer
+                  };
+                 
+                  // Add to employee data array if not already present
+                  if (!employeeData.find(emp => emp.employeeId === employeeInfo.employeeId)) {
+                    employeeData.push(employeeInfo);
+                    console.log(`Added employee: ${employeeInfo.employeeId} - ${employeeInfo.fullName} (${employeeInfo.designation})`);
+                  }
+                }
+              }
+            });
+           
+            // If no employees found, try to match by project name
+            if (employeeData.length === 0) {
+              console.log("No employees found by name, trying to match by project...");
+              data.employeeGroups.forEach((group: { fullName?: string; employeeId?: string; designation?: string; projectName?: string; requests?: Array<{ uniformType?: string[]; size?: Record<string, string> }> }) => {
                 if (group.projectName && 
                     (group.projectName === dc.projectName || 
                      group.projectName === dc.customer ||
                      (dc.projectName && dc.projectName.toLowerCase().includes(group.projectName.toLowerCase())) ||
                      (group.projectName && group.projectName.toLowerCase().includes(dc.projectName?.toLowerCase() || '')))) {
-                  return true;
+                 
+                  const employeeInfo = {
+                    employeeId: group.employeeId || `EMP${String(employeeData.length + 1).padStart(3, '0')}`,
+                    fullName: group.fullName || "Unknown Employee",
+                    designation: group.designation || "Employee",
+                    uniformType: group.requests?.[0]?.uniformType || [],
+                    size: group.requests?.[0]?.size || {},
+                    projectName: group.projectName || dc.projectName || dc.customer
+                  };
+                 
+                  if (!employeeData.find(emp => emp.employeeId === employeeInfo.employeeId)) {
+                    employeeData.push(employeeInfo);
+                    console.log(`Added employee by project: ${employeeInfo.employeeId} - ${employeeInfo.fullName}`);
+                  }
                 }
-               
-                return false;
               });
-             
-              if (isMatchingEmployee) {
-                const employeeInfo = {
-                  employeeId: group.employeeId || `EMP${String(employeeData.length + 1).padStart(3, '0')}`,
-                  fullName: group.fullName || "Unknown Employee",
-                  designation: group.designation || "Employee",
-                  uniformType: group.requests?.[0]?.uniformType || [],
-                  size: group.requests?.[0]?.size || {},
-                  projectName: group.projectName || dc.projectName || dc.customer
-                };
-               
-                // Add to employee data array if not already present
-                if (!employeeData.find(emp => emp.employeeId === employeeInfo.employeeId)) {
-                  employeeData.push(employeeInfo);
-                  console.log(`Added employee: ${employeeInfo.employeeId} - ${employeeInfo.fullName} (${employeeInfo.designation})`);
-                }
-              }
             }
-          });
-         
-          // If no employees found, try to match by project name
-          if (employeeData.length === 0) {
-            console.log("No employees found by name, trying to match by project...");
-            data.employeeGroups.forEach((group: { fullName?: string; employeeId?: string; designation?: string; projectName?: string; requests?: Array<{ uniformType?: string[]; size?: Record<string, string> }> }) => {
-              if (group.projectName && 
-                  (group.projectName === dc.projectName || 
-                   group.projectName === dc.customer ||
-                   (dc.projectName && dc.projectName.toLowerCase().includes(group.projectName.toLowerCase())) ||
-                   (group.projectName && group.projectName.toLowerCase().includes(dc.projectName?.toLowerCase() || '')))) {
+          } else if (data.success && data.uniforms) {
+            console.log("Using legacy API structure with uniforms:", data.uniforms.length, "uniforms");
+           
+            // Fallback to old API structure
+            const customerNames = dc.customer.split(',').map(name => name.trim());
+            data.uniforms.forEach((uniform: { fullName?: string; employeeId?: string; designation?: string; projectName?: string; uniformType?: string[]; size?: Record<string, string> }) => {
+              const uniformName = uniform.fullName?.trim();
+              if (uniformName) {
+                const isMatchingEmployee = customerNames.some(customerName => {
+                  if (customerName === uniformName) return true;
+                  if (customerName.toLowerCase().includes(uniformName.toLowerCase()) ||
+                      uniformName.toLowerCase().includes(customerName.toLowerCase())) return true;
+                 
+                  // Try matching by project name
+                  if (uniform.projectName && 
+                      (uniform.projectName === dc.projectName || 
+                       uniform.projectName === dc.customer)) return true;
+                 
+                  return false;
+                });
                
-                const employeeInfo = {
-                  employeeId: group.employeeId || `EMP${String(employeeData.length + 1).padStart(3, '0')}`,
-                  fullName: group.fullName || "Unknown Employee",
-                  designation: group.designation || "Employee",
-                  uniformType: group.requests?.[0]?.uniformType || [],
-                  size: group.requests?.[0]?.size || {},
-                  projectName: group.projectName || dc.projectName || dc.customer
-                };
-               
-                if (!employeeData.find(emp => emp.employeeId === employeeInfo.employeeId)) {
-                  employeeData.push(employeeInfo);
-                  console.log(`Added employee by project: ${employeeInfo.employeeId} - ${employeeInfo.fullName}`);
+                if (isMatchingEmployee) {
+                  const employeeInfo = {
+                    employeeId: uniform.employeeId || `EMP${String(employeeData.length + 1).padStart(3, '0')}`,
+                    fullName: uniform.fullName || "Unknown Employee",
+                    designation: uniform.designation || "Employee",
+                    uniformType: uniform.uniformType || [],
+                    size: uniform.size || {},
+                    projectName: uniform.projectName || dc.projectName || dc.customer
+                  };
+                 
+                  if (!employeeData.find(emp => emp.employeeId === employeeInfo.employeeId)) {
+                    employeeData.push(employeeInfo);
+                    console.log(`Added employee from legacy API: ${employeeInfo.employeeId} - ${employeeInfo.fullName}`);
+                  }
                 }
               }
             });
           }
-        } else if (data.success && data.uniforms) {
-          console.log("Using legacy API structure with uniforms:", data.uniforms.length, "uniforms");
-         
-          // Fallback to old API structure
-          const customerNames = dc.customer.split(',').map(name => name.trim());
-          data.uniforms.forEach((uniform: { fullName?: string; employeeId?: string; designation?: string; projectName?: string; uniformType?: string[]; size?: Record<string, string> }) => {
-            const uniformName = uniform.fullName?.trim();
-            if (uniformName) {
-              const isMatchingEmployee = customerNames.some(customerName => {
-                if (customerName === uniformName) return true;
-                if (customerName.toLowerCase().includes(uniformName.toLowerCase()) ||
-                    uniformName.toLowerCase().includes(customerName.toLowerCase())) return true;
-               
-                // Try matching by project name
-                if (uniform.projectName && 
-                    (uniform.projectName === dc.projectName || 
-                     uniform.projectName === dc.customer)) return true;
-               
-                return false;
-              });
-             
-              if (isMatchingEmployee) {
-                const employeeInfo = {
-                  employeeId: uniform.employeeId || `EMP${String(employeeData.length + 1).padStart(3, '0')}`,
-                  fullName: uniform.fullName || "Unknown Employee",
-                  designation: uniform.designation || "Employee",
-                  uniformType: uniform.uniformType || [],
-                  size: uniform.size || {},
-                  projectName: uniform.projectName || dc.projectName || dc.customer
-                };
-               
-                if (!employeeData.find(emp => emp.employeeId === employeeInfo.employeeId)) {
-                  employeeData.push(employeeInfo);
-                  console.log(`Added employee from legacy API: ${employeeInfo.employeeId} - ${employeeInfo.fullName}`);
-                }
-              }
+        }
+      } catch (error) {
+        console.error("Error fetching employee data from uniforms API:", error);
+      }
+     
+      // If still no employee data found, create basic employee entries from DC customer names
+      if (employeeData.length === 0) {
+        console.log("No employee data found from API, creating basic entries from DC customer names");
+        const customerNames = dc.customer.split(',').map(name => name.trim());
+        customerNames.forEach((customerName, index) => {
+          // Using push() to modify employeeData array
+          employeeData.push({
+            employeeId: `EMP${String(index + 1).padStart(3, '0')}`,
+            fullName: customerName,
+            designation: "Employee",
+            uniformType: [],
+            size: {},
+            projectName: dc.projectName || dc.customer
+          });
+        });
+      }
+     
+      console.log("Final employee data for PDF:", employeeData);
+     
+      // Get all unique uniform types from employee data and DC items
+      const allUniformTypes = new Set<string>();
+      
+      // Add uniform types from employee data
+      employeeData.forEach(emp => {
+        if (emp.uniformType && Array.isArray(emp.uniformType)) {
+          emp.uniformType.forEach(type => {
+            if (type && typeof type === 'string' && type.trim()) {
+              allUniformTypes.add(type.trim());
             }
           });
         }
-      }
-    } catch (error) {
-      console.error("Error fetching employee data from uniforms API:", error);
-    }
-   
-    // If still no employee data found, create basic employee entries from DC customer names
-    if (employeeData.length === 0) {
-      console.log("No employee data found from API, creating basic entries from DC customer names");
-      const customerNames = dc.customer.split(',').map(name => name.trim());
-      customerNames.forEach((customerName, index) => {
-        // Using push() to modify employeeData array
-        employeeData.push({
-          employeeId: `EMP${String(index + 1).padStart(3, '0')}`,
-          fullName: customerName,
-          designation: "Employee",
-          uniformType: [],
-          size: {},
-          projectName: dc.projectName || dc.customer
-        });
       });
-    }
-   
-    console.log("Final employee data for PDF:", employeeData);
-   
-    // Get all unique uniform types from employee data and DC items
-    const allUniformTypes = new Set<string>();
-    
-    // Add uniform types from employee data
-    employeeData.forEach(emp => {
-      if (emp.uniformType && Array.isArray(emp.uniformType)) {
-        emp.uniformType.forEach(type => {
-          if (type && typeof type === 'string' && type.trim()) {
-            allUniformTypes.add(type.trim());
-          }
-        });
-      }
-    });
-    
-    // Add uniform types from DC items as fallback
-    dc.items.forEach(item => {
-      if (item.name && typeof item.name === 'string' && item.name.trim()) {
-        allUniformTypes.add(item.name.trim());
-      }
-    });
-   
-    // If no uniform types found, use a default
-    if (allUniformTypes.size === 0) {
-      allUniformTypes.add("Uniform");
-    }
-   
-    const uniformTypesArray = Array.from(allUniformTypes);
-    console.log("Uniform types for PDF:", uniformTypesArray);
-   
-    // Create table headers with uniform types
-    const tableHeaders = ["Sl No", "Emp ID", "Names", "DESIGNATION", "No of Set", ...uniformTypesArray, "Amount", "Emp Sign"];
-   
-    // Create table body using employee data
-    const tableBody: (string | number)[][] = [];
-   
-    employeeData.forEach((employee, index) => {
-      // Check if employee has accessories to determine "No of Set"
-      const hasAccessories = employee.uniformType?.some((type: string) =>
-        (type && type.toLowerCase().includes('accessories')) ||
-        (type && type.toLowerCase().includes('accessory'))
-      );
-      const noOfSet = hasAccessories ? "Full set" : "1";
+      
+      // Add uniform types from DC items as fallback
+      dc.items.forEach(item => {
+        if (item.name && typeof item.name === 'string' && item.name.trim()) {
+          allUniformTypes.add(item.name.trim());
+        }
+      });
      
-      // Create row with sizes for each uniform type
-      const row = [
-        index + 1, // Sl No
-        employee.employeeId, // Use actual employee ID
-        employee.fullName,   // Use actual full name
-        employee.designation, // Use actual designation
-        noOfSet,
-        // Add size values for each uniform type
-        ...uniformTypesArray.map((uniformType: string) => {
-          // Check if this employee has this uniform type
-          if (employee.uniformType?.some((type: string) => {
-            if (!type || typeof type !== 'string') return false;
-            return type.trim() === uniformType.trim() ||
-                   type.trim().toLowerCase() === uniformType.trim().toLowerCase();
-          })) {
-            // Get size from employee data
-            if (employee.size && employee.size[uniformType]) {
-              return employee.size[uniformType];
-            }
-            // Try to find size by trimmed comparison
-            const matchingType = employee.uniformType.find((type: string) => {
+      // If no uniform types found, use a default
+      if (allUniformTypes.size === 0) {
+        allUniformTypes.add("Uniform");
+      }
+     
+      const uniformTypesArray = Array.from(allUniformTypes);
+      console.log("Uniform types for PDF:", uniformTypesArray);
+     
+      // Determine PDF orientation based on number of columns for better visibility
+      const totalColumnsForOrientation = 5 + uniformTypesArray.length + 2; // Base columns + uniform types + Amount + Emp Sign
+      const useLandscape = totalColumnsForOrientation > 12; // Switch to landscape if more than 12 columns
+      
+      console.log(`Total columns: ${totalColumnsForOrientation}, Using landscape: ${useLandscape}`);
+     
+      // Create PDF with appropriate orientation
+      const doc = new jsPDF(useLandscape ? 'landscape' : 'portrait', 'mm', 'a4');
+      (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = undefined;
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let y = 15; // Starting position
+
+      // Company Name & Address
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED", pageWidth / 2, y, { align: "center" });
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", pageWidth / 2, y + 8, { align: "center" });
+
+      // Document Title
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Non-Returnable Delivery Challan", pageWidth / 2, y + 16, { align: "center" });
+
+      // Outer border
+      doc.setDrawColor(180);
+      doc.rect(5, 5, pageWidth - 10, pageHeight - 10, 'S');
+
+      y += 25;
+
+      // NRDC No and Date row
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(`NRDC No: ${dc.dcNumber}`, 12, y);
+      doc.text(`Date: ${dc.dcDate ? dc.dcDate.split("T")[0] : ""}`, pageWidth - 80, y);
+
+      y += 8;
+
+      // From/To boxes
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("From:", 15, y + 3);
+      doc.text("To:", pageWidth / 2 + 2, y + 3);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      
+      const fromBoxWidth = pageWidth / 2 - 25;
+      const toBoxWidth = pageWidth / 2 - 25;
+      const boxHeight = 20;
+      
+      doc.rect(15, y + 5, fromBoxWidth, boxHeight);
+      doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED\n25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", 17, y + 8, { maxWidth: fromBoxWidth - 2 });
+      doc.rect(pageWidth / 2 + 2, y + 5, toBoxWidth, boxHeight);
+     
+      // Use the actual project name from the created DC, not extracted from other sources
+      const projectName = dc.projectName || dc.customer;
+      console.log("Project name for PDF (from DC):", projectName);
+     
+      // If project name is still generic, try to get it from the first item's individualEmployeeData
+      let finalProjectName = projectName;
+      if (dc.items && dc.items.length > 0 && dc.items[0].individualEmployeeData?.projectName) {
+        finalProjectName = dc.items[0].individualEmployeeData.projectName;
+        console.log("Using project name from individualEmployeeData:", finalProjectName);
+      }
+     
+      // Ensure we don't use "N/A" as project name
+      if (!finalProjectName || finalProjectName === "N/A" || finalProjectName === "General") {
+        finalProjectName = dc.customer || "Project Details";
+      }
+     
+      // Fetch customer address from project API
+      let customerAddress = "";
+      try {
+        const projectRes = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+        if (projectRes.ok) {
+          const projectData = await projectRes.json();
+          // Try to find project by customer name with better matching logic
+          const customerNames = dc.customer.split(',').map(name => name.trim());
+          let matchingProject = null;
+         
+          // First try exact match
+          matchingProject = projectData.find((p: { projectName: string; address?: string }) =>
+            customerNames.some(customerName => customerName === p.projectName)
+          );
+         
+          // If no exact match, try partial match
+          if (!matchingProject) {
+            matchingProject = projectData.find((p: { projectName: string; address?: string }) =>
+              customerNames.some(customerName =>
+                customerName.toLowerCase().includes(p.projectName.toLowerCase()) ||
+                p.projectName.toLowerCase().includes(customerName.toLowerCase())
+              )
+            );
+          }
+         
+          if (matchingProject && matchingProject.address) {
+            customerAddress = matchingProject.address;
+            console.log(`Found address for customer ${dc.customer}: ${customerAddress}`);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching customer address:", error);
+      }
+     
+      // Create the "To" text with project name and address (avoid duplication)
+      let toText = `${finalProjectName}`;
+     
+      // Add customer address if found, otherwise add customer name as fallback
+      if (customerAddress && customerAddress.trim() !== "" && customerAddress !== "N/A" && customerAddress !== "Address not available") {
+        toText += `\n${customerAddress}`;
+      } else if (dc.customer && dc.customer.trim() !== "N/A" && dc.customer.trim() !== "") {
+        // Only add customer name if it's different from the project name to avoid duplication
+        if (finalProjectName !== dc.customer) {
+          // Handle long customer names by truncating if necessary
+          const customerName = dc.customer.length > 50 ? dc.customer.substring(0, 50) + "..." : dc.customer;
+          toText += `\n${customerName}`;
+        }
+      }
+     
+      // If still no address, try to use a default address for known projects
+      if (finalProjectName.toLowerCase().includes('skootr')) {
+        toText += `\n213, Rainmakers Workspace, Mahatma Gandhi Road, Ramanashree Arcade, Bengaluru, 560001, Karnataka, INDIA`;
+      }
+     
+      // Log the final "To" text for debugging
+      console.log("Final 'To' text for PDF:", toText);
+     
+      // Try to get better project information after we fetch employee data
+      doc.text(toText, pageWidth / 2 + (useLandscape ? 7 : 4), y + 8, { maxWidth: toBoxWidth - 2 });
+
+      y += useLandscape ? 35 : 30;
+
+          // Create table headers with uniform types
+      const tableHeaders = ["SI No", "Emp ID", "Names", "DESIGNATION", "No of Set", ...uniformTypesArray, "Amount", "Emp Sign"];
+     
+      // Create table body using employee data
+      const tableBody: (string | number)[][] = [];
+     
+      employeeData.forEach((employee, index) => {
+        // Check if employee has accessories to determine "No of Set"
+        const hasAccessories = employee.uniformType?.some((type: string) =>
+          (type && type.toLowerCase().includes('accessories')) ||
+          (type && type.toLowerCase().includes('accessory'))
+        );
+        const noOfSet = hasAccessories ? "Full set" : "N/A";
+       
+        // Create row with sizes for each uniform type
+        const row = [
+          index + 1, // SI No
+          employee.employeeId, // Use actual employee ID
+          employee.fullName,   // Use actual full name
+          employee.designation, // Use actual designation
+          noOfSet,
+          // Add size values for each uniform type
+          ...uniformTypesArray.map((uniformType: string) => {
+            // Check if this employee has this uniform type
+            if (employee.uniformType?.some((type: string) => {
               if (!type || typeof type !== 'string') return false;
               return type.trim() === uniformType.trim() ||
                      type.trim().toLowerCase() === uniformType.trim().toLowerCase();
-            });
-            if (matchingType && employee.size && employee.size[matchingType]) {
-              return employee.size[matchingType];
+            })) {
+              // Get size from employee data
+              if (employee.size && employee.size[uniformType]) {
+                return employee.size[uniformType];
+              }
+              // Try to find size by trimmed comparison
+              const matchingType = employee.uniformType.find((type: string) => {
+                if (!type || typeof type !== 'string') return false;
+                return type.trim() === uniformType.trim() ||
+                       type.trim().toLowerCase() === uniformType.trim().toLowerCase();
+              });
+              if (matchingType && employee.size && employee.size[matchingType]) {
+                return employee.size[matchingType];
+              }
             }
-          }
-          return "N/A";
-        }),
-        "N/A", // Amount field
-        "" // Employee signature field
-      ];
+            return "N/A";
+          }),
+          "N/A", // Amount field
+          "" // Employee signature field
+        ];
+       
+        console.log(`Created row for employee ${employee.employeeId}:`, row);
+        tableBody.push(row);
+      });
      
-      console.log(`Created row for employee ${employee.employeeId}:`, row);
-      tableBody.push(row);
-    });
-   
-    // Validate that we have a valid table body
-    if (tableBody.length === 0) {
-      console.error("No valid employee rows created for PDF table");
-      throw new Error("No valid employee data available for PDF generation");
-    }
-   
-    console.log(`Table body for employees:`, tableBody);
-   
-    // Calculate optimal column widths for portrait orientation with overflow prevention
-    const baseColumns = 5; // Sl No, Emp ID, Names, DESIGNATION, No of Set
-    const uniformColumns = uniformTypesArray.length;
-   
-    // Calculate optimal column widths - ensure fit within A4 portrait
-    const totalColumns = baseColumns + uniformColumns + 2; // +2 for Amount and Emp Sign
-    const availableWidth = pageWidth - 30; // Increased margins to prevent overflow
-   
-    // Calculate maximum width per column to prevent overflow
-    const maxColumnWidth = Math.min(availableWidth / totalColumns, 25); // Cap at 25mm per column
-   
-    const columnWidths: Record<string, { cellWidth: number }> = {
-      '0': { cellWidth: Math.min(12, maxColumnWidth) }, // Sl No - compact
-      '1': { cellWidth: Math.min(20, maxColumnWidth) }, // Emp ID - compact
-      '2': { cellWidth: Math.min(35, maxColumnWidth * 1.5) }, // Names - wider but capped
-      '3': { cellWidth: Math.min(25, maxColumnWidth) }, // DESIGNATION - compact
-      '4': { cellWidth: Math.min(15, maxColumnWidth) }, // No of Set - compact
-      // Dynamic uniform type columns
-      ...uniformTypesArray.reduce((acc: Record<string, { cellWidth: number }>, _: string, index: number) => {
-        acc[String(baseColumns + index)] = { cellWidth: Math.min(25, maxColumnWidth) }; // Increased width for uniform type names
-        return acc;
-      }, {} as Record<string, { cellWidth: number }>),
-      [String(baseColumns + uniformColumns)]: { cellWidth: Math.min(15, maxColumnWidth) }, // Amount - compact
-      [String(baseColumns + uniformColumns + 1)]: { cellWidth: Math.min(20, maxColumnWidth) } // Emp Sign - compact
-    };
-   
-    autoTable(doc, {
-      startY: y,
-      head: [tableHeaders],
-      body: tableBody,
-      theme: "grid",
-      headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold', fontSize: 8 }, // Reduced font size
-      styles: { fontSize: 7, cellPadding: 2, textColor: 20 }, // Reduced font size and padding
-      margin: { left: 15, right: 15, top: 2, bottom: 2 }, // Increased margins to prevent overflow
-      tableWidth: pageWidth - 30, // Use reduced width to prevent overflow
-      columnStyles: columnWidths,
-      // Prevent overflow with proper text handling
-      // Remove page break logic to ensure single page
-    });
+      // Validate that we have a valid table body
+      if (tableBody.length === 0) {
+        console.error("No valid employee rows created for PDF table");
+        throw new Error("No valid employee data available for PDF generation");
+      }
+     
+      console.log(`Table body for employees:`, tableBody);
+     
+      // Calculate optimal column widths based on orientation for better visibility
+      const baseColumns = 5; // SI No, Emp ID, Names, DESIGNATION, No of Set
+      const uniformColumns = uniformTypesArray.length;
+      const totalColumnsForWidth = baseColumns + uniformColumns + 2; // +2 for Amount and Emp Sign
+      
+      // Adjust margins and widths based on orientation
+      const margin = useLandscape ? 20 : 15;
+      const availableWidth = pageWidth - (margin * 2);
+      
+      // Calculate column widths - landscape allows more space per column
+      const maxColumnWidth = useLandscape ? 
+        Math.min(availableWidth / totalColumnsForWidth, 35) : // Landscape: more space per column
+        Math.min(availableWidth / totalColumnsForWidth, 25);  // Portrait: compact columns
+     
+      const columnWidths: Record<string, { cellWidth: number }> = {
+        '0': { cellWidth: Math.min(useLandscape ? 15 : 12, maxColumnWidth) }, // SI No
+        '1': { cellWidth: Math.min(useLandscape ? 25 : 20, maxColumnWidth) }, // Emp ID
+        '2': { cellWidth: Math.min(useLandscape ? 45 : 35, maxColumnWidth * 1.5) }, // Names - wider
+        '3': { cellWidth: Math.min(useLandscape ? 35 : 25, maxColumnWidth) }, // DESIGNATION
+        '4': { cellWidth: Math.min(useLandscape ? 20 : 15, maxColumnWidth) }, // No of Set
+        // Dynamic uniform type columns - landscape allows more space
+        ...uniformTypesArray.reduce((acc: Record<string, { cellWidth: number }>, _: string, index: number) => {
+          acc[String(baseColumns + index)] = { 
+            cellWidth: Math.min(useLandscape ? 35 : 25, maxColumnWidth) 
+          };
+          return acc;
+        }, {} as Record<string, { cellWidth: number }>),
+        [String(baseColumns + uniformColumns)]: { cellWidth: Math.min(useLandscape ? 20 : 15, maxColumnWidth) }, // Amount
+        [String(baseColumns + uniformColumns + 1)]: { cellWidth: Math.min(useLandscape ? 25 : 20, maxColumnWidth) } // Emp Sign
+      };
+     
+      // Table styling - keeping original format but with orientation-aware sizing
+      autoTable(doc, {
+        startY: y,
+        head: [tableHeaders],
+        body: tableBody,
+        theme: "grid",
+        headStyles: { 
+          fillColor: [230, 230, 230], 
+          textColor: 20, 
+          fontStyle: 'bold', 
+          fontSize: 8
+        },
+        styles: { 
+          fontSize: 7, 
+          cellPadding: 2, 
+          textColor: 20
+        },
+        margin: { left: margin, right: margin, top: 2, bottom: 2 },
+        tableWidth: availableWidth,
+        columnStyles: columnWidths,
+        // Prevent overflow with proper text handling
+        // Remove page break logic to ensure single page
+      });
 
-    // Get Y after table
-    const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
+          // Get Y after table
+      const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
 
-    // Terms & Conditions - compact for single page
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 13);
-    doc.text("2. Goods are delivered after careful checking", 12, finalY + 17);
+      // Terms & Conditions - compact for single page
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 13);
+      doc.text("2. Goods are delivered after careful checking", 12, finalY + 17);
 
-    // Signature lines - compact for single page
-    const sigY = finalY + 20; // Reduced spacing
-    doc.setDrawColor(120);
-    doc.line(20, sigY, 60, sigY);
-    doc.text("Initiated by", 30, sigY + 3);
-    doc.line(pageWidth / 2 - 20, sigY, pageWidth / 2 + 20, sigY);
-    doc.text("Received by", pageWidth / 2 - 8, sigY + 3);
-    doc.line(pageWidth - 60, sigY, pageWidth - 20, sigY);
-    doc.text("Issued by", pageWidth - 50, sigY + 3);
+      // Signature lines - compact for single page
+      const sigY = finalY + 20; // Reduced spacing
+      doc.setDrawColor(120);
+      doc.line(20, sigY, 60, sigY);
+      doc.text("Initiated by", 30, sigY + 3);
+      doc.line(pageWidth / 2 - 20, sigY, pageWidth / 2 + 20, sigY);
+      doc.text("Received by", pageWidth / 2 - 8, sigY + 3);
+      doc.line(pageWidth - 60, sigY, pageWidth - 20, sigY);
+      doc.text("Issued by", pageWidth - 50, sigY + 3);
 
     doc.save(`NRDC_${dc.dcNumber}.pdf`);
     setToast(`DC ${dc.dcNumber} PDF generated successfully!`);
