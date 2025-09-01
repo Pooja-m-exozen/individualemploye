@@ -50,7 +50,7 @@ const GOVERNMENT_HOLIDAYS = [
 
 const isHoliday = (date: Date): boolean => {
   const day = date.getDay();
-  const dateString = date.toISOString().split('T')[0];
+  const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   if (day === 0) return true;
   // 2nd and 4th Saturdays are now working days, not holidays
   return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
@@ -263,7 +263,7 @@ const OverallAttendancePage = (): JSX.Element => {
 
           for (let day = 1; day <= daysInMonth; day++) {
             const currentDate = new Date(year, month - 1, day);
-            const dateString = currentDate.toISOString().split('T')[0];
+            const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
             
             const dayRecord = employeeAttendance.find((record: AttendanceRecord) => {
               const recordDate = new Date(record.date);
@@ -410,7 +410,8 @@ const OverallAttendancePage = (): JSX.Element => {
       };
       
       Array.from({ length: getDaysInMonth(year, month) }, (_, i) => {
-        const date = new Date(year, month - 1, i + 1).toISOString().split("T")[0];
+        const dateObj = new Date(year, month - 1, i + 1);
+        const date = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
         const record = empAttendance.find(r => r.date === date);
         const dateLabel = new Date(year, month - 1, i + 1).toLocaleDateString("en-US", { day: "2-digit", month: "short" });
         rowData[dateLabel] = record ? record.status : '-';
@@ -569,7 +570,8 @@ const OverallAttendancePage = (): JSX.Element => {
                           </div>
                         </td>
                         {Array.from({ length: getDaysInMonth(year, month) }, (_, i) => {
-                          const date = new Date(year, month - 1, i + 1).toISOString().split('T')[0];
+                          const dateObj = new Date(year, month - 1, i + 1);
+                          const date = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
                           const record = empAttendance.find(r => r.date === date);
                           const status = record?.status || '';
                           
