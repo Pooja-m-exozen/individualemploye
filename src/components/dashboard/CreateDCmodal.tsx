@@ -15,7 +15,7 @@ interface DCItem {
   quantity: number;
   size: string;
   designation?: string;
-  uniformType?: string[];
+  uniformType?: string | string[];
   projectName?: string;
   approvalStatus?: string;
   requestDate?: string;
@@ -23,7 +23,7 @@ interface DCItem {
     employeeId: string;
     fullName: string;
     designation: string;
-    uniformType: string[];
+    uniformType: string | string[];
     size: Record<string, string>;
     qty: number;
     projectName: string;
@@ -57,7 +57,7 @@ interface UniformApiResponse {
     designation: string;
     gender: string;
     projectName: string;
-    uniformType: string[];
+    uniformType: string | string[];
     size: Record<string, string>;
     qty: number;
     uniformRequested: boolean;
@@ -297,8 +297,11 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
           // Find the original uniform request to get employee details
           const originalRequest = selectedRequests.find(req => req._id === item.id);
           
+          // Find the inventory item to get the correct itemId
+          const inventoryItem = findInventoryItemByType(item.name);
+          
           return {
-            id: item.id,
+            itemId: inventoryItem?._id || item.id, // Use inventory item ID as required by API
             employeeId: item.employeeId,
             itemCode: item.itemCode,
             name: item.name,
@@ -308,7 +311,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
             remarks: item.remarks,
             // Store employee details for PDF generation
             designation: originalRequest?.designation || "Employee",
-            uniformType: originalRequest?.uniformType || [item.name],
+            uniformType: item.name, // API expects string, not array
             // Store modification info in remarks if size was modified
             ...(item.sizeData && JSON.parse(item.sizeData).modified && {
               remarks: `${item.remarks || ''} [Modified from ${JSON.parse(item.sizeData).original} to ${item.size}]`
@@ -333,6 +336,13 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
       console.log('Customer field:', payload.customer);
       console.log('Address field:', payload.address);
 
+      // Validate that all items have valid itemId
+      const invalidItems = payload.items.filter(item => !item.itemId);
+      if (invalidItems.length > 0) {
+        setSaveDCError(`Missing item IDs for: ${invalidItems.map(item => item.name).join(', ')}. Please ensure all uniform types match inventory items.`);
+        return;
+      }
+
       // Final validation - show user what will be sent
       if (payload.customer === "General" || payload.customer === "N/A" || !payload.customer.trim()) {
         setSaveDCError(`Invalid customer name: "${payload.customer}". Please select a valid project.`);
@@ -354,7 +364,13 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
 
       const data = await res.json();
 
-      if (data.success) {
+      // Log the response for debugging
+      console.log('API Response Status:', res.status);
+      console.log('API Response Data:', data);
+
+      // Check both response status and success flag
+      // Also check if data exists and has the expected structure
+      if (res.ok && data && data.success === true) {
         // Now call the issue API to update the backend
         try {
           // Filter items to only include those with sufficient stock
@@ -467,7 +483,31 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         setSaveDCError(null);
         onClose();
       } else {
-        setSaveDCError(data.message || 'Failed to save Outward DC');
+        // Handle different error scenarios
+        if (!res.ok) {
+          if (res.status === 400) {
+            // Handle validation errors
+            if (data.errors && Array.isArray(data.errors)) {
+              const errorMessages = data.errors.map((error: { path: string; msg: string }) => 
+                `${error.path}: ${error.msg}`
+              ).join(', ');
+              setSaveDCError(`Validation Error: ${errorMessages}`);
+            } else if (data.message) {
+              setSaveDCError(`Bad Request: ${data.message}`);
+            } else {
+              setSaveDCError('Bad Request: Invalid data provided. Please check your input and try again.');
+            }
+          } else if (res.status === 500) {
+            setSaveDCError('Server Error: Please try again later or contact support.');
+          } else {
+            setSaveDCError(`Request failed with status ${res.status}: ${data.message || 'Unknown error'}`);
+          }
+        } else if (!data.success) {
+          // API returned success status but with success: false
+          setSaveDCError(data.message || 'Failed to create DC. Please try again.');
+        } else {
+          setSaveDCError(data.message || 'Failed to save Outward DC');
+        }
       }
     } catch (err: unknown) {
       setSaveDCError(err instanceof Error ? err.message : 'Unknown error');
@@ -591,8 +631,8 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
   // Stepper progress bar
   const progressPercent = ((step-1)/(stepLabels.length-1))*100;
 
-  // Success animation
-  const successAnimation = success && (
+  // Success animation - only show if success is true AND no error
+  const successAnimation = success && !saveDCError && (
     <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
       <div className="rounded-full bg-green-100 p-6 mb-4">
         <FaCheckCircle className="w-16 h-16 text-green-600 animate-bounce" />
@@ -624,14 +664,25 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
     }
     
     setSaving(true);
+    setSaveDCError(null); // Clear any previous errors
     await handleCreateDC();
     setSaving(false);
+    
+    // Only show success if there's no error
     if (!saveDCError) {
       setSuccess(true);
       showToast({ 
         message: "Delivery Challan created successfully!", 
         type: "success" 
       });
+    } else {
+      // Show error toast and don't show success
+      showToast({ 
+        message: saveDCError, 
+        type: "error" 
+      });
+      // Ensure success state is false when there's an error
+      setSuccess(false);
     }
   };
 

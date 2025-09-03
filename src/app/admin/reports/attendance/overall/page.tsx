@@ -450,7 +450,8 @@ const OverallSummaryPage = (): JSX.Element => {
                                 monthlySummary.regularizedPresentDays + 
                                 (monthlySummary.halfDays / 2) + 
                                 monthlySummary.weekOffs + 
-                                (monthlySummary.weekOffsWorked || 0);
+                                (monthlySummary.weekOffsWorked || 0) +
+                                monthlySummary.partiallyAbsentDays;
           
           // Cap payable days to not exceed total days
           payableDays = Math.min(totalPayableDays, monthlySummary.totalDays);
@@ -519,7 +520,8 @@ const OverallSummaryPage = (): JSX.Element => {
                                   monthlySummary.regularizedPresentDays + 
                                   (monthlySummary.halfDays / 2) + 
                                   monthlySummary.weekOffs + 
-                                  (monthlySummary.weekOffsWorked || 0);
+                                  (monthlySummary.weekOffsWorked || 0) +
+                                  monthlySummary.partiallyAbsentDays;
             
             // Cap payable days to not exceed total days
             payableDays = Math.min(totalPayableDays, monthlySummary.totalDays);
@@ -824,7 +826,8 @@ const OverallSummaryPage = (): JSX.Element => {
                                             monthlySummary.regularizedPresentDays + 
                                             (monthlySummary.halfDays / 2) + 
                                             monthlySummary.weekOffs + 
-                                            (monthlySummary.weekOffsWorked || 0);
+                                            (monthlySummary.weekOffsWorked || 0) +
+                                            monthlySummary.partiallyAbsentDays;
                       
                       // Cap payable days to not exceed total days
                       payableDays = Math.min(totalPayableDays, monthlySummary.totalDays);
