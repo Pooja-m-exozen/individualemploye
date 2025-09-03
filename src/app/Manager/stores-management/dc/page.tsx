@@ -1540,11 +1540,10 @@ export default function StoreDCPage() {
                                       
                                       return processedItems.map((item, itemIndex) => (
                                         <div key={itemIndex} className={`p-3 rounded border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-gray-100 border-gray-300"}`}>
-                                          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
+                                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
                                             <div><b>Item:</b> {item.uniformType}</div>
                                             <div><b>Size:</b> {item.size}</div>
                                             <div><b>Quantity:</b> {item.quantity}</div>
-                                            <div><b>Item ID:</b> {item.itemId ? item.itemId.substring(0, 8) + '...' : 'N/A'}</div>
                                           </div>
                                           {item.remarks && (
                                             <div className="mt-2 text-xs text-gray-600">
