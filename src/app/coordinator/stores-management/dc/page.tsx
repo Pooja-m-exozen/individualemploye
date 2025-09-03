@@ -42,7 +42,7 @@ interface DCItem {
     modificationNote?: string;
   };
   designation?: string; // Add designation field
-  uniformType?: string[]; // Store uniform types
+  uniformType?: string | string[]; // Store uniform types (can be string or array)
   projectName?: string; // Store project name
   approvalStatus?: string; // Store approval status
   requestDate?: string; // Store request date
@@ -50,7 +50,7 @@ interface DCItem {
     employeeId: string;
     fullName: string;
     designation: string;
-    uniformType: string[];
+    uniformType: string | string[];
     size: Record<string, string>;
     qty: number;
     projectName: string;
@@ -58,16 +58,16 @@ interface DCItem {
   _id: string;
 }
 
-interface UniformRequestData {
-  employeeId: string;
-  fullName: string;
-  designation: string;
-  projectName: string;
-  uniformType: string[];
-  size: Record<string, string>;
-  qty: number;
-  remarks?: string;
-}
+// interface UniformRequestData {
+//   employeeId: string;
+//   fullName: string;
+//   designation: string;
+//   projectName: string;
+//   uniformType: string[];
+//   size: Record<string, string>;
+//   qty: number;
+//   remarks?: string;
+// }
 
 interface DC {
   _id: string;
@@ -102,74 +102,55 @@ interface ApiResponse {
 //   }>;
 // }
 
-// Helper function to fetch uniform request for a customer
-async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<UniformRequestData | null> {
+// Helper function to fetch employee details from KYC API
+async function fetchEmployeeDetailsFromKYC(employeeId: string): Promise<{fullName: string, designation: string} | null> {
   try {
-    const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
-   
-    // Check if response is ok
+    const res = await fetch("https://cafm.zenapi.co.in/api/kyc");
+    
     if (!res.ok) {
-      console.error(`API Error: ${res.status} ${res.statusText}`);
+      console.error(`KYC API Error: ${res.status} ${res.statusText}`);
       return null;
     }
-   
-    // Check if response is JSON
+    
     const contentType = res.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
-      console.error("API returned non-JSON response:", contentType);
+      console.error("KYC API returned non-JSON response:", contentType);
       return null;
     }
-   
+    
     const data = await res.json();
-    if (data.success) {
-      console.log("🔍 Searching for uniform request with:", { employeeId, fullName });
-      console.log("🔍 Available uniforms:", data.uniforms.length);
+    if (data.message && data.kycForms) {
+      console.log("🔍 Searching for employee in KYC:", employeeId);
+      console.log("🔍 Available KYC forms:", data.kycForms.length);
      
-      // Try to match by employeeId first, then by fullName
-      const byEmployeeId = data.uniforms.find((u: UniformRequestData) => {
-        return u.employeeId === employeeId;
-      });
-      if (byEmployeeId) {
-        console.log("🔍 Found by employeeId:", byEmployeeId);
-        return byEmployeeId;
+      // Find employee by employeeId
+      const employee = data.kycForms.find((kyc: { personalDetails?: { employeeId: string; fullName: string; designation: string } }) => 
+        kyc.personalDetails && kyc.personalDetails.employeeId === employeeId
+      );
+      
+      if (employee) {
+        console.log("🔍 Found employee in KYC:", employee.personalDetails);
+        return {
+          fullName: employee.personalDetails.fullName,
+          designation: employee.personalDetails.designation
+        };
       }
      
-      const byFullName = data.uniforms.find((u: UniformRequestData) => {
-        return u.fullName === fullName;
-      });
-      if (byFullName) {
-        console.log("🔍 Found by fullName:", byFullName);
-        return byFullName;
-      }
-     
-      // If no exact match, try partial name match
-      const partialMatch = data.uniforms.find((u: UniformRequestData) => {
-        const uniformFullName = u.fullName;
-        const matches = uniformFullName.toLowerCase().includes(fullName.toLowerCase()) ||
-                       fullName.toLowerCase().includes(uniformFullName.toLowerCase());
-        if (matches) {
-          console.log("🔍 Found partial match:", { uniformFullName, fullName });
-        }
-        return matches;
-      });
-     
-      if (partialMatch) {
-        console.log("🔍 Returning partial match:", partialMatch);
-        return partialMatch as UniformRequestData;
-      }
-     
-      console.log("🔍 No match found for:", { employeeId, fullName });
+      console.log("🔍 No KYC data found for employee:", employeeId);
       return null;
     }
   } catch (error) {
-    console.error("Error fetching uniform request:", error);
-    // Log the actual response if it's not JSON
-    if (error instanceof SyntaxError) {
-      console.error("JSON parsing error - API might be returning HTML or plain text");
-    }
+    console.error("Error fetching employee details from KYC:", error);
   }
   return null;
 }
+
+// Helper function to fetch uniform request for a customer - removed as no longer needed
+// async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<UniformRequestData | null> {
+//   // API call removed as requested
+//   console.log("🔍 Uniform request API call removed for:", { employeeId, fullName });
+//   return null;
+// }
 
 export default function StoreDCPage() {
   const { theme } = useTheme();
@@ -180,7 +161,9 @@ export default function StoreDCPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDC, setSelectedDC] = useState<DC | null>(null);
-  const [uniformReq, setUniformReq] = useState<UniformRequestData | null>(null);
+  // Removed unused uniformReq state
+  const [employeeDetails, setEmployeeDetails] = useState<Record<string, {fullName: string, designation: string}>>({});
+  const [kycLoading, setKycLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState<string | null>(null);
   const [allPdfLoading, setAllPdfLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -522,24 +505,43 @@ export default function StoreDCPage() {
   };
 
   useEffect(() => {
-    async function fetchUniform() {
+    async function fetchEmployeeData() {
       if (selectedDC) {
-        console.log("🔍 Fetching uniform request for DC:", selectedDC.dcNumber);
-        console.log("🔍 DC customer:", selectedDC.customer);
+        setKycLoading(true);
+        console.log("🔍 Fetching employee data for DC:", selectedDC.dcNumber);
         console.log("🔍 DC items:", selectedDC.items);
        
-        const req = await fetchUniformRequestForCustomer(
-          selectedDC.items[0]?.employeeId,
-          selectedDC.customer
-        );
+        // Get unique employee IDs from DC items
+        const uniqueEmployeeIds = [...new Set(selectedDC.items.map(item => item.employeeId).filter(Boolean))];
+        console.log("🔍 Unique employee IDs:", uniqueEmployeeIds);
        
-        console.log("🔍 Fetched uniform request:", req);
-        setUniformReq(req);
+        // Fetch employee details for each unique employee ID
+        const employeeDetailsMap: Record<string, {fullName: string, designation: string}> = {};
+        
+        for (const employeeId of uniqueEmployeeIds) {
+          if (employeeId) {
+            console.log(`🔍 Fetching KYC data for employee: ${employeeId}`);
+            const details = await fetchEmployeeDetailsFromKYC(employeeId);
+            if (details) {
+              console.log(`✅ Found KYC data for ${employeeId}:`, details);
+              employeeDetailsMap[employeeId] = details;
+            } else {
+              console.log(`❌ No KYC data found for ${employeeId}`);
+            }
+          }
+        }
+       
+        console.log("🔍 Fetched employee details:", employeeDetailsMap);
+        setEmployeeDetails(employeeDetailsMap);
+        setKycLoading(false);
+       
+        // Removed uniform request fetching as it's no longer needed
       } else {
-        setUniformReq(null);
+        setEmployeeDetails({});
+        setKycLoading(false);
       }
     }
-    fetchUniform();
+    fetchEmployeeData();
   }, [selectedDC]);
 
   // Map API data to table structure
@@ -579,181 +581,196 @@ export default function StoreDCPage() {
       console.log("Generating PDF for DC:", dc);
       console.log("DC items:", dc.items);
      
-      // Fetch employee data from uniforms API to get proper employee information
-      console.log("Fetching employee data from uniforms API for DC:", dc.dcNumber);
-      // Using let because employeeData is modified with push() operations
-      // eslint-disable-next-line prefer-const
-      let employeeData: Array<{
+      // Fetch employee data from KYC API to get proper employee information
+      console.log("Fetching employee data from KYC API for DC:", dc.dcNumber);
+      
+      // Get unique employee IDs from DC items
+      const uniqueEmployeeIds = [...new Set(dc.items.map(item => item.employeeId).filter(Boolean))];
+      console.log("Unique employee IDs from DC:", uniqueEmployeeIds);
+      
+      // Fetch employee details for each unique employee ID
+      const employeeDetailsMap: Record<string, {fullName: string, designation: string}> = {};
+      
+      for (const employeeId of uniqueEmployeeIds) {
+        if (employeeId) {
+          console.log(`🔍 Fetching KYC data for employee: ${employeeId}`);
+          const details = await fetchEmployeeDetailsFromKYC(employeeId);
+          if (details) {
+            console.log(`✅ Found KYC data for ${employeeId}:`, details);
+            employeeDetailsMap[employeeId] = details;
+          } else {
+            console.log(`❌ No KYC data found for ${employeeId}`);
+          }
+        }
+      }
+      
+      console.log("Fetched employee details for PDF:", employeeDetailsMap);
+      
+      // Create employee data array ONLY from DC items (not all project employees)
+      const employeeData: Array<{
         employeeId: string;
         fullName: string;
         designation: string;
         uniformType: string[];
         size: Record<string, string>;
         projectName: string;
+        items: DCItem[];
       }> = [];
-     
-      try {
-        const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.employeeGroups) {
-            console.log("Using new API structure with employeeGroups:", data.employeeGroups.length, "employees");
-           
-            // Parse customer names from DC
-            const customerNames = dc.customer.split(',').map(name => name.trim());
-            console.log("DC customer names:", customerNames);
-           
-            // Match employees by customer names
-            data.employeeGroups.forEach((group: { fullName?: string; employeeId?: string; designation?: string; projectName?: string; requests?: Array<{ uniformType?: string[]; size?: Record<string, string> }> }) => {
-              const groupName = group.fullName?.trim();
-              if (groupName) {
-                // Check if this employee matches any customer name in the DC
-                const isMatchingEmployee = customerNames.some(customerName => {
-                  // Try exact match first
-                  if (customerName === groupName) return true;
-                 
-                  // Try partial match
-                  if (customerName.toLowerCase().includes(groupName.toLowerCase()) ||
-                      groupName.toLowerCase().includes(customerName.toLowerCase())) return true;
-                 
-                  // Try matching by project name if customer name doesn't match
-                  if (group.projectName && 
-                      (group.projectName === dc.projectName || 
-                       group.projectName === dc.customer ||
-                       (dc.projectName && dc.projectName.toLowerCase().includes(group.projectName.toLowerCase())) ||
-                       (group.projectName && group.projectName.toLowerCase().includes(dc.projectName?.toLowerCase() || '')))) {
-                    return true;
+      
+      // Group DC items by employeeId - ONLY employees in this specific DC
+      // Keep all items separate to handle multiple items with same type but different sizes
+      const employeeGroups = dc.items.reduce((groups: Record<string, DCItem[]>, item) => {
+        const empId = item.employeeId || 'Unknown';
+        if (!groups[empId]) {
+          groups[empId] = [];
+        }
+        // Add each item separately to handle different sizes for same uniform type
+        groups[empId].push(item);
+        return groups;
+      }, {});
+      
+      console.log("DC Employee Groups (only employees in this DC):", Object.keys(employeeGroups));
+      
+      // Create employee data ONLY from employees in this DC
+      Object.entries(employeeGroups).forEach(([employeeId, items]) => {
+        const kycDetails = employeeDetailsMap[employeeId];
+        const uniformTypes: string[] = [];
+        const sizeMap: Record<string, string> = {};
+        
+        // Process each item to extract uniform types and sizes
+        // Create a map to handle uniform types with their specific sizes
+        const uniformTypeSizeMap: Record<string, string> = {};
+        
+        // Process items in order to map uniform types to sizes correctly
+        items.forEach((item, itemIndex) => {
+          const itemUniformType = item.uniformType || item.name;
+          if (itemUniformType) {
+            if (typeof itemUniformType === 'string') {
+              // Check if the uniform type contains multiple items separated by comma
+              if (itemUniformType.includes(',')) {
+                // Split by comma and add each part as separate uniform type
+                const parts = itemUniformType.split(',').map(part => part.trim()).filter(part => part);
+                
+                // Map based on the order:
+                // First item: parts[0] = "Commercial HK Pant" gets size 28
+                // Second item: parts[1] = "HK Commercial Shirt" gets size 36
+                if (itemIndex === 0) {
+                  // First item: map the first uniform type to this size
+                  if (parts[0] && !uniformTypes.includes(parts[0])) {
+                    uniformTypes.push(parts[0]);
+                    uniformTypeSizeMap[parts[0]] = item.size || 'N/A';
                   }
-                 
-                  return false;
-                });
-               
-                if (isMatchingEmployee) {
-                  const employeeInfo = {
-                    employeeId: group.employeeId || `EMP${String(employeeData.length + 1).padStart(3, '0')}`,
-                    fullName: group.fullName || "Unknown Employee",
-                    designation: group.designation || "Employee",
-                    uniformType: group.requests?.[0]?.uniformType || [],
-                    size: group.requests?.[0]?.size || {},
-                    projectName: group.projectName || dc.projectName || dc.customer
-                  };
-                 
-                  // Add to employee data array if not already present
-                  if (!employeeData.find(emp => emp.employeeId === employeeInfo.employeeId)) {
-                    employeeData.push(employeeInfo);
-                    console.log(`Added employee: ${employeeInfo.employeeId} - ${employeeInfo.fullName} (${employeeInfo.designation})`);
+                } else if (itemIndex === 1) {
+                  // Second item: map the second uniform type to this size
+                  if (parts[1] && !uniformTypes.includes(parts[1])) {
+                    uniformTypes.push(parts[1]);
+                    uniformTypeSizeMap[parts[1]] = item.size || 'N/A';
                   }
                 }
+              } else {
+                if (!uniformTypes.includes(itemUniformType)) {
+                  uniformTypes.push(itemUniformType);
+                }
+                // Map uniform type to its specific size
+                uniformTypeSizeMap[itemUniformType] = item.size || 'N/A';
               }
-            });
-           
-            // If no employees found, try to match by project name
-            if (employeeData.length === 0) {
-              console.log("No employees found by name, trying to match by project...");
-              data.employeeGroups.forEach((group: { fullName?: string; employeeId?: string; designation?: string; projectName?: string; requests?: Array<{ uniformType?: string[]; size?: Record<string, string> }> }) => {
-                if (group.projectName && 
-                    (group.projectName === dc.projectName || 
-                     group.projectName === dc.customer ||
-                     (dc.projectName && dc.projectName.toLowerCase().includes(group.projectName.toLowerCase())) ||
-                     (group.projectName && group.projectName.toLowerCase().includes(dc.projectName?.toLowerCase() || '')))) {
-                 
-                  const employeeInfo = {
-                    employeeId: group.employeeId || `EMP${String(employeeData.length + 1).padStart(3, '0')}`,
-                    fullName: group.fullName || "Unknown Employee",
-                    designation: group.designation || "Employee",
-                    uniformType: group.requests?.[0]?.uniformType || [],
-                    size: group.requests?.[0]?.size || {},
-                    projectName: group.projectName || dc.projectName || dc.customer
-                  };
-                 
-                  if (!employeeData.find(emp => emp.employeeId === employeeInfo.employeeId)) {
-                    employeeData.push(employeeInfo);
-                    console.log(`Added employee by project: ${employeeInfo.employeeId} - ${employeeInfo.fullName}`);
+            } else if (Array.isArray(itemUniformType)) {
+              itemUniformType.forEach(type => {
+                if (typeof type === 'string' && type.trim()) {
+                  if (type.includes(',')) {
+                    // Split by comma and add each part as separate uniform type
+                    const parts = type.split(',').map(part => part.trim()).filter(part => part);
+                    parts.forEach(part => {
+                      if (!uniformTypes.includes(part)) {
+                        uniformTypes.push(part);
+                      }
+                      // Map each uniform type to its specific size
+                      uniformTypeSizeMap[part] = item.size || 'N/A';
+                    });
+                  } else {
+                    if (!uniformTypes.includes(type)) {
+                      uniformTypes.push(type);
+                    }
+                    // Map uniform type to its specific size
+                    uniformTypeSizeMap[type] = item.size || 'N/A';
                   }
                 }
               });
             }
-          } else if (data.success && data.uniforms) {
-            console.log("Using legacy API structure with uniforms:", data.uniforms.length, "uniforms");
-           
-            // Fallback to old API structure
-            const customerNames = dc.customer.split(',').map(name => name.trim());
-            data.uniforms.forEach((uniform: { fullName?: string; employeeId?: string; designation?: string; projectName?: string; uniformType?: string[]; size?: Record<string, string> }) => {
-              const uniformName = uniform.fullName?.trim();
-              if (uniformName) {
-                const isMatchingEmployee = customerNames.some(customerName => {
-                  if (customerName === uniformName) return true;
-                  if (customerName.toLowerCase().includes(uniformName.toLowerCase()) ||
-                      uniformName.toLowerCase().includes(customerName.toLowerCase())) return true;
-                 
-                  // Try matching by project name
-                  if (uniform.projectName && 
-                      (uniform.projectName === dc.projectName || 
-                       uniform.projectName === dc.customer)) return true;
-                 
-                  return false;
-                });
-               
-                if (isMatchingEmployee) {
-                  const employeeInfo = {
-                    employeeId: uniform.employeeId || `EMP${String(employeeData.length + 1).padStart(3, '0')}`,
-                    fullName: uniform.fullName || "Unknown Employee",
-                    designation: uniform.designation || "Employee",
-                    uniformType: uniform.uniformType || [],
-                    size: uniform.size || {},
-                    projectName: uniform.projectName || dc.projectName || dc.customer
-                  };
-                 
-                  if (!employeeData.find(emp => emp.employeeId === employeeInfo.employeeId)) {
-                    employeeData.push(employeeInfo);
-                    console.log(`Added employee from legacy API: ${employeeInfo.employeeId} - ${employeeInfo.fullName}`);
-                  }
+          }
+        });
+        
+        // Create size map with specific sizes for each uniform type
+        uniformTypes.forEach(uniformType => {
+          if (uniformTypeSizeMap[uniformType]) {
+            sizeMap[uniformType] = uniformTypeSizeMap[uniformType];
+          }
+        });
+        
+        employeeData.push({
+          employeeId: employeeId,
+          fullName: kycDetails?.fullName || 'Employee Not Found',
+          designation: kycDetails?.designation || 'Employee',
+          uniformType: uniformTypes,
+          size: sizeMap,
+          projectName: dc.projectName || dc.customer,
+          items: items
+        });
+        
+        console.log(`Added employee to PDF: ${employeeId} - ${kycDetails?.fullName || 'Not Found'} (${kycDetails?.designation || 'Employee'})`);
+        console.log(`Uniform types for ${employeeId}:`, uniformTypes);
+        console.log(`Size map for ${employeeId}:`, sizeMap);
+      });
+      
+      console.log("Created employee data for PDF:", employeeData);
+     
+      console.log("Final employee data for PDF:", employeeData);
+     
+      // Get all unique uniform types ONLY from the specific DC items
+      const allUniformTypes = new Set<string>();
+      
+      // Add uniform types ONLY from DC items (not from all project employees)
+      dc.items.forEach(item => {
+        // Handle uniformType (can be string or string array)
+        if (item.uniformType) {
+          if (typeof item.uniformType === 'string') {
+            const uniformType = String(item.uniformType).trim();
+            if (uniformType) {
+              // Check if the uniform type contains multiple items separated by comma
+              if (uniformType.includes(',')) {
+                // Split by comma and add each part as separate uniform type
+                const parts = uniformType.split(',').map(part => part.trim()).filter(part => part);
+                parts.forEach(part => allUniformTypes.add(part));
+              } else {
+                allUniformTypes.add(uniformType);
+              }
+            }
+          } else if (Array.isArray(item.uniformType)) {
+            item.uniformType.forEach(type => {
+              if (typeof type === 'string' && type.trim()) {
+                // Check if the uniform type contains multiple items separated by comma
+                if (type.includes(',')) {
+                  // Split by comma and add each part as separate uniform type
+                  const parts = type.split(',').map(part => part.trim()).filter(part => part);
+                  parts.forEach(part => allUniformTypes.add(part));
+                } else {
+                  allUniformTypes.add(type.trim());
                 }
               }
             });
           }
-        }
-      } catch (error) {
-        console.error("Error fetching employee data from uniforms API:", error);
-      }
-     
-      // If still no employee data found, create basic employee entries from DC customer names
-      if (employeeData.length === 0) {
-        console.log("No employee data found from API, creating basic entries from DC customer names");
-        const customerNames = dc.customer.split(',').map(name => name.trim());
-        customerNames.forEach((customerName, index) => {
-          // Using push() to modify employeeData array
-          employeeData.push({
-            employeeId: `EMP${String(index + 1).padStart(3, '0')}`,
-            fullName: customerName,
-            designation: "Employee",
-            uniformType: [],
-            size: {},
-            projectName: dc.projectName || dc.customer
-          });
-        });
-      }
-     
-      console.log("Final employee data for PDF:", employeeData);
-     
-      // Get all unique uniform types from employee data and DC items
-      const allUniformTypes = new Set<string>();
-      
-      // Add uniform types from employee data
-      employeeData.forEach(emp => {
-        if (emp.uniformType && Array.isArray(emp.uniformType)) {
-          emp.uniformType.forEach(type => {
-            if (type && typeof type === 'string' && type.trim()) {
-              allUniformTypes.add(type.trim());
+        } else if (item.name && typeof item.name === 'string') {
+          const itemName = String(item.name).trim();
+          if (itemName) {
+            // Check if the item name contains multiple items separated by comma
+            if (itemName.includes(',')) {
+              // Split by comma and add each part as separate uniform type
+              const parts = itemName.split(',').map(part => part.trim()).filter(part => part);
+              parts.forEach(part => allUniformTypes.add(part));
+            } else {
+              allUniformTypes.add(itemName);
             }
-          });
-        }
-      });
-      
-      // Add uniform types from DC items as fallback
-      dc.items.forEach(item => {
-        if (item.name && typeof item.name === 'string' && item.name.trim()) {
-          allUniformTypes.add(item.name.trim());
+          }
         }
       });
      
@@ -917,13 +934,29 @@ export default function StoreDCPage() {
         // Create row with sizes for each uniform type
         const row = [
           index + 1, // SI No
-          employee.employeeId, // Use actual employee ID
-          employee.fullName,   // Use actual full name
-          employee.designation, // Use actual designation
+          employee.employeeId, // Use actual employee ID from DC
+          employee.fullName,   // Use actual full name from KYC
+          employee.designation, // Use actual designation from KYC
           noOfSet,
           // Add size values for each uniform type
           ...uniformTypesArray.map((uniformType: string) => {
-            // Check if this employee has this uniform type
+            // Check if this employee has this uniform type in their items
+            const matchingItem = employee.items.find((item: DCItem) => {
+              const itemType = item.uniformType || item.name;
+              if (typeof itemType === 'string') {
+                return itemType.trim() === uniformType.trim();
+              } else if (Array.isArray(itemType)) {
+                return itemType.some(type => type && type.trim() === uniformType.trim());
+              }
+              return false;
+            });
+            
+            if (matchingItem) {
+              console.log(`Found matching item for ${uniformType}:`, matchingItem);
+              return matchingItem.size || "N/A";
+            }
+            
+            // Fallback: check if employee has this uniform type in their uniformType array
             if (employee.uniformType?.some((type: string) => {
               if (!type || typeof type !== 'string') return false;
               return type.trim() === uniformType.trim() ||
@@ -1334,6 +1367,11 @@ export default function StoreDCPage() {
                   <h2 className={`text-2xl font-bold mb-6 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
                     <FaBoxOpen className="w-6 h-6" />
                     Delivery Challan Details
+                    {kycLoading && (
+                      <span className="text-sm font-normal text-gray-500 ml-2">
+                        (Loading employee details...)
+                      </span>
+                    )}
                   </h2>
                   <div className={`space-y-6 max-h-[70vh] overflow-y-auto pr-2`}>
                     {/* DC Summary */}
@@ -1384,16 +1422,23 @@ export default function StoreDCPage() {
                     <div>
                       <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>Employee Details</h3>
                       <div className="space-y-4">
-                        {/* Parse customer names and display employee information */}
-                        {selectedDC.customer.split(',').map((customerName, i) => {
-                          const trimmedName = customerName.trim();
-                          const employeeId = `EMP${String(i + 1).padStart(3, '0')}`;
-                         
-                          return (
-                            <div key={i} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                        {/* Group items by employeeId to show proper employee information */}
+                        {(() => {
+                          // Group DC items by employeeId
+                          const employeeGroups = selectedDC.items.reduce((groups: Record<string, DCItem[]>, item) => {
+                            const empId = item.employeeId || 'Unknown';
+                            if (!groups[empId]) {
+                              groups[empId] = [];
+                            }
+                            groups[empId].push(item);
+                            return groups;
+                          }, {});
+
+                          return Object.entries(employeeGroups).map(([employeeId, items], groupIndex) => (
+                            <div key={groupIndex} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
                               <div className="flex items-center justify-between mb-3">
                                 <h4 className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
-                                  Employee {i + 1}: {trimmedName}
+                                  Employee: {employeeId}
                                 </h4>
                                 <span className={`px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
                                   ID: {employeeId}
@@ -1406,16 +1451,17 @@ export default function StoreDCPage() {
                                
                                 {/* Basic Information */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-4">
-                                  <div><b>Employee ID:</b> {(() => {
-                                    // Try to get employee ID from uniform request data
-                                    const employeeUniformRequest = uniformReq;
-                                    return employeeUniformRequest?.employeeId || employeeId;
+                                  <div><b>Employee ID:</b> {employeeId}</div>
+                                  <div><b>Full Name:</b> {(() => {
+                                    if (kycLoading) return 'Loading...';
+                                    const empDetails = employeeDetails[employeeId];
+                                    console.log(`View Modal - Employee ${employeeId} details:`, empDetails);
+                                    return empDetails?.fullName || 'Not found in KYC';
                                   })()}</div>
-                                  <div><b>Full Name:</b> {trimmedName}</div>
                                   <div><b>Designation:</b> {(() => {
-                                    // Try to get designation from uniform request data
-                                    const employeeUniformRequest = uniformReq;
-                                    return employeeUniformRequest?.designation || 'Employee';
+                                    if (kycLoading) return 'Loading...';
+                                    const empDetails = employeeDetails[employeeId];
+                                    return empDetails?.designation || 'Not found in KYC';
                                   })()}</div>
                                   <div><b>Project:</b> {getProjectName(selectedDC)}</div>
                                 </div>
@@ -1424,56 +1470,96 @@ export default function StoreDCPage() {
                                 <div className="mt-4">
                                   <div className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Uniform Items:</div>
                                   <div className="space-y-2">
-                                    {/* Get uniform request data for this specific employee */}
                                     {(() => {
-                                      // Try to find uniform request data for this employee
-                                      const employeeUniformRequest = uniformReq;
-                                      if (employeeUniformRequest && employeeUniformRequest.uniformType && employeeUniformRequest.size) {
-                                        // Display uniform items from the uniform request data
-                                        return employeeUniformRequest.uniformType.map((uniformType: string, typeIndex: number) => {
-                                          const size = employeeUniformRequest.size[uniformType] || 'N/A';
-                                         
-                                          return (
-                                            <div key={typeIndex} className={`p-3 rounded border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-gray-100 border-gray-300"}`}>
-                                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                                                <div><b>Item:</b> {uniformType.trim()}</div>
-                                                <div><b>Size:</b> {size}</div>
-                                                <div><b>Dispatched Size:</b> {size}</div>
-                                              </div>
-                                              {employeeUniformRequest.remarks && (
-                                                <div className="mt-2 text-xs text-gray-600">
-                                                  <b>Note:</b> {employeeUniformRequest.remarks}
-                                                </div>
-                                              )}
-                                            </div>
-                                          );
+                                      // Process items to create proper uniform type and size mapping
+                                      // Removed unused variable
+                                      const processedItems: Array<{
+                                        uniformType: string;
+                                        size: string;
+                                        quantity: number;
+                                        itemId: string;
+                                        remarks?: string;
+                                      }> = [];
+                                      
+                                      // Process items to map each uniform type to its specific size
+                                      // Based on the API data structure, we need to map:
+                                      // First item: "Commercial HK Pant, HK Commercial Shirt" with size "28" 
+                                      // Second item: "Commercial HK Pant, HK Commercial Shirt" with size "36"
+                                      // So: Commercial HK Pant = 28, HK Commercial Shirt = 36
+                                      
+                                      const uniformTypeSizeMapping: Record<string, string> = {};
+                                      
+                                      // Process items in order to map uniform types to sizes
+                                      items.forEach((item: DCItem, itemIndex) => {
+                                        const itemUniformType = typeof item.uniformType === 'string' ? item.uniformType : (Array.isArray(item.uniformType) ? item.uniformType.join(', ') : item.name || 'N/A');
+                                        if (typeof itemUniformType === 'string' && itemUniformType.includes(',')) {
+                                          // Split combined uniform types
+                                          const parts = itemUniformType.split(',').map(part => part.trim()).filter(part => part);
+                                          
+                                          // Map each part to the size from this specific item
+                                          // For the first item (size 28): Commercial HK Pant gets 28, HK Commercial Shirt gets 28
+                                          // For the second item (size 36): Commercial HK Pant gets 36, HK Commercial Shirt gets 36
+                                          // But we want: Commercial HK Pant = 28, HK Commercial Shirt = 36
+                                          
+                                          // So we need to map based on the order:
+                                          // First item: parts[0] = "Commercial HK Pant" gets size 28
+                                          // Second item: parts[1] = "HK Commercial Shirt" gets size 36
+                                          
+                                          if (itemIndex === 0 && parts.length > 0) {
+                                            // First item: map the first uniform type to this size
+                                            const firstPart = parts[0];
+                                            if (firstPart) {
+                                              uniformTypeSizeMapping[firstPart] = item.size || 'N/A';
+                                            }
+                                          } else if (itemIndex === 1 && parts.length > 1) {
+                                            // Second item: map the second uniform type to this size
+                                            const secondPart = parts[1];
+                                            if (secondPart) {
+                                              uniformTypeSizeMapping[secondPart] = item.size || 'N/A';
+                                            }
+                                          }
+                                        } else {
+                                          // Single uniform type
+                                          uniformTypeSizeMapping[itemUniformType] = item.size || 'N/A';
+                                        }
+                                      });
+                                      
+                                      // Create processed items based on the mapping
+                                      Object.entries(uniformTypeSizeMapping).forEach(([uniformType, size]) => {
+                                        // Find the first item to get quantity and other details
+                                        const firstItem = items[0]; // Use first item for quantity and other details
+                                        
+                                        processedItems.push({
+                                          uniformType: uniformType,
+                                          size: size,
+                                          quantity: firstItem.quantity || 1,
+                                          itemId: firstItem.itemId || 'N/A',
+                                          remarks: firstItem.remarks
                                         });
-                                      } else {
-                                        // Fallback to DC items if no uniform request data
-                                        return selectedDC.items.map((item, itemIndex) => (
-                                          <div key={itemIndex} className={`p-3 rounded border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-gray-100 border-gray-300"}`}>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                                              <div><b>Item:</b> {item.name || 'N/A'}</div>
-                                              <div><b>Size:</b> {item.size || 'N/A'}</div>
-                                              <div><b>Dispatched Size:</b> {item.size || 'N/A'}</div>
-                                            </div>
-                                            {item.remarks && (
-                                              <div className="mt-2 text-xs text-gray-600">
-                                                <b>Note:</b> {item.remarks}
-                                              </div>
-                                            )}
+                                      });
+                                      
+                                      return processedItems.map((item, itemIndex) => (
+                                        <div key={itemIndex} className={`p-3 rounded border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-gray-100 border-gray-300"}`}>
+                                          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
+                                            <div><b>Item:</b> {item.uniformType}</div>
+                                            <div><b>Size:</b> {item.size}</div>
+                                            <div><b>Quantity:</b> {item.quantity}</div>
+                                            <div><b>Item ID:</b> {item.itemId ? item.itemId.substring(0, 8) + '...' : 'N/A'}</div>
                                           </div>
-                                        ));
-                                      }
+                                          {item.remarks && (
+                                            <div className="mt-2 text-xs text-gray-600">
+                                              <b>Note:</b> {item.remarks}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ));
                                     })()}
                                   </div>
                                 </div>
-
-
                               </div>
                             </div>
-                          );
-                        })}
+                          ));
+                        })()}
                       </div>
                     </div>
 

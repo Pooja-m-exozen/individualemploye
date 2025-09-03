@@ -58,16 +58,16 @@ interface DCItem {
   _id: string;
 }
 
-interface UniformRequestData {
-  employeeId: string;
-  fullName: string;
-  designation: string;
-  projectName: string;
-  uniformType: string[];
-  size: Record<string, string>;
-  qty: number;
-  remarks?: string;
-}
+// interface UniformRequestData {
+//   employeeId: string;
+//   fullName: string;
+//   designation: string;
+//   projectName: string;
+//   uniformType: string[];
+//   size: Record<string, string>;
+//   qty: number;
+//   remarks?: string;
+// }
 
 interface DC {
   _id: string;
@@ -124,7 +124,7 @@ async function fetchEmployeeDetailsFromKYC(employeeId: string): Promise<{fullNam
       console.log("🔍 Available KYC forms:", data.kycForms.length);
      
       // Find employee by employeeId
-      const employee = data.kycForms.find((kyc: any) => 
+      const employee = data.kycForms.find((kyc: { personalDetails?: { employeeId: string; fullName: string; designation: string } }) => 
         kyc.personalDetails && kyc.personalDetails.employeeId === employeeId
       );
       
@@ -145,12 +145,12 @@ async function fetchEmployeeDetailsFromKYC(employeeId: string): Promise<{fullNam
   return null;
 }
 
-// Helper function to fetch uniform request for a customer
-async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<UniformRequestData | null> {
-  // API call removed as requested
-  console.log("🔍 Uniform request API call removed for:", { employeeId, fullName });
-  return null;
-}
+// Helper function to fetch uniform request for a customer - removed as no longer needed
+// async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<UniformRequestData | null> {
+//   // API call removed as requested
+//   console.log("🔍 Uniform request API call removed for:", { employeeId, fullName });
+//   return null;
+// }
 
 export default function StoreDCPage() {
   const { theme } = useTheme();
@@ -1425,7 +1425,7 @@ export default function StoreDCPage() {
                         {/* Group items by employeeId to show proper employee information */}
                         {(() => {
                           // Group DC items by employeeId
-                          const employeeGroups = selectedDC.items.reduce((groups: Record<string, any[]>, item) => {
+                          const employeeGroups = selectedDC.items.reduce((groups: Record<string, DCItem[]>, item) => {
                             const empId = item.employeeId || 'Unknown';
                             if (!groups[empId]) {
                               groups[empId] = [];
@@ -1544,7 +1544,7 @@ export default function StoreDCPage() {
                                             <div><b>Item:</b> {item.uniformType}</div>
                                             <div><b>Size:</b> {item.size}</div>
                                             <div><b>Quantity:</b> {item.quantity}</div>
-                                            <div><b>Item ID:</b> {item.itemId}</div>
+                                            <div><b>Item ID:</b> {item.itemId ? item.itemId.substring(0, 8) + '...' : 'N/A'}</div>
                                           </div>
                                           {item.remarks && (
                                             <div className="mt-2 text-xs text-gray-600">

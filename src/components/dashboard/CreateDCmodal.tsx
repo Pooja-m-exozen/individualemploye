@@ -153,18 +153,10 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
   const isStep1Valid = selectedProject !== '';
   const isStep2Valid = selectedRequests.length > 0;
   
-  // Check if all sizes are selected for step 3
-  const allSizesSelected = selectedRequests.every(req => {
-    if (!Array.isArray(req.uniformType)) return true;
-    return req.uniformType.every(type => {
-      const inventoryItem = findInventoryItemByType(type);
-      if (!inventoryItem) return true; // Skip if no inventory match
-      const selected = selectedSizes[req._id]?.[type] || (req.size && req.size[type]) || '';
-      return selected !== '';
-    });
-  });
+  // Note: Size selection is now optional, so we don't need to validate all sizes are selected
   
-  const isStep3Valid = customer.trim() && dcNumber.trim() && dcDate.trim() && allSizesSelected;
+  // Modified: Remove size validation requirement - only check basic DC fields
+  const isStep3Valid = customer.trim() && dcNumber.trim() && dcDate.trim();
 
   useEffect(() => {
     const fetchUniformData = async () => {
@@ -260,7 +252,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         return selectedRequest.uniformType.map(type => {
           const inventoryItem = findInventoryItemByType(type);
           const originalSize = selectedRequest.size && selectedRequest.size[type] ? selectedRequest.size[type] : '';
-          const selectedSize = selectedSizes[selectedRequest._id]?.[type] || originalSize;
+          const selectedSize = selectedSizes[selectedRequest._id]?.[type] || originalSize || 'General'; // Default to 'General' if no size selected
           const isModified = selectedSize !== originalSize && originalSize !== '';
           
           // Create size data with modification tracking
@@ -280,7 +272,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
             sizeData: JSON.stringify(sizeData), // Store detailed size information
             quantity: selectedRequest.qty || 1,
             price: "", // Add price if available
-            remarks: selectedRequest.remarks || (isModified ? `Size modified: ${originalSize} → ${selectedSize}` : "")
+            remarks: selectedRequest.remarks || (isModified ? `Size modified: ${originalSize} → ${selectedSize}` : "") || (selectedSize === 'General' ? 'Size: General (default)' : '')
           };
         });
       });
@@ -312,9 +304,12 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
             // Store employee details for PDF generation
             designation: originalRequest?.designation || "Employee",
             uniformType: item.name, // API expects string, not array
-            // Store modification info in remarks if size was modified
+            // Store modification info in remarks if size was modified or default size used
             ...(item.sizeData && JSON.parse(item.sizeData).modified && {
               remarks: `${item.remarks || ''} [Modified from ${JSON.parse(item.sizeData).original} to ${item.size}]`
+            }),
+            ...(item.size === 'General' && !item.sizeData && {
+              remarks: `${item.remarks || ''} [Default size: General]`
             }),
             // Store individual employee data for easy access
             individualEmployeeData: {
@@ -1051,8 +1046,11 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                   {/* Simplified Employee Size Selection */}
                   {selectedRequests.length > 0 && (
                     <div className={`md:col-span-2 p-6 rounded-xl border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"} shadow-sm`}>
-                      <div className={`font-semibold text-lg mb-6 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                      <div className={`font-semibold text-lg mb-2 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
                         📋 Size Selection ({selectedRequests.length} employees)
+                      </div>
+                      <div className={`text-sm mb-6 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                        💡 <strong>Note:</strong> Size selection is optional. If no size is selected, &quot;General&quot; will be used as default.
                       </div>
                       <div className="space-y-6">
                         {selectedRequests.map((req) => (
@@ -1119,7 +1117,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                                       {/* Enhanced Size Dropdown */}
                                       <div>
                                         <label className={`block text-xs font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
-                                          {hasChanged ? "New Size Selection:" : "Select Size:"}
+                                          {hasChanged ? "New Size Selection (Optional):" : "Select Size (Optional):"}
                                         </label>
                                         <select
                                           value={selected}
@@ -1134,7 +1132,9 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                                                 : "bg-white border-gray-300 text-gray-900 focus:border-blue-500"
                                             }`}
                                         >
-                                          <option value="">Select size for {type}</option>
+                                          <option value="">Select size for {type} (optional - will use General if not selected)</option>
+                                          {/* Add General as an option */}
+                                          <option value="General">General</option>
                                           {inventoryItem.sizes.map(size => {
                                             const sizeInfo = inventoryItem.sizeInventory.find(si => si.size === size);
                                             const availableQty = sizeInfo?.quantity || 0;
@@ -1228,7 +1228,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                           const selectedSizesForReq = selectedSizes[req._id] || {};
                           const totalTypes = Array.isArray(req.uniformType) ? req.uniformType.length : 0;
                           const selectedCount = Object.keys(selectedSizesForReq).length;
-                          const isComplete = selectedCount === totalTypes;
+                          // Since sizes are optional, always consider as complete
                           
                           // Count size changes for this employee
                           const sizeChanges = Array.isArray(req.uniformType) ? req.uniformType.filter(type => {
@@ -1243,11 +1243,9 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                                 <div className={`font-medium text-sm ${theme === "dark" ? "text-white" : "text-gray-700"}`}>{req.fullName}</div>
                                 <div className="flex gap-2">
                                   <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    isComplete 
-                                      ? theme === "dark" ? "bg-green-600 text-white" : "bg-green-100 text-green-700"
-                                      : theme === "dark" ? "bg-yellow-600 text-white" : "bg-yellow-100 text-yellow-700"
+                                    theme === "dark" ? "bg-green-600 text-white" : "bg-green-100 text-green-700"
                                   }`}>
-                                    {selectedCount}/{totalTypes} selected
+                                    {selectedCount > 0 ? `${selectedCount}/${totalTypes} selected` : "Sizes optional"}
                                   </div>
                                   {sizeChanges > 0 && (
                                     <div className={`px-2 py-1 rounded-full text-xs font-medium ${theme === "dark" ? "bg-orange-600 text-white" : "bg-orange-100 text-orange-700"}`}>
@@ -1256,11 +1254,9 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                                   )}
                                 </div>
                               </div>
-                              {isComplete && (
-                                <div className={`text-xs ${theme === "dark" ? "text-green-300" : "text-green-600"}`}>
-                                  ✓ All sizes selected
-                                </div>
-                              )}
+                              <div className={`text-xs ${theme === "dark" ? "text-green-300" : "text-green-600"}`}>
+                                ✓ Ready for DC generation (sizes optional)
+                              </div>
                               {sizeChanges > 0 && (
                                 <div className={`text-xs mt-1 ${theme === "dark" ? "text-orange-300" : "text-orange-600"}`}>
                                   ⚠️ {sizeChanges} size(s) modified from original request
@@ -1389,13 +1385,6 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                       {/* <div className="text-xs text-gray-500 mt-1">Delivery address (optional).</div> */}
                     </div>
                   </div>
-                  {!allSizesSelected && selectedRequests.length > 0 && (
-                    <div className={`p-4 rounded-lg border flex items-center gap-2 mt-6
-                      ${theme === "dark" ? "bg-yellow-900 border-yellow-700 text-yellow-200" : "bg-yellow-100 border-yellow-200 text-yellow-700"}`}>
-                      <FaExclamationTriangle className="w-4 h-4" />
-                      Please select sizes for all uniform types before creating the DC.
-                    </div>
-                  )}
                   
                   {saveDCError && (
                     <div className={`p-4 rounded-lg border flex items-center gap-2 mt-6
