@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle } from "react-icons/fa";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 const sections = [
   { id: "personal", title: "Personal Details", icon: FaUser },
@@ -78,25 +78,6 @@ export default function StandaloneKYCPage() {
   const [availableDesignations, setAvailableDesignations] = useState<string[]>([]);
   const [designationLoading, setDesignationLoading] = useState(false);
 
-  // Fetch projects on component mount
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  // Handle pre-selected project from URL
-  useEffect(() => {
-    if (projectFromUrl && projectList.length > 0) {
-      setPersonalDetails(prev => ({ ...prev, projectName: projectFromUrl }));
-    }
-  }, [projectFromUrl, projectList]);
-
-  // Fetch designations when project is selected
-  useEffect(() => {
-    if (personalDetails.projectName && projectList.length > 0) {
-      fetchDesignationsForProject(personalDetails.projectName);
-    }
-  }, [personalDetails.projectName, projectList]);
-
   const fetchProjects = async () => {
     try {
       const response = await fetch("https://cafm.zenapi.co.in/api/project/projects");
@@ -127,6 +108,25 @@ export default function StandaloneKYCPage() {
       setDesignationLoading(false);
     }
   }, [projectList]);
+
+  // Fetch projects on component mount
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  // Handle pre-selected project from URL
+  useEffect(() => {
+    if (projectFromUrl && projectList.length > 0) {
+      setPersonalDetails(prev => ({ ...prev, projectName: projectFromUrl }));
+    }
+  }, [projectFromUrl, projectList]);
+
+  // Fetch designations when project is selected
+  useEffect(() => {
+    if (personalDetails.projectName && projectList.length > 0) {
+      fetchDesignationsForProject(personalDetails.projectName);
+    }
+  }, [personalDetails.projectName, projectList, fetchDesignationsForProject]);
 
   const handleSubmit = async () => {
     setLoading(true);
