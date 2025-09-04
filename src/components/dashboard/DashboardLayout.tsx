@@ -68,6 +68,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [projectLoading, setProjectLoading] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState<string>("");
+  const [linkCopied, setLinkCopied] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -452,9 +454,11 @@ const handleLogout = () => {
     }
   };
 
-  const handleCreateKYC = () => {
+  const handleCreateLink = () => {
     setShowProfileDropdown(false);
     setShowProjectSelectionModal(true);
+    setGeneratedLink("");
+    setLinkCopied(false);
     // Always fetch projects when opening the modal
     fetchProjects();
   };
@@ -478,11 +482,28 @@ const handleLogout = () => {
 
   const handleProjectSelection = () => {
     if (selectedProject) {
-      // Navigate to KYC create page with selected project
-      router.push(`/Manager/kyc-management/create?project=${encodeURIComponent(selectedProject)}`);
-      setShowProjectSelectionModal(false);
-      setSelectedProject("");
+      // Generate shareable link with project parameter
+      const baseUrl = window.location.origin;
+      const link = `${baseUrl}/v1/employee/kyc-standalone?project=${encodeURIComponent(selectedProject)}&frozen=true`;
+      setGeneratedLink(link);
     }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
+
+  const resetModal = () => {
+    setShowProjectSelectionModal(false);
+    setSelectedProject("");
+    setGeneratedLink("");
+    setLinkCopied(false);
   };
 
   return (
@@ -660,13 +681,13 @@ const handleLogout = () => {
                           >
                             <FaUser className="text-blue-500 w-5 h-5" /> Edit Profile
                           </button>
-                          {/* Add Create KYC option for Manager role */}
+                          {/* Add Create Link option for Manager role */}
                           {getUserRole() === 'Manager' && (
                             <button
-                              onClick={handleCreateKYC}
+                              onClick={handleCreateLink}
                               className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-green-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
                             >
-                              <FaUserPlus className="text-green-500 w-5 h-5" /> Create KYC
+                              <FaUserPlus className="text-green-500 w-5 h-5" /> Create Link
                             </button>
                           )}
                           <button
@@ -969,58 +990,110 @@ const handleLogout = () => {
           </div>
         )}
         
-        {/* Project Selection Modal for Create KYC */}
+        {/* Project Selection Modal for Create Link */}
         {showProjectSelectionModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-lg w-full mx-auto shadow-2xl p-8 relative`}>
               <button
-                onClick={() => setShowProjectSelectionModal(false)}
+                onClick={resetModal}
                 className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
               >
                 <FaTimes className="w-5 h-5" />
               </button>
-              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>Select Project for KYC Creation</h2>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>Create Shareable KYC Link</h2>
               <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>
-                The selected project will be frozen in the KYC form and cannot be changed.
+                Select a project to generate a shareable link. The project will be frozen in the KYC form.
               </p>
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
-                    Choose Project
-                  </label>
-                  <select
-                    value={selectedProject}
-                    onChange={(e) => setSelectedProject(e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-green-500`}
-                    disabled={projectLoading}
-                  >
-                    <option value="">
-                      {projectLoading ? "Loading projects..." : projectList.length === 0 ? "No projects available" : "Select a project..."}
-                    </option>
-                    {projectList.map((project) => (
-                      <option key={project._id} value={project.projectName}>
-                        {project.projectName}
+              
+              {!generatedLink ? (
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                      Choose Project
+                    </label>
+                    <select
+                      value={selectedProject}
+                      onChange={(e) => setSelectedProject(e.target.value)}
+                      className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-green-500`}
+                      disabled={projectLoading}
+                    >
+                      <option value="">
+                        {projectLoading ? "Loading projects..." : projectList.length === 0 ? "No projects available" : "Select a project..."}
                       </option>
-                    ))}
-                  </select>
+                      {projectList.map((project) => (
+                        <option key={project._id} value={project.projectName}>
+                          {project.projectName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={resetModal}
+                      className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-all duration-300 font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleProjectSelection}
+                      disabled={!selectedProject}
+                      className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <FaUserPlus className="w-4 h-4" />
+                      Generate Link
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={() => setShowProjectSelectionModal(false)}
-                    className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-all duration-300 font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleProjectSelection}
-                    disabled={!selectedProject}
-                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    <FaUserPlus className="w-4 h-4" />
-                    Create KYC
-                  </button>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-green-50 border-green-200'}`}>
+                    <h3 className={`text-lg font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      Generated Link for: {selectedProject}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={generatedLink}
+                        readOnly
+                        className={`flex-1 px-3 py-2 text-sm rounded-lg border ${theme === 'dark' ? 'bg-gray-600 text-gray-200 border-gray-500' : 'bg-white text-gray-900 border-gray-300'} focus:outline-none`}
+                      />
+                      <button
+                        onClick={copyToClipboard}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                          linkCopied 
+                            ? 'bg-green-600 text-white' 
+                            : theme === 'dark' 
+                              ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                              : 'bg-blue-500 text-white hover:bg-blue-600'
+                        }`}
+                      >
+                        {linkCopied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Share this link with others. When opened, the KYC form will have the project "{selectedProject}" pre-selected and frozen.
+                    </p>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={resetModal}
+                      className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-all duration-300 font-medium"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => {
+                        setGeneratedLink("");
+                        setSelectedProject("");
+                      }}
+                      className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 font-medium flex items-center justify-center gap-2"
+                    >
+                      <FaUserPlus className="w-4 h-4" />
+                      Create Another
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
