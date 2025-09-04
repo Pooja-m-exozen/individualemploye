@@ -3,7 +3,7 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import type { JSX } from 'react';
 import Image from 'next/image';
-import {  FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus, FaChevronLeft,  FaUser, FaCalendarAlt, FaMoneyBillWave, FaTasks,  FaHeadset,  FaBell,  FaIdCard,  FaTimes, FaBars, FaCog, FaEdit, FaUserCheck, FaCalendarCheck, FaClipboardCheck, FaHistory, FaSun, FaMoon, FaEye, FaEyeSlash } from 'react-icons/fa';
+import {  FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus, FaChevronLeft,  FaUser, FaCalendarAlt, FaMoneyBillWave, FaTasks,  FaHeadset,  FaBell,  FaIdCard,  FaTimes, FaBars, FaCog, FaEdit, FaUserCheck, FaCalendarCheck, FaClipboardCheck, FaHistory, FaSun, FaMoon, FaEye, FaEyeSlash, FaUserPlus } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { logout, isAuthenticated, getUserRole, getEmployeeId } from '@/services/auth';
@@ -64,6 +64,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const [userTaskPassword, setUserTaskPassword] = useState("");
   const [userTaskPasswordError, setUserTaskPasswordError] = useState(false);
   const [showUserTaskPassword, setShowUserTaskPassword] = useState(false);
+  const [showProjectSelectionModal, setShowProjectSelectionModal] = useState(false);
+  const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [projectLoading, setProjectLoading] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -114,6 +118,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
 
     fetchUserDetails();
   }, []);
+
+
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -446,6 +452,39 @@ const handleLogout = () => {
     }
   };
 
+  const handleCreateKYC = () => {
+    setShowProfileDropdown(false);
+    setShowProjectSelectionModal(true);
+    // Always fetch projects when opening the modal
+    fetchProjects();
+  };
+
+  const fetchProjects = async () => {
+    setProjectLoading(true);
+    try {
+      const response = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+      const data = await response.json();
+      const allProjects = Array.isArray(data) ? data : [];
+      
+      // Show all projects in the dropdown
+      setProjectList(allProjects);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setProjectList([]);
+    } finally {
+      setProjectLoading(false);
+    }
+  };
+
+  const handleProjectSelection = () => {
+    if (selectedProject) {
+      // Navigate to KYC create page with selected project
+      router.push(`/Manager/kyc-management/create?project=${encodeURIComponent(selectedProject)}`);
+      setShowProjectSelectionModal(false);
+      setSelectedProject("");
+    }
+  };
+
   return (
     <UserContext.Provider value={userDetails}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
@@ -621,6 +660,15 @@ const handleLogout = () => {
                           >
                             <FaUser className="text-blue-500 w-5 h-5" /> Edit Profile
                           </button>
+                          {/* Add Create KYC option for Manager role */}
+                          {getUserRole() === 'Manager' && (
+                            <button
+                              onClick={handleCreateKYC}
+                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-green-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                            >
+                              <FaUserPlus className="text-green-500 w-5 h-5" /> Create KYC
+                            </button>
+                          )}
                           <button
                             onClick={handleLogout}
                             className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
@@ -916,6 +964,62 @@ const handleLogout = () => {
                 >
                   Submit
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Project Selection Modal for Create KYC */}
+        {showProjectSelectionModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowProjectSelectionModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>Select Project for KYC Creation</h2>
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>
+                The selected project will be frozen in the KYC form and cannot be changed.
+              </p>
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                    Choose Project
+                  </label>
+                  <select
+                    value={selectedProject}
+                    onChange={(e) => setSelectedProject(e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-green-500`}
+                    disabled={projectLoading}
+                  >
+                    <option value="">
+                      {projectLoading ? "Loading projects..." : projectList.length === 0 ? "No projects available" : "Select a project..."}
+                    </option>
+                    {projectList.map((project) => (
+                      <option key={project._id} value={project.projectName}>
+                        {project.projectName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowProjectSelectionModal(false)}
+                    className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-all duration-300 font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleProjectSelection}
+                    disabled={!selectedProject}
+                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <FaUserPlus className="w-4 h-4" />
+                    Create KYC
+                  </button>
+                </div>
               </div>
             </div>
           </div>

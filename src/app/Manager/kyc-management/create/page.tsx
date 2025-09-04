@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import { useTheme } from "@/context/ThemeContext";
 import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle, FaUpload } from "react-icons/fa";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
+import { getUser } from "@/services/auth";
 
 const sections = [
   { id: "personal", title: "Personal Details", icon: FaUser },
@@ -18,8 +20,9 @@ const sections = [
 // Change docUploadComplete state type
 type DocUploadCompleteState = false | "show" | true | "single" | "multiple";
 
-export default function CreateKYCPage() {
+function CreateKYCPageContent() {
   const { theme } = useTheme();
+  const searchParams = useSearchParams();
   // State for each section
   const [personalDetails, setPersonalDetails] = useState({
     employeeId: "",
@@ -99,6 +102,10 @@ export default function CreateKYCPage() {
   // Add state for designation options
   const [designationOptions, setDesignationOptions] = useState<string[]>([]);
 
+  // Manager role state
+  const [isManagerRole, setIsManagerRole] = useState(false);
+  const [managerProjects, setManagerProjects] = useState<string[]>([]);
+
   // Seed to force re-fetch of next employee ID after each submission
   const [employeeIdSeed, setEmployeeIdSeed] = useState(0);
 
@@ -117,19 +124,47 @@ export default function CreateKYCPage() {
     setPersonalDetails({ ...personalDetails, languages: langs.join(",") });
   };
 
+  // Check if user is Manager and get their projects
+  useEffect(() => {
+    const user = getUser();
+    const managerRole = user?.role === 'Manager';
+    setIsManagerRole(managerRole);
+    
+    if (managerRole && user?.projects) {
+      setManagerProjects(user.projects);
+    }
+  }, []);
+
+  // Handle project parameter from URL
+  useEffect(() => {
+    const projectParam = searchParams?.get('project');
+    if (projectParam) {
+      setPersonalDetails(prev => ({ ...prev, projectName: projectParam }));
+      setProjectFromModal(true); // Mark that project came from modal
+    }
+  }, [searchParams]);
+
+  // State to track if project came from DashboardLayout modal
+  const [projectFromModal, setProjectFromModal] = useState(false);
+
   useEffect(() => {
     setProjectLoading(true);
     fetch("https://cafm.zenapi.co.in/api/project/projects")
       .then(res => res.json())
       .then(data => {
-        setProjectList(Array.isArray(data) ? data : []);
+        const allProjects = Array.isArray(data) ? data : [];
+        
+        // Always show all projects for Manager role (no filtering)
+        // This allows Managers to see all projects regardless of their assigned projects
+        setProjectList(allProjects);
+        
         setProjectLoading(false);
       })
       .catch(() => {
         setProjectError("Failed to load projects");
         setProjectLoading(false);
       });
-  }, []);
+  }, [isManagerRole, managerProjects]);
 
   // Modified useEffect to only run when auto-generate is enabled
   useEffect(() => {
@@ -189,6 +224,12 @@ export default function CreateKYCPage() {
     if (e.target.name === 'employeeId' && !autoGenerateEmployeeId) {
       validateEmployeeId(e.target.value);
     }
+    
+    // Prevent changing project if it's already set (frozen) and came from modal
+    if (e.target.name === 'projectName' && personalDetails.projectName && projectFromModal) {
+      return;
+    }
+    
     setPersonalDetails({ ...personalDetails, [e.target.name]: e.target.value });
   };
 
@@ -551,19 +592,40 @@ export default function CreateKYCPage() {
                       </div>
                     </div>
                     <div>
-                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Project Name</label>
-                      <select
-                        name="projectName"
-                        value={personalDetails.projectName}
-                        onChange={handlePersonalChange}
-                        className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`}
-                        required
-                      >
-                        <option value="">{projectLoading ? "Loading projects..." : "Select project..."}</option>
-                        {projectList.map(p => (
-                          <option key={p._id} value={p.projectName}>{p.projectName}</option>
-                        ))}
-                      </select>
+                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                        Project Name
+                      </label>
+                      {personalDetails.projectName && projectFromModal ? (
+                        // Show as text input when project is pre-selected from modal
+                        <input
+                          type="text"
+                          value={personalDetails.projectName}
+                          readOnly
+                          className={`w-full rounded-lg px-4 py-2 border ${
+                            theme === "dark" 
+                              ? "bg-gray-700 text-gray-300 border-gray-600 cursor-not-allowed" 
+                              : "bg-gray-100 text-gray-600 border-gray-300 cursor-not-allowed"
+                          }`}
+                        />
+                      ) : (
+                        // Show as dropdown when no project is pre-selected OR when accessed directly
+                        <select
+                          name="projectName"
+                          value={personalDetails.projectName}
+                          onChange={handlePersonalChange}
+                          className={`w-full rounded-lg px-4 py-2 border ${
+                            theme === "dark" 
+                              ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" 
+                              : "border-gray-300 text-black"
+                          }`}
+                          required
+                        >
+                          <option value="">{projectLoading ? "Loading projects..." : "Select project..."}</option>
+                          {projectList.map(p => (
+                            <option key={p._id} value={p.projectName}>{p.projectName}</option>
+                          ))}
+                        </select>
+                      )}
                       {projectError && <div className="text-red-500 text-xs mt-1">{projectError}</div>}
                     </div>
                     <div>
@@ -1181,5 +1243,20 @@ export default function CreateKYCPage() {
         </div>
       </div>
     </ManagerDashboardLayout>
+  );
+}
+
+export default function CreateKYCPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <FaSpinner className="animate-spin w-8 h-8 mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <CreateKYCPageContent />
+    </Suspense>
   );
 }

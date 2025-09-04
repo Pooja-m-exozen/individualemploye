@@ -198,13 +198,32 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         const data: UniformApiResponse = await res.json();
         if (data.success) {
           // Only show projects that are NOT generic
-          const filteredRequests = data.uniforms.filter(
+          let filteredRequests = data.uniforms.filter(
             req => req.projectName === selectedProject && 
                    req.approvalStatus === 'Approved' &&
                    req.projectName !== "General" &&
                    req.projectName !== "N/A" &&
                    !req.projectName.toLowerCase().includes("general")
           );
+
+          // Filter out employees who already have DCs created
+          if (dcData && dcData.length > 0) {
+            // Get all employee IDs that already have DCs
+            const employeesWithDCs = new Set<string>();
+            dcData.forEach(dc => {
+              dc.items.forEach(item => {
+                if (item.employeeId) {
+                  employeesWithDCs.add(item.employeeId);
+                }
+              });
+            });
+
+            // Filter out employees who already have DCs
+            filteredRequests = filteredRequests.filter(req => 
+              !employeesWithDCs.has(req.employeeId)
+            );
+          }
+
           setUniformRequests(filteredRequests);
         }
       } catch {
@@ -217,7 +236,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
     if (selectedProject) {
       fetchUniformRequests();
     }
-  }, [selectedProject]);
+  }, [selectedProject, dcData]);
 
   // Set customer to employee names when uniform requests are selected
   useEffect(() => {
@@ -919,6 +938,9 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                             Select a project to view all approved uniform requests for that project. 
                             You&apos;ll be able to choose which employees to include in your delivery challan.
                           </p>
+                          <p className={`text-xs mt-2 ${theme === "dark" ? "text-blue-400" : "text-blue-600"}`}>
+                            <strong>Note:</strong> Only employees who don&apos;t already have DCs will be shown for selection.
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -954,6 +976,11 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                   <label className={`block mb-1 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
                     Select Employees <span className="text-red-500">*</span>
                     <span className="ml-1 text-xs text-gray-400" title="Select the employees whose approved uniform requests should be included in this delivery challan.">(?)</span>
+                    {uniformRequests.length > 0 && (
+                      <span className={`ml-2 text-xs px-2 py-1 rounded-full ${theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-700"}`}>
+                        {uniformRequests.length} available
+                      </span>
+                    )}
                   </label>
                   {loading ? (
                     <div className="flex items-center gap-2 text-blue-600">
@@ -964,7 +991,27 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                     <div className={`max-h-60 overflow-y-auto border rounded-lg p-4 ${theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
                       {uniformRequests.length === 0 ? (
                         <div className={`text-center py-4 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                          No approved uniform requests found for this project.
+                          {(() => {
+                            // Check if there are employees but they already have DCs
+                            const hasEmployeesWithDCs = dcData && dcData.length > 0 && dcData.some(dc => 
+                              dc.items.some(item => item.employeeId)
+                            );
+                            
+                            if (hasEmployeesWithDCs) {
+                              return (
+                                <div className="space-y-2">
+                                  <div className="text-orange-600 font-semibold">
+                                    All employees for this project already have DCs created.
+                                  </div>
+                                  <div className="text-sm">
+                                    Select a different project or check existing DCs.
+                                  </div>
+                                </div>
+                              );
+                            }
+                            
+                            return "No approved uniform requests found for this project.";
+                          })()}
                         </div>
                       ) : (
                         <div className="space-y-2">
