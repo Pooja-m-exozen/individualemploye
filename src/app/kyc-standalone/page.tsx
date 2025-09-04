@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle } from "react-icons/fa";
 import Image from "next/image";
@@ -15,7 +15,7 @@ const sections = [
   { id: "image", title: "Uploads", icon: FaIdCard },
 ];
 
-export default function StandaloneKYCPage() {
+function StandaloneKYCPageContent() {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
   
@@ -968,5 +968,25 @@ export default function StandaloneKYCPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading component
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="animate-spin text-blue-600">
+        <FaSpinner className="w-12 h-12" />
+      </div>
+    </div>
+  );
+}
+
+// Main export with Suspense wrapper
+export default function StandaloneKYCPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <StandaloneKYCPageContent />
+    </Suspense>
   );
 }
