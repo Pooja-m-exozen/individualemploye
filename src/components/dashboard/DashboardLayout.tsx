@@ -1071,7 +1071,7 @@ const handleLogout = () => {
                       </button>
                     </div>
                     <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Share this link with others. When opened, the KYC form will have the project "{selectedProject}" pre-selected and frozen.
+                      Share this link with others. When opened, the KYC form will have the project &quot;{selectedProject}&quot; pre-selected and frozen.
                     </p>
                   </div>
                   <div className="flex gap-3 pt-2">

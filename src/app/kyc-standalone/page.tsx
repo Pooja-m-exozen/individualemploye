@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/context/ThemeContext";
-import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle, FaUpload } from "react-icons/fa";
+import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle } from "react-icons/fa";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -17,7 +17,6 @@ const sections = [
 
 export default function StandaloneKYCPage() {
   const { theme } = useTheme();
-  const router = useRouter();
   const searchParams = useSearchParams();
   
   // Get project from URL parameters
@@ -72,38 +71,12 @@ export default function StandaloneKYCPage() {
   // Instructions panel
   const [showInstructions, setShowInstructions] = useState(true);
 
-  // State for document upload
-  const [singleDocFile, setSingleDocFile] = useState<File | null>(null);
-  const [singleDocType, setSingleDocType] = useState("");
-  const [singleDocStatus, setSingleDocStatus] = useState<string | null>(null);
-  const [singleDocError, setSingleDocError] = useState<string | null>(null);
-  const [multiDocFiles, setMultiDocFiles] = useState<FileList | null>(null);
-  const [multiDocTypes, setMultiDocTypes] = useState<string[]>([""]);
-  const [multiDocStatus, setMultiDocStatus] = useState<string | null>(null);
-  const [multiDocError, setMultiDocError] = useState<string | null>(null);
-
-  // Document type options for dropdown
-  const documentTypeOptions = [
-    "aadhar",
-    "pan",
-    "bankStatement",
-    "voterId",
-    "drivingLicense",
-    "other"
-  ];
-  const [multiDocCustomTypes, setMultiDocCustomTypes] = useState<string[]>([""]);
-
   // State for project list
   const [projectList, setProjectList] = useState<{ _id: string; projectName: string, designationWiseCount?: Record<string, number> }[]>([]);
-  const [projectLoading, setProjectLoading] = useState(false);
-  const [projectError, setProjectError] = useState<string | null>(null);
   
   // State for designations based on selected project
   const [availableDesignations, setAvailableDesignations] = useState<string[]>([]);
   const [designationLoading, setDesignationLoading] = useState(false);
-
-  // Seed to force re-fetch of next employee ID after each submission
-  const [employeeIdSeed, setEmployeeIdSeed] = useState(0);
 
   // Fetch projects on component mount
   useEffect(() => {
@@ -125,8 +98,6 @@ export default function StandaloneKYCPage() {
   }, [personalDetails.projectName, projectList]);
 
   const fetchProjects = async () => {
-    setProjectLoading(true);
-    setProjectError(null);
     try {
       const response = await fetch("https://cafm.zenapi.co.in/api/project/projects");
       const data = await response.json();
@@ -134,13 +105,10 @@ export default function StandaloneKYCPage() {
       setProjectList(allProjects);
     } catch (error) {
       console.error('Error fetching projects:', error);
-      setProjectError('Failed to fetch projects');
-    } finally {
-      setProjectLoading(false);
     }
   };
 
-  const fetchDesignationsForProject = (projectName: string) => {
+  const fetchDesignationsForProject = useCallback((projectName: string) => {
     setDesignationLoading(true);
     try {
       // Find the project in the already loaded project list
@@ -158,7 +126,7 @@ export default function StandaloneKYCPage() {
     } finally {
       setDesignationLoading(false);
     }
-  };
+  }, [projectList]);
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -223,7 +191,7 @@ export default function StandaloneKYCPage() {
         const errorData = await response.json();
         setError(errorData.message || 'Failed to submit KYC form');
       }
-    } catch (err) {
+    } catch {
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -328,7 +296,7 @@ export default function StandaloneKYCPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium mb-2">Father's Name *</label>
+          <label className="block text-sm font-medium mb-2">Father&apos;s Name *</label>
           <input
             type="text"
             value={personalDetails.fathersName}
@@ -339,7 +307,7 @@ export default function StandaloneKYCPage() {
         </div>
         
         <div>
-          <label className="block text-sm font-medium mb-2">Mother's Name *</label>
+          <label className="block text-sm font-medium mb-2">Mother&apos;s Name *</label>
           <input
             type="text"
             value={personalDetails.mothersName}
