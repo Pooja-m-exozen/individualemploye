@@ -606,6 +606,18 @@ export default function StoreDCPage() {
       
       console.log("Fetched employee details for PDF:", employeeDetailsMap);
       
+      // Fetch uniform requests data to get setCount information
+      let uniformRequestsData: any = null;
+      try {
+        const uniformRes = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+        if (uniformRes.ok) {
+          uniformRequestsData = await uniformRes.json();
+          console.log("Fetched uniform requests data for setCount:", uniformRequestsData);
+        }
+      } catch (error) {
+        console.error("Error fetching uniform requests for setCount:", error);
+      }
+      
       // Create employee data array ONLY from DC items (not all project employees)
       const employeeData: Array<{
         employeeId: string;
@@ -615,6 +627,7 @@ export default function StoreDCPage() {
         size: Record<string, string>;
         projectName: string;
         items: DCItem[];
+        totalSetCount: number; // Add total set count for this employee
       }> = [];
       
       // Group DC items by employeeId - ONLY employees in this specific DC
@@ -631,11 +644,59 @@ export default function StoreDCPage() {
       
       console.log("DC Employee Groups (only employees in this DC):", Object.keys(employeeGroups));
       
+      // Helper function to calculate total set count for an employee
+      const calculateTotalSetCount = (employeeId: string): number => {
+        if (!uniformRequestsData || !uniformRequestsData.success) {
+          return 1; // Default to 1 if no data available
+        }
+        
+        let totalSetCount = 0;
+        
+        // Check if the API response has employeeGroups structure
+        if (uniformRequestsData.employeeGroups) {
+          const employeeGroup = uniformRequestsData.employeeGroups.find((group: any) => 
+            group.employeeId === employeeId || group.fullName?.toLowerCase().includes(employeeId.toLowerCase())
+          );
+          
+          if (employeeGroup && employeeGroup.requests && Array.isArray(employeeGroup.requests)) {
+            totalSetCount = employeeGroup.requests.reduce((sum: number, request: any) => {
+              return sum + (request.setCount || 1);
+            }, 0);
+            console.log(`Found setCount for ${employeeId} from employeeGroups:`, totalSetCount);
+          }
+        }
+        
+        // Fallback to uniforms array if employeeGroups not found
+        if (totalSetCount === 0 && uniformRequestsData.uniforms) {
+          const employeeRequests = uniformRequestsData.uniforms.filter((req: any) => 
+            req.employeeId === employeeId
+          );
+          
+          if (employeeRequests.length > 0) {
+            // For the old API structure, we need to calculate based on uniform types
+            // Each complete set of uniform types counts as 1 set
+            const uniqueRequests = new Set();
+            employeeRequests.forEach((req: any) => {
+              const uniformTypes = Array.isArray(req.uniformType) ? req.uniformType : [req.uniformType];
+              const key = uniformTypes.sort().join(',');
+              uniqueRequests.add(key);
+            });
+            totalSetCount = uniqueRequests.size;
+            console.log(`Calculated setCount for ${employeeId} from uniforms array:`, totalSetCount);
+          }
+        }
+        
+        return totalSetCount > 0 ? totalSetCount : 1; // Default to 1 if no data found
+      };
+      
       // Create employee data ONLY from employees in this DC
       Object.entries(employeeGroups).forEach(([employeeId, items]) => {
         const kycDetails = employeeDetailsMap[employeeId];
         const uniformTypes: string[] = [];
         const sizeMap: Record<string, string> = {};
+        
+        // Calculate total set count for this employee
+        const totalSetCount = calculateTotalSetCount(employeeId);
         
         // Process each item to extract uniform types and sizes
         // Create a map to handle uniform types with their specific sizes
@@ -714,12 +775,14 @@ export default function StoreDCPage() {
           uniformType: uniformTypes,
           size: sizeMap,
           projectName: dc.projectName || dc.customer,
-          items: items
+          items: items,
+          totalSetCount: totalSetCount
         });
         
         console.log(`Added employee to PDF: ${employeeId} - ${kycDetails?.fullName || 'Not Found'} (${kycDetails?.designation || 'Employee'})`);
         console.log(`Uniform types for ${employeeId}:`, uniformTypes);
         console.log(`Size map for ${employeeId}:`, sizeMap);
+        console.log(`Total set count for ${employeeId}:`, totalSetCount);
       });
       
       console.log("Created employee data for PDF:", employeeData);
@@ -924,12 +987,8 @@ export default function StoreDCPage() {
       const tableBody: (string | number)[][] = [];
      
       employeeData.forEach((employee, index) => {
-        // Check if employee has accessories to determine "No of Set"
-        const hasAccessories = employee.uniformType?.some((type: string) =>
-          (type && type.toLowerCase().includes('accessories')) ||
-          (type && type.toLowerCase().includes('accessory'))
-        );
-        const noOfSet = hasAccessories ? "Full set" : "N/A";
+        // Use the calculated total set count for this employee
+        const noOfSet = employee.totalSetCount || 1;
        
         // Create row with sizes for each uniform type
         const row = [
