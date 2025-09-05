@@ -607,7 +607,26 @@ export default function StoreDCPage() {
       console.log("Fetched employee details for PDF:", employeeDetailsMap);
       
       // Fetch uniform requests data to get setCount information
-      let uniformRequestsData: any = null;
+      let uniformRequestsData: {
+        success: boolean;
+        employeeGroups?: Array<{
+          employeeId: string;
+          fullName: string;
+          requests: Array<{
+            setCount: number;
+            uniformType: string[];
+            size: Record<string, string>;
+            qty: number;
+            approvalStatus: string;
+            requestDate: string;
+          }>;
+        }>;
+        uniforms?: Array<{
+          employeeId: string;
+          uniformType: string | string[];
+          setCount?: number;
+        }>;
+      } | null = null;
       try {
         const uniformRes = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
         if (uniformRes.ok) {
@@ -654,12 +673,12 @@ export default function StoreDCPage() {
         
         // Check if the API response has employeeGroups structure
         if (uniformRequestsData.employeeGroups) {
-          const employeeGroup = uniformRequestsData.employeeGroups.find((group: any) => 
+          const employeeGroup = uniformRequestsData.employeeGroups.find((group) => 
             group.employeeId === employeeId || group.fullName?.toLowerCase().includes(employeeId.toLowerCase())
           );
           
           if (employeeGroup && employeeGroup.requests && Array.isArray(employeeGroup.requests)) {
-            totalSetCount = employeeGroup.requests.reduce((sum: number, request: any) => {
+            totalSetCount = employeeGroup.requests.reduce((sum: number, request) => {
               return sum + (request.setCount || 1);
             }, 0);
             console.log(`Found setCount for ${employeeId} from employeeGroups:`, totalSetCount);
@@ -668,15 +687,15 @@ export default function StoreDCPage() {
         
         // Fallback to uniforms array if employeeGroups not found
         if (totalSetCount === 0 && uniformRequestsData.uniforms) {
-          const employeeRequests = uniformRequestsData.uniforms.filter((req: any) => 
+          const employeeRequests = uniformRequestsData.uniforms.filter((req) => 
             req.employeeId === employeeId
           );
           
           if (employeeRequests.length > 0) {
             // For the old API structure, we need to calculate based on uniform types
             // Each complete set of uniform types counts as 1 set
-            const uniqueRequests = new Set();
-            employeeRequests.forEach((req: any) => {
+            const uniqueRequests = new Set<string>();
+            employeeRequests.forEach((req) => {
               const uniformTypes = Array.isArray(req.uniformType) ? req.uniformType : [req.uniformType];
               const key = uniformTypes.sort().join(',');
               uniqueRequests.add(key);
