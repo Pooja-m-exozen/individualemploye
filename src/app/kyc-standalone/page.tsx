@@ -47,6 +47,13 @@ function StandaloneKYCPageContent() {
     workType: ""
   });
   
+  // Add state for auto-generate employee ID
+  const [autoGenerateEmployeeId, setAutoGenerateEmployeeId] = useState(true);
+  const [employeeIdError, setEmployeeIdError] = useState<string | null>(null);
+  
+  // Seed to force re-fetch of next employee ID after each submission
+  const [employeeIdSeed, setEmployeeIdSeed] = useState(0);
+  
   const [addressDetails, setAddressDetails] = useState({
     permanentAddress: { state: "", city: "", street: "", postalCode: "" },
     currentAddress: { state: "", city: "", street: "", postalCode: "" }
@@ -77,6 +84,37 @@ function StandaloneKYCPageContent() {
   // State for designations based on selected project
   const [availableDesignations, setAvailableDesignations] = useState<string[]>([]);
   const [designationLoading, setDesignationLoading] = useState(false);
+  
+  // State for document upload
+  const [singleDocFile, setSingleDocFile] = useState<File | null>(null);
+  const [singleDocType, setSingleDocType] = useState("");
+  const [singleDocStatus, setSingleDocStatus] = useState<string | null>(null);
+  const [singleDocError, setSingleDocError] = useState<string | null>(null);
+  const [multiDocFiles, setMultiDocFiles] = useState<FileList | null>(null);
+  const [multiDocTypes, setMultiDocTypes] = useState<string[]>([""]);
+  const [multiDocStatus, setMultiDocStatus] = useState<string | null>(null);
+  const [multiDocError, setMultiDocError] = useState<string | null>(null);
+  const [multiDocCustomTypes, setMultiDocCustomTypes] = useState<string[]>([""]);
+  
+  // Document type options for dropdown
+  const documentTypeOptions = [
+    "aadhar",
+    "pan",
+    "bankStatement",
+    "voterId",
+    "drivingLicense",
+    "other"
+  ];
+  
+  // Language options for checkbox selection
+  const languageOptions = [
+    "Hindi", "English", "Bengali", "Telugu", "Marathi", "Tamil", "Urdu", "Gujarati", "Kannada", "Odia", "Punjabi", "Malayalam", "Assamese", "Maithili", "Other"
+  ];
+
+  // Modal state for post-KYC document upload
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [kycCreatedEmployeeId, setKycCreatedEmployeeId] = useState<string | null>(null);
+  const [docUploadComplete, setDocUploadComplete] = useState<false | "show" | true | "single" | "multiple">(false);
 
   const fetchProjects = async () => {
     try {
@@ -114,6 +152,38 @@ function StandaloneKYCPageContent() {
     fetchProjects();
   }, []);
 
+  // Auto-generate employee ID logic
+  useEffect(() => {
+    if (!autoGenerateEmployeeId) return;
+    
+    // Always fetch ALL KYC forms to find the highest EFMS number
+    let maxNum = 3376 - 1;
+    let nextId = '';
+    fetch('https://cafm.zenapi.co.in/api/kyc')
+      .then(res => res.json())
+      .then(kycData => {
+        // Check ALL KYC forms (not just pending)
+        type KYCForm = { personalDetails?: { employeeId?: string } };
+        if (kycData && Array.isArray(kycData.kycForms)) {
+          kycData.kycForms.forEach((form: KYCForm) => {
+            if (form.personalDetails && typeof form.personalDetails.employeeId === 'string' && form.personalDetails.employeeId.startsWith('EFMS')) {
+              const num = parseInt(form.personalDetails.employeeId.replace('EFMS', ''));
+              if (!isNaN(num) && num > maxNum) maxNum = num;
+            }
+          });
+        } else {
+          console.warn('KYC data is not as expected:', kycData);
+        }
+        nextId = `EFMS${maxNum + 1}`;
+        setPersonalDetails(prev => ({ ...prev, employeeId: nextId }));
+      })
+      .catch((err) => {
+        console.error('Error fetching next Employee ID:', err);
+        nextId = `EFMS${maxNum + 1}`;
+        setPersonalDetails(prev => ({ ...prev, employeeId: nextId }));
+      });
+  }, [employeeIdSeed, autoGenerateEmployeeId]);
+
   // Handle pre-selected project from URL
   useEffect(() => {
     if (projectFromUrl && projectList.length > 0) {
@@ -128,32 +198,175 @@ function StandaloneKYCPageContent() {
     }
   }, [personalDetails.projectName, projectList, fetchDesignationsForProject]);
 
+  // Update current address when permanent address changes and same address is checked
+  useEffect(() => {
+    if (isSameAddress) {
+      setAddressDetails(prev => ({
+        ...prev,
+        currentAddress: { ...prev.permanentAddress }
+      }));
+    }
+  }, [addressDetails.permanentAddress, isSameAddress]);
+
+  // Handle language checkbox change
+  const handleLanguageCheckboxChange = (lang: string) => {
+    let langs = personalDetails.languages ? personalDetails.languages.split(",").map(l => l.trim()) : [];
+    if (langs.includes(lang)) {
+      langs = langs.filter(l => l !== lang);
+    } else {
+      langs.push(lang);
+    }
+    setPersonalDetails({ ...personalDetails, languages: langs.join(", ") });
+  };
+
+  // Handle auto-generate checkbox change
+  const handleAutoGenerateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAutoGenerateEmployeeId(e.target.checked);
+    setEmployeeIdError(null);
+    
+    if (e.target.checked) {
+      // Trigger auto-generation
+      setEmployeeIdSeed(prev => prev + 1);
+    }
+  };
+
+  // Handler for single document upload
+  const handleSingleDocUpload = async () => {
+    setSingleDocStatus(null);
+    setSingleDocError(null);
+    if (!kycCreatedEmployeeId) {
+      setSingleDocError("Employee ID is missing. Please try again.");
+      return;
+    }
+    if (!singleDocFile || !singleDocType) {
+      setSingleDocError("Please select a file and document type.");
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append("document", singleDocFile);
+      formData.append("documentType", singleDocType);
+      const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${kycCreatedEmployeeId}/upload-document`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSingleDocStatus("Document uploaded successfully!");
+        setSingleDocFile(null);
+        setSingleDocType("");
+      } else {
+        setSingleDocError(data.message || "Upload failed.");
+      }
+    } catch (err) {
+      setSingleDocError("Upload failed. " + (err instanceof Error ? err.message : ""));
+    }
+  };
+
+  // Handler for multiple documents upload
+  const handleMultiDocUpload = async () => {
+    setMultiDocStatus(null);
+    setMultiDocError(null);
+    if (!kycCreatedEmployeeId) {
+      setMultiDocError("Employee ID is missing. Please try again.");
+      return;
+    }
+    if (!multiDocFiles || multiDocFiles.length === 0) {
+      setMultiDocError("Please select files.");
+      return;
+    }
+    if (multiDocTypes.length !== multiDocFiles.length || multiDocTypes.some(t => !t)) {
+      setMultiDocError("Please enter a document type for each file.");
+      return;
+    }
+    try {
+      const formData = new FormData();
+      Array.from(multiDocFiles).forEach((file) => {
+        formData.append("documents", file);
+      });
+      formData.append("documentTypes", JSON.stringify(multiDocTypes));
+      const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${kycCreatedEmployeeId}/upload-multiple-documents`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMultiDocStatus("Documents uploaded successfully!");
+        setMultiDocFiles(null);
+        setMultiDocTypes([""]);
+        setMultiDocCustomTypes([""]);
+      } else {
+        setMultiDocError(data.message || "Upload failed.");
+      }
+    } catch (err) {
+      setMultiDocError("Upload failed. " + (err instanceof Error ? err.message : ""));
+    }
+  };
+
   const handleSubmit = async () => {
     setLoading(true);
     setError(null);
     setMessage(null);
 
-    try {
-      const formData = new FormData();
-      
-      // Add all form data
-      formData.append('personalDetails', JSON.stringify(personalDetails));
-      formData.append('addressDetails', JSON.stringify(addressDetails));
-      formData.append('bankDetails', JSON.stringify(bankDetails));
-      formData.append('identificationDetails', JSON.stringify(identificationDetails));
-      formData.append('emergencyContact', JSON.stringify(emergencyContact));
-      
-      if (employeeImage) {
-        formData.append('employeeImage', employeeImage);
-      }
+    // Basic validation
+    if (!personalDetails.employeeId) {
+      setError('Employee ID is required');
+      setLoading(false);
+      return;
+    }
 
-      const response = await fetch('https://cafm.zenapi.co.in/api/kyc', {
-        method: 'POST',
-        body: formData,
+    if (!personalDetails.projectName) {
+      setError('Project name is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!personalDetails.fullName) {
+      setError('Full name is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!personalDetails.phoneNumber) {
+      setError('Phone number is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!personalDetails.designation) {
+      setError('Designation is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!personalDetails.dateOfJoining) {
+      setError('Date of joining is required');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Use the same endpoint as the Manager KYC page
+      const formData = new FormData();
+      formData.append("personalDetails", JSON.stringify({
+        ...personalDetails,
+        languages: personalDetails.languages ? personalDetails.languages.split(",").map((l) => l.trim()) : []
+      }));
+      formData.append("addressDetails", JSON.stringify(addressDetails));
+      formData.append("bankDetails", JSON.stringify(bankDetails));
+      formData.append("identificationDetails", JSON.stringify(identificationDetails));
+      formData.append("emergencyContact", JSON.stringify(emergencyContact));
+      if (employeeImage) formData.append("employeeImage", employeeImage);
+
+      const response = await fetch("https://cafm.zenapi.co.in/api/kyc/submit-and-upload-image", {
+        method: "POST",
+        body: formData
       });
 
       if (response.ok) {
         setMessage('KYC form submitted successfully!');
+        setKycCreatedEmployeeId(personalDetails.employeeId); // Save for document upload
+        setShowUploadModal(true); // Show modal for document upload
         // Reset form
         setPersonalDetails({
           employeeId: "",
@@ -187,12 +400,28 @@ function StandaloneKYCPageContent() {
         setEmployeeImage(null);
         setCompletedSections([]);
         setActiveSection(sections[0].id);
+        // Reset document upload states
+        setSingleDocFile(null);
+        setSingleDocType("");
+        setSingleDocStatus(null);
+        setSingleDocError(null);
+        setMultiDocFiles(null);
+        setMultiDocTypes([""]);
+        setMultiDocStatus(null);
+        setMultiDocError(null);
+        setMultiDocCustomTypes([""]);
+        // Increment seed to generate new employee ID
+        setEmployeeIdSeed(prev => prev + 1);
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to submit KYC form');
+        const data = await response.json();
+        setError(data.message || "Submission failed.");
       }
-    } catch {
-      setError('Network error. Please try again.');
+    } catch (err) {
+      if (err instanceof Error) {
+        setError("Submission failed. " + err.message);
+      } else {
+        setError("An unexpected error occurred during submission.");
+      }
     } finally {
       setLoading(false);
     }
@@ -202,14 +431,27 @@ function StandaloneKYCPageContent() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium mb-2">Employee ID *</label>
+          <div className="flex items-center mb-2">
+            <input
+              type="checkbox"
+              id="autoGenerateEmployeeId"
+              checked={autoGenerateEmployeeId}
+              onChange={handleAutoGenerateChange}
+              className="mr-2"
+            />
+            <label htmlFor="autoGenerateEmployeeId" className="text-sm font-medium">Auto-generate Employee ID</label>
+          </div>
           <input
             type="text"
             value={personalDetails.employeeId}
             onChange={(e) => setPersonalDetails({...personalDetails, employeeId: e.target.value})}
-            className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+            disabled={autoGenerateEmployeeId}
+            className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent ${autoGenerateEmployeeId ? 'opacity-50 cursor-not-allowed' : ''}`}
             required
           />
+          {employeeIdError && (
+            <p className="text-sm text-red-600 mt-1">{employeeIdError}</p>
+          )}
         </div>
         
         <div>
@@ -457,14 +699,22 @@ function StandaloneKYCPageContent() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium mb-2">Languages Known *</label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-32 overflow-y-auto border rounded-lg p-3">
+            {languageOptions.map((lang) => {
+              const isSelected = personalDetails.languages ? personalDetails.languages.split(",").map(l => l.trim()).includes(lang) : false;
+              return (
+                <label key={lang} className="flex items-center text-sm">
           <input
-            type="text"
-            value={personalDetails.languages}
-            onChange={(e) => setPersonalDetails({...personalDetails, languages: e.target.value})}
-            placeholder="e.g., English, Hindi, Tamil"
-            className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-            required
-          />
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleLanguageCheckboxChange(lang)}
+                    className="mr-2"
+                  />
+                  {lang}
+                </label>
+              );
+            })}
+          </div>
         </div>
         
         <div>
@@ -476,10 +726,8 @@ function StandaloneKYCPageContent() {
             required
           >
             <option value="">Select Work Type</option>
-            <option value="Full-time">Full-time</option>
-            <option value="Part-time">Part-time</option>
-            <option value="Contract">Contract</option>
-            <option value="Intern">Intern</option>
+            <option value="remote">Remote</option>
+            <option value="office">Office</option>
           </select>
         </div>
       </div>
@@ -498,7 +746,7 @@ function StandaloneKYCPageContent() {
             if (e.target.checked) {
               setAddressDetails({
                 ...addressDetails,
-                currentAddress: addressDetails.permanentAddress
+                currentAddress: { ...addressDetails.permanentAddress }
               });
             }
           }}
@@ -777,6 +1025,114 @@ function StandaloneKYCPageContent() {
           </div>
         </div>
       </div>
+
+      {/* Single Document Upload */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Single Document Upload</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Document Type</label>
+            <select
+              value={singleDocType}
+              onChange={(e) => setSingleDocType(e.target.value)}
+              className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+            >
+              <option value="">Select Document Type</option>
+              {documentTypeOptions.map(option => (
+                <option key={option} value={option}>
+                  {option.charAt(0).toUpperCase() + option.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Upload File</label>
+            <input
+              type="file"
+              accept="*"
+              onChange={(e) => setSingleDocFile(e.target.files?.[0] || null)}
+              className={`w-full rounded-lg px-4 py-2 border ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
+            />
+          </div>
+          {singleDocError && (
+            <div className="text-red-600 text-sm">{singleDocError}</div>
+          )}
+          {singleDocStatus && (
+            <div className="text-green-600 text-sm">{singleDocStatus}</div>
+          )}
+        </div>
+      </div>
+
+      {/* Multiple Document Upload */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Multiple Document Upload</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Upload Files</label>
+            <input
+              type="file"
+              accept="*"
+              multiple
+              onChange={(e) => {
+                setMultiDocFiles(e.target.files);
+                setMultiDocTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
+                setMultiDocCustomTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
+              }}
+              className={`w-full rounded-lg px-4 py-2 border ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
+            />
+          </div>
+          {multiDocFiles && multiDocFiles.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+              {Array.from(multiDocFiles).map((file, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="truncate flex-1">{file.name}</span>
+                  <select
+                    value={multiDocTypes[idx] === undefined ? "" : (documentTypeOptions.includes(multiDocTypes[idx]) ? multiDocTypes[idx] : "other")}
+                    onChange={(e) => {
+                      const newTypes = [...multiDocTypes];
+                      if (e.target.value === "other") {
+                        newTypes[idx] = multiDocCustomTypes[idx] || "";
+                      } else {
+                        newTypes[idx] = e.target.value;
+                      }
+                      setMultiDocTypes(newTypes);
+                    }}
+                    className={`rounded-lg px-2 py-1 border ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
+                  >
+                    <option value="">Select Type</option>
+                    {documentTypeOptions.map(opt => (
+                      <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
+                    ))}
+                    <option value="other">Other</option>
+                  </select>
+                  {((multiDocTypes[idx] && !documentTypeOptions.includes(multiDocTypes[idx])) || (multiDocTypes[idx] === "" && multiDocCustomTypes[idx])) && (
+                    <input
+                      type="text"
+                      placeholder="Custom Type"
+                      value={multiDocCustomTypes[idx] || ""}
+                      onChange={(e) => {
+                        const newCustomTypes = [...multiDocCustomTypes];
+                        newCustomTypes[idx] = e.target.value;
+                        setMultiDocCustomTypes(newCustomTypes);
+                        const newTypes = [...multiDocTypes];
+                        newTypes[idx] = e.target.value;
+                        setMultiDocTypes(newTypes);
+                      }}
+                      className={`rounded-lg px-2 py-1 border ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {multiDocError && (
+            <div className="text-red-600 text-sm">{multiDocError}</div>
+          )}
+          {multiDocStatus && (
+            <div className="text-green-600 text-sm">{multiDocStatus}</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 
@@ -924,7 +1280,7 @@ function StandaloneKYCPageContent() {
                 {activeSection === sections[sections.length - 1].id ? (
                   <button
                     onClick={handleSubmit}
-                    disabled={loading}
+                    disabled={loading || !personalDetails.employeeId || !personalDetails.projectName || !personalDetails.fullName || !personalDetails.phoneNumber || !personalDetails.designation || !personalDetails.dateOfJoining}
                     className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center"
                   >
                     {loading ? (
@@ -967,6 +1323,190 @@ function StandaloneKYCPageContent() {
           </div>
         </div>
       </div>
+
+      {/* Modal for document upload after KYC creation */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className={`rounded-2xl p-8 w-full max-w-lg shadow-xl border ${theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-white border-blue-200"}`}>
+            {/* Modal State Management */}
+            {(!docUploadComplete || docUploadComplete === "single" || docUploadComplete === "multiple") ? (
+              <>
+                <h2 className={`text-2xl font-bold mb-6 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                  Upload Documents
+                </h2>
+                <p className={`mb-6 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                  KYC created successfully! You can now upload additional documents for employee ID: <strong>{kycCreatedEmployeeId}</strong>
+                </p>
+
+                {/* Single Document Upload */}
+                <div className="mb-6">
+                  <h3 className={`text-lg font-semibold mb-4 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Single Document Upload
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                        Document Type
+                      </label>
+                      <select
+                        value={singleDocType}
+                        onChange={(e) => setSingleDocType(e.target.value)}
+                        className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                      >
+                        <option value="">Select Document Type</option>
+                        {documentTypeOptions.map(option => (
+                          <option key={option} value={option}>
+                            {option.charAt(0).toUpperCase() + option.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                        Upload File
+                      </label>
+                      <input
+                        type="file"
+                        accept="*"
+                        onChange={(e) => setSingleDocFile(e.target.files?.[0] || null)}
+                        className={`w-full rounded-lg px-4 py-2 border ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
+                      />
+                    </div>
+                    {singleDocError && (
+                      <div className="text-red-600 text-sm">{singleDocError}</div>
+                    )}
+                    {singleDocStatus && (
+                      <div className="text-green-600 text-sm">{singleDocStatus}</div>
+                    )}
+                    <button
+                      onClick={handleSingleDocUpload}
+                      disabled={!singleDocFile || !singleDocType}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Upload Single Document
+                    </button>
+                  </div>
+                </div>
+
+                {/* Multiple Document Upload */}
+                <div className="mb-6">
+                  <h3 className={`text-lg font-semibold mb-4 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Multiple Document Upload
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                        Upload Files
+                      </label>
+                      <input
+                        type="file"
+                        accept="*"
+                        multiple
+                        onChange={(e) => {
+                          setMultiDocFiles(e.target.files);
+                          setMultiDocTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
+                          setMultiDocCustomTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
+                        }}
+                        className={`w-full rounded-lg px-4 py-2 border ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
+                      />
+                    </div>
+                    {multiDocFiles && multiDocFiles.length > 0 && (
+                      <div className="grid grid-cols-1 gap-2 mt-2">
+                        {Array.from(multiDocFiles).map((file, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <span className="truncate flex-1 text-sm">{file.name}</span>
+                            <select
+                              value={multiDocTypes[idx] === undefined ? "" : (documentTypeOptions.includes(multiDocTypes[idx]) ? multiDocTypes[idx] : "other")}
+                              onChange={(e) => {
+                                const newTypes = [...multiDocTypes];
+                                if (e.target.value === "other") {
+                                  newTypes[idx] = multiDocCustomTypes[idx] || "";
+                                } else {
+                                  newTypes[idx] = e.target.value;
+                                }
+                                setMultiDocTypes(newTypes);
+                              }}
+                              className={`rounded-lg px-2 py-1 border text-sm ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
+                            >
+                              <option value="">Select Type</option>
+                              {documentTypeOptions.map(opt => (
+                                <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
+                              ))}
+                              <option value="other">Other</option>
+                            </select>
+                            {((multiDocTypes[idx] && !documentTypeOptions.includes(multiDocTypes[idx])) || (multiDocTypes[idx] === "" && multiDocCustomTypes[idx])) && (
+                              <input
+                                type="text"
+                                placeholder="Custom Type"
+                                value={multiDocCustomTypes[idx] || ""}
+                                onChange={(e) => {
+                                  const newCustomTypes = [...multiDocCustomTypes];
+                                  newCustomTypes[idx] = e.target.value;
+                                  setMultiDocCustomTypes(newCustomTypes);
+                                  const newTypes = [...multiDocTypes];
+                                  newTypes[idx] = e.target.value;
+                                  setMultiDocTypes(newTypes);
+                                }}
+                                className={`rounded-lg px-2 py-1 border text-sm ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {multiDocError && (
+                      <div className="text-red-600 text-sm">{multiDocError}</div>
+                    )}
+                    {multiDocStatus && (
+                      <div className="text-green-600 text-sm">{multiDocStatus}</div>
+                    )}
+                    <button
+                      onClick={handleMultiDocUpload}
+                      disabled={!multiDocFiles || multiDocFiles.length === 0 || multiDocTypes.some(t => !t)}
+                      className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Upload Multiple Documents
+                    </button>
+                  </div>
+                </div>
+
+                {/* Close Modal Button */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowUploadModal(false);
+                      setKycCreatedEmployeeId(null);
+                      setDocUploadComplete(false);
+                    }}
+                    className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center">
+                <h2 className={`text-2xl font-bold mb-4 ${theme === "dark" ? "text-green-200" : "text-green-700"}`}>
+                  Upload Complete!
+                </h2>
+                <p className={`mb-6 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                  All documents have been uploaded successfully.
+                </p>
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setKycCreatedEmployeeId(null);
+                    setDocUploadComplete(false);
+                  }}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Continue
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
