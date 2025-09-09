@@ -280,16 +280,20 @@ export default function KYCRequestsPage() {
                 </button>
                 {showColsMenu && (
                   <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg p-3 border z-40 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-blue-200 text-black'}`}>
-                    {Object.keys(visibleCols).map(key => (
-                      <label key={key} className="flex items-center gap-2 py-1 cursor-pointer text-sm">
-                        <input
-                          type="checkbox"
-                          checked={(visibleCols as any)[key]}
-                          onChange={() => toggleColumn(key as keyof typeof visibleCols)}
-                        />
-                        <span className="capitalize">{key}</span>
-                      </label>
-                    ))}
+                  {Object.keys(visibleCols).map((key) => {
+      const colKey = key as keyof VisibleCols; 
+  return (
+    <label key={key} className="flex items-center gap-2 py-1 cursor-pointer text-sm">
+      <input
+        type="checkbox"
+                              checked={visibleCols[colKey]}   
+        onChange={() => toggleColumn(colKey)}
+      />
+      <span className="capitalize">{key}</span>
+    </label>
+  );
+})}
+
                   </div>
                 )}
               </div>

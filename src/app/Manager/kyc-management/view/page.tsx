@@ -384,12 +384,25 @@ export default function ViewAllKYCPage() {
           </button>
           {showColsMenu && (
             <div className={`rounded-lg shadow-lg p-3 border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-blue-200 text-black'}`}>
-              {Object.keys(visibleCols).map(k => (
-                <label key={k} className="flex items-center gap-2 py-1 text-sm">
-                  <input type="checkbox" checked={(visibleCols as any)[k]} onChange={() => setVisibleCols(prev => ({ ...prev, [k]: !(prev as any)[k] }))} />
-                  <span className="capitalize">{k}</span>
-                </label>
-              ))}
+              {Object.keys(visibleCols).map((k) => {
+  const colKey = k as keyof typeof visibleCols;
+  return (
+    <label key={k} className="flex items-center gap-2 py-1 text-sm">
+      <input
+        type="checkbox"
+        checked={visibleCols[colKey]}
+        onChange={() =>
+          setVisibleCols((prev) => ({
+            ...prev,
+            [colKey]: !prev[colKey],
+          }))
+        }
+      />
+      <span className="capitalize">{k}</span>
+    </label>
+  );
+})}
+
             </div>
           )}
           <button className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-white text-blue-600'} border ${theme === 'dark' ? 'border-gray-700' : 'border-blue-200'}`} onClick={exportCsv}>
