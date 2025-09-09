@@ -771,7 +771,11 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                                     <td className="px-2 py-1">
                                       <button
                                         type="button"
-                                        className={`px-2 py-1 rounded text-xs font-semibold transition-all bg-blue-500 text-white hover:bg-blue-600`}
+                                        className={`px-2 py-1 rounded text-xs font-semibold transition-all ${
+                                          selectedUniforms.some(u => u.type === option.type)
+                                            ? 'bg-green-500 text-white'
+                                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                                        }`}
                                         onClick={() => {
                                           const currentFormValues = formValues[option.type];
                                           const selectedSize = currentFormValues?.size || sizesArray[0] || '';
@@ -795,9 +799,9 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                                             }
                                           }));
                                         }}
-                                        title={'Add to request'}
+                                        title={selectedUniforms.some(u => u.type === option.type) ? 'Item added (click to add another)' : 'Add to request'}
                                       >
-                                        {'Add'}
+                                        {selectedUniforms.some(u => u.type === option.type) ? '✓' : 'Add'}
                                       </button>
                                     </td>
                                   </tr>
