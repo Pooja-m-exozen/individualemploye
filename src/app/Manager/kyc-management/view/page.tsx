@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaTrash, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaEye, FaSort, FaSortUp, FaSortDown, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
+import { FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaTrash, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaEye, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
 import EditKYCModal from "@/components/dashboard/EditKYCModal";
 import ViewKYCModal from "@/components/dashboard/ViewKYCModal";
 import { useTheme } from "@/context/ThemeContext";
@@ -201,10 +201,7 @@ export default function ViewAllKYCPage() {
     }
   };
 
-  const getSortIcon = (field: typeof sortField) => {
-    if (sortField !== field) return <FaSort className="w-3 h-3 text-gray-400" />;
-    return sortDirection === "asc" ? <FaSortUp className="w-3 h-3 text-blue-600" /> : <FaSortDown className="w-3 h-3 text-blue-600" />;
-  };
+  // removed sort icon renderer (we no longer show arrows)
 
   // Calculate filtered and paginated data
   const filtered = kycForms

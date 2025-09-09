@@ -75,7 +75,16 @@ export default function ProjectManagementPage() {
   const [sortBy, setSortBy] = useState<"projectName" | "address" | "totalManpower" | "updatedDate" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [showColsMenu, setShowColsMenu] = useState(false);
-  const [visibleCols, setVisibleCols] = useState({
+  type VisibleCols = {
+    rownum: boolean;
+    projectName: boolean;
+    address: boolean;
+    totalManpower: boolean;
+    designationCounts: boolean;
+    updatedDate: boolean;
+    action: boolean;
+  };
+  const [visibleCols, setVisibleCols] = useState<VisibleCols>({
     rownum: true,
     projectName: true,
     address: true,
@@ -318,7 +327,7 @@ export default function ProjectManagementPage() {
     }
   };
 
-  const toggleColumn = (key: keyof typeof visibleCols) => {
+  const toggleColumn = (key: keyof VisibleCols) => {
     setVisibleCols(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -540,10 +549,10 @@ export default function ProjectManagementPage() {
                   </button>
                   {showColsMenu && (
                     <div className={`absolute right-0 mt-2 w-56 rounded-lg shadow-lg p-3 border z-40 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-black'}`}>
-                      {Object.keys(visibleCols).map((key) => (
-                        <label key={key} className="flex items-center gap-2 py-1 cursor-pointer text-sm">
-                          <input type="checkbox" checked={(visibleCols as any)[key]} onChange={() => toggleColumn(key as keyof typeof visibleCols)} />
-                          <span className="capitalize">{key}</span>
+                      {(Object.keys(visibleCols) as Array<keyof VisibleCols>).map((key) => (
+                        <label key={String(key)} className="flex items-center gap-2 py-1 cursor-pointer text-sm">
+                          <input type="checkbox" checked={visibleCols[key]} onChange={() => toggleColumn(key)} />
+                          <span className="capitalize">{String(key)}</span>
                         </label>
                       ))}
                     </div>

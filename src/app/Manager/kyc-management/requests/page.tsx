@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaIdCard, FaUser, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaInfoCircle } from "react-icons/fa";
+import { FaUser, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 
@@ -18,7 +18,7 @@ interface KYCRequest {
   status: string;
 }
 
-type ViewMode = 'card' | 'table';
+// removed unused ViewMode
 
 export default function KYCRequestsPage() {
   const [requests, setRequests] = useState<KYCRequest[]>([]);
@@ -29,7 +29,7 @@ export default function KYCRequestsPage() {
   const [projectFilter, setProjectFilter] = useState("All Projects");
   const [designationFilter, setDesignationFilter] = useState("All Designations");
   const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
-  const [showInstructions, setShowInstructions] = useState(true);
+  // removed instructions card state to avoid unused
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [empIdFilter, setEmpIdFilter] = useState("");
   const [nameFilter, setNameFilter] = useState("");
@@ -37,7 +37,16 @@ export default function KYCRequestsPage() {
   const [sortBy, setSortBy] = useState<"name" | "designation" | "employeeId" | "project" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [showColsMenu, setShowColsMenu] = useState(false);
-  const [visibleCols, setVisibleCols] = useState({
+  type VisibleCols = {
+    photo: boolean;
+    name: boolean;
+    designation: boolean;
+    employeeId: boolean;
+    project: boolean;
+    status: boolean;
+    actions: boolean;
+  };
+  const [visibleCols, setVisibleCols] = useState<VisibleCols>({
     photo: true,
     name: true,
     designation: true,
@@ -143,7 +152,7 @@ export default function KYCRequestsPage() {
     }
   };
 
-  const toggleColumn = (key: keyof typeof visibleCols) => {
+  const toggleColumn = (key: keyof VisibleCols) => {
     setVisibleCols(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
