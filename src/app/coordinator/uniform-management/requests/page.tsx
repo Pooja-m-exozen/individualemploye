@@ -686,12 +686,12 @@ export default function UniformRequestsPage() {
                       {/* Complete Set Indicator */}
                       {uniformOptions.length > 0 && (
                         <div className={`mb-3 p-3 rounded-lg border-2 ${
-                          selectedUniforms.length === uniformOptions.length 
+                          (new Set(selectedUniforms.map(u => u.type)).size) === uniformOptions.length 
                             ? 'bg-green-50 border-green-300 text-green-800' 
                             : 'bg-blue-50 border-blue-300 text-blue-800'
                         }`}>
                           <div className="flex items-center gap-2">
-                            {selectedUniforms.length === uniformOptions.length ? (
+                            {(new Set(selectedUniforms.map(u => u.type)).size) === uniformOptions.length ? (
                               <>
                                 <span className="text-green-600 text-lg">✓</span>
                                 <span className="font-semibold">Complete Uniform Set Selected!</span>
@@ -704,8 +704,8 @@ export default function UniformRequestsPage() {
                             )}
                           </div>
                           <div className="text-sm mt-1">
-                            {selectedUniforms.length} of {uniformOptions.length} items selected
-                            {selectedUniforms.length === uniformOptions.length && (
+                            {(new Set(selectedUniforms.map(u => u.type)).size)} of {uniformOptions.length} items selected
+                            {(new Set(selectedUniforms.map(u => u.type)).size) === uniformOptions.length && (
                               <span className="ml-2 font-semibold text-green-700">= 1 Complete Set</span>
                             )}
                           </div>
@@ -795,58 +795,33 @@ export default function UniformRequestsPage() {
                                     <td className="px-2 py-1">
                                       <button
                                         type="button"
-                                        className={`px-2 py-1 rounded text-xs font-semibold transition-all ${
-                                          selectedUniforms.some(u => u.type === option.type)
-                                            ? 'bg-green-500 text-white cursor-default'
-                                            : 'bg-blue-500 text-white hover:bg-blue-600'
-                                        }`}
+                                        className={`px-2 py-1 rounded text-xs font-semibold transition-all bg-blue-500 text-white hover:bg-blue-600`}
                                         onClick={() => {
                                           const currentFormValues = formValues[option.type];
                                           const selectedSize = currentFormValues?.size || sizesArray[0] || '';
                                           const qty = currentFormValues?.qty || 1;
-                                          
-                                          // Check if this item type is already selected (regardless of size)
-                                          const isAlreadySelected = selectedUniforms.some(u => u.type === option.type);
-                                          
-                                          if (isAlreadySelected) {
-                                            // Remove the item if already selected
-                                            setSelectedUniforms(prev => prev.filter(u => u.type !== option.type));
-                                            // Also remove from formValues
-                                            setFormValues(prev => {
-                                              const newValues = { ...prev };
-                                              delete newValues[option.type];
-                                              return newValues;
-                                            });
-                                          } else {
-                                            // Add the item
-                                            setSelectedUniforms(prev => [
-                                              ...prev,
-                                              {
-                                                type: option.type,
-                                                size: selectedSize,
-                                                qty
-                                              }
-                                            ]);
-                                            // Ensure formValues has the current values
-                                            setFormValues(prev => ({
-                                              ...prev,
-                                              [option.type]: {
-                                                size: selectedSize,
-                                                qty
-                                              }
-                                            }));
-                                          }
+
+                                          // Always add the item, allowing multiple selections per type
+                                          setSelectedUniforms(prev => [
+                                            ...prev,
+                                            {
+                                              type: option.type,
+                                              size: selectedSize,
+                                              qty
+                                            }
+                                          ]);
+                                          // Ensure formValues has the current values for convenience
+                                          setFormValues(prev => ({
+                                            ...prev,
+                                            [option.type]: {
+                                              size: selectedSize,
+                                              qty
+                                            }
+                                          }));
                                         }}
-                                        title={
-                                          selectedUniforms.some(u => u.type === option.type)
-                                            ? 'Click to remove from request'
-                                            : 'Add to request'
-                                        }
+                                        title={'Add to request'}
                                       >
-                                        {selectedUniforms.some(u => u.type === option.type)
-                                          ? '✓'
-                                          : 'Add'
-                                        }
+                                        {'Add'}
                                       </button>
                                     </td>
                                   </tr>
