@@ -67,6 +67,13 @@ export default function ProjectManagementPage() {
     designationWiseCount: [{ designation: "", count: "" }],
   });
 
+  // Row edit mode state
+  const [rowDrafts, setRowDrafts] = useState<Record<string, { address: string; totalManpower: string }>>({});
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [newRow, setNewRow] = useState<{ projectName: string; address: string; totalManpower: string }>({ projectName: "", address: "", totalManpower: "" });
+  const [rowDesignationDrafts, setRowDesignationDrafts] = useState<Record<string, DesignationCount[]>>({});
+  const [quickDesignations, setQuickDesignations] = useState<DesignationCount[]>([]);
+
   const handleFormChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     idx: number | null = null
@@ -131,6 +138,80 @@ export default function ProjectManagementPage() {
       await fetchProjects();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create project";
+      setToast(message);
+    }
+  };
+
+  // Quick add from grid top row (excel-like)
+  const handleQuickAdd = async () => {
+    if (!newRow.projectName || !newRow.address || !newRow.totalManpower) return;
+    const designationObj: Record<string, number> = {};
+    quickDesignations.forEach((item) => {
+      if (item.designation && item.count) {
+        designationObj[item.designation] = parseInt(item.count, 10);
+      }
+    });
+    const payload = {
+      projectName: newRow.projectName,
+      address: newRow.address,
+      totalManpower: parseInt(newRow.totalManpower, 10),
+      designationWiseCount: designationObj,
+    };
+    try {
+      const res = await fetch("https://cafm.zenapi.co.in/api/project/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Failed to create project");
+      setToast("Project created");
+      setNewRow({ projectName: "", address: "", totalManpower: "" });
+      setQuickDesignations([]);
+      await fetchProjects();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create project";
+      setToast(message);
+    }
+  };
+
+  // Save current row
+  const saveRow = async (project: Project) => {
+    const draft = rowDrafts[project._id || project.projectName];
+    const nextAddress = draft?.address ?? project.address;
+    const nextTM = draft?.totalManpower ?? String(project.totalManpower);
+    const idKey = project._id || project.projectName;
+    const designationDrafts = rowDesignationDrafts[idKey];
+    const nextDesignationObj: Record<string, number> = {};
+    if (designationDrafts && designationDrafts.length > 0) {
+      designationDrafts.forEach((item) => {
+        if (item.designation && item.count) {
+          nextDesignationObj[item.designation] = parseInt(item.count, 10);
+        }
+      });
+    } else {
+      Object.entries(project.designationWiseCount || {}).forEach(([designation, count]) => {
+        nextDesignationObj[designation] = Number(count);
+      });
+    }
+    try {
+      const payload: Partial<Project> = {
+        address: nextAddress,
+        totalManpower: parseInt(nextTM || "0", 10),
+        designationWiseCount: nextDesignationObj,
+      } as Partial<Project>;
+      const res = await fetch(`https://cafm.zenapi.co.in/api/project/projects/${encodeURIComponent(project.projectName)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Failed to save change");
+      setToast("Saved");
+      // Merge into local state
+      setProjects(prev => prev.map(p => p._id === project._id ? { ...p, ...payload, updatedDate: new Date().toISOString() } as Project : p));
+      setEditingRowId(null);
+      setRowDesignationDrafts(prev => ({ ...prev, [idKey]: [] }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save";
       setToast(message);
     }
   };
@@ -338,26 +419,7 @@ export default function ProjectManagementPage() {
         }`}
       >
         <div className="p-6">
-          {/* Header */}
-          <div
-            className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r ${
-              theme === "dark"
-                ? "from-blue-900 to-blue-700"
-                : "from-blue-500 to-blue-800"
-            }`}
-          >
-            <div
-              className={`rounded-xl p-4 flex items-center justify-center ${
-                theme === "dark" ? "bg-blue-900 bg-opacity-40" : "bg-blue-600 bg-opacity-30"
-              }`}
-            >
-              <FaProjectDiagram className="w-10 h-10 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-1">Project Management</h1>
-              <p className="text-white text-base opacity-90">View and manage all projects and their manpower details.</p>
-            </div>
-          </div>
+          {/* Header removed */}
           {/* Filters and Search */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
@@ -409,18 +471,89 @@ export default function ProjectManagementPage() {
               </div>
             </div>
           </div>
-          {/* Create Project Button */}
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={() => setShowModal(true)}
-              className={`font-semibold px-6 py-2 rounded-lg shadow transition-colors flex items-center gap-2 ${
-                theme === "dark"
-                  ? "bg-blue-700 hover:bg-blue-800 text-white"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              }`}
-            >
-              + Create Project
-            </button>
+          {/* Quick Add Row (Excel-like) */}
+          <div className={`overflow-x-auto rounded-xl border shadow-xl mb-4 ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+            <table className="min-w-full text-sm">
+              <thead className={theme === "dark" ? "bg-blue-900" : "bg-blue-50"}>
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold">New Project Name</th>
+                  <th className="px-3 py-2 text-left font-semibold">Address</th>
+                  <th className="px-3 py-2 text-left font-semibold">Total Manpower</th>
+                  <th className="px-3 py-2 text-left font-semibold">Designation-wise Count</th>
+                  <th className="px-3 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border-t px-3 py-2">
+                    <input className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} value={newRow.projectName} onChange={e => setNewRow(r => ({ ...r, projectName: e.target.value }))} placeholder="e.g. ABC Mall" />
+                  </td>
+                  <td className="border-t px-3 py-2">
+                    <input className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} value={newRow.address} onChange={e => setNewRow(r => ({ ...r, address: e.target.value }))} placeholder="Address" />
+                  </td>
+                  <td className="border-t px-3 py-2 w-36">
+                    <input type="number" min={1} className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} value={newRow.totalManpower} onChange={e => setNewRow(r => ({ ...r, totalManpower: e.target.value }))} placeholder="0" />
+                  </td>
+                  <td className="border-t px-3 py-2">
+                    {quickDesignations.length === 0 ? (
+                      <button
+                        onClick={() => setQuickDesignations([{ designation: "", count: "" }])}
+                        className={`${theme === "dark" ? "text-blue-400" : "text-blue-600"}`}
+                      >
+                        + Add Designation
+                      </button>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {quickDesignations.map((item, idx) => (
+                          <div key={idx} className="flex gap-2 items-center">
+                            <input
+                              className={`flex-1 border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                              placeholder="Designation"
+                              value={item.designation}
+                              onChange={e => {
+                                const list = [...quickDesignations];
+                                list[idx] = { ...list[idx], designation: e.target.value };
+                                setQuickDesignations(list);
+                              }}
+                            />
+                            <input
+                              type="number"
+                              min={1}
+                              className={`w-24 border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                              placeholder="Count"
+                              value={item.count}
+                              onChange={e => {
+                                const list = [...quickDesignations];
+                                list[idx] = { ...list[idx], count: e.target.value };
+                                setQuickDesignations(list);
+                              }}
+                            />
+                            {quickDesignations.length > 1 && (
+                              <button
+                                onClick={() => setQuickDesignations(prev => prev.filter((_, i) => i !== idx))}
+                                className="text-red-500 hover:text-red-700 px-2"
+                                title="Remove"
+                              >
+                                &times;
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => setQuickDesignations(prev => [...prev, { designation: "", count: "" }])}
+                          className={`${theme === "dark" ? "text-blue-400" : "text-blue-600"} text-sm`}
+                        >
+                          + Add another
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  <td className="border-t px-3 py-2 w-32">
+                    <button onClick={handleQuickAdd} className={`w-full px-3 py-1 rounded font-semibold ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}>Add</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           {/* Modal */}
           {showModal && (
@@ -539,48 +672,156 @@ export default function ProjectManagementPage() {
               <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
             ) : (
               <>
-                <table className="min-w-full divide-y">
+                <table className="min-w-full text-sm border-collapse">
                   <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                     <tr>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project Name</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Address</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Total Manpower</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation-wise Count</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Last Updated</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>
+                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project Name</th>
+                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Address (edit)</th>
+                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Total Manpower (edit)</th>
+                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation-wise Count</th>
+                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Last Updated</th>
+                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>
                     </tr>
                   </thead>
-                  <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                  <tbody>
                     {paginatedProjects.length === 0 ? (
                       <tr>
                         <td colSpan={6} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No projects found</td>
                       </tr>
                     ) : paginatedProjects.map((project, idx) => (
-                      <tr key={project._id || idx} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                        <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{project.projectName}</td>
-                        <td className="px-4 py-3 max-w-xs break-words">{project.address}</td>
-                        <td className="px-4 py-3">{project.totalManpower}</td>
-                        <td className="px-4 py-3">
-                          {Object.entries(project.designationWiseCount || {})
-                            .map(([designation, count]) => `${designation}: ${count}`)
-                            .join(", ")}
+                      <tr key={project._id || idx} className={theme === "dark" ? "hover:bg-blue-900 transition border-t border-blue-900" : "hover:bg-blue-50 transition border-t border-blue-100"}>
+                        <td className={`px-3 py-2 font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{project.projectName}</td>
+                        <td className="px-3 py-2">
+                          {editingRowId === (project._id || project.projectName) ? (
+                            <input
+                              className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                              value={(rowDrafts[project._id || project.projectName]?.address) ?? project.address}
+                              onChange={e => setRowDrafts(prev => ({ ...prev, [project._id || project.projectName]: { ...(prev[project._id || project.projectName] || { address: project.address, totalManpower: String(project.totalManpower) }), address: e.target.value } }))}
+                            />
+                          ) : (
+                            <span>{project.address}</span>
+                          )}
                         </td>
-                        <td className="px-4 py-3">{new Date(project.updatedDate).toLocaleDateString()}</td>
-                        <td className="px-4 py-3 flex gap-2">
-                          <button
-                            onClick={() => openEditModal(project)}
-                            className="text-blue-500 hover:text-blue-700 p-1"
-                            title="Edit"
-                          >
-                            <FaEdit />
-                          </button>
-                          <button
-                            onClick={() => setDeleteProject(project)}
-                            className="text-red-500 hover:text-red-700 p-1"
-                            title="Delete"
-                          >
-                            <FaTrash />
-                          </button>
+                        <td className="px-3 py-2 w-36">
+                          {editingRowId === (project._id || project.projectName) ? (
+                            <input
+                              type="number"
+                              min={1}
+                              className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                              value={(rowDrafts[project._id || project.projectName]?.totalManpower) ?? String(project.totalManpower)}
+                              onChange={e => setRowDrafts(prev => ({ ...prev, [project._id || project.projectName]: { ...(prev[project._id || project.projectName] || { address: project.address, totalManpower: String(project.totalManpower) }), totalManpower: e.target.value } }))}
+                            />
+                          ) : (
+                            <span>{project.totalManpower}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {editingRowId === (project._id || project.projectName) ? (
+                            <div className="flex flex-col gap-2">
+                              {(rowDesignationDrafts[project._id || project.projectName] ?? Object.entries(project.designationWiseCount || {}).map(([designation, count]) => ({ designation, count: String(count) }))).map((item, dIdx) => (
+                                <div key={dIdx} className="flex gap-2 items-center">
+                                  <input
+                                    className={`flex-1 border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                                    value={item.designation}
+                                    onChange={e => {
+                                      const id = project._id || project.projectName;
+                                      const list = rowDesignationDrafts[id] ? [...rowDesignationDrafts[id]] : Object.entries(project.designationWiseCount || {}).map(([designation, count]) => ({ designation, count: String(count) }));
+                                      list[dIdx] = { ...list[dIdx], designation: e.target.value };
+                                      setRowDesignationDrafts(prev => ({ ...prev, [id]: list }));
+                                    }}
+                                    placeholder="Designation"
+                                  />
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    className={`w-24 border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                                    value={item.count}
+                                    onChange={e => {
+                                      const id = project._id || project.projectName;
+                                      const list = rowDesignationDrafts[id] ? [...rowDesignationDrafts[id]] : Object.entries(project.designationWiseCount || {}).map(([designation, count]) => ({ designation, count: String(count) }));
+                                      list[dIdx] = { ...list[dIdx], count: e.target.value };
+                                      setRowDesignationDrafts(prev => ({ ...prev, [id]: list }));
+                                    }}
+                                    placeholder="Count"
+                                  />
+                                  {(rowDesignationDrafts[project._id || project.projectName]?.length ?? Object.keys(project.designationWiseCount || {}).length) > 1 && (
+                                    <button
+                                      onClick={() => {
+                                        const id = project._id || project.projectName;
+                                        const list = (rowDesignationDrafts[id] ? [...rowDesignationDrafts[id]] : Object.entries(project.designationWiseCount || {}).map(([designation, count]) => ({ designation, count: String(count) })));
+                                        const next = list.filter((_, i) => i !== dIdx);
+                                        setRowDesignationDrafts(prev => ({ ...prev, [id]: next }));
+                                      }}
+                                      className="text-red-500 hover:text-red-700 px-2"
+                                      title="Remove"
+                                    >
+                                      &times;
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                              <button
+                                onClick={() => {
+                                  const id = project._id || project.projectName;
+                                  const list = rowDesignationDrafts[id] ? [...rowDesignationDrafts[id]] : Object.entries(project.designationWiseCount || {}).map(([designation, count]) => ({ designation, count: String(count) }));
+                                  setRowDesignationDrafts(prev => ({ ...prev, [id]: [...list, { designation: "", count: "" }] }));
+                                }}
+                                className={`${theme === "dark" ? "text-blue-400" : "text-blue-600"} text-sm`}
+                              >
+                                + Add Designation
+                              </button>
+                            </div>
+                          ) : (
+                            <span>
+                              {Object.entries(project.designationWiseCount || {})
+                                .map(([designation, count]) => `${designation}: ${count}`)
+                                .join(", ")}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">{new Date(project.updatedDate).toLocaleDateString()}</td>
+                        <td className="px-3 py-2 flex items-center gap-2">
+                          {editingRowId === (project._id || project.projectName) ? (
+                            <>
+                              <button
+                                onClick={() => saveRow(project)}
+                                className={`px-3 py-1 rounded font-semibold ${theme === "dark" ? "bg-green-700 text-white hover:bg-green-800" : "bg-green-600 text-white hover:bg-green-700"}`}
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => { setEditingRowId(null); setRowDrafts(prev => ({ ...prev, [project._id || project.projectName]: { address: project.address, totalManpower: String(project.totalManpower) } })); }}
+                                className={`px-3 py-1 rounded font-semibold ${theme === "dark" ? "bg-gray-700 text-white hover:bg-gray-800" : "bg-gray-200 text-gray-800 hover:bg-gray-300"}`}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => {
+                                  const id = project._id || project.projectName;
+                                  setEditingRowId(id);
+                                  setRowDrafts(prev => ({ ...prev, [id]: { address: project.address, totalManpower: String(project.totalManpower) } }));
+                                  setRowDesignationDrafts(prev => ({
+                                    ...prev,
+                                    [id]: Object.entries(project.designationWiseCount || {}).map(([designation, count]) => ({ designation, count: String(count) }))
+                                  }));
+                                }}
+                                className="text-blue-500 hover:text-blue-700 p-1"
+                                title="Edit inline"
+                              >
+                                <FaEdit />
+                              </button>
+                              <button
+                                onClick={() => setDeleteProject(project)}
+                                className="text-red-500 hover:text-red-700 p-1"
+                                title="Delete"
+                              >
+                                <FaTrash />
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}
