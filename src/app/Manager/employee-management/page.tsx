@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
-import { FaSearch, FaUsers, FaChevronRight, FaCheckCircle, FaIdCard, FaTshirt, FaCalendarAlt, FaPlaneDeparture, FaMoneyBillWave, FaFileAlt,  } from "react-icons/fa";
+import { FaSearch,FaChevronRight, FaCheckCircle, FaIdCard, FaTshirt, FaCalendarAlt, FaPlaneDeparture, FaMoneyBillWave, FaFileAlt,  } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 
@@ -108,6 +108,10 @@ export default function EmployeeManagementPage() {
   const [projectFilter, setProjectFilter] = useState("All Projects");
   const [projectOptions, setProjectOptions] = useState<string[]>(["All Projects"]);
   const pageSize = 6;
+  // Excel-like header filters and selection
+  const [empIdFilter, setEmpIdFilter] = useState("");
+  const [nameFilter, setNameFilter] = useState("");
+  
 
   useEffect(() => {
     setLoading(true);
@@ -192,9 +196,11 @@ export default function EmployeeManagementPage() {
       const matchesProject =
         projectFilter === "All Projects" ||
         emp.projectName === projectFilter;
-      return matchesSearch && matchesDesignation && matchesProject;
+      const matchesHeaderEmpId = empIdFilter === "" || emp.employeeId.toLowerCase().includes(empIdFilter.toLowerCase());
+      const matchesHeaderName = nameFilter === "" || emp.fullName.toLowerCase().includes(nameFilter.toLowerCase());
+      return matchesSearch && matchesDesignation && matchesProject && matchesHeaderEmpId && matchesHeaderName;
     });
-  }, [search, employees, designationFilter, projectFilter]);
+  }, [search, employees, designationFilter, projectFilter, empIdFilter, nameFilter]);
 
   const totalPages = Math.ceil(filteredEmployees.length / pageSize);
   const paginatedEmployees = useMemo(() => {
@@ -393,26 +399,7 @@ export default function EmployeeManagementPage() {
       }`}
     >
       <div className="p-6">
-        {/* Header */}
-        <div
-          className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r ${
-            theme === "dark"
-              ? "from-gray-900 to-gray-800"
-              : "from-blue-500 to-blue-800"
-          }`}
-        >
-          <div
-            className={`rounded-xl p-4 flex items-center justify-center ${
-              theme === "dark" ? "bg-[#232e3e]" : "bg-blue-600 bg-opacity-30"
-            }`}
-          >
-            <FaUsers className="w-10 h-10 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Employee Management</h1>
-            <p className="text-white text-base opacity-90">Search and manage individual employee workflows.</p>
-          </div>
-        </div>
+        {/* Header removed */}
         {/* Search, Designation Filters */}
         <div className="flex flex-row flex-wrap gap-2 mb-6 items-center w-full">
           {/* Project Dropdown */}
@@ -476,7 +463,7 @@ export default function EmployeeManagementPage() {
             />
           </div>
         </div>
-        {/* Table */}
+        {/* Table - Excel-like compact grid */}
         <div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
           {loading ? (
             <div className="py-12 text-center text-lg font-semibold">Loading employees...</div>
@@ -484,14 +471,46 @@ export default function EmployeeManagementPage() {
             <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
           ) : (
             <>
-            <table className="min-w-full divide-y">
+            <table className="min-w-full divide-y text-xs">
               <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                 <tr>
-                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
-                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name</th>
-                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation</th>
-                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Workflow</th>
-                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>
+                  <th className={`px-2 py-2 text-left font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
+                  <th className={`px-2 py-2 text-left font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name</th>
+                  <th className={`px-2 py-2 text-left font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation</th>
+                  <th className={`px-2 py-2 text-left font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Workflow</th>
+                  <th className={`px-2 py-2 text-left font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>
+                </tr>
+                {/* Inline header filters */}
+                <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
+                  <th className="px-2 py-1">
+                    <input
+                      value={empIdFilter}
+                      onChange={e => setEmpIdFilter(e.target.value)}
+                      placeholder="Filter ID"
+                      className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                    />
+                  </th>
+                  <th className="px-2 py-1">
+                    <input
+                      value={nameFilter}
+                      onChange={e => setNameFilter(e.target.value)}
+                      placeholder="Filter name"
+                      className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                    />
+                  </th>
+                  <th className="px-2 py-1">
+                    <select
+                      value={designationFilter}
+                      onChange={e => setDesignationFilter(e.target.value)}
+                      className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                    >
+                      {designationOptions.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </th>
+                  <th className="px-2 py-1"></th>
+                  <th className="px-2 py-1"></th>
                 </tr>
               </thead>
               <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
@@ -501,16 +520,16 @@ export default function EmployeeManagementPage() {
                   </tr>
                 ) : paginatedEmployees.map((emp, idx) => (
                   <tr key={idx} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                    <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{emp.employeeId}</td>
-                    <td className="px-4 py-3">{emp.fullName}</td>
-                    <td className="px-4 py-3">{emp.designation}</td>
-                    <td className="px-4 py-3">
+                    <td className={`px-2 py-1 font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{emp.employeeId}</td>
+                    <td className="px-2 py-1">{emp.fullName}</td>
+                    <td className="px-2 py-1">{emp.designation}</td>
+                    <td className="px-2 py-1">
                       <div className="flex gap-2 items-center">
                         {workflowSteps.map((step, i) => (
                           <span key={step.key} className="flex items-center">
                             <button
                               type="button"
-                              className={`rounded-full p-2 focus:outline-none cursor-pointer transition ring-0 ${emp.workflow[step.key]
+                              className={`rounded p-1 focus:outline-none cursor-pointer transition ring-0 ${emp.workflow[step.key]
                                 ? theme === "dark"
                                   ? 'bg-green-900 text-green-300'
                                   : 'bg-green-100 text-green-700'
@@ -532,10 +551,10 @@ export default function EmployeeManagementPage() {
                         ))}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-1">
                       <button
                         onClick={() => setSelectedEmployee(emp)}
-                        className={`px-4 py-2 rounded-lg font-semibold shadow ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+                        className={`px-3 py-1 rounded font-semibold shadow ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                       >
                         View Workflow
                       </button>

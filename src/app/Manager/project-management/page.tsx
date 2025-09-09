@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo, useRef, ChangeEvent, FormEvent, useEffect } from "react";
-import { FaSearch, FaProjectDiagram, FaEdit, FaTrash } from "react-icons/fa";
+import { FaSearch, FaEdit, FaTrash } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
 // Toast notification
@@ -285,15 +285,6 @@ export default function ProjectManagementPage() {
   }, [search, designationFilter, projects]);
 
   // Edit handlers
-  const openEditModal = (project: Project) => {
-    setEditId(project._id || null);
-    setEditForm({
-      address: project.address,
-      totalManpower: String(project.totalManpower),
-      designationWiseCount: Object.entries(project.designationWiseCount || {}).map(([designation, count]) => ({ designation, count: String(count) })),
-    });
-    setShowModal(false);
-  };
   const closeEditModal = () => {
     setEditId(null);
     setEditForm({ address: "", totalManpower: "", designationWiseCount: [{ designation: "", count: "" }] });
