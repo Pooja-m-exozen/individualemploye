@@ -52,8 +52,7 @@ export default function ProjectManagementPage() {
     designationWiseCount: [{ designation: "", count: "" }],
   });
   const modalRef = useRef<HTMLDivElement | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 4;
+  // Full-screen grid (no pagination)
   const [toast, setToast] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteProject, setDeleteProject] = useState<Project | null>(null);
@@ -73,6 +72,20 @@ export default function ProjectManagementPage() {
   const [newRow, setNewRow] = useState<{ projectName: string; address: string; totalManpower: string }>({ projectName: "", address: "", totalManpower: "" });
   const [rowDesignationDrafts, setRowDesignationDrafts] = useState<Record<string, DesignationCount[]>>({});
   const [quickDesignations, setQuickDesignations] = useState<DesignationCount[]>([]);
+  const [sortBy, setSortBy] = useState<"projectName" | "address" | "totalManpower" | "updatedDate" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [showColsMenu, setShowColsMenu] = useState(false);
+  const [visibleCols, setVisibleCols] = useState({
+    rownum: true,
+    projectName: true,
+    address: true,
+    totalManpower: true,
+    designationCounts: true,
+    updatedDate: true,
+    action: true,
+  });
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const quickAddRef = useRef<HTMLDivElement | null>(null);
 
   const handleFormChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -272,17 +285,74 @@ export default function ProjectManagementPage() {
     });
   }, [search, designationFilter, projectFilter, projects]);
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredProjects.length / pageSize);
-  const paginatedProjects = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredProjects.slice(start, start + pageSize);
-  }, [filteredProjects, currentPage]);
+  // Sorting (Excel-like)
+  const sortedProjects = useMemo(() => {
+    const items = [...filteredProjects];
+    if (!sortBy) return items;
+    const dir = sortDir === "asc" ? 1 : -1;
+    items.sort((a, b) => {
+      let aVal = "";
+      let bVal = "";
+      if (sortBy === "projectName") {
+        aVal = a.projectName || "";
+        bVal = b.projectName || "";
+      } else if (sortBy === "address") {
+        aVal = a.address || "";
+        bVal = b.address || "";
+      } else if (sortBy === "totalManpower") {
+        return ((a.totalManpower || 0) - (b.totalManpower || 0)) * dir;
+      } else if (sortBy === "updatedDate") {
+        return (new Date(a.updatedDate).getTime() - new Date(b.updatedDate).getTime()) * dir;
+      }
+      return aVal.localeCompare(bVal, undefined, { sensitivity: 'base' }) * dir;
+    });
+    return items;
+  }, [filteredProjects, sortBy, sortDir]);
 
-  // Reset to first page if filter/search changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, designationFilter, projects]);
+  const onSort = (key: "projectName" | "address" | "totalManpower" | "updatedDate") => {
+    if (sortBy === key) {
+      setSortDir(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortDir("asc");
+    }
+  };
+
+  const toggleColumn = (key: keyof typeof visibleCols) => {
+    setVisibleCols(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const exportCsv = () => {
+    const header: string[] = [];
+    if (visibleCols.rownum) header.push("#");
+    if (visibleCols.projectName) header.push("Project Name");
+    if (visibleCols.address) header.push("Address");
+    if (visibleCols.totalManpower) header.push("Total Manpower");
+    if (visibleCols.designationCounts) header.push("Designation-wise Count");
+    if (visibleCols.updatedDate) header.push("Last Updated");
+    if (visibleCols.action) header.push("Action");
+    const rows = sortedProjects.map((p, idx) => {
+      const parts: string[] = [];
+      if (visibleCols.rownum) parts.push(String(idx + 1));
+      if (visibleCols.projectName) parts.push(p.projectName);
+      if (visibleCols.address) parts.push(p.address);
+      if (visibleCols.totalManpower) parts.push(String(p.totalManpower));
+      if (visibleCols.designationCounts) parts.push(Object.entries(p.designationWiseCount || {}).map(([d,c]) => `${d}:${c}`).join("; "));
+      if (visibleCols.updatedDate) parts.push(new Date(p.updatedDate).toLocaleDateString());
+      if (visibleCols.action) parts.push("");
+      return parts.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+    const csv = [header.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "projects.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Edit handlers
   const closeEditModal = () => {
@@ -403,16 +473,16 @@ export default function ProjectManagementPage() {
         </div>
       )}
       <div
-        className={`min-h-screen font-sans transition-colors duration-300 ${
+        className={`min-h-screen font-sans transition-colors duration-300 flex flex-col ${
           theme === "dark"
             ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
             : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
         }`}
       >
-        <div className="p-6">
+        <div className="p-4 sticky top-0 z-30 backdrop-blur-sm">
           {/* Header removed */}
           {/* Filters and Search */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
               {/* Project Dropdown */}
               <div className="relative w-44 min-w-[130px]">
@@ -460,10 +530,47 @@ export default function ProjectManagementPage() {
                   }`}
                 />
               </div>
+              <div className="ml-auto flex items-center gap-2">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowColsMenu(p => !p)}
+                    className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-blue-700'}`}
+                  >
+                    Columns
+                  </button>
+                  {showColsMenu && (
+                    <div className={`absolute right-0 mt-2 w-56 rounded-lg shadow-lg p-3 border z-40 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-black'}`}>
+                      {Object.keys(visibleCols).map((key) => (
+                        <label key={key} className="flex items-center gap-2 py-1 cursor-pointer text-sm">
+                          <input type="checkbox" checked={(visibleCols as any)[key]} onChange={() => toggleColumn(key as keyof typeof visibleCols)} />
+                          <span className="capitalize">{key}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={exportCsv}
+                  className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-blue-700'}`}
+                >
+                  Export CSV
+                </button>
+                <button
+                  onClick={() => {
+                    setShowQuickAdd(true);
+                    setTimeout(() => quickAddRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+                  }}
+                  className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-blue-700 text-white border-blue-900 hover:bg-blue-800' : 'bg-blue-600 text-white border-blue-200 hover:bg-blue-700'}`}
+                  aria-expanded={showQuickAdd}
+                >
+                  Add Project
+                </button>
+              </div>
             </div>
           </div>
           {/* Quick Add Row (Excel-like) */}
-          <div className={`overflow-x-auto rounded-xl border shadow-xl mb-4 ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+          {showQuickAdd && (
+          <div ref={quickAddRef} className={`overflow-x-auto rounded-xl border shadow-xl mb-3 ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
             <table className="min-w-full text-sm">
               <thead className={theme === "dark" ? "bg-blue-900" : "bg-blue-50"}>
                 <tr>
@@ -546,6 +653,7 @@ export default function ProjectManagementPage() {
               </tbody>
             </table>
           </div>
+          )}
           {/* Modal */}
           {showModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
@@ -655,33 +763,44 @@ export default function ProjectManagementPage() {
               </div>
             </div>
           )}
-          {/* Table */}
-          <div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+          {/* Table - Full-screen Excel-like grid */}
+          <div className={`flex-1 overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
             {loading ? (
               <div className="py-12 text-center text-lg font-semibold">Loading projects...</div>
             ) : error ? (
               <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
             ) : (
               <>
-                <table className="min-w-full text-sm border-collapse">
+                <table className="w-full text-sm table-fixed border-collapse">
+                  <colgroup>
+                    {visibleCols.rownum && (<col style={{ width: 56 }} />)}
+                    {visibleCols.projectName && (<col style={{ width: 240 }} />)}
+                    {visibleCols.address && (<col style={{ width: 360 }} />)}
+                    {visibleCols.totalManpower && (<col style={{ width: 160 }} />)}
+                    {visibleCols.designationCounts && (<col style={{ width: 380 }} />)}
+                    {visibleCols.updatedDate && (<col style={{ width: 160 }} />)}
+                    {visibleCols.action && (<col style={{ width: 160 }} />)}
+                  </colgroup>
                   <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                     <tr>
-                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project Name</th>
-                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Address (edit)</th>
-                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Total Manpower (edit)</th>
-                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation-wise Count</th>
-                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Last Updated</th>
-                      <th className={`px-3 py-2 text-left font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>
+                      {visibleCols.rownum && (<th className={`px-3 py-2 text-left font-semibold sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>)}
+                      {visibleCols.projectName && (<th onClick={() => onSort('projectName')} className={`px-3 py-2 text-left font-semibold cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project Name {sortBy === 'projectName' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                      {visibleCols.address && (<th onClick={() => onSort('address')} className={`px-3 py-2 text-left font-semibold cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Address (edit) {sortBy === 'address' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                      {visibleCols.totalManpower && (<th onClick={() => onSort('totalManpower')} className={`px-3 py-2 text-left font-semibold cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Total Manpower (edit) {sortBy === 'totalManpower' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                      {visibleCols.designationCounts && (<th className={`px-3 py-2 text-left font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation-wise Count</th>)}
+                      {visibleCols.updatedDate && (<th onClick={() => onSort('updatedDate')} className={`px-3 py-2 text-left font-semibold cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Last Updated {sortBy === 'updatedDate' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                      {visibleCols.action && (<th className={`px-3 py-2 text-left font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>)}
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedProjects.length === 0 ? (
+                    {sortedProjects.length === 0 ? (
                       <tr>
                         <td colSpan={6} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No projects found</td>
                       </tr>
-                    ) : paginatedProjects.map((project, idx) => (
-                      <tr key={project._id || idx} className={theme === "dark" ? "hover:bg-blue-900 transition border-t border-blue-900" : "hover:bg-blue-50 transition border-t border-blue-100"}>
-                        <td className={`px-3 py-2 font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{project.projectName}</td>
+                    ) : sortedProjects.map((project, idx) => (
+                      <tr key={project._id || project.projectName} className={theme === "dark" ? "hover:bg-blue-900 transition border-t border-blue-900" : "hover:bg-blue-50 transition border-t border-blue-100"}>
+                        {visibleCols.rownum && (<td className={`px-3 py-2 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{idx + 1}</td>)}
+                        {visibleCols.projectName && (<td className={`px-3 py-2 font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{project.projectName}</td>)}
                         <td className="px-3 py-2">
                           {editingRowId === (project._id || project.projectName) ? (
                             <input
@@ -690,10 +809,10 @@ export default function ProjectManagementPage() {
                               onChange={e => setRowDrafts(prev => ({ ...prev, [project._id || project.projectName]: { ...(prev[project._id || project.projectName] || { address: project.address, totalManpower: String(project.totalManpower) }), address: e.target.value } }))}
                             />
                           ) : (
-                            <span>{project.address}</span>
+                            <span className="truncate block" title={project.address}>{project.address}</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 w-36">
+                        <td className="px-3 py-2 w-36 whitespace-nowrap">
                           {editingRowId === (project._id || project.projectName) ? (
                             <input
                               type="number"
@@ -770,8 +889,8 @@ export default function ProjectManagementPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-2">{new Date(project.updatedDate).toLocaleDateString()}</td>
-                        <td className="px-3 py-2 flex items-center gap-2">
+                        {visibleCols.updatedDate && (<td className="px-3 py-2 whitespace-nowrap">{new Date(project.updatedDate).toLocaleDateString()}</td>)}
+                        {visibleCols.action && (<td className="px-3 py-2 flex items-center gap-2">
                           {editingRowId === (project._id || project.projectName) ? (
                             <>
                               <button
@@ -813,45 +932,11 @@ export default function ProjectManagementPage() {
                               </button>
                             </>
                           )}
-                        </td>
+                        </td>)}
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="flex justify-end items-center gap-2 px-4 py-4">
-                    <button
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className={`px-3 py-1 rounded border text-sm font-medium transition-colors ${
-                        currentPage === 1
-                          ? "opacity-50 cursor-not-allowed"
-                          : theme === "dark"
-                          ? "bg-gray-800 border-blue-900 text-white hover:bg-blue-900"
-                          : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-                      }`}
-                    >
-                      Previous
-                    </button>
-                    <span className="text-sm font-semibold">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className={`px-3 py-1 rounded border text-sm font-medium transition-colors ${
-                        currentPage === totalPages
-                          ? "opacity-50 cursor-not-allowed"
-                          : theme === "dark"
-                          ? "bg-gray-800 border-blue-900 text-white hover:bg-blue-900"
-                          : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-                      }`}
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
               </>
             )}
           </div>

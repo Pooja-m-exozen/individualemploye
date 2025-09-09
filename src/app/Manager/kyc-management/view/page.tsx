@@ -114,6 +114,20 @@ export default function ViewAllKYCPage() {
   const [modal, setModal] = useState<null | { type: 'joiner' | 'view' | 'edit', data: KYCForm | null }>(null);
   const [newJoinersSearch, setNewJoinersSearch] = useState("");
   const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
+  const [showColsMenu, setShowColsMenu] = useState(false);
+  const [visibleCols, setVisibleCols] = useState({
+    rownum: true,
+    photo: true,
+    employeeId: true,
+    name: true,
+    designation: true,
+    project: true,
+    status: true,
+    actions: true,
+  });
+  // Excel-like header filters
+  const [empIdFilter, setEmpIdFilter] = useState("");
+  const [nameFilter, setNameFilter] = useState("");
 
   const designationOptions = Array.from(new Set(kycForms.map(f => f.personalDetails.designation))).filter(Boolean);
 
@@ -202,7 +216,9 @@ export default function ViewAllKYCPage() {
         form.personalDetails.fullName.toLowerCase().includes(search.toLowerCase()) ||
         form.personalDetails.employeeId.toLowerCase().includes(search.toLowerCase())
       ) : true;
-      return matchesProject && matchesDesignation && matchesStatus && matchesSearch;
+      const matchesHeaderEmpId = empIdFilter === "" || form.personalDetails.employeeId.toLowerCase().includes(empIdFilter.toLowerCase());
+      const matchesHeaderName = nameFilter === "" || form.personalDetails.fullName.toLowerCase().includes(nameFilter.toLowerCase());
+      return matchesProject && matchesDesignation && matchesStatus && matchesSearch && matchesHeaderEmpId && matchesHeaderName;
     })
     .sort((a, b) => {
       let aValue: string, bValue: string;
@@ -288,6 +304,37 @@ export default function ViewAllKYCPage() {
     XLSX.writeFile(workbook, 'kyc_records.xlsx');
   };
 
+  const exportCsv = () => {
+    const header: string[] = [];
+    if (visibleCols.rownum) header.push('#');
+    if (visibleCols.photo) header.push('Photo');
+    if (visibleCols.employeeId) header.push('Employee ID');
+    if (visibleCols.name) header.push('Name');
+    if (visibleCols.designation) header.push('Designation');
+    if (visibleCols.project) header.push('Project');
+    if (visibleCols.status) header.push('Status');
+    if (visibleCols.actions) header.push('Actions');
+    const rows = filtered.map((form, idx) => {
+      const cells: string[] = [];
+      if (visibleCols.rownum) cells.push(String(idx + 1));
+      if (visibleCols.photo) cells.push('');
+      if (visibleCols.employeeId) cells.push(form.personalDetails.employeeId);
+      if (visibleCols.name) cells.push(form.personalDetails.fullName);
+      if (visibleCols.designation) cells.push(form.personalDetails.designation);
+      if (visibleCols.project) cells.push(form.personalDetails.projectName);
+      if (visibleCols.status) cells.push(form.status);
+      if (visibleCols.actions) cells.push("");
+      return cells.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+    });
+    const csv = [header.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'kyc_records.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleExportToPDF = async () => {
     const jsPDF = (await import('jspdf')).default;
     const autoTable = (await import('jspdf-autotable')).default;
@@ -326,42 +373,35 @@ export default function ViewAllKYCPage() {
 
   return (
     <ManagerDashboardLayout>
-      <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'} flex flex-col py-8`}>
-        {/* Modern KYC Header */}
-        <div className={`rounded-2xl mb-8 p-6 flex items-center justify-between shadow-lg w-full max-w-7xl mx-auto
-          ${theme === 'dark' ? 'bg-gradient-to-r from-gray-800 to-gray-700' : 'bg-gradient-to-r from-blue-500 to-blue-800'}`}
-        >
-          <div className="flex items-center gap-5">
-            <div className={`rounded-xl p-4 flex items-center justify-center
-              ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-blue-600 bg-opacity-30'}`}
-            >
-              <FaIdCard className="w-10 h-10 text-white" />
+      <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'} flex flex-col`}>
+        {/* Toolbar */}
+        <div className={`px-4 py-3 sticky top-0 z-30 flex items-center gap-2 flex-wrap ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+          <button className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-white text-blue-600'} border ${theme === 'dark' ? 'border-gray-700' : 'border-blue-200'}`} onClick={handleExportToExcel}>
+            <FaDownload className="w-4 h-4" /> Export XLSX
+          </button>
+          <button className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-white text-blue-600'} border ${theme === 'dark' ? 'border-gray-700' : 'border-blue-200'}`} onClick={handleExportToPDF}>
+            <FaDownload className="w-4 h-4" /> Export PDF
+          </button>
+          <button className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-white text-blue-600'} border ${theme === 'dark' ? 'border-gray-700' : 'border-blue-200'}`} onClick={() => setShowColsMenu(p => !p)}>
+            Columns
+          </button>
+          {showColsMenu && (
+            <div className={`rounded-lg shadow-lg p-3 border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-blue-200 text-black'}`}>
+              {Object.keys(visibleCols).map(k => (
+                <label key={k} className="flex items-center gap-2 py-1 text-sm">
+                  <input type="checkbox" checked={(visibleCols as any)[k]} onChange={() => setVisibleCols(prev => ({ ...prev, [k]: !(prev as any)[k] }))} />
+                  <span className="capitalize">{k}</span>
+                </label>
+              ))}
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-1">KYC Records</h1>
-              <p className="text-white text-base opacity-90">Comprehensive employee KYC records and management</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md
-              ${theme === 'dark' ? 'bg-gray-800 text-blue-200 hover:bg-gray-700' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
-              onClick={handleExportToExcel}
-            >
-              <FaDownload className="w-4 h-4" />
-              Export Data
-            </button>
-            <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md
-              ${theme === 'dark' ? 'bg-gray-800 text-blue-200 hover:bg-gray-700' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
-              onClick={handleExportToPDF}
-            >
-              <FaDownload className="w-4 h-4" />
-              Export PDF
-            </button>
-          </div>
+          )}
+          <button className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-white text-blue-600'} border ${theme === 'dark' ? 'border-gray-700' : 'border-blue-200'}`} onClick={exportCsv}>
+            Export CSV
+          </button>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 px-6">
+        <div className="flex-1 px-4 pb-4">
           <div className="max-w-7xl mx-auto">
             {/* Toast Notification */}
             {toast && (
@@ -376,8 +416,8 @@ export default function ViewAllKYCPage() {
               </div>
             )}
 
-            {/* Enhanced Data Table */}
-            <div className={`rounded-xl shadow-sm border overflow-hidden
+            {/* Enhanced Data Table - Excel-like full width */}
+            <div className={`rounded-none shadow-sm border overflow-hidden
               ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
             >
               {/* Filter Row - Match Employee Management Page */}
@@ -504,85 +544,103 @@ export default function ViewAllKYCPage() {
               ) : (
                 <>
                   {/* KYC Records Table */}
-                  <div className="overflow-x-auto">
-                    <table className={`min-w-full divide-y
-                      ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}
+                  <div className="overflow-auto">
+                    <table className={`w-full table-fixed text-sm`}
                     >
+                      <colgroup>
+                        {visibleCols.rownum && (<col style={{ width: 56 }} />)}
+                        {visibleCols.photo && (<col style={{ width: 68 }} />)}
+                        {visibleCols.employeeId && (<col style={{ width: 160 }} />)}
+                        {visibleCols.name && (<col style={{ width: 240 }} />)}
+                        {visibleCols.designation && (<col style={{ width: 220 }} />)}
+                        {visibleCols.project && (<col style={{ width: 240 }} />)}
+                        {visibleCols.status && (<col style={{ width: 160 }} />)}
+                        {visibleCols.actions && (<col style={{ width: 220 }} />)}
+                      </colgroup>
                       <thead className={theme === 'dark' ? 'bg-gray-900 sticky top-0 z-10' : 'bg-gray-50 sticky top-0 z-10'}>
                         <tr>
                           {/* Column Headers */}
-                          {[
-                            { title: 'Employee', icon: FaUser, sortKey: 'name' },
-                            { title: 'Designation', icon: FaBriefcase, sortKey: 'designation' },
-                            { title: 'Project', icon: FaBuilding, sortKey: 'project' },
-                            { title: 'Status', icon: FaListAlt, sortKey: 'status' },
-                            { title: 'Actions', icon: FaEdit }
-                          ].map(col => (
-                            <th
-                              key={col.title}
-                              className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer transition-colors duration-200
-                                ${theme === 'dark' ? 'text-blue-200 hover:bg-blue-950' : 'text-gray-600 hover:bg-blue-50'}`}
-                              onClick={() => col.sortKey && handleSort(col.sortKey as "name" | "employeeId" | "designation" | "project" | "status")}
-                            >
-                              <div className="flex items-center gap-2">
-                                <col.icon className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
-                                {col.title}
-                                {col.sortKey && getSortIcon(col.sortKey as "name" | "employeeId" | "designation" | "project" | "status")}
-                              </div>
+                          {visibleCols.rownum && (
+                            <th className={`px-4 py-3 text-left text-xs font-semibold uppercase sticky left-0 z-20 ${theme === 'dark' ? 'text-blue-200 bg-gray-900' : 'text-gray-600 bg-gray-50'}`}>#</th>
+                          )}
+                          {visibleCols.photo && (<th className={`px-4 py-3 text-left text-xs font-semibold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}>Photo</th>)}
+                          {visibleCols.employeeId && (
+                            <th className={`px-4 py-3 text-left text-xs font-semibold uppercase cursor-pointer select-none ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`} onClick={() => handleSort('employeeId')}>Employee ID</th>
+                          )}
+                          {visibleCols.name && (
+                            <th className={`px-4 py-3 text-left text-xs font-semibold uppercase cursor-pointer select-none ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`} onClick={() => handleSort('name')}>Name</th>
+                          )}
+                          {visibleCols.designation && (
+                            <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`} onClick={() => handleSort('designation')}>
+                              <div className="flex items-center gap-2"><FaBriefcase className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />Designation</div>
                             </th>
-                          ))}
+                          )}
+                          {visibleCols.project && (
+                            <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`} onClick={() => handleSort('project')}>
+                              <div className="flex items-center gap-2"><FaBuilding className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />Project</div>
+                            </th>
+                          )}
+                          {visibleCols.status && (
+                            <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`} onClick={() => handleSort('status')}>
+                              <div className="flex items-center gap-2"><FaListAlt className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />Status</div>
+                            </th>
+                          )}
+                          {visibleCols.actions && (
+                            <th className={`px-4 py-3 text-left text-xs font-semibold uppercase ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}>Actions</th>
+                          )}
+                        </tr>
+                        {/* Inline header filters to match Employee page */}
+                        <tr className={theme === 'dark' ? 'bg-gray-800/40' : 'bg-white'}>
+                          {visibleCols.rownum && (<th className="px-2 py-1 sticky left-0 z-20"></th>)}
+                          {visibleCols.photo && (<th className="px-2 py-1"></th>)}
+                          {visibleCols.employeeId && (
+                            <th className="px-2 py-1">
+                              <input value={empIdFilter} onChange={e => { setEmpIdFilter(e.target.value); setCurrentPage(1); }} placeholder="Filter ID" className={`w-full border rounded px-2 py-1 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'border-gray-300'}`} />
+                            </th>
+                          )}
+                          {visibleCols.name && (
+                            <th className="px-2 py-1">
+                              <input value={nameFilter} onChange={e => { setNameFilter(e.target.value); setCurrentPage(1); }} placeholder="Filter name" className={`w-full border rounded px-2 py-1 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'border-gray-300'}`} />
+                            </th>
+                          )}
+                          {visibleCols.designation && (<th className="px-2 py-1"></th>)}
+                          {visibleCols.project && (<th className="px-2 py-1"></th>)}
+                          {visibleCols.status && (<th className="px-2 py-1"></th>)}
+                          {visibleCols.actions && (<th className="px-2 py-1"></th>)}
                         </tr>
                       </thead>
                       <tbody className={theme === 'dark' ? 'bg-gray-800 divide-gray-700' : 'bg-white divide-gray-200'}>
-                        {paginated.map(form => (
+                        {paginated.map((form, idx) => (
                           <tr key={form._id} className={`transition-all duration-200 group
                             ${theme === 'dark' ? 'hover:bg-blue-950' : 'hover:bg-blue-50'}`}
                           >
                             {/* Employee Cell */}
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center gap-4">
-                                <div className="z-0">
-                                  {form.personalDetails.employeeImage ? (
-                                    <Image
-                                      src={form.personalDetails.employeeImage}
-                                      alt={form.personalDetails.fullName}
-                                      width={48}
-                                      height={48}
-                                      className={`rounded-full object-cover border-2 shadow-sm group-hover:border-blue-300 transition-colors duration-200
-                                        ${theme === 'dark' ? 'border-blue-900' : 'border-gray-200'}`}
-                                    />
-                                  ) : (
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 shadow-sm group-hover:border-blue-300
-                                      ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-200 border-gray-300'}`}
-                                    >
-                                      <FaUser className={`w-6 h-6 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`} />
-                                    </div>
-                                  )}
-                                </div>
-                                <div>
-                                  <div className={`text-sm font-semibold group-hover:text-blue-400 transition-colors duration-200
-                                    ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
-                                  >
-                                    {form.personalDetails.fullName}
+                            {visibleCols.rownum && (
+                              <td className={`px-4 py-3 sticky left-0 z-10 font-mono text-[11px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{(currentPage - 1) * rowsPerPage + idx + 1}</td>
+                            )}
+                            {visibleCols.photo && (
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {form.personalDetails.employeeImage ? (
+                                  <Image src={form.personalDetails.employeeImage} alt={form.personalDetails.fullName} width={40} height={40} className={`rounded-full object-cover border ${theme === 'dark' ? 'border-blue-900' : 'border-gray-200'}`} />
+                                ) : (
+                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-200 border-gray-300'}`}>
+                                    <FaUser className={`w-5 h-5 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`} />
                                   </div>
-                                  <div className={`text-xs font-mono mt-1
-                                    ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}
-                                  >
-                                    {form.personalDetails.employeeId}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
+                                )}
+                              </td>
+                            )}
+                            {visibleCols.employeeId && (<td className={`px-4 py-3 whitespace-nowrap ${theme === 'dark' ? 'text-blue-100' : 'text-gray-700'} font-medium`}>{form.personalDetails.employeeId}</td>)}
+                            {visibleCols.name && (<td className={`px-4 py-3 whitespace-nowrap ${theme === 'dark' ? 'text-white' : 'text-gray-900'} font-semibold`}>{form.personalDetails.fullName}</td>)}
                             {/* Designation Cell */}
-                            <td className={`px-6 py-4 whitespace-nowrap
-                              ${theme === 'dark' ? 'text-blue-100' : 'text-gray-700'} font-medium`}
-                            >{form.personalDetails.designation}</td>
+                            {visibleCols.designation && (
+                              <td className={`px-4 py-3 whitespace-nowrap ${theme === 'dark' ? 'text-blue-100' : 'text-gray-700'} font-medium`}>{form.personalDetails.designation}</td>
+                            )}
                             {/* Project Cell */}
-                            <td className={`px-6 py-4 whitespace-nowrap
-                              ${theme === 'dark' ? 'text-blue-100' : 'text-gray-700'} font-medium`}
-                            >{form.personalDetails.projectName}</td>
+                            {visibleCols.project && (
+                              <td className={`px-4 py-3 whitespace-nowrap ${theme === 'dark' ? 'text-blue-100' : 'text-gray-700'} font-medium`}>{form.personalDetails.projectName}</td>
+                            )}
                             {/* Status Cell */}
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            {visibleCols.status && (<td className="px-4 py-3 whitespace-nowrap">
                               <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200
                                 ${theme === 'dark'
                                   ? form.status.toLowerCase() === 'approved'
@@ -600,9 +658,9 @@ export default function ViewAllKYCPage() {
                                 {form.status === 'rejected' && <FaTimesCircle className="w-3 h-3 mr-1" />}
                                 {form.status}
                               </span>
-                            </td>
+                            </td>)}
                             {/* Actions Cell */}
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            {visibleCols.actions && (<td className="px-4 py-3 whitespace-nowrap">
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => setModal({ type: 'edit', data: form })}
@@ -642,7 +700,7 @@ export default function ViewAllKYCPage() {
                                   Delete
                                 </button>
                               </div>
-                            </td>
+                            </td>)}
                           </tr>
                         ))}
                       </tbody>

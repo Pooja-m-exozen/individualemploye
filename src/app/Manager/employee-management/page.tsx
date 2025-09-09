@@ -103,14 +103,45 @@ export default function EmployeeManagementPage() {
   const [employees, setEmployees] = useState<EmployeeWithSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  // Excel-like full-screen grid (no pagination)
   const [designationFilter, setDesignationFilter] = useState("All Designations");
   const [projectFilter, setProjectFilter] = useState("All Projects");
   const [projectOptions, setProjectOptions] = useState<string[]>(["All Projects"]);
-  const pageSize = 6;
   // Excel-like header filters and selection
   const [empIdFilter, setEmpIdFilter] = useState("");
   const [nameFilter, setNameFilter] = useState("");
+  const [sortBy, setSortBy] = useState<"employeeId" | "name" | "designation" | "project" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [showColsMenu, setShowColsMenu] = useState(false);
+  const [visibleCols, setVisibleCols] = useState({
+    rownum: true,
+    photo: true,
+    employeeId: true,
+    name: true,
+    designation: true,
+    project: true,
+    workflow: true,
+    action: true,
+  });
+  // Track failed image URLs to show a placeholder instead of broken image
+  const [brokenImgUrls, setBrokenImgUrls] = useState<Record<string, boolean>>({});
+  const placeholderSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>
+    <defs>
+      <linearGradient id='g' x1='0' x2='1' y1='0' y2='1'>
+        <stop offset='0%' stop-color='%23cfe3ff'/>
+        <stop offset='100%' stop-color='%2399c2ff'/>
+      </linearGradient>
+    </defs>
+    <rect width='64' height='64' fill='url(%23g)'/>
+    <circle cx='32' cy='24' r='12' fill='white' fill-opacity='0.9'/>
+    <path d='M10 56c4-12 16-18 22-18s18 6 22 18' fill='white' fill-opacity='0.9'/>
+  </svg>`;
+  const PLACEHOLDER_DATA_URL = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(placeholderSvg)}`;
+  const resolveImg = (url?: string) => {
+    if (!url) return "/placeholder-user.jpg";
+    if (brokenImgUrls[url]) return "/placeholder-user.jpg";
+    return url;
+  };
   
 
   useEffect(() => {
@@ -202,15 +233,77 @@ export default function EmployeeManagementPage() {
     });
   }, [search, employees, designationFilter, projectFilter, empIdFilter, nameFilter]);
 
-  const totalPages = Math.ceil(filteredEmployees.length / pageSize);
-  const paginatedEmployees = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredEmployees.slice(start, start + pageSize);
-  }, [filteredEmployees, currentPage]);
+  const sortedEmployees = useMemo(() => {
+    const items = [...filteredEmployees];
+    if (!sortBy) return items;
+    const dir = sortDir === "asc" ? 1 : -1;
+    items.sort((a, b) => {
+      let aVal = "";
+      let bVal = "";
+      if (sortBy === "employeeId") {
+        aVal = a.employeeId || "";
+        bVal = b.employeeId || "";
+      } else if (sortBy === "name") {
+        aVal = a.fullName || "";
+        bVal = b.fullName || "";
+      } else if (sortBy === "designation") {
+        aVal = a.designation || "";
+        bVal = b.designation || "";
+      } else if (sortBy === "project") {
+        aVal = a.projectName || "";
+        bVal = b.projectName || "";
+      }
+      return aVal.localeCompare(bVal, undefined, { sensitivity: 'base' }) * dir;
+    });
+    return items;
+  }, [filteredEmployees, sortBy, sortDir]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, employees]);
+  const onSort = (key: "employeeId" | "name" | "designation" | "project") => {
+    if (sortBy === key) {
+      setSortDir(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortDir("asc");
+    }
+  };
+
+  const toggleColumn = (key: keyof typeof visibleCols) => {
+    setVisibleCols(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const exportCsv = () => {
+    const header: string[] = [];
+    if (visibleCols.rownum) header.push("#");
+    if (visibleCols.photo) header.push("Photo");
+    if (visibleCols.employeeId) header.push("Employee ID");
+    if (visibleCols.name) header.push("Name");
+    if (visibleCols.designation) header.push("Designation");
+    if (visibleCols.project) header.push("Project");
+    if (visibleCols.workflow) header.push("Workflow");
+    if (visibleCols.action) header.push("Action");
+    const rows = sortedEmployees.map((emp, idx) => {
+      const parts: string[] = [];
+      if (visibleCols.rownum) parts.push(String(idx + 1));
+      if (visibleCols.photo) parts.push("");
+      if (visibleCols.employeeId) parts.push(emp.employeeId || "");
+      if (visibleCols.name) parts.push(emp.fullName || "");
+      if (visibleCols.designation) parts.push(emp.designation || "");
+      if (visibleCols.project) parts.push(emp.projectName || "");
+      if (visibleCols.workflow) parts.push("");
+      if (visibleCols.action) parts.push("");
+      return parts.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+    const csv = [header.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "employees.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Dummy data for each step
   const getStepDetails = (step: WorkflowKey, emp: EmployeeWithSummary) => {
@@ -392,16 +485,16 @@ export default function EmployeeManagementPage() {
 
   return (
     <div
-      className={`min-h-screen font-sans transition-colors duration-300 ${
+      className={`min-h-screen font-sans transition-colors duration-300 flex flex-col ${
         theme === "dark"
           ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
           : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
       }`}
     >
-      <div className="p-6">
+      <div className="p-3 md:p-4 flex flex-col gap-3 sticky top-0 z-30 backdrop-blur-sm">
         {/* Header removed */}
         {/* Search, Designation Filters */}
-        <div className="flex flex-row flex-wrap gap-2 mb-6 items-center w-full">
+        <div className="flex flex-row flex-wrap gap-2 items-center w-full">
           {/* Project Dropdown */}
           <div className="flex-1 min-w-[180px] max-w-xs">
             <select
@@ -444,14 +537,13 @@ export default function EmployeeManagementPage() {
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter') {
-                  const found = filteredEmployees.find(emp =>
+                  const found = sortedEmployees.find(emp =>
                     emp.employeeId.toLowerCase() === search.toLowerCase() ||
                     emp.fullName.toLowerCase() === search.toLowerCase()
                   );
                   if (found) {
                     setSelectedEmployee(found);
-                    const idx = filteredEmployees.findIndex(emp => emp.employeeId === found.employeeId);
-                    setCurrentPage(Math.floor(idx / pageSize) + 1);
+                    document.getElementById(`emp-${found.employeeId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }
                 }
               }}
@@ -462,68 +554,145 @@ export default function EmployeeManagementPage() {
               }`}
             />
           </div>
+          <div className="ml-auto flex items-center gap-2">
+            <div className="relative">
+              <button
+                onClick={() => setShowColsMenu(p => !p)}
+                className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-blue-700'}`}
+              >
+                Columns
+              </button>
+              {showColsMenu && (
+                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg p-3 border z-40 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-black'}`}>
+                  {Object.keys(visibleCols).map((key) => (
+                    <label key={key} className="flex items-center gap-2 py-1 cursor-pointer text-sm">
+                      <input type="checkbox" checked={(visibleCols as any)[key]} onChange={() => toggleColumn(key as keyof typeof visibleCols)} />
+                      <span className="capitalize">{key}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={exportCsv}
+              className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-blue-700'}`}
+            >
+              Export CSV
+            </button>
+          </div>
         </div>
-        {/* Table - Excel-like compact grid */}
-        <div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+      </div>
+      {/* Table - Excel-like compact grid full screen */}
+      <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
+        <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
           {loading ? (
             <div className="py-12 text-center text-lg font-semibold">Loading employees...</div>
           ) : error ? (
             <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
           ) : (
             <>
-            <table className="min-w-full divide-y text-xs">
+            <table className={`w-full text-xs table-fixed`}>
+              <colgroup>
+                {visibleCols.rownum && (<col style={{ width: 56 }} />)}
+                {visibleCols.photo && (<col style={{ width: 68 }} />)}
+                {visibleCols.employeeId && (<col style={{ width: 160 }} />)}
+                {visibleCols.name && (<col style={{ width: 240 }} />)}
+                {visibleCols.designation && (<col style={{ width: 200 }} />)}
+                {visibleCols.project && (<col style={{ width: 220 }} />)}
+                {visibleCols.workflow && (<col style={{ width: 260 }} />)}
+                {visibleCols.action && (<col style={{ width: 160 }} />)}
+              </colgroup>
               <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                 <tr>
-                  <th className={`px-2 py-2 text-left font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
-                  <th className={`px-2 py-2 text-left font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name</th>
-                  <th className={`px-2 py-2 text-left font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation</th>
-                  <th className={`px-2 py-2 text-left font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Workflow</th>
-                  <th className={`px-2 py-2 text-left font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>
+                  {visibleCols.rownum && (<th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>)}
+                  {visibleCols.photo && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Photo</th>)}
+                  {visibleCols.employeeId && (<th onClick={() => onSort('employeeId')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID {sortBy === 'employeeId' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                  {visibleCols.name && (<th onClick={() => onSort('name')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name {sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                  {visibleCols.designation && (<th onClick={() => onSort('designation')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation {sortBy === 'designation' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                  {visibleCols.project && (<th onClick={() => onSort('project')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project {sortBy === 'project' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                  {visibleCols.workflow && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Workflow</th>)}
+                  {visibleCols.action && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>)}
                 </tr>
                 {/* Inline header filters */}
                 <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
-                  <th className="px-2 py-1">
-                    <input
-                      value={empIdFilter}
-                      onChange={e => setEmpIdFilter(e.target.value)}
-                      placeholder="Filter ID"
-                      className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
-                    />
-                  </th>
-                  <th className="px-2 py-1">
-                    <input
-                      value={nameFilter}
-                      onChange={e => setNameFilter(e.target.value)}
-                      placeholder="Filter name"
-                      className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
-                    />
-                  </th>
-                  <th className="px-2 py-1">
-                    <select
-                      value={designationFilter}
-                      onChange={e => setDesignationFilter(e.target.value)}
-                      className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
-                    >
-                      {designationOptions.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </th>
-                  <th className="px-2 py-1"></th>
-                  <th className="px-2 py-1"></th>
+                  {visibleCols.rownum && (<th className="px-2 py-1 sticky left-0 z-20"></th>)}
+                  {visibleCols.photo && (<th className="px-2 py-1"></th>)}
+                  {visibleCols.employeeId && (
+                    <th className="px-2 py-1">
+                      <input
+                        value={empIdFilter}
+                        onChange={e => setEmpIdFilter(e.target.value)}
+                        placeholder="Filter ID"
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      />
+                    </th>
+                  )}
+                  {visibleCols.name && (
+                    <th className="px-2 py-1">
+                      <input
+                        value={nameFilter}
+                        onChange={e => setNameFilter(e.target.value)}
+                        placeholder="Filter name"
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      />
+                    </th>
+                  )}
+                  {visibleCols.designation && (
+                    <th className="px-2 py-1">
+                      <select
+                        value={designationFilter}
+                        onChange={e => setDesignationFilter(e.target.value)}
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      >
+                        {designationOptions.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </th>
+                  )}
+                  {visibleCols.project && (<th className="px-2 py-1"></th>)}
+                  {visibleCols.workflow && (<th className="px-2 py-1"></th>)}
+                  {visibleCols.action && (<th className="px-2 py-1"></th>)}
                 </tr>
               </thead>
               <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
-                {paginatedEmployees.length === 0 ? (
+                {sortedEmployees.length === 0 ? (
                   <tr>
                     <td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No employees found</td>
                   </tr>
-                ) : paginatedEmployees.map((emp, idx) => (
-                  <tr key={idx} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                    <td className={`px-2 py-1 font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{emp.employeeId}</td>
-                    <td className="px-2 py-1">{emp.fullName}</td>
-                    <td className="px-2 py-1">{emp.designation}</td>
-                    <td className="px-2 py-1">
+                ) : sortedEmployees.map((emp, idx) => (
+                  <tr key={emp.employeeId} id={`emp-${emp.employeeId}`} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
+                    {visibleCols.rownum && (<td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{idx + 1}</td>)}
+                    {visibleCols.photo && (
+                      <td className="px-2 py-1">
+                        <Image
+                          src={brokenImgUrls[emp.personalDetails?.employeeImage || ""] ? PLACEHOLDER_DATA_URL : resolveImg(emp.personalDetails?.employeeImage)}
+                          alt={emp.fullName}
+                          width={32}
+                          height={32}
+                          className={`rounded object-cover border ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}
+                          onError={(e) => {
+                            const target = e.currentTarget as HTMLImageElement & { src: string };
+                            const failedUrl = emp.personalDetails?.employeeImage;
+                            if (failedUrl) {
+                              setBrokenImgUrls(prev => ({ ...prev, [failedUrl]: true }));
+                            }
+                            target.src = PLACEHOLDER_DATA_URL;
+                          }}
+                        />
+                      </td>
+                    )}
+                    {visibleCols.employeeId && (<td className={`px-2 py-1 font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{emp.employeeId}</td>)}
+                    {visibleCols.name && (
+                      <td className="px-2 py-1"><div className="truncate" title={emp.fullName}>{emp.fullName}</div></td>
+                    )}
+                    {visibleCols.designation && (
+                      <td className="px-2 py-1"><div className="truncate" title={emp.designation}>{emp.designation}</div></td>
+                    )}
+                    {visibleCols.project && (
+                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={emp.projectName}>{emp.projectName}</div></td>
+                    )}
+                    {visibleCols.workflow && (<td className="px-2 py-1">
                       <div className="flex gap-2 items-center">
                         {workflowSteps.map((step, i) => (
                           <span key={step.key} className="flex items-center">
@@ -550,53 +719,19 @@ export default function EmployeeManagementPage() {
                           </span>
                         ))}
                       </div>
-                    </td>
-                    <td className="px-2 py-1">
+                    </td>)}
+                    {visibleCols.action && (<td className="px-2 py-1">
                       <button
                         onClick={() => setSelectedEmployee(emp)}
                         className={`px-3 py-1 rounded font-semibold shadow ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                       >
                         View Workflow
                       </button>
-                    </td>
+                    </td>)}
                   </tr>
                 ))}
               </tbody>
             </table>
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex justify-end items-center gap-2 px-4 py-4">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className={`px-3 py-1 rounded border text-sm font-medium transition-colors ${
-                    currentPage === 1
-                      ? "opacity-50 cursor-not-allowed"
-                      : theme === "dark"
-                      ? "bg-gray-800 border-blue-900 text-white hover:bg-blue-900"
-                      : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-                  }`}
-                >
-                  Previous
-                </button>
-                <span className="text-sm font-semibold">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className={`px-3 py-1 rounded border text-sm font-medium transition-colors ${
-                    currentPage === totalPages
-                      ? "opacity-50 cursor-not-allowed"
-                      : theme === "dark"
-                      ? "bg-gray-800 border-blue-900 text-white hover:bg-blue-900"
-                      : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-                  }`}
-                >
-                  Next
-                </button>
-              </div>
-            )}
             </>
           )}
         </div>
