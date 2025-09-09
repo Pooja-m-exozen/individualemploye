@@ -862,7 +862,7 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                   <button
                     type="submit"
                     form="createRequestForm"
-                    disabled={createLoading || !newRequest.employeeId || selectedUniforms.length === 0 || selectedUniforms.reduce((acc, u) => acc + u.qty, 0) > 5}
+                    disabled={createLoading || !newRequest.employeeId || selectedUniforms.length === 0}
                     className={`w-full py-2 rounded-xl font-bold shadow transition-all disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400 ${theme === 'dark' ? 'bg-gradient-to-r from-green-800 to-green-900 text-white hover:from-green-900 hover:to-green-950' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'}`}
                   >
                     {createLoading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaPlus className="inline mr-2" />}
