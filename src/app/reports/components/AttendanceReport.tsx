@@ -1052,7 +1052,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
         // Get the final Y position after all tables
         // Add note below the leave history table with proper spacing
-        const _finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
         doc.setFontSize(11);
         doc.setTextColor(41, 128, 185);
         doc.text('Leave History', 12, yPosition);
