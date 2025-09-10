@@ -179,6 +179,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistory[]>([]);
     const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
     const [outLocationAddress, setOutLocationAddress] = useState<string | null>(null);
+    const [fromDateForPDF, setFromDateForPDF] = useState<string>("");
+    const [toDateForPDF, setToDateForPDF] = useState<string>("");
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -258,6 +260,27 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord => 
         transformAttendanceRecord(record)
     );
+
+    // Add missing helper to attach location placeholders from raw lat/lng
+    const enrichWithLocations = (data: ExtendedRawAttendanceRecord[]): ExtendedRawAttendanceRecord[] => {
+        return data.map(record => ({
+            ...record,
+            punchInLocation: (record as any).punchInLatitude && (record as any).punchInLongitude
+                ? {
+                    latitude: (record as any).punchInLatitude,
+                    longitude: (record as any).punchInLongitude,
+                    address: null
+                }
+                : undefined,
+            punchOutLocation: (record as any).punchOutLatitude && (record as any).punchOutLongitude
+                ? {
+                    latitude: (record as any).punchOutLatitude,
+                    longitude: (record as any).punchOutLongitude,
+                    address: null
+                }
+                : undefined
+        }));
+    };
 
     const downloadExcel = () => {
         const worksheet = XLSX.utils.json_to_sheet(
@@ -585,15 +608,18 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             const dayType = getDayType(record.date, selectedYear, selectedMonth);
             const status = getAttendanceStatus(record, dayType);
             let hoursWorked = 'Incomplete';
+            let hoursWorkedNum: number | null = null;
             
             if (record.punchInUtc && record.punchOutUtc) {
-                hoursWorked = formatHoursToHoursAndMinutes(
-                    safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc)
-                );
+                const hw = parseFloat(safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc));
+                hoursWorkedNum = isNaN(hw) ? null : hw;
+                hoursWorked = hoursWorkedNum !== null
+                    ? formatHoursToHoursAndMinutes(hoursWorkedNum.toString())
+                    : 'Incomplete';
             } else if (dayType !== 'Working Day') {
                 hoursWorked = '-';
             }
-            const shortage = hoursWorkedNum && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
+            const shortage = hoursWorkedNum !== null && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
 
             return [
                 formatDate(record.date),
@@ -688,6 +714,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         console.log('=== FINAL CALCULATED COMP OFF GAINED:', calculatedCompOffGained, '===');
 
         // Use monthlySummary from API if available
+        // Normalize API summary shape
+        const monthlySummary: any = (summary as any)?.summary ?? (summary as any) ?? undefined;
         if (monthlySummary) {
           autoTable(doc, {
             head: [[
@@ -1156,10 +1184,23 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     // In your component's main render logic, process the attendance data
     const processedData = enrichWithLocations(attendanceData);
 
-    const formatTime = (dateString: string | null): string => {
-        if (!dateString) return 'Incomplete';
-        const match = dateString.match(/T(\d{2}:\d{2}:\d{2})/);
-        return match ? match[1] : dateString;
+    // Helper for shortage formatting (target 9h per day)
+    const formatShortage = (workedHours: number): string => {
+        const deficit = Math.max(0, 9 - workedHours);
+        const hours = Math.floor(deficit);
+        const minutes = Math.round((deficit - hours) * 60);
+        return `${hours}h ${minutes}m`;
+    };
+
+    // Stub downloads to avoid reference errors (implement as needed)
+    const downloadLocationPDF = () => {
+        console.warn('downloadLocationPDF not implemented');
+    };
+    const downloadLocationExcel = () => {
+        console.warn('downloadLocationExcel not implemented');
+    };
+    const downloadRegularizationHistoryPDF = () => {
+        console.warn('downloadRegularizationHistoryPDF not implemented');
     };
 
     return (
