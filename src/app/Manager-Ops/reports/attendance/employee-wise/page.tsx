@@ -125,30 +125,7 @@ interface LocationAddresses {
   };
 }
 
-interface GoogleMapsAddressComponent {
-  long_name: string;
-  short_name: string;
-  types: string[];
-}
-
-interface GoogleMapsGeocodeResult {
-  address_components: GoogleMapsAddressComponent[];
-  formatted_address: string;
-  geometry: {
-    location: {
-      lat: number;
-      lng: number;
-    };
-  };
-  place_id: string;
-  types: string[];
-}
-
-interface GoogleMapsGeocodingResponse {
-  status: string;
-  results: GoogleMapsGeocodeResult[];
-  error_message?: string;
-}
+// Google Maps interfaces removed - now using Nominatim (OpenStreetMap)
 
 const EmployeeWiseAttendancePage = (): JSX.Element => {
   const { theme } = useTheme(); // Add theme hook
@@ -315,60 +292,60 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
   };
 
   const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    // Validate coordinates
+    if (!lat || !lng || isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+      console.warn('Invalid coordinates:', { lat, lng });
+      return 'Invalid coordinates';
+    }
+
     console.log('Geocoding request for:', { lat, lng });
-    const GOOGLE_MAPS_API_KEY = 'AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4';
-    
+   
     try {
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
+      // Using Nominatim (OpenStreetMap) - completely free, no API key required
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en&zoom=18`;
       console.log('Geocoding URL:', url);
 
-      const response = await fetch(url);
-      const data: GoogleMapsGeocodingResponse = await response.json();
-      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'EmployeeManagementApp/1.0' // Required by Nominatim
+        }
+      });
+
+      if (!response.ok) {
+        console.warn(`Nominatim API error: ${response.status} ${response.statusText}`);
+        return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+      }
+
+      const data = await response.json();
       console.log('Geocoding response:', data);
 
-      if (data.status === 'OK' && data.results?.[0]) {
-        const result = data.results[0];
-        const addressComponents = {
-          streetNumber: '',
-          route: '',
-          locality: '',
-          area: '',
-          city: '',
-          state: '',
-          country: ''
-        };
+      if (data && data.display_name) {
+        // Extract address components from Nominatim response
+        const address = data.address || {};
+        
+        // Build a readable address from available components
+        const addressParts = [
+          address.house_number && address.road ? `${address.house_number} ${address.road}` : address.road,
+          address.suburb || address.neighbourhood,
+          address.city || address.town || address.village,
+          address.state,
+          address.country
+        ].filter(Boolean);
 
-        result.address_components.forEach((component: GoogleMapsAddressComponent) => {
-          if (component.types.includes('street_number')) addressComponents.streetNumber = component.long_name;
-          if (component.types.includes('route')) addressComponents.route = component.long_name;
-          if (component.types.includes('locality')) addressComponents.locality = component.long_name;
-          if (component.types.includes('sublocality')) addressComponents.area = component.long_name;
-          if (component.types.includes('administrative_area_level_2')) addressComponents.city = component.long_name;
-          if (component.types.includes('administrative_area_level_1')) addressComponents.state = component.long_name;
-          if (component.types.includes('country')) addressComponents.country = component.long_name;
-        });
-
-        console.log('Parsed address components:', addressComponents);
-
-        const formattedAddress = [
-          [addressComponents.streetNumber, addressComponents.route].filter(Boolean).join(' '),
-          addressComponents.area,
-          addressComponents.locality,
-          addressComponents.city,
-          addressComponents.state,
-          addressComponents.country
-        ].filter(Boolean).join(', ');
-
+        const formattedAddress = addressParts.join(', ') || data.display_name;
+        
         console.log('Formatted address:', formattedAddress);
         return formattedAddress;
+      } else if (data && data.error) {
+        console.warn('Nominatim error:', data.error);
+        return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
       }
-      
+     
       console.warn('No results found for location:', { lat, lng });
-      return 'Location not found';
+      return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
     } catch (error) {
       console.error('Geocoding error:', error);
-      return 'Error fetching location';
+      return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
     }
   };
 

@@ -11,30 +11,7 @@ import {
     MonthSummaryResponse
 } from '../../types/attendance';
 
-interface GoogleMapsAddressComponent {
-    long_name: string;
-    short_name: string;
-    types: string[];
-}
-
-interface GoogleMapsGeocodeResult {
-    address_components: GoogleMapsAddressComponent[];
-    formatted_address: string;
-    geometry: {
-        location: {
-            lat: number;
-            lng: number;
-        };
-    };
-    place_id: string;
-    types: string[];
-}
-
-interface GoogleMapsGeocodingResponse {
-    status: string;
-    results: GoogleMapsGeocodeResult[];
-    error_message?: string;
-}
+// Google Maps interfaces removed - now using Nominatim (OpenStreetMap)
 
 interface LeaveBalance {
     allocated: number;
@@ -359,112 +336,66 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         return 'Working Day';
     };
 
- const enrichWithLocations = (data: ExtendedRawAttendanceRecord[]): ExtendedRawAttendanceRecord[] => {
-  return data.map(record => ({
-    ...record,
-    punchInLocation: record.punchInLatitude && record.punchInLongitude
-      ? {
-          latitude: record.punchInLatitude,
-          longitude: record.punchInLongitude,
-          address: null
-        }
-      : undefined,
-    punchOutLocation: record.punchOutLatitude && record.punchOutLongitude
-      ? {
-          latitude: record.punchOutLatitude,
-          longitude: record.punchOutLongitude,
-          address: null
-        }
-      : undefined
-  }));
-};
-
-
-    // Replace the reverseGeocode function in this block with the enhanced version
+    // Replace the reverseGeocode function with Nominatim (free alternative)
     const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+        // Validate coordinates
+        if (!lat || !lng || isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+            console.warn('Invalid coordinates:', { lat, lng });
+            return 'Invalid coordinates';
+        }
+
         console.log('Geocoding request for:', { lat, lng });
-        const GOOGLE_MAPS_API_KEY = 'AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4';
-        
+       
         try {
-            const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
+            // Using Nominatim (OpenStreetMap) - completely free, no API key required
+            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en&zoom=18`;
             console.log('Geocoding URL:', url);
 
-            const response = await fetch(url);
-            const data: GoogleMapsGeocodingResponse = await response.json();
-            
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'EmployeeManagementApp/1.0' // Required by Nominatim
+                }
+            });
+
+            if (!response.ok) {
+                console.warn(`Nominatim API error: ${response.status} ${response.statusText}`);
+                return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+            }
+
+            const data = await response.json();
             console.log('Geocoding response:', data);
 
-            if (data.status === 'OK' && data.results?.[0]) {
-                // Extract detailed address components
-                const result = data.results[0];
-                const addressComponents = {
-                    streetNumber: '',
-                    route: '',
-                    locality: '',
-                    area: '',
-                    city: '',
-                    state: '',
-                    country: ''
-                };
+            if (data && data.display_name) {
+                // Extract address components from Nominatim response
+                const address = data.address || {};
+                
+                // Build a readable address from available components
+                const addressParts = [
+                    address.house_number && address.road ? `${address.house_number} ${address.road}` : address.road,
+                    address.suburb || address.neighbourhood,
+                    address.city || address.town || address.village,
+                    address.state,
+                    address.country
+                ].filter(Boolean);
 
-                result.address_components.forEach((component: GoogleMapsAddressComponent) => {
-                    if (component.types.includes('street_number')) addressComponents.streetNumber = component.long_name;
-                    if (component.types.includes('route')) addressComponents.route = component.long_name;
-                    if (component.types.includes('locality')) addressComponents.locality = component.long_name;
-                    if (component.types.includes('sublocality')) addressComponents.area = component.long_name;
-                    if (component.types.includes('administrative_area_level_2')) addressComponents.city = component.long_name;
-                    if (component.types.includes('administrative_area_level_1')) addressComponents.state = component.long_name;
-                    if (component.types.includes('country')) addressComponents.country = component.long_name;
-                });
-
-                console.log('Parsed address components:', addressComponents);
-
-                // Format address string
-                const formattedAddress = [
-                    [addressComponents.streetNumber, addressComponents.route].filter(Boolean).join(' '),
-                    addressComponents.area,
-                    addressComponents.locality,
-                    addressComponents.city,
-                    addressComponents.state,
-                    addressComponents.country
-                ].filter(Boolean).join(', ');
-
+                const formattedAddress = addressParts.join(', ') || data.display_name;
+                
                 console.log('Formatted address:', formattedAddress);
                 return formattedAddress;
+            } else if (data && data.error) {
+                console.warn('Nominatim error:', data.error);
+                return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
             }
             
             console.warn('No results found for location:', { lat, lng });
-            return 'Location not found';
+            return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
         } catch (error) {
             console.error('Geocoding error:', error);
-            return 'Error fetching location';
+            return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
         }
     };
 
-    useEffect(() => {
-        if (!employeeId || !selectedMonth || !selectedYear) return;
-        
-        fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${selectedMonth}&year=${selectedYear}`)
-          .then(res => res.json())
-          .then((data: MonthSummaryResponse) => {
-            if (data.success) {
-              setSummary(data.data);
-            } else {
-              setSummary(null);
-            }
-          })
-          .catch(() => {
-            setSummary(null);
-          });
-    }, [employeeId, selectedMonth, selectedYear]);
 
-    useEffect(() => {
-        if (!employeeId) return;
-        fetch(`https://cafm.zenapi.co.in/api/leave/balance/${employeeId}`)
-          .then(res => res.json())
-          .then(data => setLeaveBalance(data))
-          .catch(() => setLeaveBalance(null));
-    }, [employeeId]);
 
     useEffect(() => {
         if (!employeeId || !selectedMonth || !selectedYear) return;
@@ -644,12 +575,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
         // Attendance table on first page
         const tableColumn = ["Date", "Check In", "Check Out", "Hours Worked", "Shortage Hours", "Day Type", "Status"];
-        // Helper function to safely calculate hours
-        const safeCalculateHoursUtc = (inTime?: string | null, outTime?: string | null): string => {
-            if (!inTime || !outTime) return '0';
-            return calculateHoursUtc(inTime, outTime);
-        };
-
         // Helper function to safely calculate hours
         const safeCalculateHoursUtc = (inTime?: string | null, outTime?: string | null): string => {
             if (!inTime || !outTime) return '0';
@@ -1123,7 +1048,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
         
         // Add note below the leave history table with proper spacing
-        const noteY = finalY + 60; // Increased spacing from table
+        const noteStartY = finalY + 60; // Increased spacing from table
         doc.setFontSize(11);
         doc.setTextColor(41, 128, 185);
         doc.text('Leave History', 12, yPosition);
@@ -1178,14 +1103,14 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         const signaturePageHeight = doc.internal.pageSize.getHeight();
         // Calculate required space for note + signature (approximately 40 units)
         const requiredSpaceForSignature = 40;
-        let noteY = allTablesFinalY + 10;
-        let signatureY = noteY + 12;
+        let noteYPosition = allTablesFinalY + 10;
+        let signatureYPosition = noteYPosition + 12;
         
         // If not enough space, add a new page and reset Y positions
-        if (noteY + requiredSpaceForSignature > signaturePageHeight - 20) {
+        if (noteYPosition + requiredSpaceForSignature > signaturePageHeight - 20) {
             doc.addPage();
-            noteY = 20; // minimal top margin
-            signatureY = noteY + 12;
+            noteYPosition = 20; // minimal top margin
+            signatureYPosition = noteYPosition + 12;
         }
         // Add note below the leave history table with proper spacing
         doc.setFontSize(10);
@@ -1194,11 +1119,11 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         const noteLabel = 'Note:';
         doc.setTextColor(0, 0, 0);
         const noteText = 'Please ensure that the total working hours per day are at least 8 hours.';
-        doc.text(`${noteLabel} ${noteText}`, 15, noteY);
+        doc.text(`${noteLabel} ${noteText}`, 15, noteYPosition);
 
         // Calculate signature position with proper spacing after the note
         const pageHeight = doc.internal.pageSize.getHeight();
-        const signatureY = Math.min(pageHeight - 30, noteY + 40); // Ensure proper spacing after note
+        const signatureY = Math.min(pageHeight - 30, noteYPosition + 40); // Ensure proper spacing after note
 
         // Signature lines
         doc.setDrawColor(100, 100, 100);

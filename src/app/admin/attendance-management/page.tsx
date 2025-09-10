@@ -223,19 +223,52 @@ export default function AttendanceViewPage() {
 
   const filteredProjectAttendance = filterProjectAttendance();
 
-  // Add a helper to fetch address from lat/lng using reverse geocoding
+  // Add a helper to fetch address from lat/lng using reverse geocoding (Nominatim - free)
   const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    // Validate coordinates
+    if (!lat || !lng || isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+      console.warn('Invalid coordinates:', { lat, lng });
+      return 'Invalid coordinates';
+    }
+
     try {
-      const apiKey = 'AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4'; // Use your Google Maps API key
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data.status === 'OK' && data.results?.[0]) {
-        return data.results[0].formatted_address;
+      // Using Nominatim (OpenStreetMap) - completely free, no API key required
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en&zoom=18`;
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'EmployeeManagementApp/1.0' // Required by Nominatim
+        }
+      });
+
+      if (!response.ok) {
+        console.warn(`Nominatim API error: ${response.status} ${response.statusText}`);
+        return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
       }
-      return 'Location not found';
-    } catch {
-      return 'Error fetching location';
+
+      const data = await response.json();
+      
+      if (data && data.display_name) {
+        // Extract address components from Nominatim response
+        const address = data.address || {};
+        
+        // Build a readable address from available components
+        const addressParts = [
+          address.house_number && address.road ? `${address.house_number} ${address.road}` : address.road,
+          address.suburb || address.neighbourhood,
+          address.city || address.town || address.village,
+          address.state,
+          address.country
+        ].filter(Boolean);
+
+        return addressParts.join(', ') || data.display_name;
+      } else if (data && data.error) {
+        console.warn('Nominatim error:', data.error);
+        return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+      }
+      return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
     }
   };
 
