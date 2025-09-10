@@ -99,36 +99,7 @@ interface AttendanceReportProps {
     theme: 'light' | 'dark';  // Add this line
 }
 
-interface RegularizationRecord {
-  _id: string;
-  date: string;
-  isRegularized: boolean;
-  regularizationStatus: string;
-  remarks: string;
-  status: string;
-  originalStatus: string;
-  punchInTime: string;
-  punchOutTime: string;
-  regularizationDate: string;
-  regularizationReason: string;
-  regularizedBy: string;
-}
-
-interface MonthlySummary {
-  totalDays: number;
-  presentDays: number;
-  regularizedPresentDays: number;
-  halfDays: number;
-  partiallyAbsentDays: number;
-  weekOffs: number;
-  weekOffsWorked?: number;
-  holidays: number;
-  el: number;
-  sl: number;
-  cl: number;
-  compOff: number;
-  lop: number;
-}
+// Types kept minimal; unused interfaces removed
 
 const formatHoursToHoursAndMinutes = (hoursDecimal: string): string => {
     if (hoursDecimal === '0' || hoursDecimal === 'N/A') return 'N/A';
@@ -174,8 +145,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     theme
 }) => {
     const [selectedRecord, setSelectedRecord] = useState<ExtendedRawAttendanceRecord | null>(null);
-    const [summary, setSummary] = useState<MonthSummaryResponse['data'] | null>(null);
-    const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
+    const [summary] = useState<MonthSummaryResponse['data'] | null>(null);
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistory[]>([]);
     const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
     const [outLocationAddress, setOutLocationAddress] = useState<string | null>(null);
@@ -262,20 +232,28 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     );
 
     // Add missing helper to attach location placeholders from raw lat/lng
-    const enrichWithLocations = (data: ExtendedRawAttendanceRecord[]): ExtendedRawAttendanceRecord[] => {
+    interface WithRawLatLng {
+        punchInLatitude?: number;
+        punchInLongitude?: number;
+        punchOutLatitude?: number;
+        punchOutLongitude?: number;
+    }
+    const enrichWithLocations = <T extends ExtendedRawAttendanceRecord & Partial<WithRawLatLng>>(
+        data: T[]
+    ): ExtendedRawAttendanceRecord[] => {
         return data.map(record => ({
             ...record,
-            punchInLocation: (record as any).punchInLatitude && (record as any).punchInLongitude
+            punchInLocation: record.punchInLatitude && record.punchInLongitude
                 ? {
-                    latitude: (record as any).punchInLatitude,
-                    longitude: (record as any).punchInLongitude,
+                    latitude: record.punchInLatitude,
+                    longitude: record.punchInLongitude,
                     address: null
                 }
                 : undefined,
-            punchOutLocation: (record as any).punchOutLatitude && (record as any).punchOutLongitude
+            punchOutLocation: record.punchOutLatitude && record.punchOutLongitude
                 ? {
-                    latitude: (record as any).punchOutLatitude,
-                    longitude: (record as any).punchOutLongitude,
+                    latitude: record.punchOutLatitude,
+                    longitude: record.punchOutLongitude,
                     address: null
                 }
                 : undefined
@@ -715,7 +693,28 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
         // Use monthlySummary from API if available
         // Normalize API summary shape
-        const monthlySummary: any = (summary as any)?.summary ?? (summary as any) ?? undefined;
+        type MonthlySummaryData = {
+            totalDays: number;
+            presentDays: number;
+            regularizedPresentDays: number;
+            halfDays: number;
+            partiallyAbsentDays: number;
+            weekOffs: number;
+            weekOffsWorked?: number;
+            holidays: number;
+            el: number;
+            sl: number;
+            cl: number;
+            lop: number;
+        };
+        let monthlySummary: MonthlySummaryData | null = null;
+        if (summary) {
+            if (typeof (summary as unknown as { summary?: MonthlySummaryData }).summary !== 'undefined') {
+                monthlySummary = (summary as unknown as { summary: MonthlySummaryData }).summary;
+            } else {
+                monthlySummary = summary as unknown as MonthlySummaryData;
+            }
+        }
         if (monthlySummary) {
           autoTable(doc, {
             head: [[
@@ -1076,7 +1075,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
         
         // Add note below the leave history table with proper spacing
-        const noteStartY = finalY + 60; // Increased spacing from table
         doc.setFontSize(11);
         doc.setTextColor(41, 128, 185);
         doc.text('Leave History', 12, yPosition);
@@ -1132,13 +1130,11 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         // Calculate required space for note + signature (approximately 40 units)
         const requiredSpaceForSignature = 40;
         let noteYPosition = allTablesFinalY + 10;
-        let signatureYPosition = noteYPosition + 12;
         
         // If not enough space, add a new page and reset Y positions
         if (noteYPosition + requiredSpaceForSignature > signaturePageHeight - 20) {
             doc.addPage();
             noteYPosition = 20; // minimal top margin
-            signatureYPosition = noteYPosition + 12;
         }
         // Add note below the leave history table with proper spacing
         doc.setFontSize(10);
