@@ -5,9 +5,10 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Image from 'next/image';
 import { calculateHoursUtc, transformAttendanceRecord } from '../../utils/attendanceUtils';
-import {
+import { 
     RawAttendanceRecord as BaseRawAttendanceRecord,
-    TransformedAttendanceRecord
+    TransformedAttendanceRecord, 
+    MonthSummaryResponse
 } from '../../types/attendance';
 
 interface GoogleMapsAddressComponent {
@@ -33,6 +34,29 @@ interface GoogleMapsGeocodingResponse {
     status: string;
     results: GoogleMapsGeocodeResult[];
     error_message?: string;
+}
+
+interface LeaveBalance {
+    allocated: number;
+    used: number;
+    remaining: number;
+    pending: number;
+}
+
+interface LeaveBalanceResponse {
+    employeeId: string;
+    employeeName: string;
+    year: number;
+    balances: {
+        EL: LeaveBalance;
+        SL: LeaveBalance;
+        CL: LeaveBalance;
+        CompOff: LeaveBalance;
+    };
+    totalAllocated: number;
+    totalUsed: number;
+    totalRemaining: number;
+    totalPending: number;
 }
 
 
@@ -71,18 +95,26 @@ interface LeaveHistory {
     lastUpdated: string;
 }
 
+interface LocationDetail {
+    latitude: number;
+    longitude: number;
+    address: string | null;
+}
 
-
-
+// Extend the base interface and add location details
+interface ExtendedRawAttendanceRecord extends BaseRawAttendanceRecord {
+    punchInLocation?: LocationDetail;
+    punchOutLocation?: LocationDetail;
+}
 
 interface AttendanceReportProps {
     loading: boolean;
-    attendanceData: BaseRawAttendanceRecord[];
+    attendanceData: ExtendedRawAttendanceRecord[];
     selectedMonth: number;
     selectedYear: number;
     handleMonthChange: (month: number) => void;
     handleYearChange: (year: number) => void;
-    handleViewRecord: (record: BaseRawAttendanceRecord) => void;
+    handleViewRecord: (record: ExtendedRawAttendanceRecord) => void;
     handleBack: () => void;
     fetchReportData: () => Promise<void>;
     formatDate: (dateString: string) => string;
@@ -164,13 +196,12 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     employeeId,
     theme
 }) => {
-    const [selectedRecord, setSelectedRecord] = useState<TransformedAttendanceRecord | null>(null);
+    const [selectedRecord, setSelectedRecord] = useState<ExtendedRawAttendanceRecord | null>(null);
+    const [summary, setSummary] = useState<MonthSummaryResponse['data'] | null>(null);
+    const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistory[]>([]);
     const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
     const [outLocationAddress, setOutLocationAddress] = useState<string | null>(null);
-    const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null);
-    const [fromDateForPDF, setFromDateForPDF] = useState<string>('');
-    const [toDateForPDF, setToDateForPDF] = useState<string>('');
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -247,20 +278,9 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const years = Array.from({ length: 5 }, (_, i) => currentYear + 2 - i);
 
     // Transform attendanceData using the shared logic
-    const processedAttendanceData = attendanceData.map((record: BaseRawAttendanceRecord): TransformedAttendanceRecord => {
-        // Debug logging for August 15
-        if (record.date.includes('08-15') || record.date.includes('2025-08-15')) {
-            console.log('Processing August 15 record:', {
-                originalDate: record.date,
-                splitDate: record.date.split('T')[0],
-                isHoliday: governmentHolidays.includes(record.date.split('T')[0]),
-                holidayName: governmentHolidayMap[record.date.split('T')[0]]
-            });
-        }
-        return transformAttendanceRecord(record);
-    });
-
-
+    const processedAttendanceData = attendanceData.map((record: ExtendedRawAttendanceRecord): TransformedAttendanceRecord => 
+        transformAttendanceRecord(record)
+    );
 
     const downloadExcel = () => {
         const worksheet = XLSX.utils.json_to_sheet(
@@ -339,18 +359,39 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         return 'Working Day';
     };
 
+ const enrichWithLocations = (data: ExtendedRawAttendanceRecord[]): ExtendedRawAttendanceRecord[] => {
+  return data.map(record => ({
+    ...record,
+    punchInLocation: record.punchInLatitude && record.punchInLongitude
+      ? {
+          latitude: record.punchInLatitude,
+          longitude: record.punchInLongitude,
+          address: null
+        }
+      : undefined,
+    punchOutLocation: record.punchOutLatitude && record.punchOutLongitude
+      ? {
+          latitude: record.punchOutLatitude,
+          longitude: record.punchOutLongitude,
+          address: null
+        }
+      : undefined
+  }));
+};
+
+
     // Replace the reverseGeocode function in this block with the enhanced version
     const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
         console.log('Geocoding request for:', { lat, lng });
         const GOOGLE_MAPS_API_KEY = 'AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4';
-       
+        
         try {
             const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
             console.log('Geocoding URL:', url);
 
             const response = await fetch(url);
             const data: GoogleMapsGeocodingResponse = await response.json();
-           
+            
             console.log('Geocoding response:', data);
 
             if (data.status === 'OK' && data.results?.[0]) {
@@ -391,7 +432,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 console.log('Formatted address:', formattedAddress);
                 return formattedAddress;
             }
-           
+            
             console.warn('No results found for location:', { lat, lng });
             return 'Location not found';
         } catch (error) {
@@ -400,7 +441,30 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         }
     };
 
+    useEffect(() => {
+        if (!employeeId || !selectedMonth || !selectedYear) return;
+        
+        fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${selectedMonth}&year=${selectedYear}`)
+          .then(res => res.json())
+          .then((data: MonthSummaryResponse) => {
+            if (data.success) {
+              setSummary(data.data);
+            } else {
+              setSummary(null);
+            }
+          })
+          .catch(() => {
+            setSummary(null);
+          });
+    }, [employeeId, selectedMonth, selectedYear]);
 
+    useEffect(() => {
+        if (!employeeId) return;
+        fetch(`https://cafm.zenapi.co.in/api/leave/balance/${employeeId}`)
+          .then(res => res.json())
+          .then(data => setLeaveBalance(data))
+          .catch(() => setLeaveBalance(null));
+    }, [employeeId]);
 
     useEffect(() => {
         if (!employeeId || !selectedMonth || !selectedYear) return;
@@ -485,92 +549,20 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     };
 
     // Update the getAttendanceStatus function
-    const getAttendanceStatus = (record: TransformedAttendanceRecord, dayType: string) => {
+    const getAttendanceStatus = (record: ExtendedRawAttendanceRecord, dayType: string) => {
         const leaveType = isLeaveDate(record.date);
+
         if (leaveType) {
-            return leaveType + ' Leave';
+            return leaveType + ' Leave'; // e.g., "SL Leave"
         }
 
-        // Check if this is a government holiday FIRST (highest priority)
-        const dateStr = record.date.split('T')[0];
-        // Also try to handle different date formats
-        let normalizedDate = dateStr;
-        if (record.date.includes('T')) {
-            normalizedDate = record.date.split('T')[0];
-        } else if (record.date.includes(' ')) {
-            normalizedDate = record.date.split(' ')[0];
-        } else {
-            normalizedDate = record.date;
-        }
-        
-        if (governmentHolidays.includes(normalizedDate)) {
-            console.log('Government holiday detected:', normalizedDate, governmentHolidayMap[normalizedDate]);
-            // If it's a government holiday and employee worked, check for Comp Off
-            if (record.punchInTime && record.punchOutTime) {
-                const inTime = record.punchInUtc || record.punchInTime;
-                const outTime = record.punchOutUtc || record.punchOutTime;
-                const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
-                console.log(`  Holiday work check: ${inTime} to ${outTime} = ${hoursWorked} hours`);
-                if (hoursWorked >= 4) {
-                    console.log(`  -> Returning Comp Off for holiday work`);
-                    return 'Comp Off';
-                } else {
-                    console.log(`  -> Not enough hours (${hoursWorked} < 4), returning Holiday`);
-                }
-            } else {
-                console.log(`  -> No punch in/out times, returning Holiday`);
-            }
-            // If no work done on holiday, return Holiday
-            return 'Holiday';
-        }
-
-        // Normalize project name
-        const project = record.projectName ? record.projectName.trim().toLowerCase() : '';
-        const isArvind = project === 'arvind technical';
-        const isExozenOps = project === 'exozen - ops';
-        const isExozenIT = project === 'exozen - it';
-        const isExozenFMS = project === 'exozen - fms';
-
-        if (isArvind) {
-            // For Arvind Technical, only allow Comp Off for working on Sunday
-            if (dayType === 'Sunday' && record.punchInTime && record.punchOutTime) {
-                const inTime = record.punchInUtc || record.punchInTime;
-                const outTime = record.punchOutUtc || record.punchOutTime;
-                const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
-                if (hoursWorked >= 4) {
-                    return 'Comp Off';
-                }
-            }
-        } else if (isExozenOps) {
-            // For Exozen - Ops, all Saturdays are working days, so no Comp Off for 2nd/4th Sat
-            // Do NOT give Comp Off for 2nd/4th Saturday, only for holidays and Sundays
-            if ((dayType === 'Holiday' || dayType === 'Sunday') && record.punchInTime && record.punchOutTime) {
-                const inTime = record.punchInUtc || record.punchInTime;
-                const outTime = record.punchOutUtc || record.punchOutTime;
-                const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
-                if (hoursWorked >= 4) {
-                    return 'Comp Off';
-                }
-            }
-        } else if (isExozenIT || isExozenFMS) {
-            // For Exozen-IT and Exozen-FMS, give Comp Off for working on holidays, 2nd/4th Sat, or Sunday
-            if (dayType !== 'Working Day' && record.punchInTime && record.punchOutTime) {
-                const inTime = record.punchInUtc || record.punchInTime;
-                const outTime = record.punchOutUtc || record.punchOutTime;
-                const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
-                if (hoursWorked >= 4) {
-                    return 'Comp Off';
-                }
-            }
-        } else {
-            // For other projects, comp off for working on holidays, 2nd/4th Sat, or Sunday
-            if (dayType !== 'Working Day' && record.punchInTime && record.punchOutTime) {
-                const inTime = record.punchInUtc || record.punchInTime;
-                const outTime = record.punchOutUtc || record.punchOutTime;
-                const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
-                if (hoursWorked >= 4) {
-                    return 'Comp Off';
-                }
+        // Check if there's any punch in/out on a holiday
+        if (dayType !== 'Working Day' && record.punchInTime && record.punchOutTime) {
+            const inTime = record.punchInUtc || record.punchInTime;
+            const outTime = record.punchOutUtc || record.punchOutTime;
+            const hoursWorked = parseFloat(calculateHoursUtc(inTime, outTime));
+            if (hoursWorked >= 4) {
+                return 'Comp Off';
             }
         }
         
@@ -658,14 +650,21 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             return calculateHoursUtc(inTime, outTime);
         };
 
-        const tableRows = filteredRecords.map((record: TransformedAttendanceRecord) => {
-            const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName || undefined);
+        // Helper function to safely calculate hours
+        const safeCalculateHoursUtc = (inTime?: string | null, outTime?: string | null): string => {
+            if (!inTime || !outTime) return '0';
+            return calculateHoursUtc(inTime, outTime);
+        };
+
+        const tableRows = filteredRecords.map((record: ExtendedRawAttendanceRecord) => {
+            const dayType = getDayType(record.date, selectedYear, selectedMonth);
             const status = getAttendanceStatus(record, dayType);
             let hoursWorked = 'Incomplete';
-            let hoursWorkedNum = 0;
+            
             if (record.punchInUtc && record.punchOutUtc) {
-                hoursWorkedNum = parseFloat(safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc));
-                hoursWorked = formatHoursToHoursAndMinutes(hoursWorkedNum.toString());
+                hoursWorked = formatHoursToHoursAndMinutes(
+                    safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc)
+                );
             } else if (dayType !== 'Working Day') {
                 hoursWorked = '-';
             }
@@ -673,6 +672,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
             return [
                 formatDate(record.date),
+                record.projectName || '-',
                 formatTime(record.punchInTime),
                 formatTime(record.punchOutTime),
                 hoursWorked,
@@ -1082,18 +1082,48 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           yPosition += 8;
         }
 
-        // Add minimal spacing after summary text before leave history
-        yPosition += 5;
+        // Add Leave History section after leave balance
+        if (leaveHistory.length > 0) {
+            yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
+            doc.setFontSize(12);
+            doc.setTextColor(41, 128, 185);
+            doc.text('Leave History', 15, yPosition);
+            yPosition += 10;
 
-        // Add Leave History section always, check for overflow
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const requiredSpaceForLeaveHistory = 80; // Approximate space needed for leave history
-        
-        if (yPosition + requiredSpaceForLeaveHistory > pageHeight - 20) {
-            doc.addPage();
-            yPosition = 15;
+            const leaveHistoryHead = [['Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason']];
+            const leaveHistoryRows = leaveHistory.map(leave => [
+                leave.leaveType,
+                new Date(leave.startDate).toLocaleDateString(),
+                new Date(leave.endDate).toLocaleDateString(),
+                leave.numberOfDays + (leave.isHalfDay ? ' (Half)' : ''),
+                leave.status,
+                leave.reason.substring(0, 20) + (leave.reason.length > 20 ? '...' : '')
+            ]);
+
+            autoTable(doc, {
+                head: leaveHistoryHead,
+                body: leaveHistoryRows,
+                startY: yPosition,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 4 },
+                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                columnStyles: {
+                    0: { cellWidth: 25 },
+                    1: { cellWidth: 30 },
+                    2: { cellWidth: 30 },
+                    3: { cellWidth: 20 },
+                    4: { cellWidth: 25 },
+                    5: { cellWidth: 50 }
+                },
+                margin: { left: 15 }
+            });
         }
+
+        // Get the final Y position after all tables
+        const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
         
+        // Add note below the leave history table with proper spacing
+        const noteY = finalY + 60; // Increased spacing from table
         doc.setFontSize(11);
         doc.setTextColor(41, 128, 185);
         doc.text('Leave History', 12, yPosition);
@@ -1164,7 +1194,11 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         const noteLabel = 'Note:';
         doc.setTextColor(0, 0, 0);
         const noteText = 'Please ensure that the total working hours per day are at least 8 hours.';
-        doc.text(`${noteLabel} ${noteText}`, 12, noteY);
+        doc.text(`${noteLabel} ${noteText}`, 15, noteY);
+
+        // Calculate signature position with proper spacing after the note
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const signatureY = Math.min(pageHeight - 30, noteY + 40); // Ensure proper spacing after note
 
         // Signature lines
         doc.setDrawColor(100, 100, 100);
@@ -1194,301 +1228,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         });
     };
 
-    // Add this function to extract time in HH:mm:ss from ISO string
-    const extractTime = (dateString: string | null) => {
-      if (!dateString) return '-';
-      const match = dateString.match(/T(\d{2}:\d{2}:\d{2})/);
-      return match ? match[1] : '-';
-    };
-
     // In your component's main render logic, process the attendance data
-    // Location data is now processed in transformAttendanceRecord, so no need for enrichWithLocations
-    const processedData: TransformedAttendanceRecord[] = processedAttendanceData;
+    const processedData = enrichWithLocations(attendanceData);
 
-    // Helper to batch fetch addresses for all records
-    const fetchAllAddresses = async (records: TransformedAttendanceRecord[]) => {
-      const getAddress = async (lat?: number, lng?: number) => {
-        if (!lat || !lng) return 'N/A';
-        return await reverseGeocode(lat, lng);
-      };
-      const results = await Promise.all(records.map(async (record) => {
-        const punchInAddress = record.punchInLocation?.latitude && record.punchInLocation?.longitude
-          ? await getAddress(record.punchInLocation.latitude, record.punchInLocation.longitude)
-          : 'N/A';
-        const punchOutAddress = record.punchOutLocation?.latitude && record.punchOutLocation?.longitude
-          ? await getAddress(record.punchOutLocation.latitude, record.punchOutLocation.longitude)
-          : 'N/A';
-        return {
-          ...record,
-          punchInResolvedAddress: punchInAddress,
-          punchOutResolvedAddress: punchOutAddress,
-        };
-      }));
-      return results;
-    };
-
-    // Export Location Report (PDF)
-    const downloadLocationPDF = async () => {
-      // Filter records for the selected month/year
-      const filteredRecords = processedData.filter(record => {
-        const dateObj = new Date(record.date);
-        return dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
-      });
-      // Fetch addresses for all records
-      const recordsWithAddresses = await fetchAllAddresses(filteredRecords);
-      // Now generate the PDF using recordsWithAddresses
-      const doc = new jsPDF();
-      let locYPosition = 15;
-      // Add Exozen logo (top left)
-      try {
-        doc.addImage('/v1/employee/exozen_logo1.png', 'PNG', 15, locYPosition, 25, 8);
-      } catch {
-        // If image fails, continue without breaking
-      }
-      // Adjust text position to the right of the logo
-      doc.setFontSize(12);
-      doc.setTextColor(41, 128, 185);
-      doc.text(`Attendance Location Report - ${months[selectedMonth - 1]} ${selectedYear}`, 45, locYPosition + 4);
-      doc.setFontSize(10);
-      doc.setTextColor(41, 128, 185);
-      doc.text(`Employee ID: ${employeeId}`, 45, locYPosition + 8);
-      locYPosition += 15;
-      const locationTableHead = [
-        ['Date', 'Check-in Location', 'Check-out Location']
-      ];
-      const locationTableRows = recordsWithAddresses.map(record => [
-        formatDate(record.date),
-        record.punchInResolvedAddress,
-        record.punchOutResolvedAddress
-      ]);
-      autoTable(doc, {
-        head: locationTableHead,
-        body: locationTableRows,
-        startY: locYPosition,
-        theme: 'grid',
-        styles: { 
-          fontSize: 9, 
-          cellPadding: 4,
-          overflow: 'linebreak'
-        },
-        headStyles: {
-          fillColor: [41, 128, 185],
-          textColor: 255,
-          fontSize: 10,
-          fontStyle: 'bold'
-        },
-        columnStyles: {
-          0: { cellWidth: 30 },
-          1: { cellWidth: 70 },
-          2: { cellWidth: 70 }
-        },
-        margin: { top: 20, left: 15, right: 15, bottom: 20 },
-        pageBreak: 'auto',
-        showHead: 'everyPage',
-        didDrawPage: (data) => {
-          // Add header on each page
-          if (data.pageNumber > 1) {
-            doc.setFontSize(12);
-            doc.setTextColor(41, 128, 185);
-            doc.text(`Attendance Location Report - ${months[selectedMonth - 1]} ${selectedYear}`, 15, 10);
-            doc.setFontSize(10);
-            doc.text(`Employee ID: ${employeeId}`, 15, 15);
-          }
-        }
-      });
-      doc.save(`location_report_${selectedMonth}_${selectedYear}.pdf`);
-    };
-
-    // Export Location Report (Excel)
-    const downloadLocationExcel = async () => {
-      // Filter records for the selected month/year
-      const filteredRecords = processedData.filter(record => {
-        const dateObj = new Date(record.date);
-        return dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
-      });
-      
-      // Fetch addresses for all records
-      const recordsWithAddresses = await fetchAllAddresses(filteredRecords);
-      
-      // Prepare data for Excel export - same fields as PDF
-      const excelData = recordsWithAddresses.map(record => ({
-        'Date': formatDate(record.date),
-        'Check-in Location': record.punchInResolvedAddress || 'N/A',
-        'Check-out Location': record.punchOutResolvedAddress || 'N/A'
-      }));
-
-      // Create worksheet
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      
-      // Set column widths
-      const columnWidths = [
-        { wch: 12 }, // Date
-        { wch: 60 }, // Check-in Location
-        { wch: 60 }  // Check-out Location
-      ];
-      worksheet['!cols'] = columnWidths;
-
-      // Create workbook and add worksheet
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Location Report');
-      
-      // Save the file
-      XLSX.writeFile(workbook, `location_report_${selectedMonth}_${selectedYear}.xlsx`);
-    };
-
-    // Add this function after downloadLocationPDF
-    const downloadRegularizationHistoryPDF = async () => {
-      if (!employeeId) return;
-      // Fetch regularization history
-      const apiUrl = `https://cafm.zenapi.co.in/api/attendance/${employeeId}/regularization-history?`;
-      try {
-        const res = await fetch(apiUrl);
-        const data = await res.json();
-        const monthName = months[selectedMonth - 1];
-        if (!data.success || !data.data || !Array.isArray(data.data.regularizations)) {
-          // Show PDF with message if no data
-          const doc = new jsPDF();
-          doc.setFontSize(14);
-          doc.setTextColor(41, 128, 185);
-          doc.text(`Regularization History Report - ${monthName} ${selectedYear}`, 15, 20);
-          doc.setFontSize(11);
-          doc.setTextColor(0, 0, 0);
-          doc.text('No regularization history found.', 15, 35);
-          doc.save(`regularization_history_${monthName}_${selectedYear}.pdf`);
-          return;
-        }
-        // Filter for current selected month and year
-        const regularizations = (data.data.regularizations as RegularizationRecord[]).filter((r: RegularizationRecord) => {
-          const date = new Date(r.date);
-          return date.getMonth() === selectedMonth - 1 && date.getFullYear() === selectedYear;
-        });
-        const doc = new jsPDF();
-        let yPosition = 15;
-        // Add Exozen logo (top left)
-        try {
-          doc.addImage('/v1/employee/exozen_logo1.png', 'PNG', 15, yPosition, 25, 8);
-        } catch {}
-        doc.setFontSize(12);
-        doc.setTextColor(41, 128, 185);
-        doc.text(`Regularization History Report - ${monthName} ${selectedYear}`, 45, yPosition + 4);
-        doc.setFontSize(10);
-        doc.setTextColor(41, 128, 185);
-        doc.text(`Employee ID: ${employeeId}`, 45, yPosition + 8);
-        yPosition += 15;
-        if (regularizations.length === 0) {
-          doc.setFontSize(11);
-          doc.setTextColor(0, 0, 0);
-          doc.text('No regularization history found for the selected month.', 15, yPosition + 10);
-          doc.save(`regularization_history_${monthName}_${selectedYear}.pdf`);
-          return;
-        }
-        // Table header
-        const tableHead = [[
-          'Date',
-          'Punch In',
-          'Punch Out',
-          'Status',
-          'Original Status',
-          'Regularized',
-          'Reg. Status',
-          'Reg. Date',
-          'Reason',
-          'By',
-          'Remarks'
-        ]];
-        // Table rows
-        const tableRows = regularizations.map((r: RegularizationRecord) => [
-          r.date ? new Date(r.date).toLocaleDateString() : '-',
-          extractTime(r.punchInTime),
-          extractTime(r.punchOutTime),
-          r.status || '-',
-          r.originalStatus || '-',
-          r.isRegularized ? 'Yes' : 'No',
-          r.regularizationStatus || '-',
-          r.regularizationDate ? new Date(r.regularizationDate).toLocaleString() : '-',
-          r.regularizationReason || '-',
-          r.regularizedBy || '-',
-          r.remarks || '-'
-        ]);
-        autoTable(doc, {
-          head: tableHead,
-          body: tableRows,
-          startY: yPosition,
-          theme: 'grid',
-          styles: { 
-            fontSize: 8, 
-            cellPadding: 2,
-            overflow: 'linebreak'
-          },
-          headStyles: {
-            fillColor: [41, 128, 185],
-            textColor: 255,
-            fontSize: 9,
-            fontStyle: 'bold'
-          },
-          columnStyles: {
-            0: { cellWidth: 18 }, // Date
-            1: { cellWidth: 15 }, // Punch In
-            2: { cellWidth: 15 }, // Punch Out
-            3: { cellWidth: 18 }, // Status
-            4: { cellWidth: 18 }, // Original Status
-            5: { cellWidth: 15 }, // Regularized
-            6: { cellWidth: 18 }, // Reg. Status
-            7: { cellWidth: 25 }, // Reg. Date
-            8: { cellWidth: 25 }, // Reason
-            9: { cellWidth: 15 }, // By
-            10: { cellWidth: 20 } // Remarks
-          },
-          margin: { top: 20, left: 10, right: 10, bottom: 20 },
-          pageBreak: 'auto',
-          showHead: 'everyPage',
-          didDrawPage: (data) => {
-            // Add header on each page
-            if (data.pageNumber > 1) {
-              doc.setFontSize(12);
-              doc.setTextColor(41, 128, 185);
-              doc.text(`Regularization History Report - ${monthName} ${selectedYear}`, 15, 10);
-              doc.setFontSize(10);
-              doc.text(`Employee ID: ${employeeId}`, 15, 15);
-            }
-          }
-        });
-        doc.save(`regularization_history_${monthName}_${selectedYear}.pdf`);
-      } catch {
-        // Show PDF with error message
-        const doc = new jsPDF();
-        doc.setFontSize(14);
-        doc.setTextColor(41, 128, 185);
-        doc.text(`Regularization History Report - ${months[selectedMonth - 1]} ${selectedYear}`, 15, 20);
-        doc.setFontSize(11);
-        doc.setTextColor(200, 0, 0);
-        doc.text('Failed to download regularization history PDF.', 15, 35);
-        doc.save(`regularization_history_${months[selectedMonth - 1]}_${selectedYear}.pdf`);
-      }
-    };
-
-    // Fetch monthly summary from API (employee-specific endpoint)
-    useEffect(() => {
-        if (!employeeId || !selectedMonth || !selectedYear) return;
-        fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${selectedMonth}&year=${selectedYear}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.data && data.data.summary) {
-                    setMonthlySummary(data.data.summary);
-                } else {
-                    setMonthlySummary(null);
-                }
-            })
-            .catch(() => setMonthlySummary(null));
-    }, [employeeId, selectedMonth, selectedYear]);
-
-    // Helper to format shortage hours
-    const formatShortage = (hoursWorked: number): string => {
-      if (isNaN(hoursWorked) || hoursWorked >= 9) return '-';
-      const shortage = 9 - hoursWorked;
-      const h = Math.floor(shortage);
-      const m = Math.round((shortage - h) * 60);
-      return `${h}h ${m}m`;
+    const formatTime = (dateString: string | null): string => {
+        if (!dateString) return 'Incomplete';
+        const match = dateString.match(/T(\d{2}:\d{2}:\d{2})/);
+        return match ? match[1] : dateString;
     };
 
     return (
@@ -1656,74 +1402,83 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     </tr>
                   </thead>
                   <tbody className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {processedData.map((record: TransformedAttendanceRecord, index) => {
-                        const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName || undefined);
-                        let hoursWorkedNum = 0;
-                        let hoursWorkedStr = '';
-                        if (record.punchInTime && record.punchOutTime) {
-                            hoursWorkedNum = parseFloat(calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime));
-                            hoursWorkedStr = formatHoursToHoursAndMinutes(hoursWorkedNum.toString());
-                        } else if (dayType !== 'Working Day') {
-                            hoursWorkedStr = '-';
-                        } else {
-                            hoursWorkedStr = 'Incomplete';
-                        }
-                        const shortage = hoursWorkedNum && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
-                        return (
-                            <tr
-                                key={record._id || index}
-                                className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
-                            >
-                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    {formatDate(record.date)}
-                                </td>
-                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    {record.projectName || 'N/A'}
-                                </td>
-                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    {formatTime(record.punchInTime)}
-                                </td>
-                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    {formatTime(record.punchOutTime)}
-                                </td>
-                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    {hoursWorkedStr}
-                                </td>
-                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    {shortage}
-                                </td>
-                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    {dayType}
-                                </td>
-                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                        (() => {
-                                            const status = getAttendanceStatus(record, dayType);
-                                            switch (status) {
-                                                case 'Present': return 'bg-green-100 text-green-800';
-                                                case 'Half Day': return 'bg-yellow-100 text-yellow-800';
-                                                case 'Comp Off': return 'bg-purple-100 text-purple-800';
-                                                case 'Holiday': return 'bg-blue-100 text-blue-800';
-                                                default: return status.includes('Leave') ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800';
-                                            }
-                                        })()
-                                    }`}>
-                                        {(() => {
-                                            return getAttendanceStatus(record, dayType);
-                                        })()}
-                                    </span>
-                                </td>
-                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    <button
-                                        onClick={() => setSelectedRecord(record)}
-                                        className="text-blue-600 hover:underline"
-                                    >
-                                        View
-                                    </button>
-                                </td>
-                            </tr>
-                        );
-                    })}
+                    {processedData.map((record: ExtendedRawAttendanceRecord, index) => (
+                      <tr 
+                        key={record._id || index}
+                        className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
+                      >
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                          {formatDate(record.date)}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                          {record.projectName || 'N/A'}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                          {formatTime(record.punchInTime)}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                          {formatTime(record.punchOutTime)}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+    {(() => {
+  const dayType = getDayType(record.date, selectedYear, selectedMonth);
+  if (record.punchInTime && record.punchOutTime) {
+    return formatHoursToHoursAndMinutes(
+      calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime)
+    );
+  } else if (dayType !== 'Working Day') {
+    return '-';
+  } else {
+    return 'Incomplete';
+  }
+})()}
+
+
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                          {record.punchInTime && record.punchOutTime ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {record.punchInTime && record.punchOutTime ? 'Present' : 'Absent'}
+                            </span>
+                          ) : ''}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            (() => {
+                                const dayType = getDayType(record.date, selectedYear, selectedMonth);
+                                const status = getAttendanceStatus(record, dayType);
+                                switch (status) {
+                                    case 'Present':
+                                        return 'bg-green-100 text-green-800';
+                                    case 'Half Day':
+                                        return 'bg-yellow-100 text-yellow-800';
+                                    case 'Comp Off':
+                                        return 'bg-purple-100 text-purple-800';
+                                    case 'Holiday':
+                                        return 'bg-blue-100 text-blue-800';
+                                    default:
+                                        return status.includes('Leave')
+                                            ? 'bg-orange-100 text-orange-800'
+                                            : 'bg-red-100 text-red-800';
+                                }
+                            })()
+                          }`}>
+                            {(() => {
+                                const dayType = getDayType(record.date, selectedYear, selectedMonth);
+                                return getAttendanceStatus(record, dayType);
+                            })()}
+                          </span>
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                          <button
+                            onClick={() => setSelectedRecord(record)}
+                            className="text-blue-600 hover:underline"
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1789,7 +1544,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             <div className="flex justify-between">
                                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
                                 <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
-                                    {selectedRecord.punchInLocation
+                                    {selectedRecord.punchInLocation 
                                         ? (inLocationAddress || 'Fetching location...')
                                         : 'Location not available'}
                                 </span>
@@ -1812,7 +1567,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             <div className="flex justify-between">
                                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
                                 <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
-                                    {selectedRecord.punchOutLocation
+                                    {selectedRecord.punchOutLocation 
                                         ? (outLocationAddress || 'Fetching location...')
                                         : 'Location not available'}
                                 </span>

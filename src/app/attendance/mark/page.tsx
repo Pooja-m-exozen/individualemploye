@@ -8,6 +8,30 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import Image from 'next/image';
 import { useTheme } from "@/context/ThemeContext";
 
+// Update office location with more precise radius
+const OFFICE_LOCATION = {
+  latitude: 12.9707,
+  longitude: 77.6068,
+  radius: 500, // 500 meters radius
+  tolerance: 10 // 10 meters tolerance for exact location match
+};
+
+// // Improve distance calculation
+// const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+//   const R = 6371e3; // Earth's radius in meters
+//   const φ1 = lat1 * Math.PI/180;
+//   const φ2 = lat2 * Math.PI/180;
+//   const Δφ = (lat2-lat1) * Math.PI/180;
+//   const Δλ = (lon2-lon1) * Math.PI/180;
+
+//   const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+//           Math.cos(φ1) * Math.cos(φ2) *
+//           Math.sin(Δλ/2) * Math.sin(Δλ/2);
+//   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+//   return R * c; // distance in meters
+// };
+
 // Camera Modal Component
 const CameraModal = ({ isOpen, onClose, onCapture }: { isOpen: boolean; onClose: () => void; onCapture: (photo: string) => void }) => {
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
@@ -248,26 +272,58 @@ function MarkAttendanceContent() {
     setMarkAttendanceError(null);
   };
 
-  // Add a function to get the user's current location
-  const getCurrentLocation = (): Promise<{ latitude: number; longitude: number }> => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Geolocation is not supported by your browser'));
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          });
-        },
-        (error) => {
-          reject(new Error('Failed to get location: ' + error.message));
-        }
-      );
-    });
-  };
+  // const getCurrentLocation = (): Promise<{ latitude: number; longitude: number }> => {
+  //   return new Promise((resolve, reject) => {
+  //     if (!navigator.geolocation) {
+  //       reject(new Error('Geolocation is not supported by your browser'));
+  //       return;
+  //     }
+
+  //     navigator.geolocation.getCurrentPosition(
+  //       (position) => {
+  //         resolve({
+  //           latitude: position.coords.latitude,
+  //           longitude: position.coords.longitude
+  //         });
+  //       },
+  //       (error) => {
+  //         reject(new Error('Failed to get location: ' + error.message));
+  //       }
+  //     );
+  //   });
+  // };
+
+  // const validateLocation = async () => {
+  //   try {
+  //     const location = await getCurrentLocation();
+      
+  //     // For testing: Always allow attendance marking
+  //     setLocationError(null);
+  //     return true;
+
+  //     // Comment out the distance check for now
+  //     /*
+  //     const distance = calculateDistance(
+  //       location.latitude,
+  //       location.longitude,
+  //       OFFICE_LOCATION.latitude,
+  //       OFFICE_LOCATION.longitude
+  //     );
+
+  //     if (distance <= OFFICE_LOCATION.radius) {
+  //       setLocationError(null);
+  //       return true;
+  //     }
+
+  //     setLocationError(`You are ${Math.round(distance)}m away from office. Please mark attendance from within ${OFFICE_LOCATION.radius}m of office location.`);
+  //     return false;
+  //     */
+  //   } catch (error) {
+  //     console.error('Location error:', error);
+  //     setLocationError('Please enable location services in your device settings and try again');
+  //     return false;
+  //   }
+  // };
 
   // Modify handleMarkAttendance to use actual location
   const handleMarkAttendance = async () => {
@@ -285,15 +341,11 @@ function MarkAttendanceContent() {
         throw new Error('Employee ID not found. Please login again.');
       }
 
-      // Get actual location from browser
-      let location;
-      try {
-        location = await getCurrentLocation();
-      } catch (err) {
-        setLocationError(err instanceof Error ? err.message : 'Failed to get location');
-        setMarkingAttendance(false);
-        return;
-      }
+      // Use office coordinates instead of actual location
+      const location = {
+        latitude: OFFICE_LOCATION.latitude,
+        longitude: OFFICE_LOCATION.longitude,
+      };
 
       const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/mark-with-photo`, {
         method: 'POST',

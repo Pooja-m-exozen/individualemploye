@@ -156,24 +156,50 @@ export const verifyDocument = async (employeeId: string, documentId: string, dat
   }
 };
 
-export const uploadKYCDocuments = async (formData: FormData): Promise<{ success: boolean; message: string; data: KYCDocument[] }> => {
-  const userEmail = localStorage.getItem('userEmail');
-
+export const uploadKYCDocuments = async (formData: FormData): Promise<{ 
+  message: string;
+  uploadedDocuments: Array<{
+    documentType: string;
+    documentURL: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+  }>;
+}> => {
+  const userEmail = getUserEmail();
   if (!userEmail) {
     throw new Error('User email not found');
   }
 
+  // Get the full KYC record to find the employee ID
+  const kycRecord = await getKYCByEmail(userEmail);
+  if (!kycRecord || !kycRecord._id) {
+    throw new Error('Employee ID not found in KYC record');
+  }
+
+  const employeeId = kycRecord._id;
+
   try {
-    const response = await api.post(`/kyc/employees/documents`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const response = await fetch(`https://cafm.zenapi.co.in/api/kyc/${employeeId}/upload-multiple-documents`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include'
     });
 
-    return response.data;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Upload failed with status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (!result.uploadedDocuments) {
+      throw new Error('Invalid response format from server');
+    }
+
+    return result;
   } catch (error: unknown) {
     console.error('Error uploading documents:', error);
-    throw error;
+    throw error instanceof Error ? error : new Error('Failed to upload documents');
   }
 };
 

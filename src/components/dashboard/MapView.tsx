@@ -97,6 +97,13 @@ function setCachedAddress(key: string, value: string) {
 // In-memory cache
 const memoryGeoCache: Record<string, string> = {};
 
+// Remove any embedded coordinate patterns like "(13.2745°N, 77.5609°E)" from address strings
+function cleanAddress(raw: string | null | undefined): string {
+  if (!raw) return 'Address not found';
+  const withoutCoords = raw.replace(/\s*\((?:[^)]*?°[NSEW][^)]*)\)\s*$/i, '').trim();
+  return withoutCoords || 'Address not found';
+}
+
 async function reverseGeocode(lat: number, lon: number): Promise<string> {
   const key = `${lat},${lon}`;
   if (memoryGeoCache[key]) return memoryGeoCache[key];
@@ -108,15 +115,30 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
   // Throttle requests using queue
   return new Promise((resolve) => {
     geocodeQueue.push(async () => {
+      const saveAndResolve = (addr: string) => {
+        const cleaned = cleanAddress(addr);
+        memoryGeoCache[key] = cleaned;
+        setCachedAddress(key, cleaned);
+        resolve(cleaned);
+      };
       try {
-        const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4`);
-        const data = await res.json();
-        const address = (data.results && data.results[0]) ? data.results[0].formatted_address : 'No address found';
-        memoryGeoCache[key] = address;
-        setCachedAddress(key, address);
-        resolve(address);
+        const googleKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+        let address = '';
+        if (googleKey) {
+          const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${googleKey}`);
+          const data = await res.json();
+          address = (data.results && data.results[0]) ? data.results[0].formatted_address : '';
+        }
+        // If Google failed, fallback to OpenStreetMap Nominatim
+        if (!address) {
+          const res2 = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`);
+          const data2 = await res2.json();
+          address = data2 && (data2.display_name || data2.name) ? (data2.display_name || data2.name) : '';
+        }
+        if (!address) address = 'Address not found';
+        saveAndResolve(address);
       } catch {
-        resolve('No address found');
+        saveAndResolve('Address not found');
       }
     });
     processGeocodeQueue();
@@ -169,18 +191,28 @@ export default function MapView() {
       return addressCache[cacheKey];
     }
     try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
-      );
-      const data = await response.json();
-      if (data.results && data.results[0]) {
-        const address = data.results[0].formatted_address;
-        setAddressCache(prev => ({ ...prev, [cacheKey]: address }));
-        return address;
+      const googleKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+      let address = '';
+      if (googleKey) {
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${googleKey}`
+        );
+        const data = await response.json();
+        if (data.results && data.results[0]) {
+          address = data.results[0].formatted_address;
+        }
       }
-      return "No location data available";
+      if (!address) {
+        const res2 = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+        const data2 = await res2.json();
+        address = data2 && (data2.display_name || data2.name) ? (data2.display_name || data2.name) : '';
+      }
+      if (!address) address = "Address not found";
+      const cleaned = cleanAddress(address);
+      setAddressCache(prev => ({ ...prev, [cacheKey]: cleaned }));
+      return cleaned;
     } catch {
-      return "No location data available";
+      return "Address not found";
     }
   }, [addressCache]);
 
@@ -517,6 +549,9 @@ export default function MapView() {
                                     </div>
                                     <div style={{ backgroundColor: "#eff6ff", padding: "10px", borderRadius: "8px" }}>
                                       <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTimeUTC(entry.punchInTime)}</p>
+                                      {entry.punchInAddress && (
+                                        <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Address: {entry.punchInAddress}</p>
+                                      )}
                                       {entry.punchInPhoto && (
                                         <div style={{ marginTop: "6px" }}>
                                           <Image 
@@ -568,6 +603,9 @@ export default function MapView() {
                                     </div>
                                     <div style={{ backgroundColor: "#f0fdf4", padding: "10px", borderRadius: "8px" }}>
                                       <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Time: {formatTimeUTC(entry.punchOutTime)}</p>
+                                      {entry.punchOutAddress && (
+                                        <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>Address: {entry.punchOutAddress}</p>
+                                      )}
                                       {entry.punchOutPhoto && (
                                         <div style={{ marginTop: "6px" }}>
                                           <Image 
