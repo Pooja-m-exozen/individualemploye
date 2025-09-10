@@ -184,18 +184,63 @@ export default function DescriptiveView() {
   const [punchInAddress, setPunchInAddress] = useState('');
   const [punchOutAddress, setPunchOutAddress] = useState('');
 
-  // Add reverse geocode utility (simple fetch, replace with your API key if needed)
+  // Add reverse geocode utility using Nominatim (OpenStreetMap) - completely free, no API key required
   async function reverseGeocode(lat: number, lng: number): Promise<string> {
-    if (!lat || !lng) return '';
+    // Validate coordinates
+    if (!lat || !lng || isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+      console.warn('Invalid coordinates:', { lat, lng });
+      return 'Invalid coordinates';
+    }
+
+    console.log('Geocoding request for:', { lat, lng });
+   
     try {
-      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=AIzaSyCqvcEKoqwRG5PBDIVp-MjHyjXKT3s4KY4`);
-      const data = await res.json();
-      if (data.results && data.results[0]) {
-        return data.results[0].formatted_address;
+      // Using Nominatim (OpenStreetMap) - completely free, no API key required
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en&zoom=18`;
+      console.log('Geocoding URL:', url);
+
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'EmployeeManagementApp/1.0' // Required by Nominatim
+        }
+      });
+
+      if (!response.ok) {
+        console.warn(`Nominatim API error: ${response.status} ${response.statusText}`);
+        return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
       }
-      return '';
-    } catch {}
-    return '';
+
+      const data = await response.json();
+      console.log('Geocoding response:', data);
+
+      if (data && data.display_name) {
+        // Extract address components from Nominatim response
+        const address = data.address || {};
+        
+        // Build a readable address from available components
+        const addressParts = [
+          address.house_number && address.road ? `${address.house_number} ${address.road}` : address.road,
+          address.suburb || address.neighbourhood,
+          address.city || address.town || address.village,
+          address.state,
+          address.country
+        ].filter(Boolean);
+
+        const formattedAddress = addressParts.join(', ') || data.display_name;
+        
+        console.log('Formatted address:', formattedAddress);
+        return formattedAddress;
+      } else if (data && data.error) {
+        console.warn('Nominatim error:', data.error);
+        return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+      }
+     
+      console.warn('No results found for location:', { lat, lng });
+      return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    }
   }
 
   // Add a helper function at the top of the component (after imports)
