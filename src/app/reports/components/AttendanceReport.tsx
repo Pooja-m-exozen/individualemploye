@@ -13,28 +13,7 @@ import {
 
 // Google Maps interfaces removed - now using Nominatim (OpenStreetMap)
 
-interface LeaveBalance {
-    allocated: number;
-    used: number;
-    remaining: number;
-    pending: number;
-}
-
-interface LeaveBalanceResponse {
-    employeeId: string;
-    employeeName: string;
-    year: number;
-    balances: {
-        EL: LeaveBalance;
-        SL: LeaveBalance;
-        CL: LeaveBalance;
-        CompOff: LeaveBalance;
-    };
-    totalAllocated: number;
-    totalUsed: number;
-    totalRemaining: number;
-    totalPending: number;
-}
+// Unused leave balance interfaces removed
 
 
 
@@ -1072,9 +1051,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         }
 
         // Get the final Y position after all tables
-        const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
-        
         // Add note below the leave history table with proper spacing
+        const _finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
         doc.setFontSize(11);
         doc.setTextColor(41, 128, 185);
         doc.text('Leave History', 12, yPosition);
