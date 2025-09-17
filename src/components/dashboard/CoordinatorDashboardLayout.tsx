@@ -120,6 +120,7 @@ const CoordinatorDashboardLayout = ({ children }: CoordinatorDashboardLayoutProp
       subItems: [
         { label: "DC", icon: <FaClipboardList />, href: "/v1/employee/coordinator/stores-management/dc" },
         { label: "In Stock", icon: <FaClipboardList />, href: "/v1/employee/coordinator/stores-management/in-stock" },
+      { label: "Bulk Issue", icon: <FaClipboardList />, href: "/v1/employee/coordinator/stores-management/bulk-issue" },
         { label: "Requests", icon: <FaClipboardList />, href: "/v1/employee/coordinator/stores-management/requests" },
       ],
     },
