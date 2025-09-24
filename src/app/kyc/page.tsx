@@ -466,7 +466,9 @@ export default function ViewKYC() {
                             }`}>
                               {key === 'monthlySalary' && value ? 
                                 `₹${Number(value).toLocaleString('en-IN')}` : 
-                                Array.isArray(value) ? value.join(', ') : value?.toString() || '-'
+                                Array.isArray(value) ? value.join(', ') : 
+                                key === 'designation' ? (value?.toString() || '-').trim() :
+                                value?.toString() || '-'
                               }
                             </p>
                           </div>

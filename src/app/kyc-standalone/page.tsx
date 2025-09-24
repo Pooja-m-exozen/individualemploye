@@ -134,8 +134,8 @@ function StandaloneKYCPageContent() {
       // Find the project in the already loaded project list
       const selectedProject = projectList.find(project => project.projectName === projectName);
       if (selectedProject && selectedProject.designationWiseCount) {
-        // Extract designations from the designationWiseCount object
-        const designations = Object.keys(selectedProject.designationWiseCount);
+        // Extract designations from the designationWiseCount object and trim whitespace
+        const designations = Object.keys(selectedProject.designationWiseCount).map(d => d.trim());
         setAvailableDesignations(designations);
       } else {
         setAvailableDesignations([]);

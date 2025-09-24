@@ -163,7 +163,9 @@ export default function CreateKYCPage() {
   useEffect(() => {
     const selectedProject = projectList.find(p => p.projectName === personalDetails.projectName);
     if (selectedProject && selectedProject.designationWiseCount) {
-      setDesignationOptions(Object.keys(selectedProject.designationWiseCount));
+      // Trim whitespace from designation names to handle trailing spaces
+      const designations = Object.keys(selectedProject.designationWiseCount).map(d => d.trim());
+      setDesignationOptions(designations);
     } else {
       setDesignationOptions([]);
     }

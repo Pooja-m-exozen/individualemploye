@@ -162,21 +162,45 @@ function CreateKYCForm() {
     }
     
     try {
-      const res = await fetch("https://cafm.zenapi.co.in/api/kyc");
-      const data = await res.json();
-      const kycForms = data.kycForms || [];
+      // Fetch both KYC forms and project data
+      const [kycRes, projectRes] = await Promise.all([
+        fetch("https://cafm.zenapi.co.in/api/kyc"),
+        fetch("https://cafm.zenapi.co.in/api/project/projects")
+      ]);
       
-      // Get unique designations for the selected project
-      const designations = Array.from(
+      const [kycData, projectData] = await Promise.all([
+        kycRes.json(),
+        projectRes.json()
+      ]);
+      
+      const kycForms = kycData.kycForms || [];
+      const projects = Array.isArray(projectData) ? projectData : [];
+      
+      // Get designations from existing KYC forms for this project
+      const existingDesignations = Array.from(
         new Set(
           kycForms
             .filter((k: Record<string, unknown>) => (k.personalDetails as Record<string, unknown>)?.projectName === projectName)
             .map((k: Record<string, unknown>) => (k.personalDetails as Record<string, unknown>)?.designation)
             .filter(Boolean)
+            .map((d: string) => d.trim()) // Trim whitespace
         )
       ) as string[];
       
-      setDesignationOptions(designations);
+      // Get designations from project's designationWiseCount
+      const projectDesignations = projects
+        .find((p: Record<string, unknown>) => p.projectName === projectName)
+        ?.designationWiseCount 
+        ? Object.keys((projects.find((p: Record<string, unknown>) => p.projectName === projectName) as Record<string, unknown>).designationWiseCount as Record<string, unknown>)
+            .map((d: string) => d.trim()) // Trim whitespace
+        : [];
+      
+      // Combine and deduplicate designations
+      const allDesignations = Array.from(
+        new Set([...existingDesignations, ...projectDesignations])
+      ).filter(Boolean);
+      
+      setDesignationOptions(allDesignations);
     } catch (err) {
       console.error('Failed to fetch designations:', err);
       setDesignationOptions([]);
