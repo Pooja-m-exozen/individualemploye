@@ -176,23 +176,27 @@ export default function ViewIDCardsPage() {
       let qrPngDataUrl = '';
       if (qrData) {
         try {
-          qrPngDataUrl = await QRCode.toDataURL(JSON.stringify(qrData), { width: 128, margin: 1, color: { dark: '#000000', light: '#ffffff' } });
+          qrPngDataUrl = await QRCode.toDataURL(JSON.stringify(qrData), { width: 80, margin: 1, color: { dark: '#000000', light: '#ffffff' } });
         } catch (err) {
           console.error('Failed to generate QR PNG', err);
           qrPngDataUrl = '';
         }
       }
 
-      // Use ID card size: 350pt x 220pt
-      const cardWidth = 350;
-      const cardHeight = 220;
+      // Use ID card size: 400pt x 250pt (standard ID card ratio)
+      const cardWidth = 400;
+      const cardHeight = 250;
       const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: [cardWidth, cardHeight] });
 
-      // Background
-      doc.setFillColor(240, 248, 255); // light blue/white
-      doc.roundedRect(0, 0, cardWidth, cardHeight, 16, 16, 'F');
+      // White background
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, cardWidth, cardHeight, 'F');
 
-      // Exozen Logo (top center)
+      // Top section with company branding
+      doc.setFillColor(30, 60, 120); // Blue background for header
+      doc.rect(0, 0, cardWidth, 50, 'F');
+
+      // Company logo (top center)
       try {
         const logoUrl = '/v1/employee/exozen_logo1.png';
         const logoImg = await fetch(logoUrl);
@@ -207,62 +211,98 @@ export default function ViewIDCardsPage() {
         });
         logoReader.readAsDataURL(logoBlob);
         const logoData = await logoPromise;
-        doc.addImage(logoData, 'PNG', cardWidth/2 - 30, 12, 60, 30);
+        doc.addImage(logoData, 'PNG', cardWidth/2 - 40, 8, 80, 35);
       } catch {}
 
-      // Employee Photo (left)
-      const idPhotoX = 24, idPhotoY = 60, idPhotoW = 70, idPhotoH = 90;
+      // Company name below logo
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('EXOZEN', cardWidth/2, 45, { align: 'center' });
+
+      // Horizontal line separator
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(1);
+      doc.line(20, 55, cardWidth - 20, 55);
+
+      // Employee photo (left side)
+      const photoX = 30;
+      const photoY = 80;
+      const photoW = 80;
+      const photoH = 100;
+      
       let imageDataUrl = await getImageDataUri(card.employeeImage || '/placeholder-user.jpg');
       if (!imageDataUrl) {
-        // fallback to placeholder
         imageDataUrl = await getImageDataUri('/placeholder-user.jpg');
       }
       if (imageDataUrl) {
-        doc.roundedRect(idPhotoX-4, idPhotoY-4, idPhotoW+8, idPhotoH+8, 10, 10, 'S');
-        // Use correct format for addImage
+        // Photo border
+        doc.setDrawColor(100, 100, 100);
+        doc.setLineWidth(2);
+        doc.roundedRect(photoX - 2, photoY - 2, photoW + 4, photoH + 4, 8, 8, 'S');
+        
         const format = imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(imageDataUrl, format, idPhotoX, idPhotoY, idPhotoW, idPhotoH);
+        doc.addImage(imageDataUrl, format, photoX, photoY, photoW, photoH);
       }
 
-      // QR code (right)
-      const idQrW = 60, idQrH = 60;
-      const idQrX = cardWidth - 24 - idQrW, idQrY = 60;
-      if (qrPngDataUrl) {
-        doc.roundedRect(idQrX-4, idQrY-4, idQrW+8, idQrH+8, 10, 10, 'S');
-        doc.addImage(qrPngDataUrl, 'PNG', idQrX, idQrY, idQrW, idQrH);
-      }
+      // Employee details (center)
+      const detailsX = photoX + photoW + 20;
+      const detailsY = 90;
+      
+      // Employee name (large, bold)
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text(card.fullName, detailsX, detailsY);
 
-      // Details (centered vertically between photo and QR)
-      const detailsX = idPhotoX + idPhotoW + 12; // slightly closer to photo
-      const detailsY = 70;
-      const labelColor = [60, 90, 160];
-      const valueColor = [20, 40, 80];
+      // Designation (medium, blue)
+      doc.setTextColor(30, 60, 120);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'normal');
+      doc.text(card.designation, detailsX, detailsY + 20);
+
+      // Project info
+      doc.setTextColor(100, 100, 100);
       doc.setFontSize(10);
-      const details = [
-        [`Name`, card.fullName],
-        [`Employee ID`, card.employeeId],
-        [`Designation`, card.designation],
-        [`Project`, card.projectName],
-        [`Gender`, card.gender],
-        [`Blood Group`, card.bloodGroup],
-        [`Issued`, card.issuedDate ? new Date(card.issuedDate).toLocaleDateString() : 'N/A'],
-        [`Valid Until`, new Date(card.validUntil).toLocaleDateString()],
-        [`Status`, card.status],
-      ];
-      let y = detailsY;
-      details.forEach(([label, value]) => {
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
-        doc.text(`${label}:`, detailsX, y, { baseline: 'top' });
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(valueColor[0], valueColor[1], valueColor[2]);
-        doc.text(String(value), detailsX + 68, y, { baseline: 'top' });
-        y += 14;
-      });
+      doc.text(`Project: ${card.projectName}`, detailsX, detailsY + 40);
 
-      // Border for card
-      doc.setDrawColor(30, 60, 120);
-      doc.roundedRect(4, 4, cardWidth-8, cardHeight-8, 16, 16, 'S');
+      // Employee ID
+      doc.text(`ID: ${card.employeeId}`, detailsX, detailsY + 55);
+
+      // QR Code (right side)
+      const qrX = cardWidth - 100;
+      const qrY = 80;
+      const qrSize = 80;
+      
+      if (qrPngDataUrl) {
+        // QR code border
+        doc.setDrawColor(100, 100, 100);
+        doc.setLineWidth(1);
+        doc.roundedRect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4, 4, 4, 'S');
+        doc.addImage(qrPngDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+      }
+
+      // Bottom section with additional details
+      const bottomY = 200;
+      
+      // Blood Group
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(10);
+      doc.text(`Blood Group: ${card.bloodGroup}`, detailsX, bottomY);
+
+      // Valid Until
+      doc.text(`Valid Until: ${new Date(card.validUntil).toLocaleDateString()}`, detailsX, bottomY + 15);
+
+      // Company address (bottom)
+      doc.setTextColor(150, 150, 150);
+      doc.setFontSize(8);
+      doc.text('25/1, 4th Floor, SKIP House, Museum Rd, near Brigade Tower,', cardWidth/2, cardHeight - 20, { align: 'center' });
+      doc.text('Shanthala Nagar, Ashok Nagar, Bengaluru, Karnataka 560025', cardWidth/2, cardHeight - 10, { align: 'center' });
+
+      // Outer border
+      doc.setDrawColor(50, 50, 50);
+      doc.setLineWidth(2);
+      doc.rect(5, 5, cardWidth - 10, cardHeight - 10, 'S');
 
       doc.save(`employee-id-card-${card.employeeId || 'download'}.pdf`);
     } catch (e) {

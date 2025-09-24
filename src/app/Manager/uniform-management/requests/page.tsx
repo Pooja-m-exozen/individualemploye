@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import  ManagerDashboardLayout from '@/components/dashboard/ManagerDashboardLayout';
-import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaPlus } from "react-icons/fa";
+import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaPlus, FaEdit, FaTimes } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 // import Select from "react-select";
@@ -101,6 +101,23 @@ export default function UniformRequestsPage() {
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [formValues, setFormValues] = useState<{ [key: string]: { size: string; qty: number } }>({});
   const [actionLoading, setActionLoading] = useState<{ [key: string]: string | null }>({});
+  
+  // Edit modal state
+  const [editModal, setEditModal] = useState<{ open: boolean, request: UniformRequest | null }>({ open: false, request: null });
+  const [editFormData, setEditFormData] = useState<{
+    uniformType: string[];
+    size: { [key: string]: string };
+    qty: number;
+    remarks: string;
+  }>({
+    uniformType: [],
+    size: {},
+    qty: 1,
+    remarks: ''
+  });
+  const [editUniformOptions, setEditUniformOptions] = useState<UniformOption[]>([]);
+  const [editOptionsLoading, setEditOptionsLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
 
   // Reset modal state when opening
   const handleOpenModal = () => {
@@ -473,6 +490,132 @@ const handleCreateRequest = async (e: React.FormEvent) => {
       setFormValues({});
     }
   }, [showCreateModal, newRequest.employeeId, newRequest.replacementType, fetchProjectEmployees]);
+
+  // Edit modal functions
+  const handleOpenEditModal = (request: UniformRequest) => {
+    setEditModal({ open: true, request });
+    // Initialize form data with current request data
+    setEditFormData({
+      uniformType: request.requestedItems || [],
+      size: request.sizes || {},
+      qty: request.qty || 1,
+      remarks: request.remarks || ''
+    });
+  };
+
+  const handleCloseEditModal = () => {
+    setEditModal({ open: false, request: null });
+    setEditFormData({
+      uniformType: [],
+      size: {},
+      qty: 1,
+      remarks: ''
+    });
+    setEditUniformOptions([]);
+  };
+
+  // Fetch uniform options for edit modal
+  useEffect(() => {
+    if (editModal.open && editModal.request) {
+      fetchEditUniformOptions(editModal.request.employee.employeeId);
+    }
+  }, [editModal]);
+
+  const fetchEditUniformOptions = async (employeeId: string) => {
+    setEditOptionsLoading(true);
+    try {
+      const res = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${employeeId}/options`);
+      const data = await res.json();
+      if (data.success) {
+        setEditUniformOptions(data.uniformOptions || []);
+      } else {
+        setEditUniformOptions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching uniform options:', error);
+      setEditUniformOptions([]);
+    } finally {
+      setEditOptionsLoading(false);
+    }
+  };
+
+  const handleEditUniformTypeChange = (type: string, checked: boolean) => {
+    if (checked) {
+      setEditFormData(prev => ({
+        ...prev,
+        uniformType: [...prev.uniformType, type],
+        size: { ...prev.size, [type]: '' }
+      }));
+    } else {
+      setEditFormData(prev => ({
+        ...prev,
+        uniformType: prev.uniformType.filter(t => t !== type),
+        size: Object.fromEntries(
+          Object.entries(prev.size).filter(([key]) => key !== type)
+        )
+      }));
+    }
+  };
+
+  const handleEditSizeChange = (type: string, size: string) => {
+    setEditFormData(prev => ({
+      ...prev,
+      size: { ...prev.size, [type]: size }
+    }));
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editModal.request) return;
+    
+    setEditLoading(true);
+    try {
+      const requestBody = {
+        uniformType: editFormData.uniformType,
+        size: editFormData.size,
+        qty: editFormData.qty,
+        remarks: editFormData.remarks
+      };
+
+      const res = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${editModal.request.employee.employeeId}/edit`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        // Update the local state
+        setRequests(prev => 
+          prev.map(req => 
+            req._id === editModal.request!._id 
+              ? { 
+                  ...req, 
+                  requestedItems: editFormData.uniformType,
+                  sizes: editFormData.size,
+                  qty: editFormData.qty,
+                  remarks: editFormData.remarks
+                }
+              : req
+          )
+        );
+        handleCloseEditModal();
+        setToast({ type: "success", message: "Uniform request updated successfully!" });
+        setTimeout(() => setToast(null), 3500);
+      } else {
+        setToast({ type: "error", message: data.message || "Failed to update uniform request" });
+        setTimeout(() => setToast(null), 3500);
+      }
+    } catch (error) {
+      console.error('Error updating uniform request:', error);
+      setToast({ type: "error", message: "Failed to update uniform request" });
+      setTimeout(() => setToast(null), 3500);
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
 
   // Fetch employee images for requests
@@ -1040,8 +1183,23 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                       <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={request.remarks || ''}>{request.remarks || ''}</div></td>
                       <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <div className="flex gap-1 justify-center">
-                          {/* Verify button - only show for Pending verification status */}
-                          {request.verificationStatus !== 'Verified' && (
+                          {/* Edit button - show for all statuses except final ones */}
+                          {request.status !== 'Approved' && request.status !== 'Rejected' && (
+                            <button
+                              onClick={() => handleOpenEditModal(request)}
+                              title="Edit Request"
+                              className={`px-2 py-1 rounded font-semibold text-xs shadow transition focus:outline-none focus:ring-2 ${
+                                theme === 'dark' 
+                                  ? 'bg-blue-700 text-white hover:bg-blue-800 focus:ring-blue-400' 
+                                  : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-400'
+                              }`}
+                            >
+                              <FaEdit />
+                            </button>
+                          )}
+
+                          {/* Verify button - only show for Pending verification status and not approved */}
+                          {request.verificationStatus !== 'Verified' && request.status !== 'Approved' && (
                             <button
                               onClick={() => handleAction(request._id, 'verify')}
                               disabled={actionLoading[request._id] === 'verify'}
@@ -1106,6 +1264,177 @@ const handleCreateRequest = async (e: React.FormEvent) => {
             )}
           </div>
         </div>
+
+        {/* Edit Modal */}
+        {editModal.open && editModal.request && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className={`rounded-2xl shadow-2xl w-full max-w-3xl relative animate-fade-in ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white'}`}
+              style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+              <div className="p-8 border-b">
+                <button
+                  className={`absolute top-3 right-4 text-2xl font-bold focus:outline-none ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
+                  onClick={handleCloseEditModal}
+                  title="Close"
+                >×</button>
+                <h2 className={`text-2xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>
+                  <FaEdit /> Edit Uniform Request
+                </h2>
+                <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {editModal.request.employee.fullName} ({editModal.request.employee.employeeId})
+                </p>
+              </div>
+              
+              <div className="overflow-y-auto flex-1 p-8">
+                <div className="space-y-5">
+                  {/* Uniform Types Selection */}
+                  <div>
+                    <label className={`block font-semibold mb-2 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
+                      Select Uniform Types
+                    </label>
+                    {editOptionsLoading ? (
+                      <div className="text-blue-400 flex items-center gap-2">
+                        <FaSpinner className="animate-spin" />
+                        Loading uniform options...
+                      </div>
+                    ) : editUniformOptions.length > 0 ? (
+                      <div className={`overflow-x-auto max-h-64 border rounded-lg mb-2 ${theme === 'dark' ? 'border-blue-800' : 'border-blue-200'}`}>
+                        <table className="min-w-full text-xs">
+                          <thead>
+                            <tr className={theme === 'dark' ? 'bg-gray-800' : 'bg-blue-100'}>
+                              <th className="px-2 py-1">Uniform Type</th>
+                              <th className="px-2 py-1">Available Sizes</th>
+                              <th className="px-2 py-1">Select</th>
+                              <th className="px-2 py-1">Size</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {editUniformOptions.map(option => {
+                              const sizesArray = option.sizes || (option.set ? (Array.isArray(option.set) ? option.set : [option.set]) : []);
+                              const isSelected = editFormData.uniformType.includes(option.type);
+                              
+                              return (
+                                <tr key={option.type}>
+                                  <td className="px-2 py-1">{option.type}</td>
+                                  <td className="px-2 py-1">
+                                    <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                      {sizesArray.join(', ')}
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-1">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => handleEditUniformTypeChange(option.type, e.target.checked)}
+                                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1">
+                                    {isSelected && (
+                                      <select
+                                        className={`w-20 border rounded px-1 py-0.5 text-xs ${
+                                          theme === 'dark' 
+                                            ? 'bg-gray-800 border-blue-900 text-white' 
+                                            : 'border-gray-300'
+                                        }`}
+                                        value={editFormData.size[option.type] || ''}
+                                        onChange={(e) => handleEditSizeChange(option.type, e.target.value)}
+                                      >
+                                        <option value="">Select Size</option>
+                                        {sizesArray.map((size: string) => (
+                                          <option key={size} value={size}>{size}</option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        No uniform options available for this employee.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected Uniforms Summary */}
+                  {editFormData.uniformType.length > 0 && (
+                    <div>
+                      <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
+                        Selected Items
+                      </label>
+                      <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-blue-50'}`}>
+                        {editFormData.uniformType.map((type, index) => (
+                          <div key={type} className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {index + 1}. {type} {editFormData.size[type] && `(${editFormData.size[type]})`}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quantity */}
+                  <div>
+                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
+                      Quantity
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editFormData.qty}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, qty: parseInt(e.target.value) || 1 }))}
+                      className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                        theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Remarks */}
+                  <div>
+                    <label className={`block font-semibold mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
+                      Remarks
+                    </label>
+                    <textarea
+                      value={editFormData.remarks}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, remarks: e.target.value }))}
+                      rows={3}
+                      className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                        theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'border-blue-200'
+                      }`}
+                      placeholder="Enter any additional remarks..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 border-t">
+                <button
+                  onClick={handleEditSubmit}
+                  disabled={editLoading || editFormData.uniformType.length === 0}
+                  className={`w-full py-2 rounded-xl font-bold shadow transition-all disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                    theme === 'dark' 
+                      ? 'bg-gradient-to-r from-blue-800 to-blue-900 text-white hover:from-blue-900 hover:to-blue-950' 
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700'
+                  }`}
+                >
+                  {editLoading ? (
+                    <>
+                      <FaSpinner className="animate-spin inline mr-2" />
+                      Updating Request...
+                    </>
+                  ) : (
+                    <>
+                      <FaEdit className="inline mr-2" />
+                      Update Request
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </ManagerDashboardLayout>
   );
