@@ -198,7 +198,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         const data: UniformApiResponse = await res.json();
         if (data.success) {
           // Only show projects that are NOT generic
-          let filteredRequests = data.uniforms.filter(
+          const filteredRequests = data.uniforms.filter(
             req => req.projectName === selectedProject && 
                    req.approvalStatus === 'Approved' &&
                    req.projectName !== "General" &&
