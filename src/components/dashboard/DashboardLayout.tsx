@@ -3,7 +3,7 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import type { JSX } from 'react';
 import Image from 'next/image';
-import {  FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus, FaChevronLeft,  FaUser, FaCalendarAlt, FaMoneyBillWave, FaTasks,  FaHeadset,  FaBell,  FaIdCard,  FaTimes, FaBars, FaCog, FaEdit, FaUserCheck, FaCalendarCheck, FaClipboardCheck, FaHistory, FaSun, FaMoon } from 'react-icons/fa';
+import {  FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus, FaChevronLeft,  FaUser, FaCalendarAlt, FaMoneyBillWave, FaTasks,  FaHeadset,  FaBell,  FaIdCard,  FaTimes, FaBars, FaCog, FaEdit, FaUserCheck, FaCalendarCheck, FaClipboardCheck, FaHistory, FaSun, FaMoon, FaEye, FaEyeSlash, FaUserPlus } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { logout, isAuthenticated, getUserRole, getEmployeeId } from '@/services/auth';
@@ -13,13 +13,6 @@ import { useTheme } from '@/context/ThemeContext';
 
 interface DashboardLayoutProps {
   children: ReactNode;
-}
-
-// Add new interfaces
-interface RolePrompt {
-  show: boolean;
-  message: string[];
-  type: 'info' | 'success' | 'warning';
 }
 
 interface MenuItem {
@@ -37,12 +30,6 @@ interface UserDetails {
   designation: string;
 }
 
-interface RoleOption {
-  value: string;
-  label: string;
-  menuAccess: string[];
-}
-
 const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const router = useRouter();
   const pathname = usePathname();
@@ -57,36 +44,33 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [rolePrompt, setRolePrompt] = useState<RolePrompt>({
-    show: false,
-    message: [],
-    type: 'info'
-  });
-  const { theme, toggleTheme } = useTheme();
-  const [selectedRole, setSelectedRole] = useState<string>('employee');
-
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [pendingRole, setPendingRole] = useState<string | null>(null);
-
-  const roleOptions: RoleOption[] = [
-    {
-      value: 'employee',
-      label: 'Employee',
-      menuAccess: ['Dashboard', 'KYC', 'Attendance', 'Leave Management', 'Payslip', 'Reports', 'Helpdesk']
-    },
-    {
-      value: 'manager',
-      label: 'Manager',
-      menuAccess: ['Dashboard', 'KYC', 'Attendance']
-    },
-    {
-      value: 'admin',
-      label: 'Admin',
-      menuAccess: ['Dashboard', 'KYC', 'Attendance', 'Leave Management', 'Payslip', 'Reports', 'Helpdesk']
-    }
-  ];
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  const [showManagerPasswordModal, setShowManagerPasswordModal] = useState(false);
+  const [ManagerPassword, setManagerPassword] = useState('');
+  const [ManagerPasswordError, setManagerPasswordError] = useState(false);
+  const [showHRPasswordModal, setShowHRPasswordModal] = useState(false);
+  const [HRPassword, setHRPassword] = useState('');
+  const [HRPasswordError, setHRPasswordError] = useState(false);
+  const [showCoordinatorPasswordModal, setShowCoordinatorPasswordModal] = useState(false);
+  const [coordinatorPassword, setCoordinatorPassword] = useState("");
+  const [coordinatorPasswordError, setCoordinatorPasswordError] = useState(false);
+  const [showCoordinatorPassword, setShowCoordinatorPassword] = useState(false);
+  const [showOpsPassword, setShowOpsPassword] = useState(false);
+  const [showManagerPassword, setShowManagerPassword] = useState(false);
+  const [showHRPassword, setShowHRPassword] = useState(false);
+  const [showUserTaskPasswordModal, setShowUserTaskPasswordModal] = useState(false);
+  const [userTaskPassword, setUserTaskPassword] = useState("");
+  const [userTaskPasswordError, setUserTaskPasswordError] = useState(false);
+  const [showUserTaskPassword, setShowUserTaskPassword] = useState(false);
+  const [showProjectSelectionModal, setShowProjectSelectionModal] = useState(false);
+  const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [projectLoading, setProjectLoading] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState<string>("");
+  const [linkCopied, setLinkCopied] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const checkAuth = () => {
@@ -172,8 +156,9 @@ const handleLogout = () => {
   };
 
   const getMenuItemsByRole = (): MenuItem[] => {
-    const currentRole = roleOptions.find(role => role.value === selectedRole);
-    const allMenuItems = [
+    // const role = getUserRole(); // Get the user's role
+
+    const menuItems: MenuItem[] = [
       {
         icon: <FaTachometerAlt />,
         label: 'Dashboard',
@@ -269,12 +254,9 @@ const handleLogout = () => {
         href: '/helpdesk',
       },
     ];
-    
-    if (!currentRole) return allMenuItems;
-    
-    return allMenuItems.filter(item => 
-      currentRole.menuAccess.includes(item.label)
-    );
+
+
+    return menuItems;
   };
 
   const menuItems: MenuItem[] = getMenuItemsByRole();
@@ -414,80 +396,119 @@ const handleLogout = () => {
     }
   };
 
-  const handleRoleChange = (newRole: string) => {
-    setPendingRole(newRole);
-    setPasswordInput('');
-    setPasswordError('');
-    setShowPasswordModal(true);
+  const handleOpsManagerView = () => {
     setShowProfileDropdown(false);
+    setShowPasswordModal(true);
   };
 
   const handlePasswordSubmit = () => {
-    if (passwordInput === 'Qwerty123' && pendingRole) {
-      setSelectedRole(pendingRole);
-      const roleDetails = roleOptions.find(role => role.value === pendingRole);
-      if (roleDetails) {
-        showRolePrompt(roleDetails.label);
-      }
+    if (password === 'Opsexo2025!') {
+      setPasswordError(false);
       setShowPasswordModal(false);
-      setPendingRole(null);
-      setPasswordInput('');
+      router.push('/Manager-Ops/dashboard');
     } else {
-      setPasswordError('Invalid password. Please try again.');
+      setPasswordError(true);
     }
   };
 
-  const showRolePrompt = (role: string) => {
-    const messages = [
-      `Switching to ${role} role`,
-      'Enter password to confirm access'
-    ];
-    
-    setRolePrompt({
-      show: true,
-      message: messages,
-      type: 'info'
-    });
-
-    // Auto-hide after 5 seconds
-    setTimeout(() => {
-      setRolePrompt(prev => ({ ...prev, show: false }));
-    }, 5000);
+  const handleManagerView = () => {
+    setShowProfileDropdown(false);
+    setShowManagerPasswordModal(true);
   };
 
-  const renderRolePrompt = () => {
-    if (!rolePrompt.show) return null;
+  const handleManagerPasswordSubmit = () => {
+    if (ManagerPassword === 'Manager@2025exo!') {
+      setManagerPasswordError(false);
+      setShowManagerPasswordModal(false);
+      setManagerPassword('');
+      router.push('/Manager/dashboard');
+    } else {
+      setManagerPasswordError(true);
+    }
+  };
 
-    const bgColor = theme === 'dark' 
-      ? 'bg-gray-800 border-gray-700' 
-      : 'bg-blue-50 border-blue-100';
-    
-    const textColor = theme === 'dark'
-      ? 'text-white'
-      : 'text-blue-700';
+  const handleHRPasswordSubmit = () => {
+    if (HRPassword === 'Hrd@exozen2025!') {
+      setHRPasswordError(false);
+      setShowHRPasswordModal(false);
+      setHRPassword('');
+      router.push('/hrd/dashboard');
+    } else {
+      setHRPasswordError(true);
+    }
+  };
 
-    return (
-      <div className={`fixed top-20 right-4 z-50 p-4 rounded-xl border ${bgColor} shadow-lg max-w-md animate-fade-in`}>
-        <div className="flex flex-col space-y-1">
-          {rolePrompt.message.map((msg, idx) => (
-            <p key={idx} className={`text-sm ${textColor}`}>{msg}</p>
-          ))}
-        </div>
-        <button 
-          onClick={() => setRolePrompt(prev => ({ ...prev, show: false }))}
-          className={`absolute top-2 right-2 ${textColor} hover:opacity-75`}
-        >
-          <FaTimes className="w-4 h-4" />
-        </button>
-      </div>
-    );
+  const handleCoordinatorView = () => {
+    setShowProfileDropdown(false);
+    setShowCoordinatorPasswordModal(true);
+  };
+
+  const handleCoordinatorPasswordSubmit = () => {
+    if (coordinatorPassword === 'coordinator@exozen2025!') {
+      setCoordinatorPasswordError(false);
+      setShowCoordinatorPasswordModal(false);
+      setCoordinatorPassword("");
+      router.push('/coordinator/dashboard');
+    } else {
+      setCoordinatorPasswordError(true);
+    }
+  };
+
+  const handleCreateLink = () => {
+    setShowProfileDropdown(false);
+    setShowProjectSelectionModal(true);
+    setGeneratedLink("");
+    setLinkCopied(false);
+    // Always fetch projects when opening the modal
+    fetchProjects();
+  };
+
+  const fetchProjects = async () => {
+    setProjectLoading(true);
+    try {
+      const response = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+      const data = await response.json();
+      const allProjects = Array.isArray(data) ? data : [];
+      
+      // Show all projects in the dropdown
+      setProjectList(allProjects);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setProjectList([]);
+    } finally {
+      setProjectLoading(false);
+    }
+  };
+
+  const handleProjectSelection = () => {
+    if (selectedProject) {
+      // Generate shareable link with project parameter
+      const baseUrl = window.location.origin;
+      const link = `${baseUrl}/v1/employee/kyc-standalone?project=${encodeURIComponent(selectedProject)}&frozen=true`;
+      setGeneratedLink(link);
+    }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
+
+  const resetModal = () => {
+    setShowProjectSelectionModal(false);
+    setSelectedProject("");
+    setGeneratedLink("");
+    setLinkCopied(false);
   };
 
   return (
     <UserContext.Provider value={userDetails}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-        {/* Add the role prompt render */}
-        {renderRolePrompt()}
         {/* Overlay for mobile */}
         {isMobileMenuOpen && (
           <div 
@@ -500,89 +521,60 @@ const handleLogout = () => {
         <aside
           className={`fixed inset-y-0 left-0 flex flex-col
             ${isSidebarExpanded ? 'w-72' : 'w-20'}
-            ${theme === 'dark' ? 'bg-gray-800/95 backdrop-blur-sm border-gray-700' : 'bg-white/95 backdrop-blur-sm border-gray-200'}
-            border-r shadow-lg
-            transition-all duration-300 ease-in-out z-30
-            hover:shadow-xl`}
-          aria-label="Sidebar navigation"
+            ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}
+            border-r shadow-xl
+            transition-all duration-300 z-30`}
         >
           {/* Logo and Toggle */}
-          <div className={`flex items-center justify-between p-5 border-b 
-            ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-100'} 
-            h-[65px] backdrop-blur-sm`}>
+          <div className={`flex items-center justify-between p-5 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} h-[65px]`}>
             <div className={`flex items-center ${isSidebarExpanded ? 'justify-start' : 'justify-center'} w-full`}>
-              <div className="relative group">
-                <Image
-                  src="/v1/employee/logo-exo .png"
-                  alt="Exozen Logo"
-                  width={40}
-                  height={40}
-                  className="rounded-xl shadow-sm transform transition-all duration-300 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 rounded-xl bg-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </div>
+              <Image
+                src="/v1/employee/logo-exo .png"
+                alt="Exozen Logo"
+                width={40}
+                height={40}
+                className="rounded-xl shadow-sm"
+              />
               {isSidebarExpanded && (
-                <span className={`ml-3 font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} text-2xl tracking-wide
-                  transition-all duration-300 ease-in-out transform`}>
-                  Exozen
-                </span>
+                <span className={`ml-3 font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} text-2xl tracking-wide`}>Exozen</span>
               )}
             </div>
             <button
               onClick={toggleSidebar}
-              className={`p-2 rounded-xl 
-                ${theme === 'dark' 
-                  ? 'text-gray-400 hover:bg-gray-700/70 hover:text-white' 
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'} 
-                transition-all duration-200 ml-auto flex-shrink-0
-                focus:outline-none focus:ring-2 focus:ring-blue-500/50
-                active:scale-95`}
+              className={`p-2 rounded-xl ${theme === 'dark' ? 'text-gray-400 hover:bg-gray-700 hover:text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'} transition-all duration-200 ml-auto flex-shrink-0`}
               title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
-              aria-label={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
             >
-              {isSidebarExpanded 
-                ? <FaChevronLeft className="w-5 h-5 transform transition-transform duration-200 hover:scale-110"/> 
-                : <FaChevronRight className="w-5 h-5 transform transition-transform duration-200 hover:scale-110"/>}
+              {isSidebarExpanded ? <FaChevronLeft className="w-5 h-5"/> : <FaChevronRight className="w-5 h-5"/>}
             </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
-            <ul className="p-4 space-y-1.5">
+          <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            <ul className="p-4 space-y-2">
               {menuItems.map(renderMenuItem)}
             </ul>
           </nav>
         </aside>
 
         {/* Main Content with Header */}
-        <div className={`flex-1 flex flex-col min-w-0 
-          transition-all duration-300 ease-in-out 
-          ${isSidebarExpanded ? 'ml-72' : 'ml-20'}`}>
+        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
+          isSidebarExpanded ? 'ml-72' : 'ml-20'
+        }`}>
           {/* Header */}
-          <header className={`${theme === 'dark' 
-            ? 'bg-gray-800/95 border-gray-700' 
-            : 'bg-white/95 border-gray-200'} 
-            border-b shadow-md z-20 sticky top-0 h-[64px] flex items-center
-            transition-colors duration-200 backdrop-blur-sm`}>
+          <header className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} 
+            border-b shadow-lg z-20 sticky top-0 h-[64px] flex items-center transition-colors duration-200`}>
             <div className="flex items-center justify-between px-4 w-full h-full">
               {/* Left: Menu Icon & Page Title */}
               <div className="flex items-center gap-3 min-w-0">
                 <button
                   onClick={toggleSidebar}
-                  className={`p-2 rounded-lg
-                    ${theme === 'dark' 
-                      ? 'text-gray-400 hover:text-white hover:bg-gray-700/70' 
-                      : 'text-gray-500 hover:text-blue-700 hover:bg-gray-100'} 
-                    transition-all duration-200 
-                    focus:outline-none focus:ring-2 focus:ring-blue-500/50
-                    active:scale-95`}
+                  className={`p-2 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-blue-700'} 
+                    transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200`}
                   title={isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
                 >
                   <FaBars className="w-5 h-5" />
                 </button>
-                <h1 className={`text-xl font-bold 
-                  ${theme === 'dark' ? 'text-white' : 'text-gray-900'} 
-                  tracking-tight truncate transition-colors duration-200`}>
+                <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} tracking-tight truncate`}>
                   {(() => {
                     const current = menuItems.find(item => item.href === pathname);
                     return current ? current.label : '';
@@ -590,31 +582,19 @@ const handleLogout = () => {
                 </h1>
               </div>
 
-              {/* Right: Actions */}
-              <div className="flex items-center gap-3 ml-auto">
+              {/* Right: Date/Time, Settings, Notifications, Profile */}
+              <div className="flex items-center gap-2 ml-auto">
                 {/* Theme Toggle */}
                 <button
                   onClick={toggleTheme}
-                  className={`p-2 rounded-full 
-                    ${theme === 'dark' 
-                      ? 'text-yellow-400 hover:bg-gray-700/70' 
-                      : 'text-gray-500 hover:bg-gray-100'} 
-                    transition-all duration-200
-                    focus:outline-none focus:ring-2 focus:ring-blue-500/50
-                    active:scale-95`}
+                  className={`p-2 rounded-full ${theme === 'dark' ? 'text-yellow-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'} transition-all duration-200`}
                   title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
                 >
-                  {theme === 'dark' 
-                    ? <FaSun className="w-5 h-5 transform hover:rotate-12 transition-transform duration-200" /> 
-                    : <FaMoon className="w-5 h-5 transform hover:-rotate-12 transition-transform duration-200" />}
+                  {theme === 'dark' ? <FaSun className="w-5 h-5" /> : <FaMoon className="w-5 h-5" />}
                 </button>
 
                 {/* Date and Time */}
-                <div className={`${theme === 'dark' 
-                  ? 'bg-gray-700/70 text-gray-200 border-gray-600' 
-                  : 'bg-blue-50 text-blue-700 border-blue-100'} 
-                  font-medium text-sm px-4 py-1.5 rounded-full border 
-                  min-w-fit shadow-sm transition-all duration-200`}>
+                <div className={`${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-blue-50 text-blue-700 border-blue-100'} font-medium text-sm px-4 py-1.5 rounded-full border min-w-fit`}>
                   {currentDateTime}
                 </div>
 
@@ -649,74 +629,73 @@ const handleLogout = () => {
                       </div>
                       {/* Profile Dropdown */}
                       {showProfileDropdown && (
-                        <div className={`absolute right-0 top-full mt-2 w-72 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-xl border py-2 z-50 transform transition-all duration-200 origin-top-right`}>
-                          {/* User Info Section */}
-                          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                            <div className="flex items-center gap-3">
-                              <Image
-                                src={userDetails?.employeeImage || '/placeholder-user.jpg'}
-                                alt={userDetails?.fullName || 'User'}
-                                width={40}
-                                height={40}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-white shadow"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} truncate`}>
-                                  {userDetails?.fullName}
-                                </p>
-                                <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} truncate`}>
-                                  {userDetails?.email}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Role Selection Section */}
-                          <div className="px-4 py-3">
-                            <label className={`block text-xs font-medium mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                              Switch Role
-                            </label>
-                            <div className="relative">
-                              <select
-                                value={selectedRole}
-                                onChange={(e) => handleRoleChange(e.target.value)}
-                                className={`w-full px-3 py-2 appearance-none rounded-lg border ${
-                                  theme === 'dark'
-                                    ? 'bg-gray-700 border-gray-600 text-white'
-                                    : 'bg-white border-gray-200 text-gray-900'
-                                } pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                              >
-                                {roleOptions.map(role => (
-                                  <option key={role.value} value={role.value}>
-                                    {role.label}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                                <FaChevronRight className={`w-4 h-4 transform rotate-90 ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                                }`} />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className={`h-px mx-4 my-2 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`} />
-
-                          {/* Actions Section */}
-                          <div className="px-2 py-2">
+                        <div className={`absolute right-0 top-full mt-2 w-56 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-xl border py-2 z-50 transform transition-all duration-200 origin-top-right`}>
+                          {/* Add Ops-Manager View option if the role is Manager-Ops */}
+                          {getUserRole() === 'Manager-Ops' && (
                             <button
-                              onClick={handleEditProfile}
-                              className={`w-full text-left px-3 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'} flex items-center gap-2 rounded-lg text-sm`}
+                              onClick={handleOpsManagerView}
+                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
                             >
-                              <FaEdit className="text-blue-500 w-4 h-4" /> Edit Profile
+                              <FaTasks className="text-blue-500 w-5 h-5" /> Ops-Manager View
                             </button>
+                          )}
+                          {/* Add Manager option if the role is Manager */}
+                          {getUserRole() === 'Manager' && (
                             <button
-                              onClick={handleLogout}
-                              className={`w-full text-left px-3 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-sm`}
+                              onClick={handleManagerView}
+                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-green-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
                             >
-                              <FaSignOutAlt className="text-red-500 w-4 h-4" /> Logout
+                              <FaTasks className="text-green-500 w-5 h-5" /> Manager
                             </button>
-                          </div>
+                          )}
+                          {/* Add HR View option if the role is HR */}
+                          {getUserRole() === 'HR' && (
+                            <button
+                              onClick={() => { setShowProfileDropdown(false); setShowHRPasswordModal(true); }}
+                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-purple-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                            >
+                              <FaTasks className="text-purple-500 w-5 h-5" /> HR View
+                            </button>
+                          )}
+                          {/* Add Coordinator View option if the role is coordinator */}
+                          {getUserRole() === 'Coordinator' && (
+                            <button
+                              onClick={handleCoordinatorView}
+                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-orange-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                            >
+                              <FaUser className="text-orange-500 w-5 h-5" /> Coordinator View
+                            </button>
+                          )}
+                          {/* Add + Task option if the role is user */}
+                          {getUserRole() === 'User' && (
+                            <button
+                              onClick={() => { setShowProfileDropdown(false); setShowUserTaskPasswordModal(true); }}
+                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                            >
+                              <FaPlus className="text-blue-500 w-5 h-5" /> + Task
+                            </button>
+                          )}
+                          <button
+                            onClick={handleEditProfile}
+                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                          >
+                            <FaUser className="text-blue-500 w-5 h-5" /> Edit Profile
+                          </button>
+                          {/* Add Create Link option for Manager role */}
+                          {getUserRole() === 'Manager' && (
+                            <button
+                              onClick={handleCreateLink}
+                              className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-green-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                            >
+                              <FaUserPlus className="text-green-500 w-5 h-5" /> Create Link
+                            </button>
+                          )}
+                          <button
+                            onClick={handleLogout}
+                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                          >
+                            <FaSignOutAlt className="text-red-500 w-5 h-5" /> Logout
+                          </button>
                         </div>
                       )}
                     </div>
@@ -786,53 +765,335 @@ const handleLogout = () => {
           </div>
         )}
 
-        {/* Password Confirmation Modal */}
+        {/* Password Modal */}
         {showPasswordModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl max-w-sm w-full mx-auto shadow-xl p-6`}>
-              <div className="text-center mb-4">
-                <div className={`w-12 h-12 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-blue-50'} mx-auto flex items-center justify-center mb-3`}>
-                  <FaUser className={`w-6 h-6 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <input
+                    type={showOpsPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter Ops Manager Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOpsPassword(!showOpsPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showOpsPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
                 </div>
-                <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  Confirm Role Change
-                </h2>
-                <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Enter password to switch to {pendingRole} role
-                </p>
-              </div>
-              <input
-                type="password"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className={`w-full px-4 py-2.5 rounded-lg border text-sm ${
-                  theme === 'dark'
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2`}
-                placeholder="Enter your password"
-              />
-              {passwordError && (
-                <p className="text-red-500 text-xs mb-2">{passwordError}</p>
-              )}
-              <div className="flex gap-2 mt-4">
-                <button
-                  onClick={() => setShowPasswordModal(false)}
-                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg ${
-                    theme === 'dark'
-                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Cancel
-                </button>
+                {passwordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
                 <button
                   onClick={handlePasswordSubmit}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                  className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
                 >
-                  Confirm
+                  Submit
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        {/* Manager Ops-Manager Password Modal */}
+        {showManagerPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowManagerPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <input
+                    type={showManagerPassword ? 'text' : 'password'}
+                    value={ManagerPassword}
+                    onChange={(e) => setManagerPassword(e.target.value)}
+                    placeholder="Enter Ops-Manager Manager Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-green-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowManagerPassword(!showManagerPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showManagerPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {ManagerPasswordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
+                <button
+                  onClick={handleManagerPasswordSubmit}
+                  className="px-8 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* HR Password Modal */}
+        {showHRPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowHRPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <input
+                    type={showHRPassword ? 'text' : 'password'}
+                    value={HRPassword}
+                    onChange={(e) => setHRPassword(e.target.value)}
+                    placeholder="Enter HR Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowHRPassword(!showHRPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showHRPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {HRPasswordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
+                <button
+                  onClick={handleHRPasswordSubmit}
+                  className="px-8 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Coordinator Password Modal */}
+        {showCoordinatorPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowCoordinatorPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <input
+                    type={showCoordinatorPassword ? 'text' : 'password'}
+                    value={coordinatorPassword}
+                    onChange={(e) => setCoordinatorPassword(e.target.value)}
+                    placeholder="Enter Coordinator Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-orange-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCoordinatorPassword(!showCoordinatorPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showCoordinatorPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {coordinatorPasswordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
+                <button
+                  onClick={handleCoordinatorPasswordSubmit}
+                  className="px-8 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* User Task Password Modal */}
+        {showUserTaskPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowUserTaskPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <input
+                    type={showUserTaskPassword ? 'text' : 'password'}
+                    value={userTaskPassword}
+                    onChange={(e) => setUserTaskPassword(e.target.value)}
+                    placeholder="Enter Task Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowUserTaskPassword(!showUserTaskPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showUserTaskPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {userTaskPasswordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    if (userTaskPassword === 'Taskexozen@2025!') {
+                      setUserTaskPasswordError(false);
+                      setShowUserTaskPasswordModal(false);
+                      setUserTaskPassword("");
+                      router.push('/task/dashboard');
+                    } else {
+                      setUserTaskPasswordError(true);
+                    }
+                  }}
+                  className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Project Selection Modal for Create Link */}
+        {showProjectSelectionModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-lg w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={resetModal}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>Create Shareable KYC Link</h2>
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>
+                Select a project to generate a shareable link. The project will be frozen in the KYC form.
+              </p>
+              
+              {!generatedLink ? (
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                      Choose Project
+                    </label>
+                    <select
+                      value={selectedProject}
+                      onChange={(e) => setSelectedProject(e.target.value)}
+                      className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-green-500`}
+                      disabled={projectLoading}
+                    >
+                      <option value="">
+                        {projectLoading ? "Loading projects..." : projectList.length === 0 ? "No projects available" : "Select a project..."}
+                      </option>
+                      {projectList.map((project) => (
+                        <option key={project._id} value={project.projectName}>
+                          {project.projectName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={resetModal}
+                      className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-all duration-300 font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleProjectSelection}
+                      disabled={!selectedProject}
+                      className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <FaUserPlus className="w-4 h-4" />
+                      Generate Link
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-green-50 border-green-200'}`}>
+                    <h3 className={`text-lg font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      Generated Link for: {selectedProject}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={generatedLink}
+                        readOnly
+                        className={`flex-1 px-3 py-2 text-sm rounded-lg border ${theme === 'dark' ? 'bg-gray-600 text-gray-200 border-gray-500' : 'bg-white text-gray-900 border-gray-300'} focus:outline-none`}
+                      />
+                      <button
+                        onClick={copyToClipboard}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                          linkCopied 
+                            ? 'bg-green-600 text-white' 
+                            : theme === 'dark' 
+                              ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                              : 'bg-blue-500 text-white hover:bg-blue-600'
+                        }`}
+                      >
+                        {linkCopied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Share this link with others. When opened, the KYC form will have the project &quot;{selectedProject}&quot; pre-selected and frozen.
+                    </p>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={resetModal}
+                      className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-all duration-300 font-medium"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => {
+                        setGeneratedLink("");
+                        setSelectedProject("");
+                      }}
+                      className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 font-medium flex items-center justify-center gap-2"
+                    >
+                      <FaUserPlus className="w-4 h-4" />
+                      Create Another
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
