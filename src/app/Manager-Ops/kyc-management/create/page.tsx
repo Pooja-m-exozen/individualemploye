@@ -41,7 +41,8 @@ export default function CreateKYCPage() {
     experience: "",
     educationalQualification: "",
     languages: "",
-    workType: ""
+    workType: "",
+    monthlySalary: ""
   });
   const [addressDetails, setAddressDetails] = useState({
     permanentAddress: { state: "", city: "", street: "", postalCode: "" },
@@ -213,7 +214,8 @@ export default function CreateKYCPage() {
       const formData = new FormData();
       formData.append("personalDetails", JSON.stringify({
         ...personalDetails,
-        languages: personalDetails.languages.split(",").map((l) => l.trim())
+        languages: personalDetails.languages.split(",").map((l) => l.trim()),
+        monthlySalary: personalDetails.monthlySalary
       }));
       formData.append("addressDetails", JSON.stringify(addressDetails));
       formData.append("bankDetails", JSON.stringify(bankDetails));
@@ -251,7 +253,8 @@ export default function CreateKYCPage() {
           experience: "",
           educationalQualification: "",
           languages: "",
-          workType: ""
+          workType: "",
+          monthlySalary: ""
         });
         setAddressDetails({
           permanentAddress: { state: "", city: "", street: "", postalCode: "" },
@@ -632,13 +635,17 @@ export default function CreateKYCPage() {
                         ))}
                       </div>
                     </div>
-                    <div className="md:col-span-2">
+                    <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Work Type</label>
                       <select name="workType" value={personalDetails.workType} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required>
                         <option value="">Select</option>
                         <option value="remote">Remote</option>
                         <option value="office">Office</option>
                       </select>
+                    </div>
+                    <div>
+                      <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Monthly Salary</label>
+                      <input name="monthlySalary" type="number" value={personalDetails.monthlySalary} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} placeholder="Enter monthly salary" />
                     </div>
                   </div>
                 </section>

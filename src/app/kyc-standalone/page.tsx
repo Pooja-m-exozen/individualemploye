@@ -44,7 +44,8 @@ function StandaloneKYCPageContent() {
     experience: "",
     educationalQualification: "",
     languages: "",
-    workType: ""
+    workType: "",
+    monthlySalary: ""
   });
   
   // Add state for auto-generate employee ID
@@ -350,7 +351,8 @@ function StandaloneKYCPageContent() {
       const formData = new FormData();
       formData.append("personalDetails", JSON.stringify({
         ...personalDetails,
-        languages: personalDetails.languages ? personalDetails.languages.split(",").map((l) => l.trim()) : []
+        languages: personalDetails.languages ? personalDetails.languages.split(",").map((l) => l.trim()) : [],
+        monthlySalary: personalDetails.monthlySalary
       }));
       formData.append("addressDetails", JSON.stringify(addressDetails));
       formData.append("bankDetails", JSON.stringify(bankDetails));
@@ -388,7 +390,8 @@ function StandaloneKYCPageContent() {
           experience: "",
           educationalQualification: "",
           languages: "",
-          workType: ""
+          workType: "",
+          monthlySalary: ""
         });
         setAddressDetails({
           permanentAddress: { state: "", city: "", street: "", postalCode: "" },
@@ -729,6 +732,19 @@ function StandaloneKYCPageContent() {
             <option value="remote">Remote</option>
             <option value="office">Office</option>
           </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium mb-2">Monthly Salary</label>
+          <input
+            type="number"
+            value={personalDetails.monthlySalary}
+            onChange={(e) => setPersonalDetails({...personalDetails, monthlySalary: e.target.value})}
+            className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+            placeholder="Enter monthly salary"
+          />
         </div>
       </div>
     </div>

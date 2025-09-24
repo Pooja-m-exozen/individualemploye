@@ -37,6 +37,7 @@ interface KYCResponse {
       employeeImage: string;
       email: string;
       workType: string;
+      monthlySalary: string;
     };
     addressDetails: {
       permanentAddress: {
@@ -460,8 +461,13 @@ export default function ViewKYC() {
                             </label>
                             <p className={`text-base font-medium ${
                               theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
-                            } ${key === 'email' || key === 'workType' ? "break-all" : ""}`}>
-                              {Array.isArray(value) ? value.join(', ') : value?.toString() || '-'}
+                            } ${key === 'email' || key === 'workType' ? "break-all" : ""} ${
+                              key === 'monthlySalary' ? 'font-mono' : ''
+                            }`}>
+                              {key === 'monthlySalary' && value ? 
+                                `₹${Number(value).toLocaleString('en-IN')}` : 
+                                Array.isArray(value) ? value.join(', ') : value?.toString() || '-'
+                              }
                             </p>
                           </div>
                         )
