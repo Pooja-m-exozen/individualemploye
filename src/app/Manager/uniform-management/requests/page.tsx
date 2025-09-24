@@ -18,6 +18,7 @@ interface UniformRequest {
     gender?: string;
   };
   status: string;
+  verificationStatus?: string;
   requestedItems: string[];
   qty?: number;
   remarks?: string;
@@ -58,6 +59,7 @@ interface UniformApiResponse {
   projectName: string;
   gender?: string;
   approvalStatus: string;
+  verificationStatus?: string;
   uniformType: string[];
   qty?: number;
   remarks?: string;
@@ -203,6 +205,7 @@ export default function UniformRequestsPage() {
           gender: item.gender,
         },
         status: item.approvalStatus,
+        verificationStatus: item.verificationStatus,
         requestedItems: item.uniformType,
         qty: item.qty,
         remarks: item.remarks,
@@ -256,20 +259,36 @@ export default function UniformRequestsPage() {
       
       // Update status based on action
       let newStatus = '';
+      let newVerificationStatus = '';
       switch (action) {
-        case 'verify': newStatus = 'Verified'; break;
-        case 'approve': newStatus = 'Approved'; break;
-        case 'reject': newStatus = 'Rejected'; break;
+        case 'verify': 
+          newVerificationStatus = 'Verified'; 
+          break;
+        case 'approve': 
+          newStatus = 'Approved'; 
+          break;
+        case 'reject': 
+          newStatus = 'Rejected'; 
+          break;
       }
       
       setRequests(prev =>
         prev.map(req =>
           req._id === requestId
-            ? { ...req, status: newStatus }
+            ? { 
+                ...req, 
+                status: newStatus || req.status,
+                verificationStatus: newVerificationStatus || req.verificationStatus
+              }
             : req
         )
       );
       setToast({ type: "success", message: `Uniform request ${action}d successfully.` });
+      
+      // Refresh the data to ensure we have the latest status from server
+      setTimeout(() => {
+        fetchRequests();
+      }, 1000);
     } catch (err) {
       const message = err instanceof Error ? err.message : `Failed to ${action} uniform request.`;
       setError(message);
@@ -1021,8 +1040,8 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                       <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={request.remarks || ''}>{request.remarks || ''}</div></td>
                       <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <div className="flex gap-1 justify-center">
-                          {/* Verify button - only show for Pending status */}
-                          {request.status === 'Pending' && (
+                          {/* Verify button - only show for Pending verification status */}
+                          {request.verificationStatus !== 'Verified' && (
                             <button
                               onClick={() => handleAction(request._id, 'verify')}
                               disabled={actionLoading[request._id] === 'verify'}
@@ -1038,7 +1057,7 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                           )}
                           
                           {/* Approve and Reject buttons - only show for Verified status */}
-                          {request.status === 'Verified' && (
+                          {request.verificationStatus === 'Verified' && request.status === 'Pending' && (
                             <>
                               <button
                                 onClick={() => handleAction(request._id, 'approve')}
