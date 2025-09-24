@@ -103,6 +103,11 @@ export default function ViewKYC() {
     documents: false
   });
 
+  // Add state for designation count validation
+  const [designationCount, setDesignationCount] = useState<number>(0);
+  const [currentKycCount, setCurrentKycCount] = useState<number>(0);
+  const [isDesignationFull, setIsDesignationFull] = useState(false);
+
   const fetchKYCData = useCallback(async () => {
     try {
       if (!employeeId) {
@@ -129,6 +134,70 @@ export default function ViewKYC() {
     fetchKYCData();
   }, [router, fetchKYCData]);
 
+  // Check designation availability
+  const checkDesignationAvailability = useCallback(async (projectName: string, designation: string) => {
+    if (!projectName || !designation) {
+      setDesignationCount(0);
+      setCurrentKycCount(0);
+      setIsDesignationFull(false);
+      return;
+    }
+
+    try {
+      // Fetch both KYC forms and project data
+      const [kycRes, projectRes] = await Promise.all([
+        fetch("https://cafm.zenapi.co.in/api/kyc"),
+        fetch("https://cafm.zenapi.co.in/api/project/projects")
+      ]);
+      
+      const [kycData, projectData] = await Promise.all([
+        kycRes.json(),
+        projectRes.json()
+      ]);
+      
+      const kycForms = kycData.kycForms || [];
+      const projects = Array.isArray(projectData) ? projectData : [];
+      
+      // Get the allowed count for this designation from project
+      const project = projects.find((p: Record<string, unknown>) => p.projectName === projectName);
+      const designationWiseCount = project?.designationWiseCount as Record<string, unknown> || {};
+      
+      // Find the count by doing flexible matching (trim and case-insensitive)
+      let allowedCount = 0;
+      const selectedDesignation = designation.trim().toLowerCase();
+      
+      for (const [projectDesignation, count] of Object.entries(designationWiseCount)) {
+        const normalizedProjectDesignation = projectDesignation.trim().toLowerCase();
+        if (normalizedProjectDesignation === selectedDesignation) {
+          allowedCount = Number(count) || 0;
+          break;
+        }
+      }
+      
+      // Count existing KYC forms for this project and designation
+      const existingKycForms = kycForms.filter((k: Record<string, unknown>) => {
+        const personalDetails = k.personalDetails as Record<string, unknown>;
+        const kycDesignation = (personalDetails?.designation as string)?.trim().toLowerCase();
+        const selectedDesignation = designation.trim().toLowerCase();
+        
+        return personalDetails?.projectName === projectName && 
+               kycDesignation === selectedDesignation &&
+               !personalDetails?.exitDate; // Only count active employees
+      });
+      
+      const currentCount = existingKycForms.length;
+      
+      setDesignationCount(allowedCount);
+      setCurrentKycCount(currentCount);
+      setIsDesignationFull(currentCount >= allowedCount);
+    } catch (err) {
+      console.error('Failed to check designation availability:', err);
+      setDesignationCount(0);
+      setCurrentKycCount(0);
+      setIsDesignationFull(false);
+    }
+  }, []);
+
 
 
   // Calculate completion percentage
@@ -151,8 +220,13 @@ export default function ViewKYC() {
         emergency: Object.values(emergencyContact).every(val => val !== ''),
         documents: documents.length > 0
       });
+
+      // Check designation availability when KYC data is loaded
+      if (personalDetails.projectName && personalDetails.designation) {
+        checkDesignationAvailability(personalDetails.projectName, personalDetails.designation);
+      }
     }
-  }, [kycResponse]);
+  }, [kycResponse, checkDesignationAvailability]);
 
   // Instructions component
   const Instructions = () => (
@@ -450,6 +524,44 @@ export default function ViewKYC() {
                     <h2 className={`text-xl font-bold mb-6 ${
                       theme === 'dark' ? 'text-white' : 'text-gray-900'
                     }`}>Personal Information</h2>
+                    
+                    {/* Designation Status Display */}
+                    {kycData.personalDetails.designation && (
+                      <div className={`mb-6 p-4 rounded-xl border ${
+                        isDesignationFull 
+                          ? theme === 'dark' ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'
+                          : theme === 'dark' ? 'bg-green-900/20 border-green-700' : 'bg-green-50 border-green-200'
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          {isDesignationFull ? (
+                            <>
+                              <FaTimesCircle className="text-red-500 w-5 h-5" />
+                              <div>
+                                <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-red-300' : 'text-red-700'}`}>
+                                  Designation Status: Full Capacity
+                                </h3>
+                                <p className={`text-sm ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>
+                                  Your designation "{kycData.personalDetails.designation}" is at full capacity ({currentKycCount}/{designationCount})
+                                </p>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <FaCheckCircle className="text-green-500 w-5 h-5" />
+                              <div>
+                                <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-green-300' : 'text-green-700'}`}>
+                                  Designation Status: Available
+                                </h3>
+                                <p className={`text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
+                                  Your designation "{kycData.personalDetails.designation}" has available positions ({currentKycCount}/{designationCount})
+                                </p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {Object.entries(kycData.personalDetails).map(([key, value]) => 
                         key !== 'employeeImage' && (

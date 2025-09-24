@@ -63,6 +63,13 @@ function CreateKYCForm() {
   const [employeeIdSeed, setEmployeeIdSeed] = useState(0);
   const [employeeIdError, setEmployeeIdError] = useState<string | null>(null);
   const [isSameAddress, setIsSameAddress] = useState(false);
+  const [designationCount, setDesignationCount] = useState<number>(0);
+  const [currentKycCount, setCurrentKycCount] = useState<number>(0);
+  const [isDesignationFull, setIsDesignationFull] = useState(false);
+  const [replacementMode, setReplacementMode] = useState(false);
+  const [existingEmployees, setExistingEmployees] = useState<Array<{employeeId: string, fullName: string, exitDate?: string}>>([]);
+  const [selectedEmployeeToReplace, setSelectedEmployeeToReplace] = useState<string>("");
+  const [exitDate, setExitDate] = useState<string>("");
 
   // Language options
   const languageOptions = [
@@ -135,6 +142,11 @@ function CreateKYCForm() {
       fetchDesignationsForProject(value);
     }
     
+    // If designation changes, check availability
+    if (name === 'designation') {
+      checkDesignationAvailability(form.projectName, value);
+    }
+    
     // Validate employee ID if manually entered
     if (name === 'employeeId' && !autoGenerateEmployeeId) {
       validateEmployeeId(value);
@@ -158,6 +170,11 @@ function CreateKYCForm() {
   const fetchDesignationsForProject = async (projectName: string) => {
     if (!projectName) {
       setDesignationOptions([]);
+      setDesignationCount(0);
+      setCurrentKycCount(0);
+      setIsDesignationFull(false);
+      setReplacementMode(false);
+      setExistingEmployees([]);
       return;
     }
     
@@ -207,6 +224,93 @@ function CreateKYCForm() {
     }
   };
 
+  const checkDesignationAvailability = async (projectName: string, designation: string) => {
+    if (!projectName || !designation) {
+      setDesignationCount(0);
+      setCurrentKycCount(0);
+      setIsDesignationFull(false);
+      setReplacementMode(false);
+      setExistingEmployees([]);
+      return;
+    }
+
+    try {
+      // Fetch both KYC forms and project data
+      const [kycRes, projectRes] = await Promise.all([
+        fetch("https://cafm.zenapi.co.in/api/kyc"),
+        fetch("https://cafm.zenapi.co.in/api/project/projects")
+      ]);
+      
+      const [kycData, projectData] = await Promise.all([
+        kycRes.json(),
+        projectRes.json()
+      ]);
+      
+      const kycForms = kycData.kycForms || [];
+      const projects = Array.isArray(projectData) ? projectData : [];
+      
+      // Get the allowed count for this designation from project
+      const project = projects.find((p: Record<string, unknown>) => p.projectName === projectName);
+      const designationWiseCount = project?.designationWiseCount as Record<string, unknown> || {};
+      
+      // Find the count by doing flexible matching (trim and case-insensitive)
+      let allowedCount = 0;
+      const selectedDesignation = designation.trim().toLowerCase();
+      
+      for (const [projectDesignation, count] of Object.entries(designationWiseCount)) {
+        const normalizedProjectDesignation = projectDesignation.trim().toLowerCase();
+        if (normalizedProjectDesignation === selectedDesignation) {
+          allowedCount = Number(count) || 0;
+          break;
+        }
+      }
+      
+      // Count existing KYC forms for this project and designation
+      const existingKycForms = kycForms.filter((k: Record<string, unknown>) => {
+        const personalDetails = k.personalDetails as Record<string, unknown>;
+        const kycDesignation = (personalDetails?.designation as string)?.trim().toLowerCase();
+        const selectedDesignation = designation.trim().toLowerCase();
+        
+        return personalDetails?.projectName === projectName && 
+               kycDesignation === selectedDesignation &&
+               !personalDetails?.exitDate; // Only count active employees
+      });
+      
+      const currentCount = existingKycForms.length;
+      
+      setDesignationCount(allowedCount);
+      setCurrentKycCount(currentCount);
+      
+      // Check if designation is full
+      if (currentCount >= allowedCount) {
+        setIsDesignationFull(true);
+        setReplacementMode(true);
+        
+        // Get list of existing employees for replacement
+        const employees = existingKycForms.map((k: Record<string, unknown>) => {
+          const personalDetails = k.personalDetails as Record<string, unknown>;
+          return {
+            employeeId: personalDetails?.employeeId as string,
+            fullName: personalDetails?.fullName as string,
+            exitDate: personalDetails?.exitDate as string
+          };
+        });
+        setExistingEmployees(employees);
+      } else {
+        setIsDesignationFull(false);
+        setReplacementMode(false);
+        setExistingEmployees([]);
+      }
+    } catch (err) {
+      console.error('Failed to check designation availability:', err);
+      setDesignationCount(0);
+      setCurrentKycCount(0);
+      setIsDesignationFull(false);
+      setReplacementMode(false);
+      setExistingEmployees([]);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setEmployeeImage(e.target.files[0]);
   };
@@ -250,6 +354,15 @@ function CreateKYCForm() {
     });
   };
 
+  const handleEmployeeReplacementChange = (employeeId: string) => {
+    setSelectedEmployeeToReplace(employeeId);
+    setExitDate("");
+  };
+
+  const handleExitDateChange = (date: string) => {
+    setExitDate(date);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -281,6 +394,13 @@ function CreateKYCForm() {
     const phoneRegex = /^[6-9]\d{9}$/;
     if (!phoneRegex.test(form.emergencyPhone)) {
       setError("Please enter a valid 10-digit phone number for emergency contact");
+      setSubmitting(false);
+      return;
+    }
+    
+    // If in replacement mode, validate exit date
+    if (replacementMode && (!selectedEmployeeToReplace || !exitDate)) {
+      setError("Please select an employee to replace and enter their exit date");
       setSubmitting(false);
       return;
     }
@@ -350,6 +470,13 @@ function CreateKYCForm() {
         bankDetails: payload.bankDetails,
         identificationDetails: payload.identificationDetails,
         emergencyContact: payload.emergencyContact,
+        // Add replacement information if in replacement mode
+        ...(replacementMode && {
+          replacementInfo: {
+            replacedEmployeeId: selectedEmployeeToReplace,
+            exitDate: exitDate
+          }
+        })
       };
       
       // Debug: Log the request payload
@@ -366,6 +493,14 @@ function CreateKYCForm() {
         formData.append("emergencyContact", JSON.stringify(payload.emergencyContact));
         formData.append("employeeImage", employeeImage);
         
+        // Add replacement information if in replacement mode
+        if (replacementMode) {
+          formData.append("replacementInfo", JSON.stringify({
+            replacedEmployeeId: selectedEmployeeToReplace,
+            exitDate: exitDate
+          }));
+        }
+        
         // Debug: Log the FormData contents
         console.log("FormData contents:");
         for (const [key, value] of formData.entries()) {
@@ -381,6 +516,13 @@ function CreateKYCForm() {
           setMessage("KYC submitted successfully.");
           setForm(initialState);
           setEmployeeImage(null);
+          setDesignationCount(0);
+          setCurrentKycCount(0);
+          setIsDesignationFull(false);
+          setReplacementMode(false);
+          setExistingEmployees([]);
+          setSelectedEmployeeToReplace("");
+          setExitDate("");
         } else {
           setError(data.message || "Submission failed.");
         }
@@ -398,6 +540,13 @@ function CreateKYCForm() {
           setMessage("KYC submitted successfully.");
           setForm(initialState);
           setEmployeeImage(null);
+          setDesignationCount(0);
+          setCurrentKycCount(0);
+          setIsDesignationFull(false);
+          setReplacementMode(false);
+          setExistingEmployees([]);
+          setSelectedEmployeeToReplace("");
+          setExitDate("");
         } else {
           setError(data.message || "Submission failed.");
         }
@@ -516,8 +665,96 @@ function CreateKYCForm() {
               </option>
             ))}
           </select>
+          
+          {/* Designation Availability Status */}
+          {form.designation && (
+            <div className={`mt-2 p-3 rounded-lg ${
+              isDesignationFull 
+                ? theme === 'dark' ? 'bg-red-900/20 border border-red-700' : 'bg-red-50 border border-red-200'
+                : theme === 'dark' ? 'bg-green-900/20 border border-green-700' : 'bg-green-50 border border-green-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                {isDesignationFull ? (
+                  <>
+                    <FaTimesCircle className="text-red-500" />
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-red-300' : 'text-red-700'}`}>
+                      Designation Full ({currentKycCount}/{designationCount})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <FaCheckCircle className="text-green-500" />
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-green-300' : 'text-green-700'}`}>
+                      Available ({currentKycCount}/{designationCount})
+                    </span>
+                  </>
+                )}
+              </div>
+              {isDesignationFull && (
+                <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>
+                  This designation is at full capacity. You can replace an existing employee.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Employee Replacement Section */}
+      {replacementMode && (
+        <div className={`${theme === 'dark' ? 'bg-orange-900/20 border border-orange-700' : 'bg-orange-50 border border-orange-200'} rounded-xl p-4 mb-6`}>
+          <h4 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-orange-200' : 'text-orange-800'}`}>
+            Employee Replacement Required
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className={`text-sm font-medium ${theme === 'dark' ? 'text-orange-200' : 'text-orange-700'}`}>
+                Select Employee to Replace *
+              </label>
+              <select
+                value={selectedEmployeeToReplace}
+                onChange={(e) => handleEmployeeReplacementChange(e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors ${
+                  theme === 'dark' 
+                    ? 'bg-gray-800 border-gray-700 text-white focus:border-orange-500' 
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-orange-500'
+                }`}
+                required
+              >
+                <option value="">Select Employee</option>
+                {existingEmployees.map(employee => (
+                  <option key={employee.employeeId} value={employee.employeeId}>
+                    {employee.employeeId} - {employee.fullName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="space-y-1">
+              <label className={`text-sm font-medium ${theme === 'dark' ? 'text-orange-200' : 'text-orange-700'}`}>
+                Exit Date *
+              </label>
+              <input
+                type="date"
+                value={exitDate}
+                onChange={(e) => handleExitDateChange(e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors ${
+                  theme === 'dark' 
+                    ? 'bg-gray-800 border-gray-700 text-white focus:border-orange-500' 
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-orange-500'
+                }`}
+                required
+                disabled={!selectedEmployeeToReplace}
+              />
+            </div>
+          </div>
+          <div className="mt-3 p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+            <p className={`text-sm ${theme === 'dark' ? 'text-orange-300' : 'text-orange-700'}`}>
+              <strong>Note:</strong> The selected employee will be marked as exited on the specified date, and the new employee will take their place.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Text Inputs */}
@@ -542,10 +779,15 @@ function CreateKYCForm() {
               name={name as string}
               value={(form as Record<string, unknown>)[name as string] as string}
               onChange={handleChange}
+              disabled={replacementMode && !selectedEmployeeToReplace}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-                theme === 'dark' 
-                  ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
-                  : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+                replacementMode && !selectedEmployeeToReplace
+                  ? theme === 'dark' 
+                    ? 'bg-gray-600 border-gray-500 text-gray-400 cursor-not-allowed' 
+                    : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                  : theme === 'dark' 
+                    ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
               }`}
               required={name !== "uanNumber" && name !== "esicNumber"}
             />
@@ -561,10 +803,15 @@ function CreateKYCForm() {
             name="gender"
             value={form.gender}
             onChange={handleChange}
+            disabled={replacementMode && !selectedEmployeeToReplace}
             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-              theme === 'dark' 
-                ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
-                : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+              replacementMode && !selectedEmployeeToReplace
+                ? theme === 'dark' 
+                  ? 'bg-gray-600 border-gray-500 text-gray-400 cursor-not-allowed' 
+                  : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                : theme === 'dark' 
+                  ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
             }`}
             required
           >
@@ -584,10 +831,15 @@ function CreateKYCForm() {
             name="nationality"
             value={form.nationality}
             onChange={handleChange}
+            disabled={replacementMode && !selectedEmployeeToReplace}
             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-              theme === 'dark' 
-                ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
-                : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+              replacementMode && !selectedEmployeeToReplace
+                ? theme === 'dark' 
+                  ? 'bg-gray-600 border-gray-500 text-gray-400 cursor-not-allowed' 
+                  : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                : theme === 'dark' 
+                  ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
             }`}
             required
           >
@@ -614,10 +866,15 @@ function CreateKYCForm() {
             name="religion"
             value={form.religion}
             onChange={handleChange}
+            disabled={replacementMode && !selectedEmployeeToReplace}
             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-              theme === 'dark' 
-                ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
-                : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+              replacementMode && !selectedEmployeeToReplace
+                ? theme === 'dark' 
+                  ? 'bg-gray-600 border-gray-500 text-gray-400 cursor-not-allowed' 
+                  : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                : theme === 'dark' 
+                  ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
             }`}
             required
           >
@@ -643,10 +900,15 @@ function CreateKYCForm() {
             name="maritalStatus"
             value={form.maritalStatus}
             onChange={handleChange}
+            disabled={replacementMode && !selectedEmployeeToReplace}
             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-              theme === 'dark' 
-                ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
-                : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+              replacementMode && !selectedEmployeeToReplace
+                ? theme === 'dark' 
+                  ? 'bg-gray-600 border-gray-500 text-gray-400 cursor-not-allowed' 
+                  : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                : theme === 'dark' 
+                  ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
             }`}
             required
           >
@@ -668,10 +930,15 @@ function CreateKYCForm() {
             name="bloodGroup"
             value={form.bloodGroup}
             onChange={handleChange}
+            disabled={replacementMode && !selectedEmployeeToReplace}
             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-              theme === 'dark' 
-                ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
-                : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+              replacementMode && !selectedEmployeeToReplace
+                ? theme === 'dark' 
+                  ? 'bg-gray-600 border-gray-500 text-gray-400 cursor-not-allowed' 
+                  : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                : theme === 'dark' 
+                  ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
             }`}
             required
           >
@@ -696,10 +963,15 @@ function CreateKYCForm() {
             name="experience"
             value={form.experience}
             onChange={handleChange}
+            disabled={replacementMode && !selectedEmployeeToReplace}
             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-              theme === 'dark' 
-                ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
-                : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+              replacementMode && !selectedEmployeeToReplace
+                ? theme === 'dark' 
+                  ? 'bg-gray-600 border-gray-500 text-gray-400 cursor-not-allowed' 
+                  : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                : theme === 'dark' 
+                  ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
             }`}
             required
           >
@@ -722,10 +994,15 @@ function CreateKYCForm() {
             name="educationalQualification"
             value={form.educationalQualification}
             onChange={handleChange}
+            disabled={replacementMode && !selectedEmployeeToReplace}
             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-              theme === 'dark' 
-                ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
-                : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+              replacementMode && !selectedEmployeeToReplace
+                ? theme === 'dark' 
+                  ? 'bg-gray-600 border-gray-500 text-gray-400 cursor-not-allowed' 
+                  : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                : theme === 'dark' 
+                  ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
             }`}
             required
           >
@@ -749,10 +1026,15 @@ function CreateKYCForm() {
             name="workType"
             value={form.workType}
             onChange={handleChange}
+            disabled={replacementMode && !selectedEmployeeToReplace}
             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-              theme === 'dark' 
-                ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
-                : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+              replacementMode && !selectedEmployeeToReplace
+                ? theme === 'dark' 
+                  ? 'bg-gray-600 border-gray-500 text-gray-400 cursor-not-allowed' 
+                  : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                : theme === 'dark' 
+                  ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
             }`}
             required
           >
@@ -776,7 +1058,10 @@ function CreateKYCForm() {
                   type="checkbox"
                   checked={(form.languages as string[]).includes(language)}
                   onChange={() => handleLanguageChange(language)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  disabled={replacementMode && !selectedEmployeeToReplace}
+                  className={`w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 ${
+                    replacementMode && !selectedEmployeeToReplace ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 />
                 <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
                   {language}
@@ -801,10 +1086,15 @@ function CreateKYCForm() {
           type="file" 
           accept="image/*" 
           onChange={handleFileChange}
+          disabled={replacementMode && !selectedEmployeeToReplace}
           className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-            theme === 'dark' 
-              ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
-              : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+            replacementMode && !selectedEmployeeToReplace
+              ? theme === 'dark' 
+                ? 'bg-gray-600 border-gray-500 text-gray-400 cursor-not-allowed' 
+                : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+              : theme === 'dark' 
+                ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500' 
+                : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
           }`}
         />
       </div>

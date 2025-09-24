@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import TaskDashboardLayout from "@/components/dashboard/TaskDashboardLayout";
 import { useTheme } from "@/context/ThemeContext";
-import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle, FaUpload } from "react-icons/fa";
+import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle, FaUpload, FaTimesCircle } from "react-icons/fa";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
@@ -169,11 +169,108 @@ export default function CreateKYCPage() {
     } else {
       setDesignationOptions([]);
     }
+    
+    // Reset replacement-related states when project changes
+    setDesignationCount(0);
+    setCurrentKycCount(0);
+    setIsDesignationFull(false);
+    setReplacementMode(false);
+    setExistingEmployees([]);
+    setSelectedEmployeeToReplace("");
+    setExitDate("");
   }, [personalDetails.projectName, projectList]);
+
+  // Check designation availability
+  const checkDesignationAvailability = useCallback(async (projectName: string, designation: string) => {
+    if (!projectName || !designation) {
+      setDesignationCount(0);
+      setCurrentKycCount(0);
+      setIsDesignationFull(false);
+      setReplacementMode(false);
+      setExistingEmployees([]);
+      return;
+    }
+
+    try {
+      // Fetch both KYC forms and project data
+      const [kycRes, projectRes] = await Promise.all([
+        fetch("https://cafm.zenapi.co.in/api/kyc"),
+        fetch("https://cafm.zenapi.co.in/api/project/projects")
+      ]);
+      
+      const [kycData, projectData] = await Promise.all([
+        kycRes.json(),
+        projectRes.json()
+      ]);
+      
+      const kycForms = kycData.kycForms || [];
+      const projects = Array.isArray(projectData) ? projectData : [];
+      
+      // Get the allowed count for this designation from project
+      const project = projects.find((p: Record<string, unknown>) => p.projectName === projectName);
+      const designationWiseCount = project?.designationWiseCount as Record<string, unknown> || {};
+      
+      // Find the count by doing flexible matching (trim and case-insensitive)
+      let allowedCount = 0;
+      const selectedDesignation = designation.trim().toLowerCase();
+      
+      for (const [projectDesignation, count] of Object.entries(designationWiseCount)) {
+        const normalizedProjectDesignation = projectDesignation.trim().toLowerCase();
+        if (normalizedProjectDesignation === selectedDesignation) {
+          allowedCount = Number(count) || 0;
+          break;
+        }
+      }
+      
+      // Count existing KYC forms for this project and designation
+      const existingKycForms = kycForms.filter((k: Record<string, unknown>) => {
+        const personalDetails = k.personalDetails as Record<string, unknown>;
+        const kycDesignation = (personalDetails?.designation as string)?.trim().toLowerCase();
+        const selectedDesignation = designation.trim().toLowerCase();
+        
+        return personalDetails?.projectName === projectName && 
+               kycDesignation === selectedDesignation &&
+               !personalDetails?.exitDate; // Only count active employees
+      });
+      
+      const currentCount = existingKycForms.length;
+      
+      setDesignationCount(allowedCount);
+      setCurrentKycCount(currentCount);
+      setIsDesignationFull(currentCount >= allowedCount);
+      
+      // If designation is full, enable replacement mode and get existing employees
+      if (currentCount >= allowedCount && allowedCount > 0) {
+        setReplacementMode(true);
+        setExistingEmployees(existingKycForms.map((k: Record<string, unknown>) => ({
+          _id: k._id as string,
+          personalDetails: {
+            fullName: (k.personalDetails as Record<string, unknown>)?.fullName as string,
+            employeeId: (k.personalDetails as Record<string, unknown>)?.employeeId as string
+          }
+        })));
+      } else {
+        setReplacementMode(false);
+        setExistingEmployees([]);
+      }
+    } catch (err) {
+      console.error('Failed to check designation availability:', err);
+      setDesignationCount(0);
+      setCurrentKycCount(0);
+      setIsDesignationFull(false);
+      setReplacementMode(false);
+      setExistingEmployees([]);
+    }
+  }, []);
 
   // Handle input changes for each section
   const handlePersonalChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setPersonalDetails({ ...personalDetails, [e.target.name]: e.target.value });
+    
+    // Check designation availability when designation changes
+    if (e.target.name === 'designation' && personalDetails.projectName && e.target.value) {
+      checkDesignationAvailability(personalDetails.projectName, e.target.value);
+    }
   };
   const handleAddressChange = (section: "permanentAddress" | "currentAddress", e: React.ChangeEvent<HTMLInputElement>) => {
     setAddressDetails(prev => {
@@ -200,6 +297,17 @@ export default function CreateKYCPage() {
     if (e.target.files && e.target.files[0]) setEmployeeImage(e.target.files[0]);
   };
 
+  // Handle employee replacement selection
+  const handleEmployeeReplacementChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedEmployeeToReplace(e.target.value);
+    setExitDate(""); // Reset exit date when employee changes
+  };
+
+  // Handle exit date change
+  const handleExitDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setExitDate(e.target.value);
+  };
+
   // Modal state for post-KYC document upload
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [kycCreatedEmployeeId, setKycCreatedEmployeeId] = useState<string | null>(null);
@@ -213,12 +321,36 @@ export default function CreateKYCPage() {
   // State for create request modal (for uniform)
   const [showCreateUniformRequestModal, setShowCreateUniformRequestModal] = useState(false);
 
+  // State for designation count validation
+  const [designationCount, setDesignationCount] = useState<number>(0);
+  const [currentKycCount, setCurrentKycCount] = useState<number>(0);
+  const [isDesignationFull, setIsDesignationFull] = useState(false);
+  const [replacementMode, setReplacementMode] = useState(false);
+  const [existingEmployees, setExistingEmployees] = useState<Array<{_id: string, personalDetails: {fullName: string, employeeId: string}}>>([]);
+  const [selectedEmployeeToReplace, setSelectedEmployeeToReplace] = useState<string>("");
+  const [exitDate, setExitDate] = useState<string>("");
+
   // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
     setError(null);
+
+    // Validate replacement requirements if in replacement mode
+    if (replacementMode) {
+      if (!selectedEmployeeToReplace) {
+        setError('Please select an employee to replace');
+        setLoading(false);
+        return;
+      }
+      if (!exitDate) {
+        setError('Please enter the exit date for the employee being replaced');
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const formData = new FormData();
       formData.append("personalDetails", JSON.stringify({
@@ -231,6 +363,14 @@ export default function CreateKYCPage() {
       formData.append("identificationDetails", JSON.stringify(identificationDetails));
       formData.append("emergencyContact", JSON.stringify(emergencyContact));
       if (employeeImage) formData.append("employeeImage", employeeImage);
+      
+      // Add replacement information if in replacement mode
+      if (replacementMode && selectedEmployeeToReplace && exitDate) {
+        formData.append("replacementInfo", JSON.stringify({
+          replacedEmployeeId: selectedEmployeeToReplace,
+          exitDate: exitDate
+        }));
+      }
 
       const res = await fetch("https://cafm.zenapi.co.in/api/kyc/submit-and-upload-image", {
         method: "POST",
@@ -283,6 +423,14 @@ export default function CreateKYCPage() {
         setMultiDocStatus(null);
         setMultiDocError(null);
         setMultiDocCustomTypes([""]);
+        // Reset replacement-related states
+        setDesignationCount(0);
+        setCurrentKycCount(0);
+        setIsDesignationFull(false);
+        setReplacementMode(false);
+        setExistingEmployees([]);
+        setSelectedEmployeeToReplace("");
+        setExitDate("");
         // Don't increment employeeIdSeed yet; do it after modal is closed
       } else {
         setError(data.message || "Submission failed.");
@@ -525,7 +673,14 @@ export default function CreateKYCPage() {
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Full Name</label>
-                      <input name="fullName" value={personalDetails.fullName} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} required />
+                      <input 
+                        name="fullName" 
+                        value={personalDetails.fullName} 
+                        onChange={handlePersonalChange} 
+                        disabled={replacementMode && !selectedEmployeeToReplace}
+                        className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"} ${replacementMode && !selectedEmployeeToReplace ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                        required 
+                      />
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Father&apos;s Name</label>
@@ -550,7 +705,13 @@ export default function CreateKYCPage() {
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Phone Number</label>
-                      <input name="phoneNumber" value={personalDetails.phoneNumber} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <input 
+                        name="phoneNumber" 
+                        value={personalDetails.phoneNumber} 
+                        onChange={handlePersonalChange} 
+                        disabled={replacementMode && !selectedEmployeeToReplace}
+                        className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"} ${replacementMode && !selectedEmployeeToReplace ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                      />
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Designation</label>
@@ -566,10 +727,44 @@ export default function CreateKYCPage() {
                           <option key={designation} value={designation}>{designation}</option>
                         ))}
                       </select>
+                      
+                      {/* Designation Status Display */}
+                      {personalDetails.designation && designationCount > 0 && (
+                        <div className={`mt-3 p-3 rounded-lg border ${
+                          isDesignationFull 
+                            ? theme === 'dark' ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'
+                            : theme === 'dark' ? 'bg-green-900/20 border-green-700' : 'bg-green-50 border-green-200'
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            {isDesignationFull ? (
+                              <>
+                                <FaTimesCircle className="text-red-500 w-4 h-4" />
+                                <span className={`text-sm font-medium ${theme === 'dark' ? 'text-red-300' : 'text-red-700'}`}>
+                                  Designation Full ({currentKycCount}/{designationCount})
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <FaCheckCircle className="text-green-500 w-4 h-4" />
+                                <span className={`text-sm font-medium ${theme === 'dark' ? 'text-green-300' : 'text-green-700'}`}>
+                                  Available ({currentKycCount}/{designationCount})
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Date of Joining</label>
-                      <input name="dateOfJoining" type="date" value={personalDetails.dateOfJoining} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} />
+                      <input 
+                        name="dateOfJoining" 
+                        type="date" 
+                        value={personalDetails.dateOfJoining} 
+                        onChange={handlePersonalChange} 
+                        disabled={replacementMode && !selectedEmployeeToReplace}
+                        className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"} ${replacementMode && !selectedEmployeeToReplace ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                      />
                     </div>
                     <div>
                       <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Nationality</label>
@@ -681,6 +876,48 @@ export default function CreateKYCPage() {
                       <input name="monthlySalary" type="number" value={personalDetails.monthlySalary} onChange={handlePersonalChange} className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`} placeholder="Enter monthly salary" />
                     </div>
                   </div>
+
+                  {/* Employee Replacement Section */}
+                  {replacementMode && (
+                    <div className={`mt-6 p-4 rounded-lg border ${theme === 'dark' ? 'bg-orange-900/20 border-orange-700' : 'bg-orange-50 border-orange-200'}`}>
+                      <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-orange-300' : 'text-orange-700'}`}>
+                        Employee Replacement Required
+                      </h3>
+                      <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
+                        This designation is at full capacity. Please select an existing employee to replace and enter their exit date.
+                      </p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Select Employee to Replace *</label>
+                          <select
+                            value={selectedEmployeeToReplace}
+                            onChange={handleEmployeeReplacementChange}
+                            className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`}
+                            required
+                          >
+                            <option value="">Select Employee</option>
+                            {existingEmployees.map((employee) => (
+                              <option key={employee._id} value={employee._id}>
+                                {employee.personalDetails.fullName} ({employee.personalDetails.employeeId})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className={`block font-medium mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>Exit Date *</label>
+                          <input
+                            type="date"
+                            value={exitDate}
+                            onChange={handleExitDateChange}
+                            className={`w-full rounded-lg px-4 py-2 border ${theme === "dark" ? "bg-gray-900 text-white border-gray-700 placeholder-gray-500" : "border-gray-300 text-black"}`}
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </section>
               )}
               {activeSection === "address" && (
