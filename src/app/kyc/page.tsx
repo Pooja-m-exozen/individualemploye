@@ -541,7 +541,7 @@ export default function ViewKYC() {
                                   Designation Status: Full Capacity
                                 </h3>
                                 <p className={`text-sm ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>
-                                  Your designation "{kycData.personalDetails.designation}" is at full capacity ({currentKycCount}/{designationCount})
+                                  Your designation &quot;{kycData.personalDetails.designation}&quot; is at full capacity ({currentKycCount}/{designationCount})
                                 </p>
                               </div>
                             </>
@@ -553,7 +553,7 @@ export default function ViewKYC() {
                                   Designation Status: Available
                                 </h3>
                                 <p className={`text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
-                                  Your designation "{kycData.personalDetails.designation}" has available positions ({currentKycCount}/{designationCount})
+                                  Your designation &quot;{kycData.personalDetails.designation}&quot; has available positions ({currentKycCount}/{designationCount})
                                 </p>
                               </div>
                             </>
