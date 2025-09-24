@@ -372,7 +372,7 @@ export default function ProjectManagementPage() {
     } as const;
 
     try {
-      const res = await fetch("http://localhost:5000/api/project/projects", {
+      const res = await fetch("https://cafm.zenapi.co.in/api/project/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -457,7 +457,7 @@ export default function ProjectManagementPage() {
         designationWiseCount: Object.keys(nextDesignationObj).length ? nextDesignationObj : project.designationWiseCount,
       };
 
-      const res = await fetch(`http://localhost:5000/api/project/projects/${encodeURIComponent(project.projectName)}`, {
+      const res = await fetch(`https://cafm.zenapi.co.in/api/project/projects/${encodeURIComponent(project.projectName)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -487,7 +487,7 @@ export default function ProjectManagementPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:5000/api/project/projects");
+      const res = await fetch("https://cafm.zenapi.co.in/api/project/projects");
       if (!res.ok) throw new Error("Failed to fetch projects");
       const data = await res.json();
       setProjects(data);
@@ -785,7 +785,7 @@ export default function ProjectManagementPage() {
     };
 
     try {
-      const res = await fetch(`http://localhost:5000/api/project/projects/${encodeURIComponent(project.projectName)}`, {
+      const res = await fetch(`https://cafm.zenapi.co.in/api/project/projects/${encodeURIComponent(project.projectName)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -804,7 +804,7 @@ export default function ProjectManagementPage() {
   const handleDeleteProject = async () => {
     if (!deleteProject) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/project/projects/${encodeURIComponent(deleteProject.projectName)}`, {
+      const res = await fetch(`https://cafm.zenapi.co.in/api/project/projects/${encodeURIComponent(deleteProject.projectName)}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete project");
