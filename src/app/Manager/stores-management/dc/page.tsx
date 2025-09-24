@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useState, useEffect, useCallback } from "react";
 import ManagerDashboardLayout  from "@/components/dashboard/ManagerDashboardLayout";
 import CreateDCModal from "@/components/dashboard/CreateDCmodal";
@@ -120,8 +120,8 @@ async function fetchEmployeeDetailsFromKYC(employeeId: string): Promise<{fullNam
     
     const data = await res.json();
     if (data.message && data.kycForms) {
-      console.log("🔍 Searching for employee in KYC:", employeeId);
-      console.log("🔍 Available KYC forms:", data.kycForms.length);
+      console.log("ðŸ” Searching for employee in KYC:", employeeId);
+      console.log("ðŸ” Available KYC forms:", data.kycForms.length);
      
       // Find employee by employeeId
       const employee = data.kycForms.find((kyc: { personalDetails?: { employeeId: string; fullName: string; designation: string } }) => 
@@ -129,14 +129,14 @@ async function fetchEmployeeDetailsFromKYC(employeeId: string): Promise<{fullNam
       );
       
       if (employee) {
-        console.log("🔍 Found employee in KYC:", employee.personalDetails);
+        console.log("ðŸ” Found employee in KYC:", employee.personalDetails);
         return {
           fullName: employee.personalDetails.fullName,
           designation: employee.personalDetails.designation
         };
       }
      
-      console.log("🔍 No KYC data found for employee:", employeeId);
+      console.log("ðŸ” No KYC data found for employee:", employeeId);
       return null;
     }
   } catch (error) {
@@ -148,7 +148,7 @@ async function fetchEmployeeDetailsFromKYC(employeeId: string): Promise<{fullNam
 // Helper function to fetch uniform request for a customer - removed as no longer needed
 // async function fetchUniformRequestForCustomer(employeeId: string, fullName: string): Promise<UniformRequestData | null> {
 //   // API call removed as requested
-//   console.log("🔍 Uniform request API call removed for:", { employeeId, fullName });
+//   console.log("ðŸ” Uniform request API call removed for:", { employeeId, fullName });
 //   return null;
 // }
 
@@ -508,30 +508,30 @@ export default function StoreDCPage() {
     async function fetchEmployeeData() {
       if (selectedDC) {
         setKycLoading(true);
-        console.log("🔍 Fetching employee data for DC:", selectedDC.dcNumber);
-        console.log("🔍 DC items:", selectedDC.items);
+        console.log("ðŸ” Fetching employee data for DC:", selectedDC.dcNumber);
+        console.log("ðŸ” DC items:", selectedDC.items);
        
         // Get unique employee IDs from DC items
         const uniqueEmployeeIds = [...new Set(selectedDC.items.map(item => item.employeeId).filter(Boolean))];
-        console.log("🔍 Unique employee IDs:", uniqueEmployeeIds);
+        console.log("ðŸ” Unique employee IDs:", uniqueEmployeeIds);
        
         // Fetch employee details for each unique employee ID
         const employeeDetailsMap: Record<string, {fullName: string, designation: string}> = {};
         
         for (const employeeId of uniqueEmployeeIds) {
           if (employeeId) {
-            console.log(`🔍 Fetching KYC data for employee: ${employeeId}`);
+            console.log(`ðŸ” Fetching KYC data for employee: ${employeeId}`);
             const details = await fetchEmployeeDetailsFromKYC(employeeId);
             if (details) {
-              console.log(`✅ Found KYC data for ${employeeId}:`, details);
+              console.log(`âœ… Found KYC data for ${employeeId}:`, details);
               employeeDetailsMap[employeeId] = details;
             } else {
-              console.log(`❌ No KYC data found for ${employeeId}`);
+              console.log(`âŒ No KYC data found for ${employeeId}`);
             }
           }
         }
        
-        console.log("🔍 Fetched employee details:", employeeDetailsMap);
+        console.log("ðŸ” Fetched employee details:", employeeDetailsMap);
         setEmployeeDetails(employeeDetailsMap);
         setKycLoading(false);
        
@@ -593,13 +593,13 @@ export default function StoreDCPage() {
       
       for (const employeeId of uniqueEmployeeIds) {
         if (employeeId) {
-          console.log(`🔍 Fetching KYC data for employee: ${employeeId}`);
+          console.log(`ðŸ” Fetching KYC data for employee: ${employeeId}`);
           const details = await fetchEmployeeDetailsFromKYC(employeeId);
           if (details) {
-            console.log(`✅ Found KYC data for ${employeeId}:`, details);
+            console.log(`âœ… Found KYC data for ${employeeId}:`, details);
             employeeDetailsMap[employeeId] = details;
           } else {
-            console.log(`❌ No KYC data found for ${employeeId}`);
+            console.log(`âŒ No KYC data found for ${employeeId}`);
           }
         }
       }
@@ -1249,115 +1249,25 @@ export default function StoreDCPage() {
           <button onClick={() => setToast(null)} className="ml-2 text-lg font-bold">&times;</button>
         </div>
       )}
-      <ManagerDashboardLayout >
-        <div
-        className={`min-h-screen flex flex-col py-8 transition-colors duration-300 ${
+      <ManagerDashboardLayout>
+        <div className={`min-h-screen font-sans transition-colors duration-300 flex flex-col ${
           theme === "dark"
-            ? "bg-gradient-to-br from-gray-900 via-gray-950 to-blue-950"
-            : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"
-        }`}
-      >
-        {/* Header */}
-        <div
-          className={`rounded-2xl mb-8 p-6 flex items-center gap-6 shadow-lg w-full max-w-7xl mx-auto ${
-            theme === "dark"
-              ? "bg-gray-900"
-              : "bg-gradient-to-r from-blue-500 to-blue-800"
-          }`}
-        >
-          <div
-            className={`rounded-xl p-4 flex items-center justify-center ${
-              theme === "dark" ? "bg-[#232e3e]" : "bg-blue-600 bg-opacity-30"
-            }`}
-          >
-            <FaStore className="w-10 h-10 text-white" />
-          </div>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-white mb-1">Delivery Challans (DC)</h1>
-            <p className="text-white text-base opacity-90">View and manage DC records</p>
-          </div>
-          <button
-            className={`flex items-center gap-2 px-5 py-3 rounded-lg text-base font-semibold shadow transition border-2 ${theme === "dark" ? "bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800" : "bg-blue-600 text-white border-blue-700 hover:bg-blue-700"}`}
-            onClick={() => setShowCreate(true)}
-          >
-            <FaPlus className="w-4 h-4" />
-            Create DC
-          </button>
-        </div>
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-8 px-4">
-          {/* Left Panel - Info/Guidelines */}
-          <div className="lg:w-1/3 w-full">
-            <div
-              className={`rounded-xl p-6 border shadow-sm sticky top-8 transition-colors duration-300 ${
-                theme === "dark"
-                  ? "bg-gray-900 border-blue-900"
-                  : "bg-white border-blue-100"
-              }`}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`p-2 rounded-lg ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-50 text-blue-600"}`}>
-                  <FaInfoCircle className="w-5 h-5" />
-                </div>
-                <h2 className={`text-lg font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>DC Guidelines</h2>
-              </div>
-              <ul className="space-y-4">
-                {guidelines.map((g, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className={`p-2 rounded-lg ${theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-50 text-green-600"}`}><FaBoxOpen className="w-4 h-4" /></span>
-                    <span className={`text-sm leading-relaxed ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>{g}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className={`mt-8 p-4 rounded-xl border text-blue-700 transition-colors duration-300 ${theme === "dark" ? "bg-gray-900 border-blue-800 text-blue-200" : "bg-blue-50 border-blue-100 text-blue-700"}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <FaStore className="w-4 h-4" />
-                  <span className="font-semibold">Need Help?</span>
-                </div>
-                <p className="text-sm">Contact <span className="font-medium">stores@zenployee.com</span> for support.</p>
-              </div>
-            </div>
-          </div>
-          {/* Right Panel - Search, Filter, DC Table */}
-          <div className="flex-1 flex flex-col gap-6">
-            {/* Download All DCs PDF Button */}
-            <div className="flex justify-end mb-4">
-              <button
-                className={`flex items-center gap-3 px-6 py-3 rounded-xl text-base font-semibold shadow-lg transition-all duration-300 border-2 transform hover:scale-105 active:scale-95 ${theme === "dark" ? "bg-gradient-to-r from-blue-600 to-blue-800 text-white border-blue-500 hover:from-blue-700 hover:to-blue-900 hover:shadow-blue-500/25" : "bg-gradient-to-r from-blue-500 to-blue-700 text-white border-blue-400 hover:from-blue-600 hover:to-blue-800 hover:shadow-blue-500/25"}`}
-                onClick={handleDownloadAllDCs}
-                disabled={allPdfLoading}
-              >
-                {allPdfLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Generating Summary...
-                  </>
-                ) : (
-                  <>
-                    <FaBoxOpen className="w-5 h-5" />
-                    Download All DCs Summary
-                  </>
-                )}
-              </button>
-            </div>
-            {/* Search and Filter Row */}
-            <div className="flex flex-col md:flex-row gap-4 mb-2 items-start md:items-center">
-              <div className="relative w-full md:w-1/2">
-                <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
-                <input
-                  type="text"
-                  placeholder="Search by DC number, project name, or customer..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
-                />
-              </div>
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                <FaFilter className={`w-5 h-5 mr-2 ${theme === "dark" ? "text-blue-200" : "text-blue-600"}`} />
+            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
+            : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
+        }`}>
+          {/* Filters and Search */}
+          <div className="sticky top-[64px] z-30 backdrop-blur-sm px-4 py-2 mb-3 md:mb-4">
+            <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
+              {/* Project Filter */}
+              <div className="flex-1 min-w-[180px] max-w-xs">
                 <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
-                  className={`px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
+                  className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    theme === "dark"
+                      ? "bg-gray-800 border-blue-900 text-white"
+                      : "bg-white border-gray-200 text-black"
+                  }`}
                 >
                   <option value="">All Status</option>
                   {statusOptions.map(status => (
@@ -1365,307 +1275,236 @@ export default function StoreDCPage() {
                   ))}
                 </select>
               </div>
+              {/* Search Bar */}
+              <div className="relative flex-1 min-w-[180px] max-w-xs">
+                <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+                <input
+                  type="text"
+                  placeholder="Search DC number, project name, or customer..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+            theme === "dark"
+                      ? "bg-gray-800 border-blue-900 text-white"
+                      : "bg-white border-gray-200 text-black"
+                  }`}
+                />
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+          <button
+                  className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800 border-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-200'}`}
+            onClick={() => setShowCreate(true)}
+          >
+            Create DC
+          </button>
+              <button
+                  className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-blue-700'}`}
+                onClick={handleDownloadAllDCs}
+                disabled={allPdfLoading}
+              >
+                  {allPdfLoading ? "Generating..." : "Export All"}
+              </button>
             </div>
-            {/* DC Table */}
-            <div className="w-full rounded-2xl shadow-xl transition-colors duration-300">
-              {/* Restrict height and enable both scrollbars */}
-              <div className="w-full h-[320px] overflow-x-auto overflow-y-auto">
-                {/* Increase min-w to force horizontal scroll on smaller screens */}
-                <table className={`min-w-[800px] table-fixed divide-y ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
-                  <thead className={theme === "dark" ? "bg-blue-950" : "bg-blue-50"}>
+            </div>
+          </div>
+
+          {/* Table - Excel-like compact grid full screen */}
+          <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
+            <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+              {loading ? (
+                <div className="py-12 text-center text-lg font-semibold">Loading DC records...</div>
+              ) : error ? (
+                <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
+              ) : (
+                <>
+                <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                  <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                     <tr>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Number</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Date</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Project Name</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Status</th>
-                      <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Actions</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>DC Number</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project Name</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Customer</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
+                    </tr>
+                    {/* Inline header filters */}
+                    <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
+                      <th className={`px-2 py-1 sticky left-0 z-20 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                          placeholder="Filter DC#" 
+                          className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                        />
+                      </th>
+                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                        <input 
+                          value={search} 
+                          onChange={e => setSearch(e.target.value)} 
+                          placeholder="Filter Project" 
+                          className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                        />
+                      </th>
+                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                        <input 
+                          value={search} 
+                          onChange={e => setSearch(e.target.value)} 
+                          placeholder="Filter Customer" 
+                          className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                        />
+                      </th>
+                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                <select
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                          className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                        >
+                          <option value="">All</option>
+                          {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                      </th>
+                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {loading ? (
+                  <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                    {filteredDC.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-blue-600 font-semibold">Loading DC records...</td>
+                        <td colSpan={7} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No DC records found</td>
                       </tr>
-                    ) : error ? (
-                      <tr>
-                        <td colSpan={5} className="py-12 text-center text-red-600 font-semibold">{error}</td>
-                      </tr>
-                    ) : filteredDC.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="text-center py-12 text-gray-500">No DC records found.</td>
-                      </tr>
-                    ) : (
-                      filteredDC.map((dc, idx) => (
-                        <tr key={idx} className={`transition ${theme === "dark" ? "hover:bg-blue-950" : "hover:bg-blue-100"}`}>
-                          <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{dc.dcNumber}</td>
-                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
-                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{getProjectName(dc)}</td>
-                          <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-100" : "text-black"}`}>{dc.status}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex gap-2">
+                    ) : filteredDC.map((dc, idx) => (
+                      <tr key={idx} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
+                        <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{dc.dcNumber}</td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={getProjectName(dc)}>{getProjectName(dc)}</div></td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}><div className="truncate" title={dc.customer}>{dc.customer}</div></td>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
+                            dc.status === 'Issued' 
+                              ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
+                              : theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {dc.status || "N/A"}
+                          </span>
+                        </td>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex gap-1">
                               <button
-                                className={`px-4 py-2 rounded-lg text-xs font-semibold border-2 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-md ${theme === "dark" ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 hover:from-blue-700 hover:to-blue-800 hover:shadow-blue-500/25" : "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-400 hover:from-blue-600 hover:to-blue-800 hover:shadow-blue-500/25"}`}
                                 onClick={() => setSelectedDC(dc)}
+                              title="View Details"
+                              className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                theme === 'dark' 
+                                  ? 'border-blue-500 text-blue-400 bg-gray-800 hover:bg-gray-700 focus:ring-blue-400' 
+                                  : 'border-blue-500 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-400'
+                              }`}
                               >
                                  View
                               </button>
                               <button
-                                className={`px-4 py-2 rounded-lg text-xs font-semibold border-2 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-md ${theme === "dark" ? "bg-gradient-to-r from-green-600 to-green-700 text-white border-green-500 hover:from-green-700 hover:to-green-800 hover:shadow-green-500/25" : "bg-gradient-to-r from-green-500 to-green-600 text-white border-green-400 hover:from-green-600 hover:to-green-700 hover:shadow-green-500/25"}`}
                                 onClick={() => handleDownloadDC(dc)}
                                 disabled={pdfLoading === dc.dcNumber}
+                              title="Download PDF"
+                              className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                theme === 'dark' 
+                                  ? 'border-green-500 text-green-400 bg-gray-800 hover:bg-gray-700 focus:ring-green-400' 
+                                  : 'border-green-500 text-green-600 bg-white hover:bg-green-50 focus:ring-green-400'
+                              }`}
                               >
                                 {pdfLoading === dc.dcNumber ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
-                                    Generating...
-                                  </>
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
                                 ) : (
-                                  " Download DC"
+                                "PDF"
                                 )}
                               </button>
                             </div>
                           </td>
                         </tr>
-                      ))
-                    )}
+                    ))}
                   </tbody>
                 </table>
+                </>
+              )}
               </div>
             </div>
-            {/* DC Details Modal */}
-            {selectedDC && (
-              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-                <div className={`rounded-2xl shadow-2xl max-w-4xl w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
-                  <button
-                    className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
-                    onClick={() => setSelectedDC(null)}
-                  >
-                    <FaTimes className="w-6 h-6" />
-                  </button>
-                  <h2 className={`text-2xl font-bold mb-6 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
-                    <FaBoxOpen className="w-6 h-6" />
-                    Delivery Challan Details
-                    {kycLoading && (
-                      <span className="text-sm font-normal text-gray-500 ml-2">
-                        (Loading employee details...)
-                      </span>
-                    )}
-                  </h2>
-                  <div className={`space-y-6 max-h-[70vh] overflow-y-auto pr-2`}>
-                    {/* DC Summary */}
-                    <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
-                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>DC Summary</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <span className="font-semibold text-sm">DC Number:</span>
-                          <div className="text-lg font-bold">{selectedDC.dcNumber}</div>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-sm">Date:</span>
-                          <div className="text-lg">{selectedDC.dcDate ? selectedDC.dcDate.split('T')[0] : ''}</div>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-sm">Project:</span>
-                          <div className="text-lg">{getProjectName(selectedDC)}</div>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-sm">Total Employees:</span>
-                          <div className="text-lg">{selectedDC.customer.split(',').length}</div>
-                        </div>
-                      </div>
-                    </div>
+          </div>
+      </ManagerDashboardLayout>
+      
+      {/* Create DC Modal */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <CreateDCModal
+            onClose={() => setShowCreate(false)}
+            theme={theme}
+            setDcData={setDcData}
+            dcData={dcData}
+            refreshDCData={refreshDCData}
+          />
+        </div>
+      )}
+      
+      {/* DC Details Modal */}
+      {selectedDC && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-2xl relative overflow-y-auto max-h-[90vh]">
+              <button className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl font-bold" onClick={() => setSelectedDC(null)}>&times;</button>
+              <h2 className="text-2xl font-bold mb-4 text-center">Delivery Challan Details</h2>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div><b>DC Number:</b> {selectedDC?.dcNumber}</div>
+                  <div><b>Date:</b> {selectedDC?.dcDate ? selectedDC?.dcDate.split('T')[0] : ''}</div>
+                  <div><b>Project:</b> {selectedDC ? getProjectName(selectedDC!) : 'N/A'}</div>
+                  <div><b>Status:</b> Issued</div>
+                  <div><b>Customer:</b> {selectedDC?.customer}</div>
+                  <div><b>Total Items:</b> {selectedDC?.items.length}</div>
+                </div>
 
-                    {/* DC Basic Info */}
-                    <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
-                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Information</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <span className="font-semibold text-sm">DC Number:</span>
-                          <div className="text-lg font-bold">{selectedDC.dcNumber}</div>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-sm">Date:</span>
-                          <div className="text-lg">{selectedDC.dcDate ? selectedDC.dcDate.split('T')[0] : ''}</div>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-sm">Project Name:</span>
-                          <div className="text-lg">{getProjectName(selectedDC)}</div>
-                        </div>
-                      </div>
-                    </div>
+                {/* Employee Details */}
+                <div>
+                  <h3 className="font-semibold mb-3">Employee Details</h3>
+                  <div className="space-y-3">
+                    {(() => {
+                      // Group DC items by employeeId
+                      const employeeGroups = selectedDC?.items.reduce((groups: Record<string, DCItem[]>, item) => {
+                        const empId = item.employeeId || 'Unknown';
+                        if (!groups[empId]) {
+                          groups[empId] = [];
+                        }
+                        groups[empId].push(item);
+                        return groups;
+                      }, {}) || {};
 
-
-
-                    {/* Employee Details */}
-                    <div>
-                      <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>Employee Details</h3>
-                      <div className="space-y-4">
-                        {/* Group items by employeeId to show proper employee information */}
-                        {(() => {
-                          // Group DC items by employeeId
-                          const employeeGroups = selectedDC.items.reduce((groups: Record<string, DCItem[]>, item) => {
-                            const empId = item.employeeId || 'Unknown';
-                            if (!groups[empId]) {
-                              groups[empId] = [];
-                            }
-                            groups[empId].push(item);
-                            return groups;
-                          }, {});
-
-                          return Object.entries(employeeGroups).map(([employeeId, items], groupIndex) => (
-                            <div key={groupIndex} className={`rounded-lg p-4 border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                              <div className="flex items-center justify-between mb-3">
-                                <h4 className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
-                                  Employee: {employeeId}
-                                </h4>
-                                <span className={`px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}>
-                                  ID: {employeeId}
-                                </span>
-                              </div>
-                             
-                              {/* Employee Information */}
-                              <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
-                                <div className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Employee Information:</div>
-                               
-                                {/* Basic Information */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-4">
-                                  <div><b>Employee ID:</b> {employeeId}</div>
-                                  <div><b>Full Name:</b> {(() => {
-                                    if (kycLoading) return 'Loading...';
-                                    const empDetails = employeeDetails[employeeId];
-                                    console.log(`View Modal - Employee ${employeeId} details:`, empDetails);
-                                    return empDetails?.fullName || 'Not found in KYC';
-                                  })()}</div>
-                                  <div><b>Designation:</b> {(() => {
-                                    if (kycLoading) return 'Loading...';
-                                    const empDetails = employeeDetails[employeeId];
-                                    return empDetails?.designation || 'Not found in KYC';
-                                  })()}</div>
-                                  <div><b>Project:</b> {getProjectName(selectedDC)}</div>
-                                </div>
-
-                                {/* Uniform Items for this Employee */}
-                                <div className="mt-4">
-                                  <div className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Uniform Items:</div>
-                                  <div className="space-y-2">
-                                    {(() => {
-                                      // Process items to create proper uniform type and size mapping
-                                      // Removed unused variable
-                                      const processedItems: Array<{
-                                        uniformType: string;
-                                        size: string;
-                                        quantity: number;
-                                        itemId: string;
-                                        remarks?: string;
-                                      }> = [];
-                                      
-                                      // Process items to map each uniform type to its specific size
-                                      // Based on the API data structure, we need to map:
-                                      // First item: "Commercial HK Pant, HK Commercial Shirt" with size "28" 
-                                      // Second item: "Commercial HK Pant, HK Commercial Shirt" with size "36"
-                                      // So: Commercial HK Pant = 28, HK Commercial Shirt = 36
-                                      
-                                      const uniformTypeSizeMapping: Record<string, string> = {};
-                                      
-                                      // Process items in order to map uniform types to sizes
-                                      items.forEach((item: DCItem, itemIndex) => {
-                                        const itemUniformType = typeof item.uniformType === 'string' ? item.uniformType : (Array.isArray(item.uniformType) ? item.uniformType.join(', ') : item.name || 'N/A');
-                                        if (typeof itemUniformType === 'string' && itemUniformType.includes(',')) {
-                                          // Split combined uniform types
-                                          const parts = itemUniformType.split(',').map(part => part.trim()).filter(part => part);
-                                          
-                                          // Map each part to the size from this specific item
-                                          // For the first item (size 28): Commercial HK Pant gets 28, HK Commercial Shirt gets 28
-                                          // For the second item (size 36): Commercial HK Pant gets 36, HK Commercial Shirt gets 36
-                                          // But we want: Commercial HK Pant = 28, HK Commercial Shirt = 36
-                                          
-                                          // So we need to map based on the order:
-                                          // First item: parts[0] = "Commercial HK Pant" gets size 28
-                                          // Second item: parts[1] = "HK Commercial Shirt" gets size 36
-                                          
-                                          if (itemIndex === 0 && parts.length > 0) {
-                                            // First item: map the first uniform type to this size
-                                            const firstPart = parts[0];
-                                            if (firstPart) {
-                                              uniformTypeSizeMapping[firstPart] = item.size || 'N/A';
-                                            }
-                                          } else if (itemIndex === 1 && parts.length > 1) {
-                                            // Second item: map the second uniform type to this size
-                                            const secondPart = parts[1];
-                                            if (secondPart) {
-                                              uniformTypeSizeMapping[secondPart] = item.size || 'N/A';
-                                            }
-                                          }
-                                        } else {
-                                          // Single uniform type
-                                          uniformTypeSizeMapping[itemUniformType] = item.size || 'N/A';
-                                        }
-                                      });
-                                      
-                                      // Create processed items based on the mapping
-                                      Object.entries(uniformTypeSizeMapping).forEach(([uniformType, size]) => {
-                                        // Find the first item to get quantity and other details
-                                        const firstItem = items[0]; // Use first item for quantity and other details
-                                        
-                                        processedItems.push({
-                                          uniformType: uniformType,
-                                          size: size,
-                                          quantity: firstItem.quantity || 1,
-                                          itemId: firstItem.itemId || 'N/A',
-                                          remarks: firstItem.remarks
-                                        });
-                                      });
-                                      
-                                      return processedItems.map((item, itemIndex) => (
-                                        <div key={itemIndex} className={`p-3 rounded border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-gray-100 border-gray-300"}`}>
-                                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                                            <div><b>Item:</b> {item.uniformType}</div>
-                                            <div><b>Size:</b> {item.size}</div>
-                                            <div><b>Quantity:</b> {item.quantity}</div>
-                                          </div>
-                                          {item.remarks && (
-                                            <div className="mt-2 text-xs text-gray-600">
-                                              <b>Note:</b> {item.remarks}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ));
-                                    })()}
-                                  </div>
-                                </div>
-                              </div>
+                      return Object.entries(employeeGroups).map(([employeeId, items], groupIndex) => {
+                        const empDetails = employeeDetails[employeeId];
+                        return (
+                          <div key={groupIndex} className="border rounded-lg p-3">
+                            <div className="font-semibold mb-2">Employee: {employeeId}</div>
+                            <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                              <div><b>Name:</b> {empDetails?.fullName || 'Not found in KYC'}</div>
+                              <div><b>Designation:</b> {empDetails?.designation || 'Not found in KYC'}</div>
                             </div>
-                          ));
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* Remarks */}
-                    {selectedDC.remarks && (
-                      <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-yellow-900 border-yellow-700" : "bg-yellow-50 border-yellow-200"}`}>
-                        <span className="font-semibold">Remarks:</span> {selectedDC.remarks}
-                      </div>
-                    )}
+                            <div className="text-sm">
+                              <b>Items:</b> {items.map(item => `${item.name || item.uniformType} (Size: ${item.size}, Qty: ${item.quantity})`).join(', ')}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
+
+                {/* Remarks */}
+                {selectedDC?.remarks && (
+                  <div className="border rounded-lg p-3">
+                    <span className="font-semibold">Remarks:</span> {selectedDC?.remarks}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-        {/* Create DC Modal */}
-        {showCreate && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <CreateDCModal
-              onClose={() => setShowCreate(false)}
-              theme={theme}
-              setDcData={setDcData}
-              dcData={dcData}
-              refreshDCData={refreshDCData}
-            />
+            </div>
           </div>
         )}
-      </div>
-    </ManagerDashboardLayout >
     </>
   );
 }

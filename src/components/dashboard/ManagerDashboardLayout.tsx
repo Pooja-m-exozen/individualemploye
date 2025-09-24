@@ -31,6 +31,7 @@ const ManagerDashboardLayout = ({ children }: ManagerDashboardLayoutProps) => {
     { label: "Attendance", href: "/Manager/attendance-management/view" },
     { label: "Leave", href: "/Manager/leave-management/view" },
     { label: "Stores", href: "/Manager/stores-management/in-stock" },
+    { label: "DC", href: "/Manager/stores-management/dc" },
     { label: "Payroll", href: "/Manager/payroll-management/view" },
     // Reports removed
   ], []);

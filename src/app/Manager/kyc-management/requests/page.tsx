@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaEye, FaCheck } from "react-icons/fa";
+import { FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaEye, FaCheck, FaEdit } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 // Removed unused Link import
 import CreateKYCForm from '../create/CreateKYCForm';
 import ViewKYCModal from '@/components/dashboard/ViewKYCModal';
+import EditKYCModal from '@/components/dashboard/EditKYCModal';
 
 interface KYCRequest {
   _id: string;
@@ -26,6 +27,7 @@ interface KYCRequest {
 }
 
 interface KYCData {
+  _id: string;
   personalDetails: {
     employeeId: string;
     projectName: string;
@@ -129,6 +131,7 @@ export default function KYCRequestsPage() {
   const { theme } = useTheme();
   const [showCreateKycModal, setShowCreateKycModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedKYCData, setSelectedKYCData] = useState<KYCData | null>(null);
   const [loadingKYCData, setLoadingKYCData] = useState(false);
 
@@ -177,7 +180,12 @@ export default function KYCRequestsPage() {
       // The API might return data directly or wrapped in a kycData property
       const kycData = data.kycData || data;
       if (kycData && kycData.personalDetails) {
-        setSelectedKYCData(kycData);
+        // Ensure _id is present, use employeeId as fallback if not
+        const kycDataWithId = {
+          ...kycData,
+          _id: kycData._id || kycData.personalDetails.employeeId || 'unknown'
+        };
+        setSelectedKYCData(kycDataWithId);
         setShowViewModal(true);
       } else {
         console.error('Invalid KYC data structure:', data);
@@ -190,6 +198,49 @@ export default function KYCRequestsPage() {
     } finally {
       setLoadingKYCData(false);
     }
+  };
+
+  const handleEditKYC = async (employeeId: string) => {
+    setLoadingKYCData(true);
+    setError(null);
+    try {
+      const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${employeeId}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.reason || data.message || "Failed to fetch KYC data");
+      
+      // Check if the response has the expected structure
+      const kycData = data.kycData || data;
+      if (kycData && kycData.personalDetails) {
+        // Ensure _id is present, use employeeId as fallback if not
+        const kycDataWithId = {
+          ...kycData,
+          _id: kycData._id || kycData.personalDetails.employeeId || 'unknown'
+        };
+        setSelectedKYCData(kycDataWithId);
+        setShowEditModal(true);
+      } else {
+        console.error('Invalid KYC data structure:', data);
+        throw new Error("Invalid KYC data structure received");
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch KYC data.";
+      setError(errorMessage);
+      setToast({ type: "error", message: errorMessage });
+    } finally {
+      setLoadingKYCData(false);
+    }
+  };
+
+  const handleSaveKYC = (updatedKYCData: KYCData) => {
+    // Update the requests list with the updated data
+    setRequests(prev => prev.map(req => 
+      req.personalDetails.employeeId === updatedKYCData.personalDetails.employeeId
+        ? { ...req, personalDetails: { ...req.personalDetails, ...updatedKYCData.personalDetails } }
+        : req
+    ));
+    setSelectedKYCData(updatedKYCData);
+    setToast({ type: "success", message: "KYC updated successfully!" });
+    setTimeout(() => setToast(null), 3500);
   };
 
   const designationOptions = Array.from(new Set(requests.map(f => f.personalDetails.designation))).filter(Boolean);
@@ -594,6 +645,20 @@ export default function KYCRequestsPage() {
                               </button>
                             )}
                             
+                            {/* Edit button - always available */}
+                            <button
+                              onClick={() => handleEditKYC(req.personalDetails.employeeId)}
+                              disabled={loadingKYCData}
+                              title="Edit KYC"
+                              className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                theme === 'dark' 
+                                  ? 'border-orange-500 text-orange-400 bg-gray-800 hover:bg-gray-700 focus:ring-orange-400' 
+                                  : 'border-orange-500 text-orange-600 bg-white hover:bg-orange-50 focus:ring-orange-400'
+                              }`}
+                            >
+                              {loadingKYCData ? <FaSpinner className="animate-spin" /> : <FaEdit />}
+                            </button>
+                            
                             {/* View button - always available */}
                             <button
                               onClick={() => fetchKYCData(req.personalDetails.employeeId)}
@@ -629,6 +694,19 @@ export default function KYCRequestsPage() {
             setSelectedKYCData(null);
           }}
           kycData={selectedKYCData}
+        />
+      )}
+
+      {/* Edit KYC Modal */}
+      {showEditModal && selectedKYCData && (
+        <EditKYCModal
+          open={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedKYCData(null);
+          }}
+          kycData={selectedKYCData}
+          onSave={handleSaveKYC}
         />
       )}
     </ManagerDashboardLayout>
