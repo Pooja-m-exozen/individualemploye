@@ -422,7 +422,7 @@ export default function ManagerDashboardPage() {
                 halfDayType: item.isHalfDay ? (item.halfDayType || "Half Day") : "-",
                 status: item.status || "-",
                 reason: item.reason || "-",
-                appliedOn: item.appliedOn ? new Date(item.appliedOn).toLocaleString() : "-",
+                appliedOn: item.appliedOn ? new Date(item.appliedOn).toLocaleDateString() : "-",
                 emergencyContact: item.emergencyContact || "-",
                 attachments: item.attachments || [],
                 fullItem: item,
