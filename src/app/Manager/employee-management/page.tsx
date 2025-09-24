@@ -677,24 +677,24 @@ export default function EmployeeManagementPage() {
             <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
               <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                 <tr>
-                  {visibleCols.rownum && (<th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>)}
-                  {visibleCols.photo && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Photo</th>)}
-                  {visibleCols.employeeId && (<th onClick={() => onSort('employeeId')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID {sortBy === 'employeeId' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
-                  {visibleCols.name && (<th onClick={() => onSort('name')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name {sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
-                  {visibleCols.designation && (<th onClick={() => onSort('designation')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation {sortBy === 'designation' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
-                  {visibleCols.project && (<th onClick={() => onSort('project')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project {sortBy === 'project' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
-                  {visibleCols.kyc && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>KYC</th>)}
-                  {visibleCols.idCard && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>ID Card</th>)}
-                  {visibleCols.uniform && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Uniform</th>)}
-                  {visibleCols.attendance && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Attendance</th>)}
-                  {visibleCols.payslip && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Payslip</th>)}
+                  {visibleCols.rownum && (<th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>)}
+                  {visibleCols.photo && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Photo</th>)}
+                  {visibleCols.employeeId && (<th onClick={() => onSort('employeeId')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee ID {sortBy === 'employeeId' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                  {visibleCols.name && (<th onClick={() => onSort('name')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Name {sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                  {visibleCols.designation && (<th onClick={() => onSort('designation')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Designation {sortBy === 'designation' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                  {visibleCols.project && (<th onClick={() => onSort('project')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project {sortBy === 'project' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                  {visibleCols.kyc && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>KYC</th>)}
+                  {visibleCols.idCard && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>ID Card</th>)}
+                  {visibleCols.uniform && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Uniform</th>)}
+                  {visibleCols.attendance && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Attendance</th>)}
+                  {visibleCols.payslip && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Payslip</th>)}
                 </tr>
                 {/* Inline header filters */}
                 <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
-                  {visibleCols.rownum && (<th className="px-2 py-1 sticky left-0 z-20"></th>)}
-                  {visibleCols.photo && (<th className="px-2 py-1 w-16"></th>)}
+                  {visibleCols.rownum && (<th className={`px-2 py-1 sticky left-0 z-20 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>)}
+                  {visibleCols.photo && (<th className={`px-2 py-1 w-16 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>)}
                   {visibleCols.employeeId && (
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <input
                         value={empIdFilter}
                         onChange={e => setEmpIdFilter(e.target.value)}
@@ -704,7 +704,7 @@ export default function EmployeeManagementPage() {
                     </th>
                   )}
                   {visibleCols.name && (
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <input
                         value={nameFilter}
                         onChange={e => setNameFilter(e.target.value)}
@@ -714,7 +714,7 @@ export default function EmployeeManagementPage() {
                     </th>
                   )}
                   {visibleCols.designation && (
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select
                         value={designationFilter}
                         onChange={e => setDesignationFilter(e.target.value)}
@@ -727,7 +727,7 @@ export default function EmployeeManagementPage() {
                     </th>
                   )}
                   {visibleCols.project && (
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select
                         value={projectFilter}
                         onChange={e => setProjectFilter(e.target.value)}
@@ -740,23 +740,23 @@ export default function EmployeeManagementPage() {
                       </select>
                     </th>
                   )}
-                  {visibleCols.kyc && (<th className="px-2 py-1"></th>)}
-                  {visibleCols.idCard && (<th className="px-2 py-1"></th>)}
-                  {visibleCols.uniform && (<th className="px-2 py-1"></th>)}
-                  {visibleCols.attendance && (<th className="px-2 py-1"></th>)}
-                  {visibleCols.payslip && (<th className="px-2 py-1"></th>)}
+                  {visibleCols.kyc && (<th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>)}
+                  {visibleCols.idCard && (<th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>)}
+                  {visibleCols.uniform && (<th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>)}
+                  {visibleCols.attendance && (<th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>)}
+                  {visibleCols.payslip && (<th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>)}
                 </tr>
               </thead>
               <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
                 {sortedEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No employees found</td>
+                    <td colSpan={5} className={`px-4 py-12 text-center border ${theme === "dark" ? "text-gray-400 border-blue-800" : "text-gray-500 border-blue-200"}`}>No employees found</td>
                   </tr>
                 ) : sortedEmployees.map((emp, idx) => (
-                  <tr key={emp.employeeId} id={`emp-${emp.employeeId}`} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                    {visibleCols.rownum && (<td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{idx + 1}</td>)}
+                  <tr key={emp.employeeId} id={`emp-${emp.employeeId}`} className={`${theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"} even:bg-gray-50 dark:even:bg-gray-900`}>
+                    {visibleCols.rownum && (<td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>)}
                     {visibleCols.photo && (
-                      <td className="px-2 py-1">
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <Image
                           src={brokenImgUrls[emp.personalDetails?.employeeImage || ""] ? PLACEHOLDER_DATA_URL : resolveImg(emp.personalDetails?.employeeImage)}
                           alt={emp.fullName}
@@ -774,25 +774,25 @@ export default function EmployeeManagementPage() {
                         />
                       </td>
                     )}
-                    {visibleCols.employeeId && (<td className={`px-2 py-1 font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{emp.employeeId}</td>)}
+                    {visibleCols.employeeId && (<td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{emp.employeeId}</td>)}
                     {visibleCols.name && (
-                      <td className="px-2 py-1"><div className="truncate" title={emp.fullName}>{emp.fullName}</div></td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={emp.fullName}>{emp.fullName}</div></td>
                     )}
                     {visibleCols.designation && (
-                      <td className="px-2 py-1"><div className="truncate" title={emp.designation}>{emp.designation}</div></td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={emp.designation}>{emp.designation}</div></td>
                     )}
                     {visibleCols.project && (
-                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={emp.projectName}>{emp.projectName}</div></td>
+                      <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={emp.projectName}>{emp.projectName}</div></td>
                     )}
                     {visibleCols.kyc && (
-                      <td className="px-2 py-1 text-center">
+                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => setKycModal({ open: true, kycData: emp.kycForm ? (emp.kycForm as unknown as KYCData) : null })}>
                           <FaEye />
                         </button>
                       </td>
                     )}
                     {visibleCols.idCard && (
-                      <td className="px-2 py-1 text-center">
+                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
                           const bloodGroup = (emp.personalDetails as Record<string, unknown>)?.bloodGroup as string || '';
                           let employeeImage = (emp.personalDetails as Record<string, unknown>)?.employeeImage as string;
@@ -816,21 +816,21 @@ export default function EmployeeManagementPage() {
                       </td>
                     )}
                     {visibleCols.uniform && (
-                      <td className="px-2 py-1 text-center">
+                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => setUniformModal({ open: true, employeeId: emp.employeeId })}>
                           <FaEye />
                         </button>
                       </td>
                     )}
                     {visibleCols.attendance && (
-                      <td className="px-2 py-1 text-center">
+                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => setAttendanceModal({ open: true, employeeId: emp.employeeId, employeeName: emp.fullName })}>
                           <FaEye />
                         </button>
                       </td>
                     )}
                     {visibleCols.payslip && (
-                      <td className="px-2 py-1 text-center">
+                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => alert('View Payslip')}>
                           <FaEye />
                         </button>

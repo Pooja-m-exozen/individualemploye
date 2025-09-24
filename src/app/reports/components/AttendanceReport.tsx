@@ -301,17 +301,35 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             return 'Working Day';
         }
         
-        // Default logic for other projects
+        // Special rule for 'Exozen - IT' and 'Exozen - FMS'
+        if (
+            projectName &&
+            (
+                projectName.trim().toLowerCase() === 'exozen - it' ||
+                projectName.trim().toLowerCase() === 'exozen - fms'
+            )
+        ) {
+            if (d.getDay() === 0) {
+                return 'Sunday';
+            }
+            if (d.getDay() === 6) { // Saturday
+                const weekNumber = Math.ceil((d.getDate() + (new Date(year, month - 1, 1).getDay())) / 7);
+                if (weekNumber === 2) {
+                    return '2nd Saturday';
+                } else if (weekNumber === 4) {
+                    return '4th Saturday';
+                }
+            }
+            return 'Working Day';
+        }
+        
+        // Default logic for other projects (no 2nd and 4th Saturday holidays)
         if (d.getDay() === 0) {
             return 'Sunday';
         }
         if (d.getDay() === 6) { // Saturday
-            const weekNumber = Math.ceil((d.getDate() + (new Date(year, month - 1, 1).getDay())) / 7);
-            if (weekNumber === 2) {
-                return '2nd Saturday';
-            } else if (weekNumber === 4) {
-                return '4th Saturday';
-            }
+            // For other projects, all Saturdays are working days
+            return 'Working Day';
         }
         return 'Working Day';
     };
@@ -567,8 +585,12 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             let hoursWorked = 'Incomplete';
             let hoursWorkedNum: number | null = null;
             
-            if (record.punchInUtc && record.punchOutUtc) {
-                const hw = parseFloat(safeCalculateHoursUtc(record.punchInUtc, record.punchOutUtc));
+            // Fix: Check if punchInTime and punchOutTime contain actual time values
+            const punchInTime = (record.punchInTime && record.punchInTime.includes(':')) ? record.punchInTime : null;
+            const punchOutTime = (record.punchOutTime && record.punchOutTime.includes(':')) ? record.punchOutTime : null;
+            
+            if (punchInTime && punchOutTime) {
+                const hw = parseFloat(safeCalculateHoursUtc(punchInTime, punchOutTime));
                 hoursWorkedNum = isNaN(hw) ? null : hw;
                 hoursWorked = hoursWorkedNum !== null
                     ? formatHoursToHoursAndMinutes(hoursWorkedNum.toString())
@@ -580,9 +602,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
             return [
                 formatDate(record.date),
-                record.projectName || '-',
-                formatTime(record.punchInTime),
-                formatTime(record.punchOutTime),
+                formatTime(punchInTime),
+                formatTime(punchOutTime),
                 hoursWorked,
                 shortage,
                 dayType,
@@ -1353,33 +1374,73 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                           {record.projectName || 'N/A'}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {formatTime(record.punchInTime)}
+                          {(() => {
+                            // Debug: log the entire record to understand the data structure
+                            console.log('Full record for', record.date, ':', record);
+                            // Check if punchInTime contains location/project info instead of time
+                            if (record.punchInTime && !record.punchInTime.includes(':')) {
+                              // If punchInTime doesn't contain time format, it might be location/project
+                              return '-';
+                            }
+                            return formatTime(record.punchInTime);
+                          })()}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {formatTime(record.punchOutTime)}
+                          {(() => {
+                            // Check if punchOutTime contains location/project info instead of time
+                            if (record.punchOutTime && !record.punchOutTime.includes(':')) {
+                              // If punchOutTime doesn't contain time format, it might be location/project
+                              return '-';
+                            }
+                            return formatTime(record.punchOutTime);
+                          })()}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-    {(() => {
-  const dayType = getDayType(record.date, selectedYear, selectedMonth);
-  if (record.punchInTime && record.punchOutTime) {
-    return formatHoursToHoursAndMinutes(
-      calculateHoursUtc(record.punchInUtc || record.punchInTime, record.punchOutUtc || record.punchOutTime)
-    );
-  } else if (dayType !== 'Working Day') {
-    return '-';
-  } else {
-    return 'Incomplete';
-  }
-})()}
-
-
+                          {(() => {
+                            const dayType = getDayType(record.date, selectedYear, selectedMonth);
+                            // Fix: Check if punchInTime and punchOutTime contain actual time values
+                            const punchInTime = (record.punchInTime && record.punchInTime.includes(':')) ? record.punchInTime : null;
+                            const punchOutTime = (record.punchOutTime && record.punchOutTime.includes(':')) ? record.punchOutTime : null;
+                            
+                            if (punchInTime && punchOutTime) {
+                              return formatHoursToHoursAndMinutes(
+                                calculateHoursUtc(record.punchInUtc || punchInTime, record.punchOutUtc || punchOutTime)
+                              );
+                            } else if (dayType !== 'Working Day') {
+                              return '-';
+                            } else {
+                              return 'Incomplete';
+                            }
+                          })()}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
-                          {record.punchInTime && record.punchOutTime ? (
-                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              {record.punchInTime && record.punchOutTime ? 'Present' : 'Absent'}
-                            </span>
-                          ) : ''}
+                          {(() => {
+                            const dayType = getDayType(record.date, selectedYear, selectedMonth);
+                            // Fix: Check if punchInTime and punchOutTime contain actual time values
+                            const punchInTime = (record.punchInTime && record.punchInTime.includes(':')) ? record.punchInTime : null;
+                            const punchOutTime = (record.punchOutTime && record.punchOutTime.includes(':')) ? record.punchOutTime : null;
+                            
+                            if (punchInTime && punchOutTime) {
+                              const hoursWorked = parseFloat(calculateHoursUtc(record.punchInUtc || punchInTime, record.punchOutUtc || punchOutTime));
+                              const shortage = Math.max(0, 9 - hoursWorked);
+                              if (shortage > 0) {
+                                const hours = Math.floor(shortage);
+                                const minutes = Math.round((shortage - hours) * 60);
+                                return `${hours}h ${minutes}m`;
+                              }
+                              return '-';
+                            } else if (dayType !== 'Working Day') {
+                              return '-';
+                            } else {
+                              return 'Incomplete';
+                            }
+                          })()}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                          {(() => {
+                            const dayType = getDayType(record.date, selectedYear, selectedMonth);
+                            return dayType;
+                          })()}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${

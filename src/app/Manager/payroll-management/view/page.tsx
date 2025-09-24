@@ -285,12 +285,12 @@ export default function PayrollViewPage() {
               <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
                 <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                   <tr>
-                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Month</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Year</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Amount</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Month</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Year</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Amount</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
                   </tr>
                   {/* Inline header filters */}
                   <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
@@ -328,7 +328,7 @@ export default function PayrollViewPage() {
                 <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
                   {paginatedPayroll.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No payroll records found</td>
+                      <td colSpan={6} className={`px-4 py-12 text-center border ${theme === "dark" ? "text-gray-400 border-blue-800" : "text-gray-500 border-blue-200"}`}>No payroll records found</td>
                     </tr>
                   ) : paginatedPayroll.map((pay, idx) => {
                     let monthIdx = 0;
@@ -338,13 +338,13 @@ export default function PayrollViewPage() {
                     }
                     const monthStr = monthOptions[monthIdx] || "";
                     return (
-                      <tr key={pay._id || idx} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{idx + 1}</td>
-                        <td className={`px-2 py-1 font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}><div className="truncate" title={pay.employeeName || "-"}>{pay.employeeName || "-"}</div></td>
-                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={monthStr}>{monthStr}</div></td>
-                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{pay.year || "-"}</td>
-                        <td className={`px-2 py-1 font-semibold ${theme === 'dark' ? 'text-green-300' : 'text-green-700'}`}>₹{typeof pay.amount === "number" ? pay.amount.toLocaleString() : "0"}</td>
-                        <td className="px-2 py-1 text-center">
+                      <tr key={pay._id || idx} className={`${theme === "dark" ? "hover:bg-blue-900" : "hover:bg-blue-50"} transition even:bg-gray-50 dark:even:bg-gray-900`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
+                        <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}><div className="truncate" title={pay.employeeName || "-"}>{pay.employeeName || "-"}</div></td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={monthStr}>{monthStr}</div></td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{pay.year || "-"}</td>
+                        <td className={`px-2 py-1 font-semibold border ${theme === 'dark' ? 'text-green-300 border-blue-800' : 'text-green-700 border-blue-200'}`}>₹{typeof pay.amount === "number" ? pay.amount.toLocaleString() : "0"}</td>
+                        <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-blue-800' : 'border-blue-200'}`}>
                           <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
                             pay.status === 'Paid' 
                               ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'

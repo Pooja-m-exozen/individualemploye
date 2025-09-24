@@ -502,23 +502,23 @@ export default function AttendanceViewPage() {
               <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
                 <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                   <tr>
-                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Photo</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee Name</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Date</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Punch In Time</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Punch Out Time</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Actions</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Photo</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee ID</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee Name</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Designation</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Punch In Time</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Punch Out Time</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
                   </tr>
                   {/* Inline header filters */}
                   <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
-                    <th className="px-2 py-1 sticky left-0 z-20"></th>
-                    <th className="px-2 py-1 w-16"></th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 sticky left-0 z-20 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 w-16 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <input 
                         value={empIdFilter} 
                         onChange={e => setEmpIdFilter(e.target.value)} 
@@ -526,7 +526,7 @@ export default function AttendanceViewPage() {
                         className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                       />
                     </th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <input 
                         value={nameFilter} 
                         onChange={e => setNameFilter(e.target.value)} 
@@ -534,7 +534,7 @@ export default function AttendanceViewPage() {
                         className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                       />
                     </th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select 
                         value={designationFilter} 
                         onChange={e => setDesignationFilter(e.target.value)} 
@@ -544,7 +544,7 @@ export default function AttendanceViewPage() {
                         {uniqueDesignations.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select 
                         value={projectFilterHeader} 
                         onChange={e => setProjectFilterHeader(e.target.value)} 
@@ -554,7 +554,7 @@ export default function AttendanceViewPage() {
                         {uniqueProjectsAll.map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <input 
                         type="date"
                         value={dateFilter} 
@@ -562,9 +562,9 @@ export default function AttendanceViewPage() {
                         className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                       />
                     </th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select 
                         value={statusFilter} 
                         onChange={e => setStatusFilter(e.target.value)} 
@@ -574,7 +574,7 @@ export default function AttendanceViewPage() {
                         {uniqueStatus.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </th>
-                    <th className="px-2 py-1"></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
                   </tr>
                 </thead>
                 <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
@@ -585,9 +585,9 @@ export default function AttendanceViewPage() {
                   ) : filteredAttendanceWithHeader.map((record, index) => {
                     const kyc = kycEmployees.find(e => e.employeeId === record.employeeId);
                     return (
-                      <tr key={record._id || index} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{index + 1}</td>
-                        <td className="px-2 py-1">
+                      <tr key={record._id || index} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{index + 1}</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <Image
                             src={getEmployeePhoto(record.employeeId)}
                             alt={kyc?.fullName || record.employeeId}
@@ -596,14 +596,14 @@ export default function AttendanceViewPage() {
                             className={`rounded object-cover border ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}
                           />
                         </td>
-                        <td className={`px-2 py-1 font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{record.employeeId}</td>
-                        <td className="px-2 py-1"><div className="truncate" title={kyc?.fullName || "-"}>{kyc?.fullName || "-"}</div></td>
-                        <td className="px-2 py-1"><div className="truncate" title={kyc?.designation || "-"}>{kyc?.designation || "-"}</div></td>
-                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={record.projectName}>{record.projectName}</div></td>
-                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{record.date ? new Date(record.date).toLocaleDateString() : "N/A"}</td>
-                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{record.punchInTime ? new Date(record.punchInTime).toLocaleTimeString() : "-"}</td>
-                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{record.punchOutTime ? new Date(record.punchOutTime).toLocaleTimeString() : "-"}</td>
-                        <td className="px-2 py-1 text-center">
+                        <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{record.employeeId}</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={kyc?.fullName || "-"}>{kyc?.fullName || "-"}</div></td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={kyc?.designation || "-"}>{kyc?.designation || "-"}</div></td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={record.projectName}>{record.projectName}</div></td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{record.date ? new Date(record.date).toLocaleDateString() : "N/A"}</td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{record.punchInTime ? new Date(record.punchInTime).toLocaleTimeString() : "-"}</td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{record.punchOutTime ? new Date(record.punchOutTime).toLocaleTimeString() : "-"}</td>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
                             record.status === 'Present' 
                               ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
@@ -614,7 +614,7 @@ export default function AttendanceViewPage() {
                             {record.status || "N/A"}
                           </span>
                         </td>
-                        <td className="px-2 py-1 text-center">
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <button
                             onClick={() => handleRowClick(record)}
                             title="View Details"

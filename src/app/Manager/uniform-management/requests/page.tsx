@@ -155,7 +155,7 @@ export default function UniformRequestsPage() {
   const [designationFilter, setDesignationFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
   const [genderFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Approved' | 'Pending'>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Approved' | 'Pending' | 'Verified' | 'Rejected'>('All');
 
   // 2. Compute unique values for filters
   const uniqueDesignations = Array.from(new Set(requests.map(r => r.employee.designation).filter(Boolean)));
@@ -220,12 +220,21 @@ export default function UniformRequestsPage() {
   };
 
   // Update handleAction to use the new API endpoint and improve table UI/UX
-  const handleAction = async (employeeId: string, action: "verify" | "approve" | "reject") => {
+  const handleAction = async (requestId: string, action: "verify" | "approve" | "reject") => {
     setError(null);
-    setActionLoading(prev => ({ ...prev, [employeeId]: action }));
+    setActionLoading(prev => ({ ...prev, [requestId]: action }));
     
     try {
-      const endpoint = `https://cafm.zenapi.co.in/api/uniforms/${employeeId}/${action}`;
+      // Find the request to get the employee ID
+      const request = requests.find(req => req._id === requestId);
+      if (!request) {
+        setError("Request not found");
+        setToast({ type: "error", message: "Request not found" });
+        setTimeout(() => setToast(null), 3500);
+        return;
+      }
+      
+      const endpoint = `https://cafm.zenapi.co.in/api/uniforms/${request.employee.employeeId}/${action}`;
       const remarks = action === 'approve' ? 'Approved by admin' : 
                      action === 'reject' ? 'Rejected by admin' : 
                      'Verified by admin';
@@ -255,7 +264,7 @@ export default function UniformRequestsPage() {
       
       setRequests(prev =>
         prev.map(req =>
-          req._id === employeeId
+          req._id === requestId
             ? { ...req, status: newStatus }
             : req
         )
@@ -266,7 +275,7 @@ export default function UniformRequestsPage() {
       setError(message);
       setToast({ type: "error", message });
     } finally {
-      setActionLoading(prev => ({ ...prev, [employeeId]: null }));
+      setActionLoading(prev => ({ ...prev, [requestId]: null }));
       setTimeout(() => setToast(null), 3500);
     }
   };
@@ -521,7 +530,7 @@ const handleCreateRequest = async (e: React.FormEvent) => {
             <div className="relative w-44 min-w-[130px]">
               <select
                 value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value as 'All' | 'Approved' | 'Pending')}
+                onChange={e => setStatusFilter(e.target.value as 'All' | 'Approved' | 'Pending' | 'Verified' | 'Rejected')}
                 className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                   theme === "dark"
                     ? "bg-gray-800 border-blue-900 text-white"
@@ -886,24 +895,24 @@ const handleCreateRequest = async (e: React.FormEvent) => {
               <table className="w-full text-xs table-fixed border-separate" style={{ borderSpacing: 0 }}>
                 <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                   <tr>
-                    <th className={`px-1 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`} style={{ width: '3%' }}>#</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} style={{ width: '6%' }}>Photo</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} style={{ width: '8%' }}>Employee ID</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} style={{ width: '10%' }}>Full Name</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} style={{ width: '8%' }}>Designation</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} style={{ width: '8%' }}>Project</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} style={{ width: '6%' }}>Status</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} style={{ width: '8%' }}>Request Date</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} style={{ width: '20%' }}>Uniform Types</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} style={{ width: '4%' }}>Qty</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} style={{ width: '8%' }}>Remarks</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`} style={{ width: '11%' }}>Actions</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`} style={{ width: '3%' }}>#</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '6%' }}>Photo</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '8%' }}>Employee ID</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '10%' }}>Full Name</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '8%' }}>Designation</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '8%' }}>Project</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '6%' }}>Status</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '8%' }}>Request Date</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '20%' }}>Uniform Types</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '4%' }}>Qty</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '8%' }}>Remarks</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '11%' }}>Actions</th>
                   </tr>
                   {/* Inline header filters */}
                   <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
-                    <th className="px-1 py-1 sticky left-0 z-20"></th>
-                    <th className="px-1 py-1"></th>
-                    <th className="px-1 py-1">
+                    <th className={`px-1 py-1 sticky left-0 z-20 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <input 
                         value={empIdFilter} 
                         onChange={e => setEmpIdFilter(e.target.value)} 
@@ -911,7 +920,7 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                         className={`w-full border rounded px-1 py-1 text-xs ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                       />
                     </th>
-                    <th className="px-1 py-1">
+                    <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <input 
                         value={nameFilter} 
                         onChange={e => setNameFilter(e.target.value)} 
@@ -919,7 +928,7 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                         className={`w-full border rounded px-1 py-1 text-xs ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                       />
                     </th>
-                    <th className="px-1 py-1">
+                    <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select 
                         value={designationFilter} 
                         onChange={e => setDesignationFilter(e.target.value)} 
@@ -929,7 +938,7 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                         {uniqueDesignations.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </th>
-                    <th className="px-1 py-1">
+                    <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select 
                         value={projectFilter} 
                         onChange={e => setProjectFilter(e.target.value)} 
@@ -939,32 +948,32 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                         {uniqueProjects.map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </th>
-                    <th className="px-1 py-1">
+                    <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select 
                         value={statusFilter} 
-                        onChange={e => setStatusFilter(e.target.value as 'All' | 'Approved' | 'Pending')} 
+                        onChange={e => setStatusFilter(e.target.value as 'All' | 'Approved' | 'Pending' | 'Verified' | 'Rejected')} 
                         className={`w-full border rounded px-1 py-1 text-xs ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
                       >
                         <option value="All">All</option>
                         {uniqueStatuses.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </th>
-                    <th className="px-1 py-1"></th>
-                    <th className="px-1 py-1"></th>
-                    <th className="px-1 py-1"></th>
-                    <th className="px-1 py-1"></th>
-                    <th className="px-1 py-1"></th>
+                    <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
                   </tr>
                 </thead>
                 <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
                   {filteredRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No uniform requests found</td>
+                      <td colSpan={12} className={`px-4 py-12 text-center border ${theme === "dark" ? "text-gray-400 border-blue-800" : "text-gray-500 border-blue-200"}`}>No uniform requests found</td>
                     </tr>
                   ) : filteredRequests.map((request, idx) => (
-                    <tr key={request._id} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                      <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{idx + 1}</td>
-                      <td className="px-2 py-1">
+                    <tr key={request._id} className={`${theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"} even:bg-gray-50 dark:even:bg-gray-900`}>
+                      <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         {employeeImages[request.employee.employeeId] ? (
                           <Image
                             src={employeeImages[request.employee.employeeId]}
@@ -979,11 +988,11 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                           </div>
                         )}
                       </td>
-                      <td className={`px-2 py-1 font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{request.employee.employeeId}</td>
-                      <td className="px-2 py-1"><div className="truncate" title={request.employee.fullName}>{request.employee.fullName}</div></td>
-                      <td className="px-2 py-1"><div className="truncate" title={request.employee.designation}>{request.employee.designation}</div></td>
-                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={request.employee.projectName}>{request.employee.projectName}</div></td>
-                      <td className="px-2 py-1 text-center">
+                      <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{request.employee.employeeId}</td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={request.employee.fullName}>{request.employee.fullName}</div></td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={request.employee.designation}>{request.employee.designation}</div></td>
+                      <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={request.employee.projectName}>{request.employee.projectName}</div></td>
+                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
                           request.status === 'Approved' 
                             ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
@@ -996,10 +1005,10 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                           {request.status}
                         </span>
                       </td>
-                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
                         {request.requestDate ? new Date(request.requestDate).toLocaleDateString() : ''}
                       </td>
-                      <td className="px-2 py-1">
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <div className="text-xs">
                           {request.requestedItems.map((item) => (
                             <div key={item} className="truncate" title={`${item}${request.sizes && request.sizes[item] ? ' (' + request.sizes[item] + ')' : ''}`}>
@@ -1008,50 +1017,27 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                           ))}
                         </div>
                       </td>
-                      <td className={`px-2 py-1 text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{request.qty || ''}</td>
-                      <td className="px-2 py-1"><div className="truncate" title={request.remarks || ''}>{request.remarks || ''}</div></td>
-                      <td className="px-2 py-1 text-center">
+                      <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{request.qty || ''}</td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={request.remarks || ''}>{request.remarks || ''}</div></td>
+                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <div className="flex gap-1 justify-center">
+                          {/* Verify button - only show for Pending status */}
                           {request.status === 'Pending' && (
-                            <>
-                              <button
-                                onClick={() => handleAction(request._id, 'verify')}
-                                disabled={actionLoading[request._id] === 'verify'}
-                                title="Verify Request"
-                                className={`px-2 py-1 rounded font-semibold text-xs shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 ${
-                                  theme === 'dark' 
-                                    ? 'bg-blue-700 text-white hover:bg-blue-800 focus:ring-blue-400' 
-                                    : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-400'
-                                }`}
-                              >
-                                {actionLoading[request._id] === 'verify' ? <FaSpinner className="animate-spin" /> : 'Verify'}
-                              </button>
-                              <button
-                                onClick={() => handleAction(request._id, 'approve')}
-                                disabled={actionLoading[request._id] === 'approve'}
-                                title="Approve Request"
-                                className={`px-2 py-1 rounded font-semibold text-xs shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 ${
-                                  theme === 'dark' 
-                                    ? 'bg-green-700 text-white hover:bg-green-800 focus:ring-green-400' 
-                                    : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-400'
-                                }`}
-                              >
-                                {actionLoading[request._id] === 'approve' ? <FaSpinner className="animate-spin" /> : 'Approve'}
-                              </button>
-                              <button
-                                onClick={() => handleAction(request._id, 'reject')}
-                                disabled={actionLoading[request._id] === 'reject'}
-                                title="Reject Request"
-                                className={`px-2 py-1 rounded font-semibold text-xs shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 ${
-                                  theme === 'dark' 
-                                    ? 'bg-red-700 text-white hover:bg-red-800 focus:ring-red-400' 
-                                    : 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-400'
-                                }`}
-                              >
-                                {actionLoading[request._id] === 'reject' ? <FaSpinner className="animate-spin" /> : 'Reject'}
-                              </button>
-                            </>
+                            <button
+                              onClick={() => handleAction(request._id, 'verify')}
+                              disabled={actionLoading[request._id] === 'verify'}
+                              title="Verify Request"
+                              className={`px-2 py-1 rounded font-semibold text-xs shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 ${
+                                theme === 'dark' 
+                                  ? 'bg-blue-700 text-white hover:bg-blue-800 focus:ring-blue-400' 
+                                  : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-400'
+                              }`}
+                            >
+                              {actionLoading[request._id] === 'verify' ? <FaSpinner className="animate-spin" /> : 'Verify'}
+                            </button>
                           )}
+                          
+                          {/* Approve and Reject buttons - only show for Verified status */}
                           {request.status === 'Verified' && (
                             <>
                               <button
@@ -1080,6 +1066,8 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                               </button>
                             </>
                           )}
+                          
+                          {/* Final status display - show for Approved or Rejected */}
                           {(request.status === 'Approved' || request.status === 'Rejected') && (
                             <span className={`text-xs px-2 py-1 rounded ${
                               request.status === 'Approved' 

@@ -209,14 +209,14 @@ export default function StoreInStockPage() {
               <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
                 <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                   <tr>
-                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Item Name</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Category</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Sub Category</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Total Quantity</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Sizes</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Last Updated</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Actions</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Item Name</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Category</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Sub Category</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Total Quantity</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Sizes</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Last Updated</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
                   </tr>
                   {/* Inline header filters */}
                   <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
@@ -258,17 +258,17 @@ export default function StoreInStockPage() {
                 <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
                   {filteredStock.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No inventory items found</td>
+                      <td colSpan={8} className={`px-4 py-12 text-center border ${theme === "dark" ? "text-gray-400 border-blue-800" : "text-gray-500 border-blue-200"}`}>No inventory items found</td>
                     </tr>
                   ) : filteredStock.map((item, idx) => {
                     const totalQty = item.sizeInventory?.reduce((sum: number, s: SizeInventory) => sum + (s.quantity || 0), 0);
                     return (
-                      <tr key={item._id || idx} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{idx + 1}</td>
-                        <td className={`px-2 py-1 font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}><div className="truncate" title={item.name}>{item.name}</div></td>
-                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={item.category}>{item.category}</div></td>
-                        <td className="px-2 py-1"><div className="truncate" title={item.subCategory || "-"}>{item.subCategory || "-"}</div></td>
-                        <td className={`px-2 py-1 text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <tr key={item._id || idx} className={`${theme === "dark" ? "hover:bg-blue-900" : "hover:bg-blue-50"} transition even:bg-gray-50 dark:even:bg-gray-900`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
+                        <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}><div className="truncate" title={item.name}>{item.name}</div></td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={item.category}>{item.category}</div></td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'border-blue-800' : 'border-blue-200'}`}><div className="truncate" title={item.subCategory || "-"}>{item.subCategory || "-"}</div></td>
+                        <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
                           <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
                             totalQty && totalQty > 0 
                               ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
@@ -277,7 +277,7 @@ export default function StoreInStockPage() {
                             {totalQty || 0}
                           </span>
                         </td>
-                        <td className="px-2 py-1">
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'border-blue-800' : 'border-blue-200'}`}>
                           <div className="flex flex-wrap gap-1">
                             {item.sizeInventory && item.sizeInventory.length > 0 ? (
                               item.sizeInventory.slice(0, 3).map((sz: SizeInventory) => (
@@ -296,8 +296,8 @@ export default function StoreInStockPage() {
                             )}
                           </div>
                         </td>
-                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : '-'}</td>
-                        <td className="px-2 py-1 text-center">
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : '-'}</td>
+                        <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-blue-800' : 'border-blue-200'}`}>
                           <button
                             className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
                               theme === 'dark' 

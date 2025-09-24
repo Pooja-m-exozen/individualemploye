@@ -357,23 +357,23 @@ export default function LeaveManagementViewPage() {
               <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
                 <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                   <tr>
-                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Photo</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee Name</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Leave Type</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Start Date</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>End Date</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-32 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Reason</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Actions</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Photo</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee ID</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee Name</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Designation</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Leave Type</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Start Date</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>End Date</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-32 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Reason</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
                   </tr>
                   {/* Inline header filters */}
                   <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
-                    <th className="px-2 py-1 sticky left-0 z-20"></th>
-                    <th className="px-2 py-1 w-16"></th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 sticky left-0 z-20 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 w-16 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <input 
                         value={filterEmpId} 
                         onChange={e => setFilterEmpId(e.target.value)} 
@@ -381,7 +381,7 @@ export default function LeaveManagementViewPage() {
                         className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                       />
                     </th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <input 
                         value={filterName} 
                         onChange={e => setFilterName(e.target.value)} 
@@ -389,8 +389,8 @@ export default function LeaveManagementViewPage() {
                         className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                       />
                     </th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select 
                         value={filterLeaveType} 
                         onChange={e => setFilterLeaveType(e.target.value)} 
@@ -400,7 +400,7 @@ export default function LeaveManagementViewPage() {
                         {uniqueLeaveTypes.map(type => <option key={type} value={type}>{type}</option>)}
                       </select>
                     </th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <input 
                         type="date"
                         value={filterStartDate} 
@@ -408,8 +408,8 @@ export default function LeaveManagementViewPage() {
                         className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                       />
                     </th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select 
                         value={filterStatus} 
                         onChange={e => setFilterStatus(e.target.value)} 
@@ -419,8 +419,8 @@ export default function LeaveManagementViewPage() {
                         {uniqueStatuses.map(status => <option key={status} value={status}>{status}</option>)}
                       </select>
                     </th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1"></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
                   </tr>
               </thead>
                 <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
@@ -429,9 +429,9 @@ export default function LeaveManagementViewPage() {
                       <td colSpan={11} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No leave records found</td>
                     </tr>
                   ) : filteredLeaves.map((leave, index) => (
-                    <tr key={leave.leaveId} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                      <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{index + 1}</td>
-                      <td className="px-2 py-1">
+                    <tr key={leave.leaveId} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                      <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{index + 1}</td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <Image
                           src={leave.employeeImage || "/placeholder-user.jpg"}
                           alt={leave.employeeName}
@@ -440,13 +440,13 @@ export default function LeaveManagementViewPage() {
                           className={`rounded object-cover border ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}
                         />
                       </td>
-                      <td className={`px-2 py-1 font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{leave.employeeId}</td>
-                      <td className="px-2 py-1"><div className="truncate" title={leave.employeeName || "-"}>{leave.employeeName || "-"}</div></td>
-                      <td className="px-2 py-1"><div className="truncate" title={leave.designation || "-"}>{leave.designation || "-"}</div></td>
-                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={leave.leaveType}>{leave.leaveType}</div></td>
-                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{leave.startDate ? new Date(leave.startDate).toLocaleDateString() : "N/A"}</td>
-                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{leave.endDate ? new Date(leave.endDate).toLocaleDateString() : "N/A"}</td>
-                      <td className="px-2 py-1 text-center">
+                      <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{leave.employeeId}</td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={leave.employeeName || "-"}>{leave.employeeName || "-"}</div></td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={leave.designation || "-"}>{leave.designation || "-"}</div></td>
+                      <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={leave.leaveType}>{leave.leaveType}</div></td>
+                      <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{leave.startDate ? new Date(leave.startDate).toLocaleDateString() : "N/A"}</td>
+                      <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{leave.endDate ? new Date(leave.endDate).toLocaleDateString() : "N/A"}</td>
+                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
                           leave.status === 'Approved' 
                             ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
@@ -457,8 +457,8 @@ export default function LeaveManagementViewPage() {
                           {leave.status || "N/A"}
                         </span>
                       </td>
-                      <td className="px-2 py-1"><div className="truncate" title={leave.reason || "-"}>{leave.reason || "-"}</div></td>
-                      <td className="px-2 py-1 text-center">
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={leave.reason || "-"}>{leave.reason || "-"}</div></td>
+                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         {leave.status === "Pending" ? (
                           <div className="flex gap-1">
                             <button

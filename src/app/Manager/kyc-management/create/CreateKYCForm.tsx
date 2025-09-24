@@ -116,9 +116,9 @@ function CreateKYCForm() {
 
   // Validate employee ID format
   const validateEmployeeId = (id: string) => {
-    const regex = /^EFMS\d+$/;
+    const regex = /^EFMS\d{4}$/;
     if (!regex.test(id)) {
-      setEmployeeIdError("Employee ID must start with 'EFMS' followed by numbers (e.g., EFMS3377)");
+      setEmployeeIdError("Employee ID must start with 'EFMS' followed by exactly 4 numbers (e.g., EFMS3377)");
       return false;
     }
     setEmployeeIdError(null);
@@ -231,6 +231,36 @@ function CreateKYCForm() {
     setSubmitting(true);
     setMessage(null);
     setError(null);
+    
+    // Validation checks
+    if (!form.employeeId) {
+      setError("Employee ID is required");
+      setSubmitting(false);
+      return;
+    }
+    
+    // Employee ID format validation
+    const employeeIdRegex = /^EFMS\d{4}$/;
+    if (!employeeIdRegex.test(form.employeeId)) {
+      setError("Employee ID must start with 'EFMS' followed by exactly 4 numbers (e.g., EFMS3377)");
+      setSubmitting(false);
+      return;
+    }
+    
+    if (!form.currentCity) {
+      setError("Current address city is required");
+      setSubmitting(false);
+      return;
+    }
+    
+    // Phone number validation
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(form.emergencyPhone)) {
+      setError("Please enter a valid 10-digit phone number for emergency contact");
+      setSubmitting(false);
+      return;
+    }
+    
     try {
       const payload = {
         personalDetails: {
@@ -288,25 +318,65 @@ function CreateKYCForm() {
           aadhar: form.emergencyAadhar,
         },
       };
-      const formData = new FormData();
-      formData.append("personalDetails", JSON.stringify(payload.personalDetails));
-      formData.append("addressDetails", JSON.stringify(payload.addressDetails));
-      formData.append("bankDetails", JSON.stringify(payload.bankDetails));
-      formData.append("identificationDetails", JSON.stringify(payload.identificationDetails));
-      formData.append("emergencyContact", JSON.stringify(payload.emergencyContact));
-      if (employeeImage) formData.append("employeeImage", employeeImage);
-      // Replace with your actual API endpoint
-      const res = await fetch("https://cafm.zenapi.co.in/api/kyc/submit-and-upload-image", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage("KYC submitted successfully.");
-        setForm(initialState);
-        setEmployeeImage(null);
+      // Try alternative approach: Send as JSON with employeeId at root level
+      const requestPayload = {
+        employeeId: payload.personalDetails.employeeId,
+        personalDetails: payload.personalDetails,
+        addressDetails: payload.addressDetails,
+        bankDetails: payload.bankDetails,
+        identificationDetails: payload.identificationDetails,
+        emergencyContact: payload.emergencyContact,
+      };
+      
+      // Debug: Log the request payload
+      console.log("Request payload:", requestPayload);
+      
+      // If we have an image, use FormData, otherwise use JSON
+      if (employeeImage) {
+        const formData = new FormData();
+        formData.append("employeeId", payload.personalDetails.employeeId);
+        formData.append("personalDetails", JSON.stringify(payload.personalDetails));
+        formData.append("addressDetails", JSON.stringify(payload.addressDetails));
+        formData.append("bankDetails", JSON.stringify(payload.bankDetails));
+        formData.append("identificationDetails", JSON.stringify(payload.identificationDetails));
+        formData.append("emergencyContact", JSON.stringify(payload.emergencyContact));
+        formData.append("employeeImage", employeeImage);
+        
+        // Debug: Log the FormData contents
+        console.log("FormData contents:");
+        for (let [key, value] of formData.entries()) {
+          console.log(key, value);
+        }
+        
+        const res = await fetch("https://cafm.zenapi.co.in/api/kyc/submit-and-upload-image", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setMessage("KYC submitted successfully.");
+          setForm(initialState);
+          setEmployeeImage(null);
+        } else {
+          setError(data.message || "Submission failed.");
+        }
       } else {
-        setError(data.message || "Submission failed.");
+        // No image, send as JSON
+        const res = await fetch("https://cafm.zenapi.co.in/api/kyc/submit-and-upload-image", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestPayload),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setMessage("KYC submitted successfully.");
+          setForm(initialState);
+          setEmployeeImage(null);
+        } else {
+          setError(data.message || "Submission failed.");
+        }
       }
     } catch (err) {
       setError("Submission failed. " + (err instanceof Error ? err.message : ""));
@@ -795,7 +865,7 @@ function CreateKYCForm() {
                       ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500' 
                       : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
                 }`}
-                required
+                required={!isSameAddress}
               />
             </div>
           ))}
@@ -906,13 +976,14 @@ function CreateKYCForm() {
         ].map(([label, name]) => (
           <div key={name as string} className="space-y-1">
             <label className={`text-sm font-medium ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>
-              {label}
+              {label} {name === "emergencyPhone" && "*"}
             </label>
             <input
-              type="text"
+              type={name === "emergencyPhone" ? "tel" : "text"}
               name={name as string}
               value={(form as Record<string, unknown>)[name as string] as string}
               onChange={handleChange}
+              placeholder={name === "emergencyPhone" ? "Enter 10-digit phone number" : ""}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
                 theme === 'dark' 
                   ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500' 
@@ -920,6 +991,11 @@ function CreateKYCForm() {
               }`}
               required={name !== "emergencyAadhar"}
             />
+            {name === "emergencyPhone" && (
+              <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                Format: 10-digit number starting with 6-9
+              </p>
+            )}
           </div>
         ))}
       </div>
