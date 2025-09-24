@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaEye, FaTimesCircle, FaCheckCircle, FaTimes } from "react-icons/fa";
+import { FaIdCard, FaSpinner, FaDownload, FaSearch, FaEye, FaCheckCircle, FaTimes } from "react-icons/fa";
 import { QRCodeSVG } from 'qrcode.react';
 import { useTheme } from '@/context/ThemeContext';
 import jsPDF from "jspdf";
@@ -275,203 +275,196 @@ export default function ViewIDCardsPage() {
 
   return (
     <ManagerDashboardLayout>
-      <div className={`min-h-screen font-sans ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-200' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'}`}>
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r from-blue-500 to-blue-800">
-            <div className="bg-blue-600 bg-opacity-30 rounded-xl p-4 flex items-center justify-center">
-              <FaIdCard className="w-10 h-10 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-1">View ID Cards</h1>
-              <p className="text-white text-base opacity-90">
-                Browse and manage generated employee ID cards.
-              </p>
-            </div>
-          </div>
-
-          {/* Search and Table */}
-          <div className={`rounded-2xl p-8 border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} shadow-sm ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
-            {/* Project Filter Dropdown */}
-            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+      <div className={`min-h-screen font-sans transition-colors duration-300 flex flex-col ${
+        theme === "dark"
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
+          : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
+      }`}>
+        {/* Filters and Search */}
+        <div className="sticky top-[64px] z-30 backdrop-blur-sm px-4 py-2 mb-3 md:mb-4">
+          <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
+            {/* Project Dropdown */}
+            <div className="flex-1 min-w-[180px] max-w-xs">
               <select
                 value={projectFilter}
-                onChange={e => setProjectFilter(e.target.value)}
-                className={`rounded-xl px-4 py-2 border text-sm font-semibold transition
-                  ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-200' : 'bg-white border-blue-100 text-blue-700'}`}
+                onChange={(e) => setProjectFilter(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
               >
                 <option value="All Projects">All Projects</option>
-                {projectList.map(p => (
+                {projectList.map((p) => (
                   <option key={p._id} value={p.projectName}>{p.projectName}</option>
                 ))}
               </select>
+            </div>
+            {/* Designation Dropdown */}
+            <div className="relative w-44 min-w-[130px]">
               <select
                 value={designationFilter}
-                onChange={e => setDesignationFilter(e.target.value)}
-                className={`rounded-xl px-4 py-2 border text-sm font-semibold transition
-                  ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-200' : 'bg-white border-blue-100 text-blue-700'}`}
+                onChange={(e) => setDesignationFilter(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
               >
                 <option value="All Designations">All Designations</option>
-                {designationOptions.map(designation => (
+                {designationOptions.map((designation) => (
                   <option key={designation} value={designation}>{designation}</option>
                 ))}
               </select>
-              <div className="flex-1 w-full">
-                <div className="relative">
-                  <FaSearch className={`absolute left-4 top-1/2 -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`} />
-                  <input
-                    type="text"
-                    placeholder="Search by name or employee ID..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full pl-12 pr-4 py-3 rounded-lg transition border focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
-                  />
-                </div>
-              </div>
             </div>
-
-            {loading ? (
-              <div className="flex justify-center items-center py-16">
-                <FaSpinner className="animate-spin text-blue-600 w-12 h-12" />
-              </div>
-            ) : error ? (
-                <div className="text-center py-10 px-4">
-                  <FaTimesCircle className="mx-auto text-red-500 w-12 h-12" />
-                  <h3 className="mt-2 text-lg font-medium text-gray-900">Failed to load data</h3>
-                  <p className="mt-1 text-sm text-gray-500">{error}</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full rounded-xl overflow-hidden border divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className={`${theme === 'dark' ? 'bg-gray-900 text-gray-200' : 'bg-blue-50 text-blue-900'}`}>
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Employee</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Designation</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Project</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Issued Date</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className={`text-sm ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
-                    {paginatedCards.map((card, idx) => (
-                      <tr
-                        key={card._id}
-                        className={`transition-all duration-150 ${
-                          theme === 'dark'
-                            ? idx % 2 === 0
-                              ? 'bg-gray-900 hover:bg-gray-800'
-                              : 'bg-gray-800 hover:bg-gray-700'
-                            : idx % 2 === 0
-                              ? 'bg-white hover:bg-blue-50'
-                              : 'bg-gray-50 hover:bg-blue-100'
-                        }`}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-4">
-                            <Image
-                              src={card.employeeImage || '/placeholder-user.jpg'}
-                              alt={card.fullName}
-                              width={48}
-                              height={48}
-                              className="rounded-full object-cover border border-gray-300 dark:border-gray-700"
-                              style={{ aspectRatio: '1 / 1' }}
-                              loader={({ src }) => src.startsWith('http') ? src : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${src}`}
-                              unoptimized={card.employeeImage?.startsWith('http')}
-                            />
-                            <div>
-                              <div className={`font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{card.fullName}</div>
-                              <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{card.employeeId}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{card.designation}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{card.projectName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${getStatusColor(card.status)}`}>{card.status === 'Issued' && <FaCheckCircle className="w-3 h-3 mr-1" />}{card.status}</span>
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{card.issuedDate ? new Date(card.issuedDate).toLocaleDateString() : 'N/A'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap font-medium">
-                          <div className="flex items-center gap-4">
-                            <button onClick={() => setSelectedCard(card)} className={`flex items-center gap-2 ${theme === 'dark' ? 'text-blue-400 hover:text-blue-200' : 'text-blue-600 hover:text-blue-800'} transition`}>
-                              <FaEye /> View
-                            </button>
-                            <button
-                              className={`flex items-center ${theme === 'dark' ? 'text-green-400 hover:text-green-200' : 'text-green-600 hover:text-green-800'} transition`}
-                              title="Download ID Card"
-                              aria-label="Download ID Card"
-                              onClick={() => handleDownload(card)}
-                              disabled={downloading}
-                            >
-                              <FaDownload />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="flex flex-wrap items-center justify-between gap-4 mt-6">
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Page {currentPage} of {totalPages}</div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                          ${currentPage === 1
-                            ? 'opacity-50 cursor-not-allowed'
-                            : theme === 'dark'
-                              ? 'bg-gray-800 text-blue-200 hover:bg-gray-700'
-                              : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'}
-                        `}
-                      >Previous</button>
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
-                        <button
-                          key={pageNum}
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                            ${currentPage === pageNum
-                              ? theme === 'dark'
-                                ? 'bg-blue-700 text-white shadow-md'
-                                : 'bg-blue-600 text-white shadow-md'
-                              : theme === 'dark'
-                                ? 'text-blue-200 bg-gray-800 hover:bg-gray-700'
-                                : 'text-blue-700 bg-white border border-blue-200 hover:bg-blue-50'}
-                          `}
-                        >{pageNum}</button>
-                      ))}
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                          ${currentPage === totalPages
-                            ? 'opacity-50 cursor-not-allowed'
-                            : theme === 'dark'
-                              ? 'bg-gray-800 text-blue-200 hover:bg-gray-700'
-                              : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'}
-                        `}
-                      >Next</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Search Bar */}
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+              <input
+                type="text"
+                placeholder="Search employee name or ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              />
+            </div>
           </div>
         </div>
+        {/* Table - Excel-like compact grid full screen */}
+        <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
+          <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+            {loading ? (
+              <div className="py-12 text-center text-lg font-semibold">Loading ID cards...</div>
+            ) : error ? (
+              <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
+            ) : (
+              <>
+              <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+                  <tr>
+                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Photo</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Issued Date</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                  {paginatedCards.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No ID cards found</td>
+                    </tr>
+                  ) : paginatedCards.map((card, idx) => (
+                    <tr key={card._id} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
+                      <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{idx + 1}</td>
+                      <td className="px-2 py-1">
+                        <Image
+                          src={card.employeeImage || '/placeholder-user.jpg'}
+                          alt={card.fullName}
+                          width={32}
+                          height={32}
+                          className={`rounded object-cover border ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}
+                          loader={({ src }) => src.startsWith('http') ? src : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${src}`}
+                          unoptimized={card.employeeImage?.startsWith('http')}
+                        />
+                      </td>
+                      <td className={`px-2 py-1 font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{card.employeeId}</td>
+                      <td className="px-2 py-1"><div className="truncate" title={card.fullName}>{card.fullName}</div></td>
+                      <td className="px-2 py-1"><div className="truncate" title={card.designation}>{card.designation}</div></td>
+                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={card.projectName}>{card.projectName}</div></td>
+                      <td className="px-2 py-1 text-center">
+                        <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(card.status)}`}>
+                          {card.status === 'Issued' && <FaCheckCircle className="w-3 h-3 mr-1" />}
+                          {card.status}
+                        </span>
+                      </td>
+                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {card.issuedDate ? new Date(card.issuedDate).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="px-2 py-1 text-center">
+                        <div className="flex gap-1 justify-center">
+                          <button
+                            onClick={() => setSelectedCard(card)}
+                            title="View ID Card"
+                            className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                              theme === 'dark' 
+                                ? 'border-blue-500 text-blue-400 bg-gray-800 hover:bg-gray-700 focus:ring-blue-400' 
+                                : 'border-blue-500 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-400'
+                            }`}
+                          >
+                            <FaEye />
+                          </button>
+                          <button
+                            onClick={() => handleDownload(card)}
+                            disabled={downloading}
+                            title="Download ID Card"
+                            className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                              theme === 'dark' 
+                                ? 'border-green-500 text-green-400 bg-gray-800 hover:bg-gray-700 focus:ring-green-400' 
+                                : 'border-green-500 text-green-600 bg-white hover:bg-green-50 focus:ring-green-400'
+                            }`}
+                          >
+                            <FaDownload />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              </>
+            )}
+          </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-4 mt-4 px-3">
+              <div className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, filteredCards.length)} of {filteredCards.length} ID cards
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`px-2 py-1 rounded transition ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : theme === 'dark' ? 'bg-gray-800 text-blue-200 hover:bg-gray-700' : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'}`}
+                >
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-2 py-1 rounded transition ${currentPage === pageNum ? (theme === 'dark' ? 'bg-blue-700 text-white' : 'bg-blue-600 text-white') : theme === 'dark' ? 'bg-gray-800 text-blue-200 hover:bg-gray-700' : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'}`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`px-2 py-1 rounded transition ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : theme === 'dark' ? 'bg-gray-800 text-blue-200 hover:bg-gray-700' : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'}`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-      
+
       {selectedCard && (
-        <div className={
-          `fixed inset-0 flex items-center justify-center z-50 p-4 transition-colors duration-200 animate-fade-in ` +
-          (theme === 'dark' ? 'bg-gray-900 bg-opacity-90' : 'bg-blue-50 bg-opacity-80')
-        }>
+        <div className={`fixed inset-0 flex items-center justify-center z-50 p-4 transition-colors duration-200 animate-fade-in ${theme === 'dark' ? 'bg-gray-900 bg-opacity-90' : 'bg-blue-50 bg-opacity-80'}`}>
           <div className={`relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-md w-full max-h-[95vh] overflow-y-auto border-2 ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'} flex flex-col items-center px-0 sm:px-0`}
             style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)' }}
           >
             <div className="text-gray-900 dark:text-white w-full flex flex-col items-center">
-              {/* Floating Close Button */}
               <button
                 onClick={() => setSelectedCard(null)}
                 className="absolute top-4 right-4 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow hover:bg-red-100 dark:hover:bg-red-900 transition-all duration-200 z-10"
@@ -479,14 +472,11 @@ export default function ViewIDCardsPage() {
               >
                 <FaTimes className="w-5 h-5 text-red-500" />
               </button>
-              {/* Card Header: Logo */}
               <div className="w-full flex flex-col items-center pt-8 pb-2">
                 <Image src="/v1/employee/exozen_logo1.png" alt="Exozen Logo" width={90} height={36} className="object-contain mb-2" />
                 <div className={`text-xs font-semibold px-3 py-1 rounded-lg ${theme === 'dark' ? 'bg-gray-800 text-blue-200' : 'bg-blue-50 text-blue-700'} shadow`}>{new Date().toLocaleString()}</div>
               </div>
-              {/* Card Body: Photo, QR, Details */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full px-6 py-4">
-                {/* Left: Photo & QR */}
                 <div className="flex flex-col items-center gap-4">
                   <Image
                     src={selectedCard.employeeImage || '/placeholder-user.jpg'}
@@ -514,14 +504,19 @@ export default function ViewIDCardsPage() {
                       <p className="text-gray-400 text-xs text-center">No QR</p>
                     )}
                   </div>
-                  <div className={`text-xs font-mono ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'} flex items-center justify-center gap-1`}><FaIdCard className="inline-block mr-1" />{selectedCard.employeeId}</div>
+                  <div className={`text-xs font-mono ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'} flex items-center justify-center gap-1`}>
+                    <FaIdCard className="inline-block mr-1" />{selectedCard.employeeId}
+                  </div>
                 </div>
-                {/* Right: Details */}
                 <div className="flex-1 flex flex-col gap-2 min-w-[180px]">
                   <div className={`text-xl font-extrabold tracking-tight mb-1 ${theme === 'dark' ? 'text-black-800' : 'text-blue-900'}`}>{selectedCard.fullName}</div>
                   <div className="flex flex-wrap gap-2 mb-2">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border-2 shadow transition-all duration-200 ${selectedCard.status === 'Issued' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-100 text-gray-800 border-gray-300'}`}>{selectedCard.status === 'Issued' && <FaCheckCircle className="w-3 h-3 mr-1" />}{selectedCard.status}</span>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${theme === 'dark' ? 'bg-blue-700 text-white border-blue-500' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{selectedCard.designation}</span>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border-2 shadow transition-all duration-200 ${selectedCard.status === 'Issued' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-100 text-gray-800 border-gray-300'}`}>
+                      {selectedCard.status === 'Issued' && <FaCheckCircle className="w-3 h-3 mr-1" />}{selectedCard.status}
+                    </span>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${theme === 'dark' ? 'bg-blue-700 text-white border-blue-500' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                      {selectedCard.designation}
+                    </span>
                   </div>
                   <div className="grid grid-cols-1 gap-y-1 text-sm">
                     <div><span className="font-semibold">Project:</span> {selectedCard.projectName}</div>
@@ -532,7 +527,6 @@ export default function ViewIDCardsPage() {
                   </div>
                 </div>
               </div>
-              {/* Download Button */}
               <button
                 className={`mt-4 mb-8 w-11/12 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition-all duration-200 ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                 onClick={() => handleDownload(selectedCard)}
@@ -544,9 +538,7 @@ export default function ViewIDCardsPage() {
           </div>
         </div>
       )}
-      {/* Add hidden QR code SVG container for download */}
       <div style={{ display: 'none' }} ref={qrDownloadRef} />
-      {/* Add fade-in animation styles inside the component */}
       <style jsx global>{`
         @keyframes fade-in {
           from { opacity: 0; transform: scale(0.98); }

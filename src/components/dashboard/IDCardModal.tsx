@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useReactToPrint } from "react-to-print";
 import jsPDF from "jspdf";
 
-interface IDCardData {
+export interface IDCardData {
   fullName: string;
   employeeId: string;
   designation: string;
@@ -238,7 +238,13 @@ const IDCardModal: React.FC<IDCardModalProps> = ({ isOpen, onClose, cardData, th
           <div className="relative z-10 text-center">
             <div className="flex justify-center mb-2">
               <div className="relative w-24 h-24">
-                <Image src={cardData.qrCodeImage} alt="QR Code" layout="fill" objectFit="contain" unoptimized />
+                {cardData.qrCodeImage && cardData.qrCodeImage.trim() !== '' ? (
+                  <Image src={cardData.qrCodeImage} alt="QR Code" layout="fill" objectFit="contain" unoptimized />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded border-2 border-dashed border-gray-300">
+                    <span className="text-xs text-gray-500">QR Code</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="text-xs" style={{ color: "#374151" }}>

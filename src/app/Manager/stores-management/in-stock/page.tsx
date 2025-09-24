@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaStore, FaSearch, FaFilter, FaEye, FaTimes } from "react-icons/fa";
+import { FaStore, FaSearch } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
 interface SizeInventory {
@@ -27,6 +27,9 @@ export default function StoreInStockPage() {
   const { theme } = useTheme();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [subCategoryFilter, setSubCategoryFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [stock, setStock] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,262 +54,323 @@ export default function StoreInStockPage() {
       });
   }, []);
 
-  // Extract unique categories from API data
-  const categories = Array.from(new Set(stock.map((s) => s.category)));
+  // Initialize date filters as empty to show all data by default
+  useEffect(() => {
+    setFromDate("");
+    setToDate("");
+  }, []);
 
-  // Filter logic
+  // Extract unique categories and subcategories from API data
+  const categories = Array.from(new Set(stock.map((s) => s.category)));
+  const subCategories = Array.from(new Set(stock.map((s) => s.subCategory).filter(Boolean))) as string[];
+
+  // Enhanced filtering with date range
   const filteredStock = stock.filter((item) => {
+    const searchLower = search.toLowerCase();
+    const matchesSearch = 
+      item.name?.toLowerCase().includes(searchLower) ||
+      item.category?.toLowerCase().includes(searchLower) ||
+      item.subCategory?.toLowerCase().includes(searchLower) ||
+      item.description?.toLowerCase().includes(searchLower);
+
     const matchesCategory = categoryFilter ? item.category === categoryFilter : true;
-    const matchesSearch = search
-      ? (
-          item.name?.toLowerCase().includes(search.toLowerCase()) ||
-          item.category?.toLowerCase().includes(search.toLowerCase()) ||
-          item.subCategory?.toLowerCase().includes(search.toLowerCase())
-        )
-      : true;
-    return matchesCategory && matchesSearch;
+    const matchesSubCategory = subCategoryFilter ? item.subCategory === subCategoryFilter : true;
+    
+    // Date range filtering
+    let matchesFromDate = true;
+    let matchesToDate = true;
+    if (fromDate && item.updatedAt) {
+      matchesFromDate = item.updatedAt.slice(0, 10) >= fromDate;
+    }
+    if (toDate && item.updatedAt) {
+      matchesToDate = item.updatedAt.slice(0, 10) <= toDate;
+    }
+    
+    return matchesSearch && matchesCategory && matchesSubCategory && matchesFromDate && matchesToDate;
   });
 
   return (
     <ManagerDashboardLayout>
-      <div
-        className={`min-h-screen flex flex-col py-8 transition-colors duration-300 ${
-          theme === "dark"
-            ? "bg-gradient-to-br from-gray-900 via-gray-950 to-blue-950"
-            : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"
-        }`}
-      >
-        {/* Header */}
-        <div
-          className={`rounded-2xl mb-8 p-6 flex items-center gap-6 shadow-lg w-full max-w-7xl mx-auto transition-colors duration-300 ${
-            theme === "dark"
-              ? "bg-[#2d3748]"
-              : "bg-gradient-to-r from-blue-500 to-blue-800"
-          }`}
-        >
-          <div
-            className={`rounded-xl p-4 flex items-center justify-center ${
-              theme === "dark"
-                ? "bg-[#232b38]"
-                : "bg-blue-600 bg-opacity-30"
-            }`}
-          >
-            <FaStore className="w-10 h-10 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">In Stock</h1>
-            <p className="text-white text-base opacity-90 mt-3">View and manage in-stock items</p>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto w-full px-4">
-          {/* Search and Filter Row */}
-          <div className="flex flex-col md:flex-row gap-4 mb-6 items-start md:items-center">
-            <div className="relative w-full md:w-1/3">
-              <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
-              <input
-                type="text"
-                placeholder="Search by item or category..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900 placeholder-gray-400" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500 placeholder-gray-500"}`}
-              />
-            </div>
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <FaFilter className={`w-5 h-5 mr-2 ${theme === "dark" ? "text-blue-200" : "text-blue-600"}`} />
+      <div className={`min-h-screen font-sans transition-colors duration-300 flex flex-col ${
+        theme === "dark"
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
+          : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
+      }`}>
+        {/* Filters and Search */}
+        <div className="sticky top-[64px] z-30 backdrop-blur-sm px-4 py-2 mb-3 md:mb-4">
+          <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
+            {/* Category Dropdown */}
+            <div className="flex-1 min-w-[180px] max-w-xs">
               <select
                 value={categoryFilter}
                 onChange={e => setCategoryFilter(e.target.value)}
-                className={`px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-sm transition-colors duration-200 ${theme === "dark" ? "bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-900" : "bg-white border-gray-200 text-gray-900 focus:ring-blue-500"}`}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
               >
                 <option value="">All Categories</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                {categories.map((category: string) => (
+                  <option key={category} value={category}>{category}</option>
                 ))}
               </select>
             </div>
+            {/* Sub Category Dropdown */}
+            <div className="relative w-44 min-w-[130px]">
+              <select
+                value={subCategoryFilter}
+                onChange={e => setSubCategoryFilter(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              >
+                <option value="">All Sub Categories</option>
+                {subCategories.map((subCategory: string) => (
+                  <option key={subCategory} value={subCategory}>{subCategory}</option>
+                ))}
+              </select>
+            </div>
+            {/* Search Bar */}
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+              <input
+                type="text"
+                placeholder="Search items, categories, or descriptions..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              />
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <input
+                type="date"
+                value={fromDate}
+                onChange={e => setFromDate(e.target.value)}
+                className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+                title="From Date"
+              />
+              <input
+                type="date"
+                value={toDate}
+                onChange={e => setToDate(e.target.value)}
+                className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+                title="To Date"
+              />
+              <button
+                className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800 border-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-200'}`}
+                onClick={() => {
+                  setLoading(true);
+                  fetch("https://inventory.zenapi.co.in/api/inventory/items")
+                    .then(res => {
+                      if (!res.ok) throw new Error("Failed to fetch inventory");
+                      return res.json();
+                    })
+                    .then((data: StockItem[]) => {
+                      setStock(data);
+                      setLoading(false);
+                    })
+                    .catch(() => {
+                      setError("Could not load inventory.");
+                      setLoading(false);
+                    });
+                }}
+                disabled={loading}
+              >
+                {loading ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
           </div>
+        </div>
 
-          {/* Table Section */}
-          <div className={`rounded-xl border shadow-lg overflow-hidden transition-colors duration-300 ${
-            theme === "dark" ? "bg-gray-900 border-blue-900" : "bg-white border-blue-100"
-          }`}>
+        {/* Table - Excel-like compact grid full screen */}
+        <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
+          <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
             {loading ? (
-              <div className={`p-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Loading...</div>
+              <div className="py-12 text-center text-lg font-semibold">Loading inventory items...</div>
             ) : error ? (
-              <div className="p-12 text-center text-red-500">{error}</div>
-            ) : filteredStock.length === 0 ? (
-              <div className={`p-12 text-center ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>No items found.</div>
+              <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className={`${theme === "dark" ? "bg-gray-800" : "bg-blue-50"}`}>
+              <>
+              <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+                  <tr>
+                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Item Name</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Category</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Sub Category</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Total Quantity</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Sizes</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Last Updated</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Actions</th>
+                  </tr>
+                  {/* Inline header filters */}
+                  <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
+                    <th className="px-2 py-1 sticky left-0 z-20"></th>
+                    <th className="px-2 py-1">
+                      <input 
+                        value={search} 
+                        onChange={e => setSearch(e.target.value)} 
+                        placeholder="Filter Item" 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                      />
+                    </th>
+                    <th className="px-2 py-1">
+                      <select 
+                        value={categoryFilter} 
+                        onChange={e => setCategoryFilter(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      >
+                        <option value="">All</option>
+                        {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-2 py-1">
+                      <select 
+                        value={subCategoryFilter} 
+                        onChange={e => setSubCategoryFilter(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      >
+                        <option value="">All</option>
+                        {subCategories.map(subCat => <option key={subCat} value={subCat}>{subCat}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-2 py-1"></th>
+                    <th className="px-2 py-1"></th>
+                    <th className="px-2 py-1"></th>
+                    <th className="px-2 py-1"></th>
+                  </tr>
+                </thead>
+                <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                  {filteredStock.length === 0 ? (
                     <tr>
-                      <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                        Item
-                      </th>
-                      <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                        Category
-                      </th>
-                      <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                        Sub Category
-                      </th>
-                      <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                        Total Quantity
-                      </th>
-                      <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                        Sizes
-                      </th>
-                      <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                        Last Updated
-                      </th>
-                      <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                        Actions
-                      </th>
+                      <td colSpan={8} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No inventory items found</td>
                     </tr>
-                  </thead>
-                  <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700" : "divide-gray-200"}`}>
-                    {filteredStock.map((item, idx) => {
-                      const totalQty = item.sizeInventory?.reduce((sum: number, s: SizeInventory) => sum + (s.quantity || 0), 0);
-                      return (
-                        <tr key={item._id || idx} className={`hover:${theme === "dark" ? "bg-gray-800" : "bg-blue-50"} transition-colors duration-200`}>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center">
-                              <div>
-                                <div className={`text-sm font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
-                                  {item.name}
-                                </div>
-                                {item.description && (
-                                  <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                                    {item.description.length > 50 ? `${item.description.substring(0, 50)}...` : item.description}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-700"}`}>
-                              {item.category}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            {item.subCategory ? (
-                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-50 text-green-700"}`}>
-                                {item.subCategory}
-                              </span>
+                  ) : filteredStock.map((item, idx) => {
+                    const totalQty = item.sizeInventory?.reduce((sum: number, s: SizeInventory) => sum + (s.quantity || 0), 0);
+                    return (
+                      <tr key={item._id || idx} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{idx + 1}</td>
+                        <td className={`px-2 py-1 font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}><div className="truncate" title={item.name}>{item.name}</div></td>
+                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={item.category}>{item.category}</div></td>
+                        <td className="px-2 py-1"><div className="truncate" title={item.subCategory || "-"}>{item.subCategory || "-"}</div></td>
+                        <td className={`px-2 py-1 text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
+                            totalQty && totalQty > 0 
+                              ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
+                              : theme === 'dark' ? 'bg-red-800 text-red-200' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {totalQty || 0}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1">
+                          <div className="flex flex-wrap gap-1">
+                            {item.sizeInventory && item.sizeInventory.length > 0 ? (
+                              item.sizeInventory.slice(0, 3).map((sz: SizeInventory) => (
+                                <span
+                                  key={sz._id}
+                                  className={`px-2 py-1 rounded text-xs font-semibold border ${theme === "dark" ? "bg-blue-900 border-blue-400 text-white" : "bg-white border-blue-700 text-blue-700"}`}
+                                >
+                                  {sz.size}: {sz.quantity}
+                                </span>
+                              ))
                             ) : (
                               <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                             )}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
-                              {totalQty}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-wrap gap-1">
-                              {item.sizeInventory && item.sizeInventory.length > 0 ? (
-                                item.sizeInventory.slice(0, 3).map((sz: SizeInventory) => (
-                                  <span
-                                    key={sz._id}
-                                    className={`px-2 py-1 rounded text-xs font-semibold border ${theme === "dark" ? "bg-blue-900 border-blue-400 text-white" : "bg-white border-blue-700 text-blue-700"}`}
-                                  >
-                                    {sz.size}: {sz.quantity}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
-                              )}
-                              {item.sizeInventory && item.sizeInventory.length > 3 && (
-                                <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                                  +{item.sizeInventory.length - 3} more
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                              {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : "-"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <button
-                              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${theme === "dark" ? "bg-blue-800 text-white hover:bg-blue-900 focus:ring-blue-900" : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-300"}`}
-                              onClick={() => { setSelectedItem(item); setModalOpen(true); }}
-                            >
-                              <FaEye className="w-3 h-3" />
-                              View
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            {item.sizeInventory && item.sizeInventory.length > 3 && (
+                              <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>+{item.sizeInventory.length - 3} more</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : '-'}</td>
+                        <td className="px-2 py-1 text-center">
+                          <button
+                            className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                              theme === 'dark' 
+                                ? 'border-blue-500 text-blue-400 bg-gray-800 hover:bg-gray-700 focus:ring-blue-400' 
+                                : 'border-blue-500 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-400'
+                            }`}
+                            onClick={() => { setSelectedItem(item); setModalOpen(true); }}
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              </>
             )}
           </div>
         </div>
 
-        {/* Modal for item details */}
+        {/* Item Detail Modal */}
         {modalOpen && selectedItem && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className={`rounded-xl shadow-xl max-w-lg w-full p-6 relative ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
-              <div className={`${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                <button
-                  className={`absolute top-4 right-4 text-2xl hover:opacity-70 transition-opacity ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}
-                  onClick={() => setModalOpen(false)}
-                  aria-label="Close"
-                >
-                  <FaTimes />
-                </button>
-                <div className="flex items-center gap-4 mb-6">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-2xl relative overflow-y-auto max-h-[90vh]">
+              <button className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl font-bold" onClick={() => setModalOpen(false)}>✕</button>
+              <h2 className="text-2xl font-bold mb-4 text-center">Inventory Item Details</h2>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                    <FaStore className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                  </div>
                   <div>
-                    <h2 className={`text-xl font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{selectedItem.name}</h2>
+                    <div className="font-bold text-lg">{selectedItem.name}</div>
                     <div className="flex flex-wrap gap-2 mt-2">
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-700"}`}>{selectedItem.category}</span>
                       {selectedItem.subCategory && (
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-50 text-green-700"}`}>{selectedItem.subCategory}</span>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-700"}`}>{selectedItem.subCategory}</span>
                       )}
                     </div>
                   </div>
                 </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <span className="font-semibold">Description:</span>
-                    <p className={`mt-1 text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>{selectedItem.description || "No description"}</p>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Notes:</span>
-                    <p className={`mt-1 text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>{selectedItem.notes || "None"}</p>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Instructions:</span>
-                    <p className={`mt-1 text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>{selectedItem.instructions || "None"}</p>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Total Quantity:</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><b>Total Quantity:</b> 
                     <span className={`ml-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
                       {selectedItem.sizeInventory?.reduce((sum: number, s: SizeInventory) => sum + (s.quantity || 0), 0)}
                     </span>
                   </div>
-                  <div>
-                    <span className="font-semibold">Sizes:</span>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {selectedItem.sizeInventory?.map((sz: SizeInventory) => (
-                        <span
-                          key={sz._id}
-                          className={`px-3 py-1 rounded text-xs font-semibold border ${theme === "dark" ? "bg-blue-900 border-blue-400 text-white" : "bg-white border-blue-700 text-blue-700"}`}
-                        >
-                          {sz.size}: {sz.quantity} {sz.unit}
-                        </span>
-                      ))}
-                    </div>
+                  <div><b>Last Updated:</b> {selectedItem.updatedAt ? new Date(selectedItem.updatedAt).toLocaleDateString() : '-'}</div>
+                  <div className="col-span-2">
+                    <b>Description:</b> 
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">{selectedItem.description || 'No description provided'}</span>
                   </div>
-                  <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                    Last Updated: {selectedItem.updatedAt ? new Date(selectedItem.updatedAt).toLocaleString() : "-"}
+                  <div className="col-span-2">
+                    <b>Notes:</b> 
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">{selectedItem.notes || 'No notes provided'}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <b>Instructions:</b> 
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">{selectedItem.instructions || 'No instructions provided'}</span>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <b>Sizes & Quantities:</b>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedItem.sizeInventory?.map((sz: SizeInventory) => (
+                      <span
+                        key={sz._id}
+                        className={`px-3 py-1 rounded text-xs font-semibold border ${theme === "dark" ? "bg-blue-900 border-blue-400 text-white" : "bg-white border-blue-700 text-blue-700"}`}
+                      >
+                        {sz.size}: {sz.quantity} {sz.unit}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>

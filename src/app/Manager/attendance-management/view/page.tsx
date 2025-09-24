@@ -1,9 +1,10 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaClock, FaRegCalendarAlt } from "react-icons/fa";
+import { FaSearch } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-import Image from 'next/image';
+import Image from "next/image";
 
 interface AttendanceRecord {
   _id: string;
@@ -15,14 +16,8 @@ interface AttendanceRecord {
   status: string;
 }
 
-// Add new types for project-wise API
-// interface ProjectEmployee {
-//   employeeId: string;
-//   name: string;
-//   designation: string;
-// }
 interface ProjectAttendanceRecord {
-  _id: { employeeId: string; date: string };
+  _id: { employeeId: string; date: string } | string;
   status: string;
   employeeId: string;
   date: string;
@@ -41,32 +36,28 @@ interface ProjectAttendanceRecord {
   punchOutLocation?: LocationDetail;
 }
 
-// API response types
 interface AttendanceApiResponse {
   attendance: AttendanceRecord[];
 }
 
-// Add KYC employee type
 interface KycEmployee {
   employeeId: string;
   fullName: string;
   designation: string;
   projectName: string;
+  employeeImage?: string;
 }
 
-// Add KYC form type for API response
 interface KycForm {
   personalDetails: {
     employeeId: string;
     fullName: string;
     designation: string;
     projectName: string;
-    // ...other fields if needed
+    employeeImage?: string;
   };
-  // ...other fields if needed
 }
 
-// Add LocationDetail type
 interface LocationDetail {
   latitude: number;
   longitude: number;
@@ -75,13 +66,13 @@ interface LocationDetail {
 
 export default function AttendanceViewPage() {
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState("View Attendance");
+  const [activeTab] = useState("View Attendance");
   const [searchQuery, setSearchQuery] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
-  const [projectAttendance, setProjectAttendance] = useState<ProjectAttendanceRecord[]>([]);
+  const [, setProjectAttendance] = useState<ProjectAttendanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<ProjectAttendanceRecord | null>(null);
@@ -89,7 +80,74 @@ export default function AttendanceViewPage() {
   const [selectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [selectedYear] = useState<number>(new Date().getFullYear());
 
-  // Fetch attendance data from API
+  // Utility function must come before filterAttendance
+  const getDateOnly = (dateStr: string): string => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toISOString().slice(0, 10);
+  };
+
+  // Filtering logic must come next
+  const filterAttendance = (): AttendanceRecord[] => {
+    return attendanceData
+      .filter((record: AttendanceRecord) => {
+        const searchLower = searchQuery.toLowerCase();
+        const matchesSearch =
+          record.employeeId.toLowerCase().includes(searchLower) ||
+          (record.projectName && record.projectName.toLowerCase().includes(searchLower)) ||
+          (record.date && new Date(record.date).toLocaleDateString().includes(searchLower));
+        let matchesFrom = true,
+          matchesTo = true;
+        const recordDate = getDateOnly(record.date);
+        if (fromDate) {
+          matchesFrom = recordDate >= fromDate;
+        }
+        if (toDate) {
+          matchesTo = recordDate <= toDate;
+        }
+        let matchesProject = true;
+        if (activeTab === "Project Wise Attendance" && projectFilter) {
+          matchesProject = record.projectName === projectFilter;
+        }
+        return matchesSearch && matchesFrom && matchesTo && matchesProject;
+      })
+      .sort((a: AttendanceRecord, b: AttendanceRecord) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+  const filteredAttendance: AttendanceRecord[] = filterAttendance();
+
+
+  // Inline filter states
+  const [empIdFilter, setEmpIdFilter] = useState("");
+  const [nameFilter, setNameFilter] = useState("");
+  const [designationFilter, setDesignationFilter] = useState("");
+  const [projectFilterHeader, setProjectFilterHeader] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  // Unique designations and projects for dropdowns
+  const uniqueDesignations = Array.from(new Set(kycEmployees.map(e => e.designation).filter(Boolean)));
+  const uniqueProjectsAll = Array.from(new Set(kycEmployees.map(e => e.projectName).filter(Boolean)));
+  const uniqueStatus = Array.from(new Set(attendanceData.map(e => e.status).filter(Boolean)));
+
+  // Filtered attendance with header filters
+  const filteredAttendanceWithHeader = filteredAttendance.filter(record => {
+    const kyc = kycEmployees.find(e => e.employeeId === record.employeeId);
+    const matchesEmpId = empIdFilter === "" || record.employeeId.toLowerCase().includes(empIdFilter.toLowerCase());
+    const matchesName = nameFilter === "" || (kyc?.fullName || "").toLowerCase().includes(nameFilter.toLowerCase());
+    const matchesDesignation = designationFilter === "" || (kyc?.designation || "").toLowerCase() === designationFilter.toLowerCase();
+    const matchesProject = projectFilterHeader === "" || (record.projectName || "").toLowerCase() === projectFilterHeader.toLowerCase();
+    const matchesDate = dateFilter === "" || (record.date && record.date.slice(0, 10) === dateFilter);
+    const matchesStatus = statusFilter === "" || (record.status || "").toLowerCase() === statusFilter.toLowerCase();
+    return matchesEmpId && matchesName && matchesDesignation && matchesProject && matchesDate && matchesStatus;
+  });
+
+  // Helper to get photo from kycEmployees
+  const getEmployeePhoto = (employeeId: string) => {
+    const kyc = kycEmployees.find(e => e.employeeId === employeeId);
+    return kyc?.employeeImage || "/placeholder-user.jpg";
+  };
+
   const fetchAttendance = async (): Promise<void> => {
     setLoading(true);
     setError("");
@@ -101,7 +159,7 @@ export default function AttendanceViewPage() {
       } else {
         setAttendanceData([]);
       }
-    } catch  {
+    } catch {
       setError("Failed to fetch attendance data");
       setAttendanceData([]);
     } finally {
@@ -109,66 +167,81 @@ export default function AttendanceViewPage() {
     }
   };
 
-  // Fetch KYC employees and project options
   useEffect(() => {
     fetch("https://cafm.zenapi.co.in/api/kyc")
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         const employees = (data.kycForms || []).map((form: KycForm) => ({
           employeeId: form.personalDetails.employeeId,
           fullName: form.personalDetails.fullName,
           designation: form.personalDetails.designation,
           projectName: form.personalDetails.projectName,
+          employeeImage: form.personalDetails.employeeImage || undefined,
         }));
         setKycEmployees(employees);
       });
   }, []);
 
-  // Helper: enrich attendance records with punchInLocation and punchOutLocation
-  const enrichWithLocations = (data: ProjectAttendanceRecord[]): ProjectAttendanceRecord[] => {
-    return data.map(record => ({
-      ...record,
-      punchInLocation: record.punchInLatitude && record.punchInLongitude
-        ? {
-            latitude: record.punchInLatitude,
-            longitude: record.punchInLongitude,
-            address: null
-          }
-        : undefined,
-      punchOutLocation: record.punchOutLatitude && record.punchOutLongitude
-        ? {
-            latitude: record.punchOutLatitude,
-            longitude: record.punchOutLongitude,
-            address: null
-          }
-        : undefined
-    }));
-  };
+  useEffect(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    setFromDate(todayStr);
+    setToDate(todayStr);
+  }, []);
 
-  // Fetch attendance for all employees in selected project/month/year
+
   useEffect(() => {
     if (activeTab !== "Project Wise Attendance" || !projectFilter) return;
+    
+    const enrichWithLocations = (data: ProjectAttendanceRecord[]): ProjectAttendanceRecord[] => {
+      return data.map((record) => ({
+        ...record,
+        punchInLocation: record.punchInLatitude && record.punchInLongitude
+          ? {
+              latitude: record.punchInLatitude,
+              longitude: record.punchInLongitude,
+              address: null,
+            }
+          : undefined,
+        punchOutLocation: record.punchOutLatitude && record.punchOutLongitude
+          ? {
+              latitude: record.punchOutLatitude,
+              longitude: record.punchOutLongitude,
+              address: null,
+            }
+          : undefined,
+      }));
+    };
+    
     setLoading(true);
-    const employeesInProject = kycEmployees.filter(e => e.projectName === projectFilter);
+    const employeesInProject = kycEmployees.filter((e) => e.projectName === projectFilter);
     Promise.all(
-      employeesInProject.map(emp =>
-        fetch(`https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${emp.employeeId}&month=${selectedMonth}&year=${selectedYear}`)
-          .then(res => res.json())
-          .then(data => enrichWithLocations((data.attendance || []).map((att: ProjectAttendanceRecord) => ({
-            ...att,
-            name: emp.fullName,
-            designation: emp.designation,
-            projectName: att.projectName,
-            punchInPhoto: att.punchInPhoto,
-            punchOutPhoto: att.punchOutPhoto,
-            punchInLatitude: att.punchInLatitude,
-            punchInLongitude: att.punchInLongitude,
-            punchOutLatitude: att.punchOutLatitude,
-            punchOutLongitude: att.punchOutLongitude,
-          })))
+      employeesInProject.map((emp) =>
+        fetch(
+          `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${emp.employeeId}&month=${selectedMonth}&year=${selectedYear}`
         )
+          .then((res) => res.json())
+          .then((data) =>
+            enrichWithLocations(
+              (data.attendance || []).map((att: ProjectAttendanceRecord) => ({
+                ...att,
+                name: emp.fullName,
+                designation: emp.designation,
+                projectName: att.projectName,
+                punchInPhoto: att.punchInPhoto,
+                punchOutPhoto: att.punchOutPhoto,
+                punchInLatitude: att.punchInLatitude,
+                punchInLongitude: att.punchInLongitude,
+                punchOutLatitude: att.punchOutLatitude,
+                punchOutLongitude: att.punchOutLongitude,
+              }))
+            )
+          )
       )
-    ).then(results => {
+    ).then((results) => {
       setProjectAttendance(results.flat());
       setLoading(false);
     });
@@ -178,692 +251,479 @@ export default function AttendanceViewPage() {
     fetchAttendance();
   }, []);
 
-  // Set default project to 'Exozen-Ops' when switching to Project Wise Attendance
   useEffect(() => {
     if (activeTab === "Project Wise Attendance" && !projectFilter) {
-      if (uniqueProjects.length > 0) {
-        setProjectFilter(uniqueProjects[0]);
+      if (uniqueProjectsAll.length > 0) {
+        setProjectFilter(uniqueProjectsAll[0]);
       }
     }
-    // eslint-disable-next-line
-  }, [activeTab, attendanceData]);
+  }, [activeTab, attendanceData, projectFilter, uniqueProjectsAll]);
 
-  // Helper to get YYYY-MM-DD from a date string
-  const getDateOnly = (dateStr: string): string => {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toISOString().slice(0, 10);
-  };
 
-  // Filtering logic
-  const filterAttendance = (): AttendanceRecord[] => {
-    return attendanceData.filter((record: AttendanceRecord) => {
-      // Search filter
-      const searchLower = searchQuery.toLowerCase();
-      const matchesSearch =
-        record.employeeId.toLowerCase().includes(searchLower) ||
-        (record.projectName && record.projectName.toLowerCase().includes(searchLower)) ||
-        (record.date && new Date(record.date).toLocaleDateString().includes(searchLower));
-      // Date filter
-      let matchesFrom = true, matchesTo = true;
-      const recordDate = getDateOnly(record.date);
-      if (fromDate) {
-        matchesFrom = recordDate >= fromDate;
-      }
-      if (toDate) {
-        matchesTo = recordDate <= toDate;
-      }
-      // Project filter (for Project Wise Attendance tab)
-      let matchesProject = true;
-      if (activeTab === "Project Wise Attendance" && projectFilter) {
-        matchesProject = record.projectName === projectFilter;
-      }
-      return matchesSearch && matchesFrom && matchesTo && matchesProject;
-    })
-    .sort((a: AttendanceRecord, b: AttendanceRecord) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date desc
-  };
 
-  const filteredAttendance: AttendanceRecord[] = filterAttendance();
-
-  // Filtered rows for Project Wise Attendance tab
-  // const filteredRows = attendanceData
-  //   .filter((record: AttendanceRecord) => {
-  //     // Project filter
-  //     if (projectFilter && record.projectName !== projectFilter) return false;
-  //     // Date filter
-  //     let matchesFrom = true, matchesTo = true;
-  //     const recordDate = getDateOnly(record.date);
-  //     if (fromDate) {
-  //       matchesFrom = recordDate >= fromDate;
-  //     }
-  //     if (toDate) {
-  //       matchesTo = recordDate <= toDate;
-  //     }
-  //     return matchesFrom && matchesTo;
-  //   })
-  //   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // Sort by date desc
-  //   .map(record => ({
-  //     employeeId: record.employeeId,
-  //     projectName: record.projectName,
-  //     date: record.date ? new Date(record.date).toLocaleDateString() : "N/A",
-  //     status: record.status || "N/A"
-  //   }));
-
-  // Unique projects for filter dropdown
-  const uniqueProjects: string[] = Array.from(new Set(attendanceData.map((row: AttendanceRecord) => row.projectName)));
-
-  // Helper: filter projectAttendance by search, fromDate, toDate
-  const filterProjectAttendance = () => {
-    const searchLower = searchQuery.toLowerCase();
-    return projectAttendance.filter((row) => {
-      const matchesSearch =
-        row.employeeId.toLowerCase().includes(searchLower) ||
-        (row.name && row.name.toLowerCase().includes(searchLower)) ||
-        (row.designation && row.designation.toLowerCase().includes(searchLower)) ||
-        (row.date && new Date(row.date).toLocaleDateString().includes(searchLower));
-      let matchesFrom = true, matchesTo = true;
-      const recordDate = row.date ? row.date.slice(0, 10) : "";
-      if (fromDate) matchesFrom = recordDate >= fromDate;
-      if (toDate) matchesTo = recordDate <= toDate;
-      return matchesSearch && matchesFrom && matchesTo;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  };
-
-  const filteredProjectAttendance = filterProjectAttendance();
-
-  // Add a helper to fetch address from lat/lng using reverse geocoding with Nominatim (OpenStreetMap)
   const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
-    // Validate coordinates
     if (!lat || !lng || isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
-      console.warn('Invalid coordinates:', { lat, lng });
-      return 'Invalid coordinates';
+      return "Invalid coordinates";
     }
-
-    console.log('Geocoding request for:', { lat, lng });
-   
     try {
-      // Using Nominatim (OpenStreetMap) - completely free, no API key required
       const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en&zoom=18`;
-      console.log('Geocoding URL:', url);
-
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'EmployeeManagementApp/1.0' // Required by Nominatim
-        }
+          "User-Agent": "EmployeeManagementApp/1.0",
+        },
       });
-
       if (!response.ok) {
-        console.warn(`Nominatim API error: ${response.status} ${response.statusText}`);
         return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
       }
-
       const data = await response.json();
-      console.log('Geocoding response:', data);
-
       if (data && data.display_name) {
-        // Extract address components from Nominatim response
         const address = data.address || {};
-        
-        // Build a readable address from available components
         const addressParts = [
           address.house_number && address.road ? `${address.house_number} ${address.road}` : address.road,
           address.suburb || address.neighbourhood,
           address.city || address.town || address.village,
           address.state,
-          address.country
+          address.country,
         ].filter(Boolean);
-
-        const formattedAddress = addressParts.join(', ') || data.display_name;
-        
-        console.log('Formatted address:', formattedAddress);
-        return formattedAddress;
-      } else if (data && data.error) {
-        console.warn('Nominatim error:', data.error);
-        return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+        return addressParts.join(", ") || data.display_name;
       }
-     
-      console.warn('No results found for location:', { lat, lng });
       return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-    } catch (error) {
-      console.error('Geocoding error:', error);
+    } catch {
       return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
     }
   };
 
-  const fetchAllAddresses = async (records: ProjectAttendanceRecord[]) => {
-    const getAddress = async (lat?: number, lng?: number) => {
-      if (!lat || !lng) return 'N/A';
-      return await reverseGeocode(lat, lng);
-    };
-    const results = await Promise.all(records.map(async (record) => {
-      const punchInAddress = record.punchInLatitude && record.punchInLongitude
-        ? await getAddress(record.punchInLatitude, record.punchInLongitude)
-        : 'N/A';
-      const punchOutAddress = record.punchOutLatitude && record.punchOutLongitude
-        ? await getAddress(record.punchOutLatitude, record.punchOutLongitude)
-        : 'N/A';
-      return {
-        ...record,
-        punchInResolvedAddress: punchInAddress,
-        punchOutResolvedAddress: punchOutAddress,
-      };
-    }));
-    return results;
-  };
 
-  const handleExportLocationPDF = async () => {
-    // Filter records for the current view (project wise attendance)
-    const recordsWithAddresses = await fetchAllAddresses(filteredProjectAttendance);
-    const jsPDF = (await import('jspdf')).default;
-    const autoTable = (await import('jspdf-autotable')).default;
-    const doc = new jsPDF();
-    let yPosition = 15;
-    doc.setFontSize(12);
-    doc.setTextColor(41, 128, 185);
-    doc.text('Attendance Location Report', 14, yPosition);
-    yPosition += 8;
-    const tableHead = [['Date', 'Check-in Location', 'Check-out Location']];
-    const tableRows = recordsWithAddresses.map(record => [
-      record.date ? new Date(record.date).toLocaleDateString() : 'N/A',
-      record.punchInResolvedAddress,
-      record.punchOutResolvedAddress
-    ]);
-    autoTable(doc, {
-      head: tableHead,
-      body: tableRows,
-      startY: yPosition,
-      theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 10, fontStyle: 'bold' },
-      columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 70 }
-      },
-      margin: { left: 15 }
-    });
-    doc.save('location_report.pdf');
-  };
+  // Removed unused handleExportLocationPDF function
 
-  // Update handleRowClick to set address on selectedRecord's punchInLocation and punchOutLocation
-  const handleRowClick = async (record: ProjectAttendanceRecord) => {
-    const updatedRecord = { ...record };
-    if (record.punchInLatitude && record.punchInLongitude) {
-      const address = await reverseGeocode(record.punchInLatitude, record.punchInLongitude);
+  const handleRowClick = async (record: AttendanceRecord) => {
+    try {
+      // Fetch detailed attendance data for the specific employee and date
+      const today = new Date();
+      const month = today.getMonth() + 1;
+      const year = today.getFullYear();
+      
+      const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${record.employeeId}&month=${month}&year=${year}`);
+      const data = await response.json();
+      
+      if (data.attendance && Array.isArray(data.attendance)) {
+        // Find the attendance record for the specific date
+        const recordDate = record.date ? record.date.slice(0, 10) : '';
+        const attendanceRecord = data.attendance.find((att: ProjectAttendanceRecord) => 
+          att.date && att.date.slice(0, 10) === recordDate
+        );
+        
+        if (attendanceRecord) {
+          const updatedRecord = {
+            ...attendanceRecord,
+            employeeId: record.employeeId,
+            projectName: record.projectName,
+            name: kycEmployees.find(e => e.employeeId === record.employeeId)?.fullName || record.employeeId,
+            designation: kycEmployees.find(e => e.employeeId === record.employeeId)?.designation || '',
+          };
+          
+          // Fetch location data if coordinates are available
+          if (attendanceRecord.punchInLatitude && attendanceRecord.punchInLongitude) {
+            const punchInAddress = await reverseGeocode(attendanceRecord.punchInLatitude, attendanceRecord.punchInLongitude);
       updatedRecord.punchInLocation = {
-        latitude: record.punchInLatitude,
-        longitude: record.punchInLongitude,
-        address,
-      };
-    }
-    if (record.punchOutLatitude && record.punchOutLongitude) {
-      const address = await reverseGeocode(record.punchOutLatitude, record.punchOutLongitude);
+              latitude: attendanceRecord.punchInLatitude,
+              longitude: attendanceRecord.punchInLongitude,
+              address: punchInAddress,
+            };
+          }
+          
+          if (attendanceRecord.punchOutLatitude && attendanceRecord.punchOutLongitude) {
+            const punchOutAddress = await reverseGeocode(attendanceRecord.punchOutLatitude, attendanceRecord.punchOutLongitude);
       updatedRecord.punchOutLocation = {
-        latitude: record.punchOutLatitude,
-        longitude: record.punchOutLongitude,
-        address,
-      };
-    }
+              latitude: attendanceRecord.punchOutLatitude,
+              longitude: attendanceRecord.punchOutLongitude,
+              address: punchOutAddress,
+            };
+          }
+          
     setSelectedRecord(updatedRecord);
+        } else {
+          // Fallback to basic record if detailed data not found
+          setSelectedRecord({
+            ...record,
+            _id: { employeeId: record.employeeId, date: record.date },
+            name: kycEmployees.find(e => e.employeeId === record.employeeId)?.fullName || record.employeeId,
+            designation: kycEmployees.find(e => e.employeeId === record.employeeId)?.designation || '',
+            punchInLocation: { latitude: 0, longitude: 0, address: null },
+            punchOutLocation: { latitude: 0, longitude: 0, address: null },
+          });
+        }
+      } else {
+        // Fallback to basic record
+        setSelectedRecord({
+          ...record,
+          _id: { employeeId: record.employeeId, date: record.date },
+          name: kycEmployees.find(e => e.employeeId === record.employeeId)?.fullName || record.employeeId,
+          designation: kycEmployees.find(e => e.employeeId === record.employeeId)?.designation || '',
+          punchInLocation: { latitude: 0, longitude: 0, address: null },
+          punchOutLocation: { latitude: 0, longitude: 0, address: null },
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching attendance details:', error);
+      // Fallback to basic record
+      setSelectedRecord({
+        ...record,
+        _id: { employeeId: record.employeeId, date: record.date },
+        name: kycEmployees.find(e => e.employeeId === record.employeeId)?.fullName || record.employeeId,
+        designation: kycEmployees.find(e => e.employeeId === record.employeeId)?.designation || '',
+        punchInLocation: { latitude: 0, longitude: 0, address: null },
+        punchOutLocation: { latitude: 0, longitude: 0, address: null },
+      });
+    }
   };
 
-  // Helper to extract UTC time (HH:mm:ss) from ISO string
-  const getUtcTimeOnly = (isoString?: string): string => {
-    if (!isoString) return 'N/A';
-    const match = isoString.match(/T(\d{2}:\d{2}:\d{2})/);
-    return match ? match[1] : 'N/A';
-  };
-
-  // Add back formatDate helper
-  const formatDate = (dateString: string): string => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const handleExportToExcel = async () => {
-    const XLSX = (await import('xlsx')).default;
-    const exportData = filteredProjectAttendance.map(row => ({
-      EmployeeID: row.employeeId,
-      Name: row.name,
-      Designation: row.designation,
-      Project: row.projectName,
-      Date: row.date ? new Date(row.date).toLocaleDateString() : 'N/A',
-      PunchInTime: row.punchInTime ? row.punchInTime.replace(/\.\d{3}Z$/, '') : '',
-      PunchOutTime: row.punchOutTime ? row.punchOutTime.replace(/\.\d{3}Z$/, '') : '',
-      Status: row.status,
-    }));
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Project Attendance');
-    XLSX.writeFile(workbook, 'project_attendance.xlsx');
-  };
-
-  const handleExportToPDF = async () => {
-    const jsPDF = (await import('jspdf')).default;
-    const autoTable = (await import('jspdf-autotable')).default;
-    const doc = new jsPDF();
-
-    // Helper to extract only time (HH:mm:ss) from ISO string
-    const extractTime = (dt: string | undefined) => {
-      if (!dt) return '';
-      const match = dt.match(/T(\d{2}:\d{2}:\d{2})/);
-      return match ? match[1] : '';
-    };
-
-    // Helper to calculate hours worked
-    const calcHoursWorked = (inTime?: string, outTime?: string) => {
-      if (!inTime || !outTime) return '';
-      const inDate = new Date(inTime);
-      const outDate = new Date(outTime);
-      if (isNaN(inDate.getTime()) || isNaN(outDate.getTime())) return '';
-      let diff = (outDate.getTime() - inDate.getTime()) / 1000; // seconds
-      if (diff < 0) diff += 24 * 3600; // handle overnight
-      const hours = Math.floor(diff / 3600);
-      const mins = Math.floor((diff % 3600) / 60);
-      return `${hours}h ${mins}m`;
-    };
-
-    const exportData = filteredProjectAttendance.map(row => ([
-      row.employeeId,
-      row.name,
-      row.designation,
-      row.projectName,
-      row.date ? new Date(row.date).toLocaleDateString() : 'N/A',
-      extractTime(row.punchInTime),
-      extractTime(row.punchOutTime),
-      calcHoursWorked(row.punchInTime, row.punchOutTime),
-      row.status,
-    ]));
-
-    doc.text('Project Wise Attendance', 14, 16);
-    autoTable(doc, {
-      head: [[
-        'EmployeeID',
-        'Name',
-        'Designation',
-        'Project',
-        'Date',
-        'PunchInTime',
-        'PunchOutTime',
-        'Total Hours Worked',
-        'Status',
-      ]],
-      body: exportData,
-      startY: 22,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [41, 128, 185] },
-    });
-    doc.save('project_attendance.pdf');
-  };
+  // Removed unused utility functions: getUtcTimeOnly, formatDate, handleExportToExcel, handleExportToPDF
 
   return (
     <ManagerDashboardLayout>
-      <div className={`p-4 md:p-8 min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-gray-800' : 'bg-gray-100'}`}>
-        {/* Header */}
-        <div className={`${theme === 'dark' ? 'bg-[#2d3748] text-blue-100' : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white'} rounded-2xl p-8 mb-8 flex items-center gap-6 shadow-lg`}>
-          <div className={`${theme === 'dark' ? 'bg-gray-800 text-blue-400' : 'bg-white text-blue-600'} p-6 rounded-full flex items-center justify-center shadow-md`}>
-            <FaClock className="text-3xl" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold">Attendance Management</h1>
-            <p className="text-lg">Manage attendance and regularization requests for employees.</p>
-          </div>
-        </div>
-        {/* Tabs */}
-        <div className="flex gap-4 mb-6">
-          {["View Attendance", "Project Wise Attendance"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-lg font-medium transition ${
-                activeTab === tab
-                  ? theme === 'dark'
-                    ? 'bg-blue-800 text-white shadow-lg'
-                    : 'bg-blue-600 text-white shadow-lg'
-                  : theme === 'dark'
-                    ? 'bg-gray-900 text-blue-200 hover:bg-blue-800 hover:text-white'
-                    : 'bg-gray-200 text-gray-600 hover:bg-blue-500 hover:text-white'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-        {/* Filters */}
-        <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} p-4 rounded-lg shadow flex items-center gap-4`}>
-          <div className="flex-1">
-            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>Search</label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search by Employee ID, Project, or Date"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white text-black border-gray-300 focus:ring-blue-600 placeholder-gray-400'}`}
-              />
-              <FaClock className={`${theme === 'dark' ? 'text-blue-400' : 'text-gray-400'} absolute right-3 top-2.5`} />
-            </div>
-          </div>
-          <div className="flex-1">
-            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>From Date</label>
-            <div className="relative">
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white border-gray-300 focus:ring-blue-600 placeholder-gray-400'}`}
-                style={theme === 'dark' ? {} : { color: '#000' }}
-              />
-              <FaRegCalendarAlt
-                className={`absolute right-3 top-2.5 pointer-events-none ${theme === 'dark' ? 'text-blue-400' : 'text-gray-400'}`}
-                size={18}
-              />
-              <style jsx global>{`
-                input[type="date"]::-webkit-calendar-picker-indicator {
-                  opacity: 0;
-                  display: none;
-                }
-                input[type="date"]::-ms-input-placeholder {
-                  color: transparent;
-                }
-                input[type="date"]::-moz-placeholder {
-                  color: transparent;
-                }
-                input[type="date"]:-ms-input-placeholder {
-                  color: transparent;
-                }
-                input[type="date"]::placeholder {
-                  color: transparent;
-                }
-              `}</style>
-            </div>
-          </div>
-          <div className="flex-1">
-            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>To Date</label>
-            <div className="relative">
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800 placeholder-blue-400' : 'bg-white border-gray-300 focus:ring-blue-600 placeholder-gray-400'}`}
-                style={theme === 'dark' ? {} : { color: '#000' }}
-              />
-              <FaRegCalendarAlt
-                className={`absolute right-3 top-2.5 pointer-events-none ${theme === 'dark' ? 'text-blue-400' : 'text-gray-400'}`}
-                size={18}
-              />
-            </div>
-          </div>
-          {/* Project Filter only for Project Wise Attendance tab */}
-          {activeTab === "Project Wise Attendance" && (
-            <div className="flex-1">
-              <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-700'}`}>Project</label>
+      <div className={`min-h-screen font-sans transition-colors duration-300 flex flex-col ${
+        theme === "dark"
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
+          : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
+      }`}>
+        {/* Filters and Search */}
+        <div className="sticky top-[64px] z-30 backdrop-blur-sm px-4 py-2 mb-3 md:mb-4">
+          <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
+            {/* Project Dropdown */}
+            <div className="flex-1 min-w-[180px] max-w-xs">
               <select
                 value={projectFilter}
                 onChange={e => setProjectFilter(e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-blue-100 border-gray-700 focus:ring-blue-800' : 'bg-white text-black border-gray-300 focus:ring-blue-600'}`}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
               >
-                {/* No 'All Projects' option, only list unique projects */}
-                {uniqueProjects.map((project, idx) => (
+                <option value="">All Projects</option>
+                {uniqueProjectsAll.map((project: string, idx: number) => (
                   <option key={project || idx} value={project}>{project}</option>
                 ))}
               </select>
             </div>
-          )}
-        </div>
-        {/* Tab Content */}
-        {activeTab === "View Attendance" && (
-          <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg shadow-lg p-6`}> {/* removed overflow-x-auto from here */}
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-blue-100' : 'text-gray-800'}`}>Attendance Records</h2>
-              <div className="flex gap-2">
-                <button className={`${theme === 'dark' ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'} px-4 py-2 rounded-lg transition-colors flex items-center gap-2`}>Export</button>
-                <button
-                  className={`${theme === 'dark' ? 'bg-blue-800 text-white hover:bg-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700'} px-4 py-2 rounded-lg transition-colors flex items-center gap-2`}
-                  onClick={fetchAttendance}
-                  disabled={loading}
-                >
-                  {loading ? "Refreshing..." : "Refresh"}
-                </button>
-              </div>
+            {/* Designation Dropdown */}
+            <div className="relative w-44 min-w-[130px]">
+              <select
+                value={designationFilter}
+                onChange={e => setDesignationFilter(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              >
+                <option value="">All Designations</option>
+                {uniqueDesignations.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
             </div>
-            {error && <div className="text-red-500 mb-4">{error}</div>}
-            <div className="relative">
-              <div className={`overflow-x-auto overflow-y-auto max-h-[60vh] rounded-lg border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}> {/* table scrolls vertically */}
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className={theme === 'dark' ? 'bg-blue-950' : 'bg-gray-50'}>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Employee ID</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Project</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Date</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className={theme === 'dark' ? 'divide-gray-800' : 'divide-gray-200'}>
-                    {filteredAttendance.length === 0 && (
-                      <tr><td colSpan={4} className="text-center py-8 text-gray-400">No records found.</td></tr>
-                    )}
-                    {filteredAttendance.map((record, index) => {
-                      return (
-                        <tr key={record._id || index} className={theme === 'dark' ? 'hover:bg-blue-950 transition-colors duration-200' : 'hover:bg-gray-50 transition-colors duration-200'}>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${theme === 'dark' ? 'bg-blue-950 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>{record.employeeId}</span>
-                          </td>
-                          <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{record.projectName}</td>
-                          <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{record.date ? new Date(record.date).toLocaleDateString() : "N/A"}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${record.status === "Present" ? (theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800') : record.status === "Absent" ? (theme === 'dark' ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800') : (theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800')}`}>{record.status || "N/A"}</span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+            {/* Status Dropdown */}
+            <div className="relative w-44 min-w-[130px]">
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              >
+                <option value="">All Status</option>
+                {uniqueStatus.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            {/* Search Bar */}
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+              <input
+                type="text"
+                placeholder="Search employee name or ID..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              />
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <input
+                type="date"
+                value={fromDate}
+                onChange={e => setFromDate(e.target.value)}
+                className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+                title="From Date"
+              />
+              <input
+                type="date"
+                value={toDate}
+                onChange={e => setToDate(e.target.value)}
+                className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+                title="To Date"
+              />
+              <button
+                className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800 border-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-200'}`}
+                onClick={fetchAttendance}
+                disabled={loading}
+              >
+                {loading ? "Refreshing..." : "Refresh"}
+              </button>
             </div>
           </div>
-        )}
-        {activeTab === "Project Wise Attendance" && (
-          <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg shadow-lg p-6`}>
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-blue-100' : 'text-gray-800'}`}>Project Wise Attendance</h2>
-                <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-blue-300' : 'text-gray-500'}`}>Review and manage project wise attendance</p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  className={`${theme === 'dark' ? 'bg-green-700 text-white hover:bg-green-800' : 'bg-green-500 text-white hover:bg-green-600'} px-4 py-2 rounded-lg`}
-                  onClick={handleExportToExcel}
-                >
-                  Export to Excel
-                </button>
-                <button
-                  className={`${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-500 text-white hover:bg-blue-600'} px-4 py-2 rounded-lg`}
-                  onClick={handleExportToPDF}
-                >
-                  Export PDF
-                </button>
-                <button
-                  className={`${theme === 'dark' ? 'bg-purple-700 text-white hover:bg-purple-800' : 'bg-purple-500 text-white hover:bg-purple-600'} px-4 py-2 rounded-lg`}
-                  onClick={handleExportLocationPDF}
-                >
-                  Export Location PDF
-                </button>
-              </div>
-            </div>
-            <div className="relative">
-              <div className={`overflow-x-auto overflow-y-auto max-h-[60vh] rounded-lg border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className={theme === 'dark' ? 'bg-blue-950' : 'bg-gray-50'}>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Employee ID</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Name</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Designation</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Date</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Punch In Time</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Punch Out Time</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Status</th>
-                      <th className={`px-6 py-4 text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-blue-200' : 'text-black'}`}>Action</th>
+        </div>
+
+        {/* Table - Excel-like compact grid full screen */}
+        <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
+          <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+            {loading ? (
+              <div className="py-12 text-center text-lg font-semibold">Loading attendance records...</div>
+            ) : error ? (
+              <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
+            ) : (
+              <>
+              <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+                  <tr>
+                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Photo</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee Name</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Date</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Punch In Time</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Punch Out Time</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Actions</th>
+                  </tr>
+                  {/* Inline header filters */}
+                  <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
+                    <th className="px-2 py-1 sticky left-0 z-20"></th>
+                    <th className="px-2 py-1 w-16"></th>
+                    <th className="px-2 py-1">
+                      <input 
+                        value={empIdFilter} 
+                        onChange={e => setEmpIdFilter(e.target.value)} 
+                        placeholder="Filter ID" 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                      />
+                    </th>
+                    <th className="px-2 py-1">
+                      <input 
+                        value={nameFilter} 
+                        onChange={e => setNameFilter(e.target.value)} 
+                        placeholder="Filter Name" 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                      />
+                    </th>
+                    <th className="px-2 py-1">
+                      <select 
+                        value={designationFilter} 
+                        onChange={e => setDesignationFilter(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      >
+                        <option value="">All</option>
+                        {uniqueDesignations.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-2 py-1">
+                      <select 
+                        value={projectFilterHeader} 
+                        onChange={e => setProjectFilterHeader(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      >
+                        <option value="">All</option>
+                        {uniqueProjectsAll.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-2 py-1">
+                      <input 
+                        type="date"
+                        value={dateFilter} 
+                        onChange={e => setDateFilter(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                      />
+                    </th>
+                    <th className="px-2 py-1"></th>
+                    <th className="px-2 py-1"></th>
+                    <th className="px-2 py-1">
+                      <select 
+                        value={statusFilter} 
+                        onChange={e => setStatusFilter(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      >
+                        <option value="">All</option>
+                        {uniqueStatus.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-2 py-1"></th>
+                  </tr>
+                </thead>
+                <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                  {filteredAttendanceWithHeader.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No attendance records found</td>
                     </tr>
-                  </thead>
-                  <tbody className={theme === 'dark' ? 'divide-gray-800' : 'divide-gray-200'}>
-                    {projectAttendance.length === 0 && (
-                      <tr><td colSpan={8} className="text-center py-8 text-gray-400">No records found.</td></tr>
-                    )}
-                    {filteredProjectAttendance.length === 0 && (
-                      <tr><td colSpan={8} className="text-center py-8 text-gray-400">No records found.</td></tr>
-                    )}
-                    {filteredProjectAttendance.map((row) => (
-                      <tr key={row.employeeId + '-' + row.date} className={theme === 'dark' ? 'hover:bg-blue-950 transition-colors duration-200' : 'hover:bg-gray-50 transition-colors duration-200'}>
-                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.employeeId}</td>
-                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.name}</td>
-                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.designation}</td>
-                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.date ? new Date(row.date).toLocaleDateString() : "N/A"}</td>
-                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.punchInTime ? getUtcTimeOnly(row.punchInTime) : 'N/A'}</td>
-                        <td className={`px-6 py-4 ${theme === 'dark' ? 'text-blue-100' : 'text-black'}`}>{row.punchOutTime ? getUtcTimeOnly(row.punchOutTime) : 'N/A'}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${row.status === "Present" ? (theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800') : row.status === "Absent" ? (theme === 'dark' ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800') : (theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800')}`}>{row.status}</span>
+                  ) : filteredAttendanceWithHeader.map((record, index) => {
+                    const kyc = kycEmployees.find(e => e.employeeId === record.employeeId);
+                    return (
+                      <tr key={record._id || index} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{index + 1}</td>
+                        <td className="px-2 py-1">
+                          <Image
+                            src={getEmployeePhoto(record.employeeId)}
+                            alt={kyc?.fullName || record.employeeId}
+                            width={32}
+                            height={32}
+                            className={`rounded object-cover border ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}
+                          />
                         </td>
-                        <td className="px-6 py-4">
+                        <td className={`px-2 py-1 font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{record.employeeId}</td>
+                        <td className="px-2 py-1"><div className="truncate" title={kyc?.fullName || "-"}>{kyc?.fullName || "-"}</div></td>
+                        <td className="px-2 py-1"><div className="truncate" title={kyc?.designation || "-"}>{kyc?.designation || "-"}</div></td>
+                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={record.projectName}>{record.projectName}</div></td>
+                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{record.date ? new Date(record.date).toLocaleDateString() : "N/A"}</td>
+                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{record.punchInTime ? new Date(record.punchInTime).toLocaleTimeString() : "-"}</td>
+                        <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{record.punchOutTime ? new Date(record.punchOutTime).toLocaleTimeString() : "-"}</td>
+                        <td className="px-2 py-1 text-center">
+                          <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
+                            record.status === 'Present' 
+                              ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
+                              : record.status === 'Absent'
+                              ? theme === 'dark' ? 'bg-red-800 text-red-200' : 'bg-red-100 text-red-700'
+                              : theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {record.status || "N/A"}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1 text-center">
                           <button
-                            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2 ${theme === 'dark' ? 'bg-blue-800 text-white hover:bg-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                            onClick={() => handleRowClick(row)}
+                            onClick={() => handleRowClick(record)}
+                            title="View Details"
+                            className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                              theme === 'dark' 
+                                ? 'border-blue-500 text-blue-400 bg-gray-800 hover:bg-gray-700 focus:ring-blue-400' 
+                                : 'border-blue-500 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-400'
+                            }`}
                           >
                             View
                           </button>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                    );
+                  })}
+                </tbody>
+              </table>
+              </>
+            )}
           </div>
-        )}
-        {selectedRecord && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-8 max-w-2xl w-full relative animate-fade-in overflow-y-auto max-h-[90vh]`}>
-              <button
-                onClick={() => setSelectedRecord(null)}
-                className={`absolute top-2 right-2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-800'} text-2xl font-bold`}
-                aria-label="Close"
-              >
-                &times;
-              </button>
-              <h2 className={`text-2xl font-bold mb-6 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'} text-center`}>
-                Attendance Record Details
-              </h2>
-              <div className="space-y-4">
-                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
-                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Date:</span>
-                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
-                    {formatDate(selectedRecord.date)}
-                  </span>
-                </div>
-                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
-                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Project Name:</span>
-                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
-                    {selectedRecord.projectName || 'N/A'}
-                  </span>
-                </div>
-                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
-                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Designation:</span>
-                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
-                    {selectedRecord.designation || 'N/A'}
-                  </span>
-                </div>
-                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
-                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch In Time:</span>
-                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
-                    {getUtcTimeOnly(selectedRecord.punchInTime)}
-                  </span>
-                </div>
-                <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
-                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Punch Out Time:</span>
-                  <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
-                    {getUtcTimeOnly(selectedRecord.punchOutTime)}
-                  </span>
-                </div>
-                {/* Punch In Location Details */}
-                <div className={`flex flex-col border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
-                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} mb-2`}>
-                    Punch In Details:
-                  </span>
-                  <div className="ml-4 space-y-2">
-                    <div className="flex justify-between">
-                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
-                      <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
-                        {getUtcTimeOnly(selectedRecord.punchInTime)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
-                      <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
-                        {selectedRecord.punchInLocation?.address || 'Location not available'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                {/* Punch Out Location Details */}
-                <div className={`flex flex-col border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
-                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} mb-2`}>
-                    Punch Out Details:
-                  </span>
-                  <div className="ml-4 space-y-2">
-                    <div className="flex justify-between">
-                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Time:</span>
-                      <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
-                        {getUtcTimeOnly(selectedRecord.punchOutTime)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
-                      <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
-                        {selectedRecord.punchOutLocation?.address || 'Location not available'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                {/* Attendance Photos section */}
-                <div className="flex flex-col items-start border-b pb-2">
-                  <span className="font-medium text-gray-500 mb-1">Attendance Photos:</span>
-                  <div className="grid grid-cols-2 gap-4 w-full">
-                    {selectedRecord.punchInPhoto && (
-                      <div>
-                        <span className="text-sm text-gray-500 block mb-1">Punch In:</span>
-                        <Image
-                          src={selectedRecord.punchInPhoto}
-                          alt="Punch In"
-                          width={200}
-                          height={200}
-                          className="rounded-lg"
-                        />
-                      </div>
-                    )}
-                    {selectedRecord.punchOutPhoto && (
-                      <div>
-                        <span className="text-sm text-gray-500 block mb-1">Punch Out:</span>
-                        <Image
-                          src={selectedRecord.punchOutPhoto}
-                          alt="Punch Out"
-                          width={200}
-                          height={200}
-                          className="rounded-lg"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
+
+        {/* Attendance Detail Modal */}
+        {selectedRecord && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-2xl relative overflow-y-auto max-h-[90vh]">
+              <button className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl font-bold" onClick={() => setSelectedRecord(null)}>✕</button>
+              <h2 className="text-2xl font-bold mb-4 text-center">Attendance Record Details</h2>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <Image src={getEmployeePhoto(selectedRecord.employeeId)} alt="Employee" width={64} height={64} className="w-16 h-16 rounded-full object-cover border" />
+                  <div>
+                    <div className="font-bold text-lg">{selectedRecord.name || selectedRecord.employeeId}</div>
+                    <div className="text-xs text-gray-500">{selectedRecord.employeeId}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><b>Project:</b> {selectedRecord.projectName || '-'}</div>
+                  <div><b>Designation:</b> {selectedRecord.designation || '-'}</div>
+                  <div><b>Date:</b> {selectedRecord.date ? new Date(selectedRecord.date).toLocaleDateString() : '-'}</div>
+                  <div><b>Status:</b> {selectedRecord.status || '-'}</div>
+                  <div><b>Punch In Time:</b> {selectedRecord.punchInTime ? new Date(selectedRecord.punchInTime).toLocaleTimeString() : '-'}</div>
+                  <div><b>Punch Out Time:</b> {selectedRecord.punchOutTime ? new Date(selectedRecord.punchOutTime).toLocaleTimeString() : '-'}</div>
+                  <div className="col-span-2">
+                    <b>Punch In Location:</b> 
+                    {selectedRecord.punchInLocation?.address ? (
+                      <span className="ml-2 text-gray-700 dark:text-gray-300">{selectedRecord.punchInLocation.address}</span>
+                    ) : selectedRecord.punchInLatitude && selectedRecord.punchInLongitude ? (
+                      <span className="ml-2 text-gray-500">Loading location...</span>
+                    ) : (
+                      <span className="ml-2 text-gray-500">No location data</span>
+                    )}
+                  </div>
+                  <div className="col-span-2">
+                    <b>Punch Out Location:</b> 
+                    {selectedRecord.punchOutLocation?.address ? (
+                      <span className="ml-2 text-gray-700 dark:text-gray-300">{selectedRecord.punchOutLocation.address}</span>
+                    ) : selectedRecord.punchOutLatitude && selectedRecord.punchOutLongitude ? (
+                      <span className="ml-2 text-gray-500">Loading location...</span>
+                    ) : (
+                      <span className="ml-2 text-gray-500">No location data</span>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1">Punch In Photo</div>
+                    {selectedRecord.punchInPhoto && selectedRecord.punchInPhoto !== '' ? (
+                      <Image
+                        src={selectedRecord.punchInPhoto}
+                        alt="Punch In"
+                        width={192} 
+                        height={240} 
+                        className="rounded-lg w-48 h-60 object-cover border"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-48 h-60 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500 border ${selectedRecord.punchInPhoto && selectedRecord.punchInPhoto !== '' ? 'hidden' : ''}`}>
+                      {selectedRecord.punchInPhoto === '' ? 'No Photo Available' : 'No Photo'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1">Punch Out Photo</div>
+                    {selectedRecord.punchOutPhoto && selectedRecord.punchOutPhoto !== '' ? (
+                      <Image
+                        src={selectedRecord.punchOutPhoto}
+                        alt="Punch Out"
+                        width={192} 
+                        height={240} 
+                        className="rounded-lg w-48 h-60 object-cover border"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-48 h-60 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500 border ${selectedRecord.punchOutPhoto && selectedRecord.punchOutPhoto !== '' ? 'hidden' : ''}`}>
+                      {selectedRecord.punchOutPhoto === '' ? 'No Photo Available' : 'No Photo'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
     </ManagerDashboardLayout>
   );
 }

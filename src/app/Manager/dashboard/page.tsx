@@ -1,35 +1,81 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { FaUsers, FaProjectDiagram, FaFileAlt, FaCheckCircle, FaChartBar, FaBell } from "react-icons/fa";
+import React, { useState, useEffect } from "react";
+import { FaChartBar, FaSearch, FaCheck, FaTimes, FaEye } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import Link from "next/link";
+import Image from 'next/image';
+import ViewKYCModal from '@/components/dashboard/ViewKYCModal';
+
+// Define KYCData interface locally
+interface KYCData {
+  personalDetails: {
+    employeeId: string;
+    projectName: string;
+    fullName: string;
+    fathersName: string;
+    mothersName: string;
+    gender: string;
+    dob: string;
+    phoneNumber: string;
+    designation: string;
+    dateOfJoining: string;
+    nationality: string;
+    religion: string;
+    maritalStatus: string;
+    bloodGroup: string;
+    uanNumber: string;
+    esicNumber: string;
+    experience: string;
+    educationalQualification: string;
+    languages: string[];
+    employeeImage: string;
+    email: string;
+    workType: string;
+  };
+  addressDetails: {
+    permanentAddress: {
+      state: string;
+      city: string;
+      street: string;
+      postalCode: string;
+    };
+    currentAddress: {
+      state: string;
+      city: string;
+      street: string;
+      postalCode: string;
+    };
+  };
+  bankDetails: {
+    bankName: string;
+    branchName: string;
+    accountNumber: string;
+    ifscCode: string;
+  };
+  identificationDetails: {
+    identificationType: string;
+    identificationNumber: string;
+  };
+  emergencyContact: {
+    name: string;
+    phone: string;
+    relationship: string;
+    aadhar: string;
+  };
+  documents: Array<{
+    type: string;
+    url: string;
+    uploadedAt: string;
+    _id: string;
+  }>;
+  status: string;
+}
 
 // Add type for summary and attendance trend
 
-type SummaryItem = {
-  label: string;
-  value: number | string | null;
-  icon: React.ReactNode;
-};
+// Removed unused SummaryItem type
 
-type AttendanceTrendItem = {
-  date: string;
-  total: number;
-  present: number;
-  absent: number;
-  presentBreakdown: Record<string, unknown>;
-  absentBreakdown: Record<string, unknown>;
-};
-
-type LeaveTrendItem = {
-  _id: string;
-  count: number;
-};
-
-type ProjectDistributionItem = {
-  _id: string;
-  count: number;
-};
 
 type RecentAttendanceItem = {
   _id: string;
@@ -53,7 +99,9 @@ type RecentAttendanceItem = {
 
 type RecentLeaveItem = {
   _id: string;
+  leaveId?: string;
   employeeId: string;
+  employeeName?: string;
   leaveType: string;
   startDate: string;
   endDate: string;
@@ -67,11 +115,14 @@ type RecentLeaveItem = {
   createdAt: string;
   updatedAt: string;
   approvalDate?: string;
+  appliedOn?: string;
 };
 
 type RecentKYCItem = {
   _id: string;
   personalDetails: Record<string, unknown>;
+  status?: string;
+  createdAt?: string;
 };
 
 type OnLeaveTodayItem = {
@@ -83,589 +134,924 @@ type OnLeaveTodayItem = {
   date?: string;
 };
 
-type KycPersonalDetails = {
-  employeeId: string;
-  fullName: string;
-};
-
-type KycForm = {
-  personalDetails: KycPersonalDetails;
-};
-
-type OnLeaveApiResponseItem = {
+type AttendanceRecord = {
   _id: string;
   employeeId: string;
-  leaveType: string;
-  startDate: string;
-  endDate: string;
+  projectName: string;
+  date: string;
+  punchInTime?: string;
+  punchOutTime?: string;
   status: string;
+  employeeName?: string;
+  punchInPhoto?: string;
+  punchOutPhoto?: string;
+  punchInLocation?: string;
+  punchOutLocation?: string;
 };
 
-// PIE CHART COLORS
-const PIE_COLORS = [
-  '#6366f1', '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6', '#fb7185', '#facc15', '#4ade80', '#2dd4bf', '#38bdf8', '#818cf8', '#f59e42', '#eab308', '#84cc16', '#14b8a6', '#0ea5e9', '#a3e635', '#f43f5e'
-];
+
+type UnifiedTableItem = {
+  _id: string;
+  id: string;
+  type: string;
+  action: string;
+  details: string;
+  time: string;
+  date: string;
+  status: string;
+  employeeId: string;
+  name: string;
+  // Additional properties that might exist
+  designation?: string;
+  projectName?: string;
+  punchInTime?: string;
+  leaveType?: string;
+  numberOfDays?: number;
+  createdAt?: string;
+  startDate?: string;
+  personalDetails?: Record<string, unknown>;
+  // Missing properties from errors
+  fullName?: string;
+  dateOfJoining?: string;
+  phoneNumber?: string;
+  fullItem?: Record<string, unknown>;
+  employeeName?: string;
+  endDate?: string;
+  halfDayType?: string;
+  reason?: string;
+  appliedOn?: string;
+  punchOutTime?: string;
+  punchInLocation?: string;
+  punchOutLocation?: string;
+  punchInPhoto?: string;
+  punchOutPhoto?: string;
+  employeeImage?: string;
+};
+
+// (Charts and extra visuals removed for simplicity)
+
+// Helper component to show employee photo and name from KYC
+function KycInfoCell({ employeeId }: { employeeId: string }) {
+  const [kyc, setKyc] = useState<{ employeeImage?: string; fullName?: string } | null>(null);
+  useEffect(() => {
+    let isMounted = true;
+    fetch(`https://cafm.zenapi.co.in/api/kyc/${employeeId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (isMounted && data.kycData && data.kycData.personalDetails) {
+          setKyc({
+            employeeImage: data.kycData.personalDetails.employeeImage,
+            fullName: data.kycData.personalDetails.fullName,
+          });
+        }
+      });
+    return () => { isMounted = false; };
+  }, [employeeId]);
+  return (
+    <div className="flex items-center gap-2">
+      <Image
+        src={kyc?.employeeImage || '/default-avatar.png'}
+        alt="emp"
+        width={32}
+        height={32}
+        className="w-8 h-8 rounded-full object-cover"
+        onError={e => (e.currentTarget.src = '/default-avatar.png')}
+      />
+      <span>{kyc?.fullName || employeeId}</span>
+    </div>
+  );
+}
+
+// Helper for reverse geocoding (optional, can be added for location display)
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  if (!lat || !lng || isNaN(lat) || isNaN(lng)) return '';
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en&zoom=18`;
+    const response = await fetch(url, { headers: { 'User-Agent': 'EmployeeManagementApp/1.0' } });
+    if (!response.ok) return '';
+    const data = await response.json();
+    return data.display_name || '';
+  } catch {
+    return '';
+  }
+}
 
 export default function ManagerDashboardPage() {
-  const { theme } = useTheme();
+  const { } = useTheme();
 
-  // State for dashboard summary
-  const [summary, setSummary] = useState<SummaryItem[]>([
-    { label: "Total Employees", value: null, icon: <FaUsers className="w-7 h-7" /> },
-    { label: "Active Projects", value: null, icon: <FaProjectDiagram className="w-7 h-7" /> },
-    { label: "Pending KYC", value: null, icon: <FaFileAlt className="w-7 h-7" /> },
-    { label: "Approved Leaves", value: null, icon: <FaCheckCircle className="w-7 h-7" /> },
-  ]);
-  const [loading, setLoading] = useState(true);
-  // Attendance trend state
-  const [attendanceTrend, setAttendanceTrend] = useState<AttendanceTrendItem[]>([]);
-  const [attendanceLoading, setAttendanceLoading] = useState(true);
-  const [leaveTrend, setLeaveTrend] = useState<LeaveTrendItem[]>([]);
-  const [leaveLoading, setLeaveLoading] = useState(true);
-  const [projectDistribution, setProjectDistribution] = useState<ProjectDistributionItem[]>([]);
-  const [recentAttendance, setRecentAttendance] = useState<RecentAttendanceItem[]>([]);
-  const [recentLeaves, setRecentLeaves] = useState<RecentLeaveItem[]>([]);
-  const [recentKYC, setRecentKYC] = useState<RecentKYCItem[]>([]);
-  const [recentLoading, setRecentLoading] = useState(true);
-  const [showLegend, setShowLegend] = useState(false);
-  const [onLeaveToday, setOnLeaveToday] = useState<OnLeaveTodayItem[]>([]);
-  const [onLeaveTodayLoading, setOnLeaveTodayLoading] = useState(true);
+  // Summary (static placeholders; replace with API values when available)
+  const [totalEmployees, setTotalEmployees] = useState("-");
+  const [activeProjects, setActiveProjects] = useState("-");
+  const [pendingKYC, setPendingKYC] = useState("-");
+  const [pendingLeaves, setPendingLeaves] = useState("-");
 
   useEffect(() => {
-    async function fetchDashboardData() {
-      setLoading(true);
-      try {
-        const [empRes, projRes, kycRes, leaveRes] = await Promise.all([
-          fetch("https://cafm.zenapi.co.in/api/dashboard/total-employees"),
-          fetch("https://cafm.zenapi.co.in/api/dashboard/total-projects"),
-          fetch("https://cafm.zenapi.co.in/api/dashboard/pending-kyc"),
-          fetch("https://cafm.zenapi.co.in/api/dashboard/approved-leaves"),
-        ]);
-        const empData = await empRes.json();
-        const projData = await projRes.json();
-        const kycData = await kycRes.json();
-        const leaveData = await leaveRes.json();
-        setSummary([
-          { label: "Total Employees", value: empData.total, icon: <FaUsers className="w-7 h-7" /> },
-          { label: "Active Projects", value: projData.total, icon: <FaProjectDiagram className="w-7 h-7" /> },
-          { label: "Pending KYC", value: kycData.pending, icon: <FaFileAlt className="w-7 h-7" /> },
-          { label: "Approved Leaves", value: leaveData.approved, icon: <FaCheckCircle className="w-7 h-7" /> },
-        ]);
-      } catch {
-        setSummary([
-          { label: "Total Employees", value: null, icon: <FaUsers className="w-7 h-7" /> },
-          { label: "Active Projects", value: null, icon: <FaProjectDiagram className="w-7 h-7" /> },
-          { label: "Pending KYC", value: null, icon: <FaFileAlt className="w-7 h-7" /> },
-          { label: "Approved Leaves", value: null, icon: <FaCheckCircle className="w-7 h-7" /> },
-        ]);
-      }
-      setLoading(false);
-    }
-    fetchDashboardData();
+    // Total Employees
+    fetch("https://cafm.zenapi.co.in/api/dashboard/total-employees")
+      .then(res => res.json())
+      .then(data => setTotalEmployees(data.total?.toString() ?? "-"))
+      .catch(() => setTotalEmployees("-"));
+    // Active Projects
+    fetch("https://cafm.zenapi.co.in/api/dashboard/total-projects")
+      .then(res => res.json())
+      .then(data => setActiveProjects(data.total?.toString() ?? "-"))
+      .catch(() => setActiveProjects("-"));
+    // Pending KYC
+    fetch("https://cafm.zenapi.co.in/api/dashboard/pending-kyc")
+      .then(res => res.json())
+      .then(data => setPendingKYC((data.pending !== undefined ? data.pending.toString() : "-")))
+      .catch(() => setPendingKYC("-"));
+    // Pending Leaves
+    fetch("https://cafm.zenapi.co.in/api/leave/all?status=Pending")
+      .then(res => res.json())
+      .then(data => setPendingLeaves((data.totalCount !== undefined ? data.totalCount.toString() : "-")))
+      .catch(() => setPendingLeaves("-"));
   }, []);
+  const [recentAttendance] = useState<RecentAttendanceItem[]>([]);
+  const [recentLeaves] = useState<RecentLeaveItem[]>([]);
+  const [recentKYC] = useState<RecentKYCItem[]>([]);
+  const [onLeaveToday] = useState<OnLeaveTodayItem[]>([]);
+  const [attendanceTableData, setAttendanceTableData] = useState<UnifiedTableItem[]>([]);
+  const [attendanceModal, setAttendanceModal] = useState<{ open: boolean, record: UnifiedTableItem | null }>({ open: false, record: null });
+  const [attendanceDetailModal, setAttendanceDetailModal] = useState<{ open: boolean, loading: boolean, error: string | null, kyc: Record<string, unknown>, attendance: Record<string, unknown>, punchInAddress: string, punchOutAddress: string }>({ open: false, loading: false, error: null, kyc: {}, attendance: {}, punchInAddress: '', punchOutAddress: '' });
+  const [leaveTableData, setLeaveTableData] = useState<UnifiedTableItem[]>([]);
+  const [kycTableData, setKycTableData] = useState<UnifiedTableItem[]>([]);
+  const [leaveReasonModal, setLeaveReasonModal] = useState<{ open: boolean, reason: string }>({ open: false, reason: '' });
+  const [kycModalState, setKycModalState] = useState<{ open: boolean, kycData: KYCData | null }>({ open: false, kycData: null });
+
+  // Add summary cards for each module (order: Projects, Employees, Attendance, Stores, Payroll)
+  const moduleSummaries = [
+    { label: "Projects", link: "/Manager/project-management/", color: "bg-orange-100 dark:bg-orange-900" },
+    { label: "Employees", link: "/Manager/employee-management/", color: "bg-green-100 dark:bg-green-900" },
+    { label: "Attendance", link: "/Manager/attendance-management/view", color: "bg-blue-100 dark:bg-blue-900" },
+    { label: "Stores",  link: "/Manager/stores-management/in-stock", color: "bg-teal-100 dark:bg-teal-900" },
+    { label: "Payroll",  link: "/Manager/payroll-management/view", color: "bg-indigo-100 dark:bg-indigo-900" },
+  ];
+
+  // Excel-like table states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [filterConfig, setFilterConfig] = useState<{ [key: string]: string }>({ type: "All", status: "All" });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+
+  // Initialize empty lists (replace with API calls when available)
+  // Example: setRecentAttendance(await fetchAttendance())
+
+  // Excel-like utility functions
+  // Removed unused handleSort function
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    setCurrentPage(1);
+  };
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilterConfig(prev => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
+  };
+
+  // Row selection removed; using serial number column instead
+
+  // Combine all data into a single table format
+  const allData: UnifiedTableItem[] = [
+    ...recentAttendance.map(item => ({
+      ...item,
+      type: 'Attendance',
+      action: 'Punched In',
+      details: `${item.designation} at ${item.projectName}`,
+      time: item.punchInTime ? new Date(item.punchInTime).toLocaleTimeString() : '',
+      date: item.date ? new Date(item.date).toLocaleDateString() : '',
+      status: item.status,
+      id: item._id,
+      employeeId: item.employeeId,
+      name: item.employeeId // Use employeeId as name for attendance
+    })),
+    ...recentLeaves.map(item => ({
+      ...item,
+      type: 'Leave',
+      action: 'Leave Request',
+      details: `${item.leaveType} - ${item.numberOfDays} days`,
+      time: item.createdAt ? new Date(item.createdAt).toLocaleTimeString() : '',
+      date: item.startDate ? new Date(item.startDate).toLocaleDateString() : '',
+      status: item.status,
+      id: item._id,
+      employeeId: item.employeeId,
+      name: item.employeeId // Use employeeId as name for leaves
+    })),
+    ...recentKYC.map(item => ({
+      ...item,
+      type: 'KYC',
+      action: 'KYC Update',
+      details: 'Document update',
+      time: item._id ? new Date(item._id).toLocaleTimeString() : '',
+      date: item._id ? new Date(item._id).toLocaleDateString() : '',
+      status: 'Completed',
+      id: item._id,
+      employeeId: typeof item.personalDetails?.employeeId === 'string' || typeof item.personalDetails?.employeeId === 'number' 
+        ? String(item.personalDetails.employeeId) 
+        : 'Unknown',
+      name: typeof item.personalDetails?.employeeId === 'string' || typeof item.personalDetails?.employeeId === 'number' 
+        ? String(item.personalDetails.employeeId) 
+        : 'Unknown'
+    })),
+    ...onLeaveToday.map(item => ({
+      ...item,
+      type: 'Leave',
+      action: 'On Leave Today',
+      details: `${item.leaveType || 'Leave'}`,
+      time: '',
+      date: item.date ? new Date(item.date).toLocaleDateString() : '',
+      status: item.status || 'Pending',
+      id: item._id,
+      employeeId: item.employeeId,
+      name: item.name || item.employeeId
+    }))
+  ];
 
   useEffect(() => {
-    async function fetchAttendanceTrend() {
-      setAttendanceLoading(true);
-      try {
-        const res = await fetch("https://cafm.zenapi.co.in/api/dashboard/attendance-trend");
-        const data = await res.json();
-        setAttendanceTrend((data.trend || []) as AttendanceTrendItem[]);
-      } catch {
-        setAttendanceTrend([] as AttendanceTrendItem[]);
-      }
-      setAttendanceLoading(false);
-    }
-    fetchAttendanceTrend();
-  }, []);
-
-  // Fetch leave trend
-  useEffect(() => {
-    async function fetchLeaveTrend() {
-      setLeaveLoading(true);
-      try {
-        const res = await fetch("https://cafm.zenapi.co.in/api/dashboard/leave-trend");
-        const data = await res.json();
-        setLeaveTrend((data.trend || []) as LeaveTrendItem[]);
-      } catch {
-        setLeaveTrend([] as LeaveTrendItem[]);
-      }
-      setLeaveLoading(false);
-    }
-    fetchLeaveTrend();
-  }, []);
-
-  // Fetch project distribution
-  useEffect(() => {
-    async function fetchProjectDistribution() {
-      try {
-        const res = await fetch("https://cafm.zenapi.co.in/api/dashboard/project-distribution");
-        const data = await res.json();
-        setProjectDistribution((data.distribution || []) as ProjectDistributionItem[]);
-      } catch {
-        setProjectDistribution([] as ProjectDistributionItem[]);
-      }
-    }
-    fetchProjectDistribution();
-  }, []);
-
-  // Fetch recent activities
-  useEffect(() => {
-    async function fetchRecentActivities() {
-      setRecentLoading(true);
-      try {
-        const res = await fetch("https://cafm.zenapi.co.in/api/dashboard/recent-activities");
-        const data = await res.json();
-        setRecentAttendance((data.recentAttendance || []) as RecentAttendanceItem[]);
-        setRecentLeaves((data.recentLeaves || []) as RecentLeaveItem[]);
-        setRecentKYC((data.recentKYC || []) as RecentKYCItem[]);
-      } catch {
-        setRecentAttendance([] as RecentAttendanceItem[]);
-        setRecentLeaves([] as RecentLeaveItem[]);
-        setRecentKYC([] as RecentKYCItem[]);
-      }
-      setRecentLoading(false);
-    }
-    fetchRecentActivities();
-  }, []);
-
-  useEffect(() => {
-    async function fetchOnLeaveToday() {
-      setOnLeaveTodayLoading(true);
-      try {
-        const [leaveRes, kycRes] = await Promise.all([
-          fetch("https://cafm.zenapi.co.in/api/dashboard/on-leave-today"),
-          fetch("https://cafm.zenapi.co.in/api/kyc"),
-        ]);
-        
-        const leaveData = await leaveRes.json();
-        const kycData = await kycRes.json();
-        
-        const employees = (kycData.kycForms || []) as KycForm[];
-        const employeeNameMap = new Map<string, string>();
-        for (const kyc of employees) {
-            if (kyc.personalDetails && kyc.personalDetails.employeeId) {
-                employeeNameMap.set(kyc.personalDetails.employeeId, kyc.personalDetails.fullName);
-            }
-        }
-        
-        const onLeaveData = (leaveData.onLeave || []) as OnLeaveApiResponseItem[];
-        
-        const enrichedOnLeaveData = onLeaveData.map((leaveItem) => ({
-          ...leaveItem,
-          name: employeeNameMap.get(leaveItem.employeeId) || 'Unknown',
-          date: leaveItem.startDate,
-        }));
-        
-        setOnLeaveToday(enrichedOnLeaveData as OnLeaveTodayItem[]);
-      } catch {
-        setOnLeaveToday([] as OnLeaveTodayItem[]);
-      }
-      setOnLeaveTodayLoading(false);
-    }
-    fetchOnLeaveToday();
-  }, []);
-
-  // Pie chart calculations
-  const totalProjects = projectDistribution.reduce((sum, p) => sum + p.count, 0);
-
-  // Attendance Trend Bar Chart rendering
-  let attendanceTrendBarSVG: React.ReactNode = null;
-  if (attendanceTrend && attendanceTrend.length > 0) {
-    const svgWidth = Math.max(attendanceTrend.length * 80, 480);
-    const svgHeight = 220;
-    const barWidth = 40;
-    const chartHeight = 150;
-    const maxTotal = Math.max(...attendanceTrend.map((d) => d.total || 1), 1);
-    attendanceTrendBarSVG = (
-      <svg width={svgWidth} height={svgHeight}>
-        {/* X axis line */}
-        <line x1={40} x2={svgWidth - 40} y1={30 + chartHeight} y2={30 + chartHeight} stroke="#64748b" strokeWidth={1} />
-        {/* Bars for attendance trend */}
-        {attendanceTrend.map((d, i) => {
-          const x = 40 + i * 80;
-          // Increase bar height for the first and third bars by 20%
-          let barHeight = (d.present / maxTotal) * chartHeight;
-          if (i === 0 || i === 2) {
-            barHeight *= 1.2;
-            // Ensure barHeight does not exceed chartHeight
-            barHeight = Math.min(barHeight, chartHeight);
+    if (filterConfig.type === "Attendance") {
+      fetch("https://cafm.zenapi.co.in/api/attendance/all")
+        .then(res => res.json())
+        .then(data => {
+          const today = new Date();
+          const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
+          if (Array.isArray(data.attendance)) {
+            setAttendanceTableData(
+              data.attendance
+                .filter((item: AttendanceRecord) => item.date && item.date.slice(0, 10) === todayStr)
+                .map((item: AttendanceRecord, idx: number) => ({
+                  id: item._id || idx,
+                  employeeId: item.employeeId || "-",
+                  employeeName: item.employeeName || item.employeeId || "-",
+                  employeeImage: '', // No image in API, use placeholder
+                  details: item.projectName || "-",
+                  status: item.status || "-",
+                  date: item.date ? new Date(item.date).toLocaleDateString() : "-",
+                  punchInTime: item.punchInTime ? new Date(item.punchInTime).toLocaleTimeString() : "-",
+                  punchOutTime: item.punchOutTime ? new Date(item.punchOutTime).toLocaleTimeString() : "-",
+                  punchInPhoto: item.punchInPhoto || '',
+                  punchOutPhoto: item.punchOutPhoto || '',
+                  punchInLocation: item.punchInLocation || '',
+                  punchOutLocation: item.punchOutLocation || '',
+                }))
+            );
+          } else {
+            setAttendanceTableData([]);
           }
-          return (
-            <g key={d.date}>
-              <rect
-                x={x - barWidth / 2}
-                y={30 + chartHeight - barHeight}
-                width={barWidth}
-                height={barHeight}
-                fill="#6366f1"
-                rx={6}
-              />
-              {/* Value label above bar */}
-              <text
-                x={x}
-                y={30 + chartHeight - barHeight - 8}
-                textAnchor="middle"
-                fontSize={"1rem"}
-                className={theme === "dark" ? "fill-blue-300" : "fill-blue-700"}
-              >
-                {d.present}/{d.total}
-              </text>
-              {/* Date label below bar */}
-              <text
-                x={x}
-                y={30 + chartHeight + 20}
-                textAnchor="middle"
-                fontSize={"1rem"}
-                className={theme === "dark" ? "fill-gray-300" : "fill-gray-700"}
-              >
-                {d.date ? new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
-              </text>
-            </g>
-          );
-        })}
-        {/* Y axis labels */}
-        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-          <text
-            key={t}
-            x={20}
-            y={30 + chartHeight - chartHeight * t + 5}
-            textAnchor="end"
-            fontSize={"0.9rem"}
-            className={theme === "dark" ? "fill-gray-400" : "fill-gray-500"}
-          >
-            {Math.round(maxTotal * t)}
-          </text>
-        ))}
-      </svg>
-    );
-  }
+        })
+        .catch(() => setAttendanceTableData([]));
+    }
+  }, [filterConfig.type]);
 
-  // Leave Trend Line Chart rendering
-  let leaveTrendLineSVG: React.ReactNode = null;
-  if (leaveTrend && leaveTrend.length > 0) {
-    const svgWidth = Math.max(leaveTrend.length * 80, 480);
-    const svgHeight = 220;
-    const chartHeight = 150;
-    const maxLeave = Math.max(...leaveTrend.map((l) => l.count), 1);
-    leaveTrendLineSVG = (
-      <svg width={svgWidth} height={svgHeight}>
-        {/* X axis line */}
-        <line x1={40} x2={svgWidth - 40} y1={30 + chartHeight} y2={30 + chartHeight} stroke="#64748b" strokeWidth={1} />
+  useEffect(() => {
+    if (filterConfig.type === "Leave") {
+      fetch("https://cafm.zenapi.co.in/api/leave/all?status=Pending")
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data.leaves)) {
+            setLeaveTableData(
+              data.leaves.map((item: RecentLeaveItem, idx: number) => ({
+                id: item.leaveId || idx,
+                employeeId: item.employeeId || "-",
+                employeeName: item.employeeName || item.employeeId || "-",
+                leaveType: item.leaveType || "-",
+                startDate: item.startDate ? new Date(item.startDate).toLocaleDateString() : "-",
+                endDate: item.endDate ? new Date(item.endDate).toLocaleDateString() : "-",
+                numberOfDays: item.numberOfDays || "-",
+                halfDayType: item.isHalfDay ? (item.halfDayType || "Half Day") : "-",
+                status: item.status || "-",
+                reason: item.reason || "-",
+                appliedOn: item.appliedOn ? new Date(item.appliedOn).toLocaleString() : "-",
+                emergencyContact: item.emergencyContact || "-",
+                attachments: item.attachments || [],
+                fullItem: item,
+              }))
+            );
+          } else {
+            setLeaveTableData([]);
+          }
+        })
+        .catch(() => setLeaveTableData([]));
+    }
+  }, [filterConfig.type]);
 
-        {/* Y axis labels */}
-        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-          <text
-            key={t}
-            x={35}
-            y={30 + chartHeight - chartHeight * t + 5}
-            textAnchor="end"
-            className={`text-xs ${theme === "dark" ? "fill-gray-400" : "fill-gray-500"}`}
-          >
-            {Math.round(maxLeave * t)}
-          </text>
-        ))}
+  useEffect(() => {
+    if (filterConfig.type === "KYC") {
+      fetch("https://cafm.zenapi.co.in/api/kyc?status=Pending")
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data.kycForms)) {
+            setKycTableData(
+              data.kycForms.map((item: RecentKYCItem, idx: number) => ({
+                id: item._id || idx,
+                employeeId: item.personalDetails?.employeeId || "-",
+                fullName: item.personalDetails?.fullName || "-",
+                projectName: item.personalDetails?.projectName || "-",
+                designation: item.personalDetails?.designation || "-",
+                dateOfJoining: item.personalDetails?.dateOfJoining || "-",
+                phoneNumber: item.personalDetails?.phoneNumber || "-",
+                status: item.status || "-",
+                createdAt: item.createdAt ? new Date(item.createdAt).toLocaleString() : "-",
+                fullItem: item,
+              }))
+            );
+          } else {
+            setKycTableData([]);
+          }
+        })
+        .catch(() => setKycTableData([]));
+    }
+  }, [filterConfig.type]);
 
-        {/* Polyline for leave trend */}
-        <polyline
-          fill="none"
-          strokeWidth={3}
-          className={theme === "dark" ? "stroke-indigo-500" : "stroke-indigo-400"}
-          points={leaveTrend.map((l, i) => {
-            const x = 40 + i * 80;
-            const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
-            return `${x},${y}`;
-          }).join(" ")}
-        />
-        
-        {/* Circles and labels for each point */}
-        {leaveTrend.map((l, i) => {
-          const x = 40 + i * 80;
-          const y = 30 + chartHeight - (l.count / maxLeave) * chartHeight;
-          const tooltipText = `${new Date(l._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}: ${l.count} leaves`;
-          
-          return (
-            <g key={l._id} className="group">
-              <title>{tooltipText}</title>
-              {/* Circle for the data point */}
-              <circle 
-                cx={x} 
-                cy={y} 
-                r={6} 
-                strokeWidth={3}
-                className={`transition-all group-hover:r-8 ${theme === "dark" ? "fill-gray-800 stroke-indigo-400" : "fill-white stroke-indigo-500"}`}
-              />
-              
-              {/* Value label that appears on hover */}
-            <text
-              x={x}
-                y={y - 18}
-              textAnchor="middle"
-                className={`text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity ${theme === "dark" ? "fill-white" : "fill-black"}`}
-            >
-              {l.count}
-            </text>
+  // Filter and sort data
+  const filteredData = filterConfig.type === "Attendance"
+    ? attendanceTableData
+    : allData
+      .filter(item => {
+        const matchesSearch =
+          searchTerm === '' || 
+          (item.employeeId && item.employeeId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          item.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.action?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesType = filterConfig.type === 'All' || item.type === filterConfig.type;
+        const matchesStatus = filterConfig.status === 'All' || item.status === filterConfig.status;
+        return matchesSearch && matchesType && matchesStatus;
+      })
+      .sort((a, b) => {
+        if (!sortConfig) return 0;
+        const aVal = a[sortConfig.key as keyof typeof a];
+        const bVal = b[sortConfig.key as keyof typeof b];
+        if (aVal === undefined && bVal === undefined) return 0;
+        if (aVal === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (bVal === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
 
-              {/* Month label below axis */}
-            <text
-              x={x}
-              y={30 + chartHeight + 20}
-              textAnchor="middle"
-                className={`text-xs ${theme === "dark" ? "fill-gray-400" : "fill-gray-600"}`}
-            >
-                {new Date(l._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-            </text>
-            </g>
-          );
-        })}
-      </svg>
-    );
-  }
+  // Pagination
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Charts removed
 
   return (
-    <div>
-      {/* Header */}
-      <div
-        className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg bg-gradient-to-r ${
-          theme === "dark"
-            ? "from-blue-900 to-blue-700"
-            : "from-blue-500 to-blue-800"
-        }`}
-      >
-        <div
-          className={`rounded-xl p-4 flex items-center justify-center ${
-            theme === "dark" ? "bg-blue-900 bg-opacity-40" : "bg-blue-600 bg-opacity-30"
-          }`}
-        >
-          <FaChartBar className="w-10 h-10 text-white" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-1">Manager Dashboard</h1>
-          <p className="text-white text-base opacity-90">Overview of employees, projects, and activities.</p>
-        </div>
-      </div>
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-        {summary.map((item) => (
-          <div
-            key={item.label}
-            className={`rounded-2xl shadow p-6 flex items-center gap-4 border ${
-              theme === "dark"
-                ? "bg-gray-800 border-blue-900"
-                : "bg-white border-blue-100"
-            }`}
-          >
-            <div
-              className={`rounded-xl p-3 flex items-center justify-center ${
-                theme === "dark" ? "bg-blue-900" : "bg-blue-100"
-              }`}
-            >
-              {/* Render icon with blue color in light theme, white in dark theme */}
-              {item.label === "Total Employees" && <FaUsers className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
-              {item.label === "Active Projects" && <FaProjectDiagram className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
-              {item.label === "Pending KYC" && <FaFileAlt className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
-              {item.label === "Approved Leaves" && <FaCheckCircle className="w-7 h-7" color={theme === "dark" ? "#fff" : "#2563eb"} />}
-            </div>
-            <div>
-              <div className={`text-2xl font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
-                {loading || item.value === null ? <span className="animate-pulse">...</span> : item.value}
-              </div>
-              <div className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>{item.label}</div>
-            </div>
-          </div>
+    <div className="w-full min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-white to-blue-50 dark:from-gray-950 dark:via-gray-900 dark:to-blue-950">
+      {/* Summary Cards for Each Module */}
+      <div className="flex flex-row justify-between gap-4 p-4">
+        {moduleSummaries.map((mod) => (
+          <Link key={mod.label} href={mod.link} className={`block rounded-xl shadow-md p-4 flex-1 ${mod.color} hover:scale-105 transition-transform`}>
+            <div className="text-lg font-bold mb-1 text-gray-900 dark:text-white">{mod.label}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">View {mod.label}</div>
+          </Link>
         ))}
       </div>
-      {/* Graphs + Recent Activities */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-        {/* Attendance Bar Graph */}
-        <div
-          className={`rounded-2xl shadow p-6 border col-span-2 flex flex-col ${
-            theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
-          }`}
-        >
-          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Attendance Trend (Last 6 Months)</div>
-          <div className="overflow-x-auto">
-            <div className="relative min-w-max" style={{ width: Math.max(attendanceTrend.length * 80, 480) }}>
-              {attendanceLoading ? (
-                <div className="w-full text-center animate-pulse">Loading...</div>
-              ) : attendanceTrend.length === 0 ? (
-                <div className="w-full text-center text-gray-400">No data</div>
+      {/* Summary Row (below cards, above table) */}
+      <div className="flex flex-row justify-between px-8 pb-2 pt-2">
+        <div className="flex flex-col items-center flex-1">
+          <span className="text-blue-600 font-bold">{totalEmployees}</span>
+          <span className="text-sm text-gray-600">Total Employees</span>
+        </div>
+        <div className="flex flex-col items-center flex-1">
+          <span className="text-blue-600 font-bold">{activeProjects}</span>
+          <span className="text-sm text-gray-600">Active Projects</span>
+        </div>
+        <div className="flex flex-col items-center flex-1">
+          <span className="text-blue-600 font-bold">{pendingKYC}</span>
+          <span className="text-sm text-gray-600">Pending KYC</span>
+        </div>
+        <div className="flex flex-col items-center flex-1">
+          <span className="text-blue-600 font-bold">{pendingLeaves}</span>
+          <span className="text-sm text-gray-600">Pending Leaves</span>
+        </div>
+      </div>
+      {/* Excel-like Header */}
+      <div className="sticky top-0 z-50 border-b-2 border-gray-300 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-4">
+            <div className="p-2 rounded bg-blue-100 dark:bg-blue-900">
+              <FaChartBar className="w-6 h-6 text-blue-600 dark:text-blue-300" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manager Dashboard</h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Employee Management System</p>
+            </div>
+          </div>
+          
+          {/* Summary Stats Row */
+          }
+          <div className="flex gap-6">
+            {/* Summary items are now rendered inline */}
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Record Count */}
+      <div className="sticky top-16 z-40 bg-white dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700">
+        <div className="flex items-center justify-between p-3">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search all data..."
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm w-64 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              />
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              {filteredData.length} of {allData.length} records
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <select
+              value={filterConfig.type}
+              onChange={(e) => handleFilterChange('type', e.target.value)}
+              className="px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option>All</option>
+              <option>Attendance</option>
+              <option>Leave</option>
+              <option>KYC</option>
+            </select>
+            <select
+              value={filterConfig.status}
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+              className="px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option>All</option>
+              <option>Approved</option>
+              <option>Pending</option>
+              <option>Rejected</option>
+              <option>Completed</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Excel-like Table */}
+      <div className="w-full flex-1 overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
+              {filterConfig.type === "KYC" ? (
+                <>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Sl No</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Employee ID</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Full Name</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Project Name</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Designation</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Date of Joining</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Phone Number</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Status</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Created At</th>
+                  <th className="p-3 border-b border-gray-300 dark:border-gray-700 text-left">Actions</th>
+                </>
+              ) : filterConfig.type === "Leave" ? (
+                <>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Sl No</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Employee ID</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Employee Name</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Leave Type</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Start Date</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">End Date</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">No Days</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Half Day</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Status</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Reason</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Applied On</th>
+                  <th className="p-3 border-b border-gray-300 dark:border-gray-700 text-left">Actions</th>
+                </>
+              ) : filterConfig.type === "Attendance" ? (
+                <>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Sl No</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Employee ID</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Employee Name</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Details</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Status</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Date</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Punch In Time</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Punch Out Time</th>
+                  <th className="p-3 border-b border-gray-300 dark:border-gray-700 text-left">Actions</th>
+                </>
               ) : (
-                attendanceTrendBarSVG
+                <>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Sl No</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Type</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Employee ID</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Name</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Action</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Details</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Status</th>
+                  <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-left">Date</th>
+                  <th className="p-3 border-b border-gray-300 dark:border-gray-700 text-left">Time</th>
+                </>
               )}
-            </div>
-          </div>
-        </div>
-        {/* Project Distribution Pie Chart */}
-        <div
-          className={`rounded-2xl shadow p-6 border flex flex-col items-center ${
-            theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
-          }`}
-          onMouseEnter={() => setShowLegend(true)}
-          onMouseLeave={() => setShowLegend(false)}
-        >
-          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Project Distribution</div>
-          <svg width={220} height={220} viewBox="0 0 220 220" className="mb-4">
-            {(() => {
-              const r = 90;
-              let acc = 0;
-              return projectDistribution.map((p, i) => {
-                const start = acc;
-                const angle = (p.count / totalProjects) * 360;
-                acc += angle;
-                const largeArc = angle > 180 ? 1 : 0;
-                const x1 = 110 + r * Math.cos((Math.PI * (start - 90)) / 180);
-                const y1 = 110 + r * Math.sin((Math.PI * (start - 90)) / 180);
-                const x2 = 110 + r * Math.cos((Math.PI * (start + angle - 90)) / 180);
-                const y2 = 110 + r * Math.sin((Math.PI * (start + angle - 90)) / 180);
-                return (
-                  <path
-                    key={p._id}
-                    d={`M110,110 L${x1},${y1} A${r},${r} 0 ${largeArc} 1 ${x2},${y2} Z`}
-                    fill={PIE_COLORS[i % PIE_COLORS.length]}
-                    stroke="#fff"
-                    strokeWidth={2}
-                  />
-                );
-              });
-            })()}
-          </svg>
-          {showLegend && (
-            <div className="flex flex-wrap gap-2 justify-center">
-              {projectDistribution.map((p, i) => (
-                <span key={p._id} className="flex items-center gap-2 text-sm">
-                  <span className="w-3 h-3 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}></span>
-                  <span className={theme === "dark" ? "text-gray-200" : "text-gray-700"}>{p._id}</span>
-                  <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>({p.count})</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      {/* Leave Trend and Recent Activities in the same row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        {/* Leave Trend Line Chart (Scrollable) */}
-        <div
-          className={`rounded-2xl shadow p-6 border flex flex-col ${
-            theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
-          }`}
-        >
-          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Leave Trend (Last 6 Months)</div>
-          <div className="overflow-x-auto">
-            <div className="relative" style={{ minWidth: Math.max(leaveTrend.length * 80, 480) }}>
-                {leaveLoading ? (
-                    <div className="w-full text-center animate-pulse h-[220px] flex items-center justify-center">Loading...</div>
-                ) : leaveTrend.length === 0 ? (
-                    <div className="w-full text-center text-gray-400 h-[220px] flex items-center justify-center">No data</div>
-                ) : (
-                    leaveTrendLineSVG
-                )}
-            </div>
-          </div>
-        </div>
-        {/* Recent Activities */}
-        <div
-          className={`rounded-2xl shadow p-6 border flex flex-col ${
-            theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"
-          }`}
-        >
-          <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Recent Activities</div>
-          <ul className="space-y-4">
-            {recentLoading ? (
-              <li className="text-center text-gray-400">Loading...</li>
-            ) : (
-              <>
-                {recentAttendance.slice(0, 3).map((act) => (
-                  <li key={act._id} className="flex items-center gap-3">
-                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-blue-900" : "bg-blue-50"}`}>
-                      <FaBell className="text-blue-500" />
-                    </span>
-                    <div className="flex-1">
-                      <div className={theme === "dark" ? "text-gray-200 text-sm" : "text-gray-700 text-sm"}>
-                        <b>{act.employeeId}</b> ({act.designation}) punched in at <b>{act.projectName}</b>
-                      </div>
-                      <div className={theme === "dark" ? "text-xs text-gray-400" : "text-xs text-gray-400"}>{act.punchInTime ? new Date(act.punchInTime).toLocaleTimeString() : ''} on {act.date ? new Date(act.date).toLocaleDateString() : ''}</div>
-                    </div>
-                  </li>
-                ))}
-                {recentLeaves.slice(0, 2).map((leave) => (
-                  <li key={leave._id} className="flex items-center gap-3">
-                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-green-900" : "bg-green-50"}`}>
-                      <FaCheckCircle className="text-green-500" />
-                    </span>
-                    <div className="flex-1">
-                      <div className={theme === "dark" ? "text-gray-200 text-sm" : "text-gray-700 text-sm"}>
-                        <b>{leave.employeeId}</b> leave ({leave.leaveType}) <b>{leave.status}</b>
-                      </div>
-                      <div className={theme === "dark" ? "text-xs text-gray-400" : "text-xs text-gray-400"}>{leave.startDate ? new Date(leave.startDate).toLocaleDateString() : ''}</div>
-                    </div>
-                  </li>
-                ))}
-                {recentKYC.slice(0, 1).map((kyc) => (
-                  <li key={kyc._id} className="flex items-center gap-3">
-                    <span className={`w-8 h-8 flex items-center justify-center rounded-full ${theme === "dark" ? "bg-yellow-900" : "bg-yellow-50"}`}>
-                      <FaFileAlt className="text-yellow-500" />
-                    </span>
-                    <div className="flex-1">
-                      <div className={theme === "dark" ? "text-gray-200 text-sm" : "text-gray-700 text-sm"}>
-                        KYC update for <b>{
-                          typeof kyc.personalDetails?.employeeId === 'string' || typeof kyc.personalDetails?.employeeId === 'number'
-                            ? kyc.personalDetails.employeeId
-                            : 'Unknown'
-                        }</b>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-                {recentAttendance.length === 0 && recentLeaves.length === 0 && recentKYC.length === 0 && (
-                  <li className="text-center text-gray-400">No recent activities</li>
-                )}
-              </>
-            )}
-          </ul>
-        </div>
-      </div>
-      {/* Pending Approvals Table */}
-      <div className={`rounded-2xl shadow p-6 border ${theme === "dark" ? "bg-gray-800 border-blue-900" : "bg-white border-blue-100"}`}>
-        <div className={`font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Pending Approvals</div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y">
-            <thead className={theme === "dark" ? "bg-blue-900" : "bg-blue-50"}>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.length === 0 && filterConfig.type !== "KYC" && filterConfig.type !== "Leave" && filterConfig.type !== "Attendance" ? (
               <tr>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Leave Type</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Date</th>
+                <td colSpan={9} className="p-8 text-center text-gray-500 dark:text-gray-400">
+                  No data available. Try adjusting search or filters.
+                </td>
               </tr>
-            </thead>
-            <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
-              {onLeaveTodayLoading ? (
+            ) : filterConfig.type === "KYC" ? (
+              kycTableData.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Loading...</td>
-                </tr>
-              ) : onLeaveToday.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No pending approvals</td>
+                  <td colSpan={10} className="p-8 text-center text-gray-500 dark:text-gray-400">
+                    No data available. Try adjusting search or filters.
+                  </td>
                 </tr>
               ) : (
-                onLeaveToday.map((item) => (
-                  <tr key={item._id} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
-                    <td className={`px-4 py-3 font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{item.employeeId}</td>
-                    <td className="px-4 py-3">{item.name || '-'}</td>
-                    <td className="px-4 py-3">{item.leaveType || '-'}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${theme === "dark" ? "bg-yellow-900 text-yellow-200" : "bg-yellow-100 text-yellow-800"}`}>{item.status || '-'}</span>
+                kycTableData.map((item: UnifiedTableItem, index: number) => (
+                  <tr key={item.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors`}>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{index + 1}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.employeeId}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.fullName}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.projectName}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.designation}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.dateOfJoining}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.phoneNumber}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        item.status === 'Pending' ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
+                        item.status === 'Approved' ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
+                        item.status === 'Rejected' ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
+                        "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                      }`}>
+                        {item.status}
+                      </span>
                     </td>
-                    <td className="px-4 py-3">{item.date ? new Date(item.date).toLocaleDateString() : '-'}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.createdAt}</td>
+                    <td className="p-3 border-b border-gray-300 dark:border-gray-700 text-center flex gap-2 justify-center items-center">
+                      <button className="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 text-xs" onClick={() => setKycModalState({ open: true, kycData: item.fullItem ? (item.fullItem as unknown as KYCData) : null })}>View</button>
+                      <button
+                        className="flex items-center gap-1 px-3 py-1 rounded-full bg-green-500 hover:bg-green-600 text-white text-xs font-semibold shadow transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-green-400"
+                        title="Approve"
+                      >
+                        <FaCheck className="w-3 h-3" /> Approve
+                      </button>
+                      <button
+                        className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-semibold shadow transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-red-400"
+                        title="Reject"
+                      >
+                        <FaTimes className="w-3 h-3" /> Reject
+                      </button>
+                    </td>
                   </tr>
                 ))
-              )}
-            </tbody>
-          </table>
+              )
+            ) : filterConfig.type === "Leave" ? (
+              leaveTableData.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="p-8 text-center text-gray-500 dark:text-gray-400">
+                    No data available. Try adjusting search or filters.
+                  </td>
+                </tr>
+              ) : (
+                leaveTableData.map((item: UnifiedTableItem, index: number) => (
+                  <tr key={item.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors`}>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{index + 1}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.employeeId}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.employeeName}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.leaveType}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.startDate}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.endDate}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.numberOfDays}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.halfDayType}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        item.status === 'Pending' ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
+                        item.status === 'Approved' ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
+                        item.status === 'Rejected' ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
+                        "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                      }`}>
+                        {item.status}
+                      </span>
+                    </td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 max-w-xs truncate flex items-center gap-2" title={item.reason}>
+                      <span className="block whitespace-nowrap overflow-hidden text-ellipsis" style={{ maxWidth: '120px' }}>{item.reason}</span>
+                      <button
+                        className="ml-1 text-blue-500 hover:text-blue-700 focus:outline-none"
+                        title="View Full Reason"
+                        onClick={() => setLeaveReasonModal({ open: true, reason: item.reason || '' })}
+                      >
+                        <FaEye className="w-4 h-4" />
+                      </button>
+                    </td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">{item.appliedOn}</td>
+                    <td className="p-3 border-b border-gray-300 dark:border-gray-700 text-center flex gap-2 justify-center items-center">
+                      <button
+                        className="flex items-center gap-1 px-3 py-1 rounded-full bg-green-500 hover:bg-green-600 text-white text-xs font-semibold shadow transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-green-400"
+                        title="Approve"
+                      >
+                        <FaCheck className="w-3 h-3" /> Approve
+                      </button>
+                      <button
+                        className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-semibold shadow transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-red-400"
+                        title="Reject"
+                      >
+                        <FaTimes className="w-3 h-3" /> Reject
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )
+            ) : filterConfig.type === "Attendance" ? (
+              filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="p-8 text-center text-gray-500 dark:text-gray-400">
+                    No data available. Try adjusting search or filters.
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((item: UnifiedTableItem, index: number) => (
+                  <tr key={item.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors`}>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200">{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 font-medium text-blue-600 dark:text-blue-300">{item.employeeId || '-'}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">
+                      <KycInfoCell employeeId={item.employeeId} />
+                    </td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200">{item.details || '-'}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        item.status === 'Present' ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
+                        item.status === 'Absent' ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
+                        "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                      }`}>
+                        {item.status || '-'}
+                      </span>
+                    </td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200">{item.date || '-'}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200">{item.punchInTime || '-'}</td>
+                    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200">{item.punchOutTime || '-'}</td>
+                    <td className="p-3 border-b border-gray-300 dark:border-gray-700 text-center">
+                      <button className="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 text-xs" onClick={async () => {
+                        setAttendanceDetailModal({ open: true, loading: true, error: null, kyc: {}, attendance: {}, punchInAddress: '', punchOutAddress: '' });
+                        try {
+                          // Fetch KYC
+                          const kycRes = await fetch(`https://cafm.zenapi.co.in/api/kyc/${item.employeeId}`);
+                          const kycData = await kycRes.json();
+                          // Fetch today's attendance
+                          const today = new Date();
+                          const month = today.getMonth() + 1;
+                          const year = today.getFullYear();
+                          const attRes = await fetch(`https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${item.employeeId}&month=${month}&year=${year}`);
+                          const attData = await attRes.json();
+                          const todayStr = today.toISOString().slice(0, 10);
+                          const todayRecord = (attData.attendance || []).find((rec: AttendanceRecord) => typeof rec.date === 'string' && rec.date.slice(0, 10) === todayStr);
+                          // Reverse geocode if available
+                          let punchInAddress = '';
+                          let punchOutAddress = '';
+                          if (todayRecord?.punchInLatitude && todayRecord?.punchInLongitude) {
+                            punchInAddress = await reverseGeocode(todayRecord.punchInLatitude, todayRecord.punchInLongitude);
+                          }
+                          if (todayRecord?.punchOutLatitude && todayRecord?.punchOutLongitude) {
+                            punchOutAddress = await reverseGeocode(todayRecord.punchOutLatitude, todayRecord.punchOutLongitude);
+                          }
+                          setAttendanceDetailModal({ open: true, loading: false, error: null, kyc: kycData.kycData?.personalDetails, attendance: todayRecord, punchInAddress, punchOutAddress });
+                        } catch {
+                          setAttendanceDetailModal({ open: true, loading: false, error: 'Failed to fetch details.', kyc: {}, attendance: {}, punchInAddress: '', punchOutAddress: '' });
+                        }
+                      }}>View</button>
+                    </td>
+                  </tr>
+                ))
+              )
+            ) : (
+              paginatedData.map((item, index) => (
+                <tr 
+                  key={item.id} 
+                  className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors`}
+                >
+                  <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200">
+                    {(currentPage - 1) * itemsPerPage + index + 1}
+                  </td>
+                  <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">
+                    <Link href={
+                      item.type === 'Project' ? '/Manager/project-management/' :
+                      item.type === 'Employee' ? '/Manager/employee-management/' :
+                      item.type === 'Attendance' ? '/Manager/attendance-management/view' :
+                      item.type === 'Store' ? '/Manager/stores-management/in-stock' :
+                      item.type === 'Payroll' ? '/Manager/payroll-management/view' :
+                      '/Manager/dashboard/'
+                    } className="text-blue-600 dark:text-blue-300 underline hover:font-bold">
+                      {item.type}
+                    </Link>
+                  </td>
+                  <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 font-medium text-blue-600 dark:text-blue-300">
+                    {item.employeeId || '-'}
+                  </td>
+                  <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200">
+                    {item.name || '-'}
+                  </td>
+                  <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200">
+                    {item.action || '-'}
+                  </td>
+                  <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200">
+                    {item.details || '-'}
+                  </td>
+                  <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      item.status === 'Approved' || item.status === 'Completed' ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
+                      item.status === 'Pending' ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
+                      item.status === 'Rejected' ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
+                      "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                    }`}>
+                      {item.status || '-'}
+                    </span>
+                  </td>
+                  <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200">
+                    {item.date || '-'}
+                  </td>
+                  <td className="p-3 border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-200">
+                    {item.time || '-'}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Excel-like Footer with Pagination */}
+      <div className="sticky bottom-0 border-t border-gray-300 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} entries
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mr-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Rows per page</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`px-3 py-1 rounded text-sm ${
+                currentPage === 1 
+                  ? "bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500" 
+                  : "bg-white hover:bg-gray-100 text-gray-700 border dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200"
+              }`}
+            >
+              Previous
+            </button>
+            
+            <div className="flex gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const page = i + 1;
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1 rounded text-sm ${
+                      currentPage === page 
+                        ? "bg-blue-500 text-white dark:bg-blue-600" 
+                        : "bg-white hover:bg-gray-100 text-gray-700 border dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-1 rounded text-sm ${
+                currentPage === totalPages 
+                  ? "bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500" 
+                  : "bg-white hover:bg-gray-100 text-gray-700 border dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200"
+              }`}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
+      {/* Attendance Modal */}
+      {attendanceModal.open && attendanceModal.record && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-md relative">
+            <button className="absolute top-2 right-2 text-gray-500 hover:text-red-500" onClick={() => setAttendanceModal({ open: false, record: null })}>✕</button>
+            <h2 className="text-lg font-bold mb-2">Attendance Details</h2>
+            <div className="flex items-center gap-3 mb-4">
+              <Image src={attendanceModal.record.employeeImage || '/default-avatar.png'} alt="emp" width={48} height={48} className="w-12 h-12 rounded-full object-cover" onError={e => (e.currentTarget.src = '/default-avatar.png')} />
+              <div>
+                <div className="font-semibold">{attendanceModal.record.employeeName}</div>
+                <div className="text-xs text-gray-500">{attendanceModal.record.employeeId}</div>
+              </div>
+            </div>
+            <div className="mb-2"><b>Project:</b> {attendanceModal.record.details}</div>
+            <div className="mb-2"><b>Status:</b> {attendanceModal.record.status}</div>
+            <div className="mb-2"><b>Date:</b> {attendanceModal.record.date}</div>
+            <div className="mb-2"><b>Punch In Time:</b> {attendanceModal.record.punchInTime}</div>
+            <div className="mb-2"><b>Punch Out Time:</b> {attendanceModal.record.punchOutTime}</div>
+            <div className="mb-2"><b>Punch In Location:</b> {attendanceModal.record.punchInLocation || '-'}</div>
+            <div className="mb-2"><b>Punch Out Location:</b> {attendanceModal.record.punchOutLocation || '-'}</div>
+            <div className="flex gap-4 mt-4">
+              {attendanceModal.record.punchInPhoto && typeof attendanceModal.record.punchInPhoto === 'string' && (
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">Punch In Photo</div>
+                  <Image src={attendanceModal.record.punchInPhoto} alt="Punch In" width={80} height={80} className="w-20 h-20 rounded object-cover border" />
+                </div>
+              )}
+              {attendanceModal.record.punchOutPhoto && typeof attendanceModal.record.punchOutPhoto === 'string' && (
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">Punch Out Photo</div>
+                  <Image src={attendanceModal.record.punchOutPhoto} alt="Punch Out" width={80} height={80} className="w-20 h-20 rounded object-cover border" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Attendance Detail Modal */}
+      {attendanceDetailModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-2xl relative overflow-y-auto max-h-[90vh]">
+            <button className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl font-bold" onClick={() => setAttendanceDetailModal({ ...attendanceDetailModal, open: false })}>✕</button>
+            <h2 className="text-2xl font-bold mb-4 text-center">Attendance Record Details</h2>
+            {attendanceDetailModal.loading ? (
+              <div className="text-center py-8 text-gray-400">Loading...</div>
+            ) : attendanceDetailModal.error ? (
+              <div className="text-center py-8 text-red-500">{attendanceDetailModal.error}</div>
+            ) : attendanceDetailModal.kyc && attendanceDetailModal.attendance ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <Image src={typeof attendanceDetailModal.kyc.employeeImage === 'string' ? attendanceDetailModal.kyc.employeeImage : '/default-avatar.png'} alt="Employee" width={64} height={64} className="w-16 h-16 rounded-full object-cover border" />
+                  <div>
+                    <div className="font-bold text-lg">{String(attendanceDetailModal.kyc.fullName || attendanceDetailModal.attendance.employeeId || '') as React.ReactNode}</div>
+                    <div className="text-xs text-gray-500">{String(attendanceDetailModal.attendance.employeeId || '') as React.ReactNode}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><b>Project:</b> {String(attendanceDetailModal.kyc.projectName || attendanceDetailModal.attendance.details || '-') as React.ReactNode}</div>
+                  <div><b>Designation:</b> {String(attendanceDetailModal.kyc.designation || '-') as React.ReactNode}</div>
+                  <div><b>Date:</b> {attendanceDetailModal.attendance.date && typeof attendanceDetailModal.attendance.date === 'string' ? new Date(attendanceDetailModal.attendance.date).toLocaleDateString() : '-'}</div>
+                  <div><b>Status:</b> {String(attendanceDetailModal.attendance.status || '-') as React.ReactNode}</div>
+                  <div><b>Punch In Time:</b> {attendanceDetailModal.attendance.punchInTime && typeof attendanceDetailModal.attendance.punchInTime === 'string' ? new Date(attendanceDetailModal.attendance.punchInTime).toLocaleTimeString() : '-'}</div>
+                  <div><b>Punch Out Time:</b> {attendanceDetailModal.attendance.punchOutTime && typeof attendanceDetailModal.attendance.punchOutTime === 'string' ? new Date(attendanceDetailModal.attendance.punchOutTime).toLocaleTimeString() : '-'}</div>
+                  <div className="col-span-2"><b>Punch In Location:</b> {attendanceDetailModal.punchInAddress || '-'}</div>
+                  <div className="col-span-2"><b>Punch Out Location:</b> {attendanceDetailModal.punchOutAddress || '-'}</div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1">Punch In Photo</div>
+                    {attendanceDetailModal.attendance.punchInPhoto && typeof attendanceDetailModal.attendance.punchInPhoto === 'string' ? (
+                      <Image src={attendanceDetailModal.attendance.punchInPhoto} alt="Punch In" width={192} height={240} className="rounded-lg w-48 h-60 object-cover" />
+                    ) : (
+                      <div className="w-48 h-60 rounded-lg bg-gray-200 flex items-center justify-center text-gray-400">No Photo</div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1">Punch Out Photo</div>
+                    {attendanceDetailModal.attendance.punchOutPhoto && typeof attendanceDetailModal.attendance.punchOutPhoto === 'string' ? (
+                      <Image src={attendanceDetailModal.attendance.punchOutPhoto} alt="Punch Out" width={192} height={240} className="rounded-lg w-48 h-60 object-cover" />
+                    ) : (
+                      <div className="w-48 h-60 rounded-lg bg-gray-200 flex items-center justify-center text-gray-400">No Photo</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-900 dark:text-white">No attendance data for today.</div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Leave Reason Modal */}
+      {leaveReasonModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-md relative">
+            <button className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl font-bold" onClick={() => setLeaveReasonModal({ open: false, reason: '' })}>✕</button>
+            <h2 className="text-lg font-bold mb-4">Leave Reason</h2>
+            <div className="whitespace-pre-line text-gray-900 dark:text-gray-100 break-words max-h-96 overflow-y-auto">{leaveReasonModal.reason}</div>
+          </div>
+        </div>
+      )}
+      {/* KYC Full Details Modal */}
+      {kycModalState.open && kycModalState.kycData && (
+        <ViewKYCModal open={kycModalState.open} onClose={() => setKycModalState({ open: false, kycData: null })} kycData={kycModalState.kycData} />
+      )}
     </div>
   );
 }

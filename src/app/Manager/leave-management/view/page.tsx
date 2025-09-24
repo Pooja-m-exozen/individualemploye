@@ -1,25 +1,31 @@
 "use client";
+
 import React, { useState } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaSpinner, FaUserAlt, FaTimesCircle, FaSearch, FaEye } from "react-icons/fa";
+import { FaSearch } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory } from "@/services/leave";
 import { showToast, ToastStyles } from "@/components/Toast";
 import { api } from "@/services/api";
+import Image from "next/image";
 
 export default function LeaveManagementViewPage() {
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterLeaveType, setFilterLeaveType] = useState("All");
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterEmpId, setFilterEmpId] = useState("");
+  const [filterName, setFilterName] = useState("");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [allLeaveData, setAllLeaveData] = useState<EmployeeWithLeaveHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [rejectModalOpen, setRejectModalOpen] = useState(false);
-  const [rejectLeaveId, setRejectLeaveId] = useState<string | null>(null);
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [rejectionError, setRejectionError] = useState("");
   const [viewRecord, setViewRecord] = useState<typeof allLeaves[0] | null>(null);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectLeave, setRejectLeave] = useState<typeof allLeaves[0] | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   React.useEffect(() => {
     setLoading(true);
@@ -34,7 +40,12 @@ export default function LeaveManagementViewPage() {
       });
   }, []);
 
-  // Flatten all leave records with employee info
+  // Initialize date filters as empty to show all data by default
+  React.useEffect(() => {
+    setFromDate("");
+    setToDate("");
+  }, []);
+
   const allLeaves = allLeaveData.flatMap((emp) =>
     (emp.leaveHistory?.leaveHistory || []).map((leave) => ({
       ...leave,
@@ -45,108 +56,51 @@ export default function LeaveManagementViewPage() {
     }))
   );
 
-  const filteredLeaveData =
-    activeTab === "All"
-      ? allLeaves
-      : allLeaves.filter((leave) => leave.status === activeTab);
+  // Enhanced filtering with date range
+  const filteredLeaves = allLeaves.filter((leave) => {
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = 
+      leave.employeeId.toLowerCase().includes(searchLower) ||
+      leave.employeeName.toLowerCase().includes(searchLower) ||
+      (leave.designation && leave.designation.toLowerCase().includes(searchLower)) ||
+      (leave.leaveType && leave.leaveType.toLowerCase().includes(searchLower)) ||
+      (leave.reason && leave.reason.toLowerCase().includes(searchLower));
 
-  const filteredSearchData = filteredLeaveData.filter(
-    (leave) =>
-      (filterLeaveType === "All" || leave.leaveType === filterLeaveType) &&
-      (leave.leaveType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        leave.startDate.includes(searchQuery) ||
-        leave.endDate.includes(searchQuery) ||
-        leave.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        leave.employeeId.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 10;
-
-  // Calculate paginated data
-  const totalRows = filteredSearchData.length;
-  const totalPages = Math.ceil(totalRows / rowsPerPage);
-  const paginatedData = filteredSearchData.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
-
-  // Reset to first page when filters/search change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, searchQuery, filterLeaveType]);
-
-  const clearSearch = () => {
-    setSearchQuery("");
-    setFilterLeaveType("All");
-  };
-
-  const updateLeaveStatus = async (
-    leaveId: string,
-    status: "Approved" | "Rejected",
-    rejectionReason?: string
-  ) => {
-    const payload: { status: "Approved" | "Rejected"; rejectionReason?: string } = { status };
-    if (status === "Rejected" && rejectionReason) {
-      payload.rejectionReason = rejectionReason;
+    const matchesEmpId = filterEmpId === "" || leave.employeeId.toLowerCase().includes(filterEmpId.toLowerCase());
+    const matchesName = filterName === "" || leave.employeeName.toLowerCase().includes(filterName.toLowerCase());
+    const matchesLeaveType = filterLeaveType === "All" || leave.leaveType === filterLeaveType;
+    const matchesStatus = filterStatus === "All" || leave.status === filterStatus;
+    const matchesStartDate = filterStartDate === "" || (leave.startDate && leave.startDate.slice(0, 10) === filterStartDate);
+    
+    // Date range filtering
+    let matchesFromDate = true;
+    let matchesToDate = true;
+    if (fromDate && leave.startDate) {
+      matchesFromDate = leave.startDate.slice(0, 10) >= fromDate;
     }
-    const response = await api.put(`/leave/update/${leaveId}`, payload);
-    return response.data;
-  };
+    if (toDate && leave.startDate) {
+      matchesToDate = leave.startDate.slice(0, 10) <= toDate;
+    }
+    
+    return matchesSearch && matchesEmpId && matchesName && matchesLeaveType && matchesStatus && matchesStartDate && matchesFromDate && matchesToDate;
+  });
 
-  const refreshLeaveData = async () => {
-    setLoading(true);
+  // Get unique values for dropdowns
+  const uniqueLeaveTypes = Array.from(new Set(allLeaves.map(l => l.leaveType).filter(Boolean)));
+  const uniqueStatuses = Array.from(new Set(allLeaves.map(l => l.status).filter(Boolean)));
+
+  const updateLeaveStatus = async (leaveId: string, status: string, reason?: string) => {
     try {
-      const data = await getAllEmployeesLeaveHistory();
-      setAllLeaveData(data);
-    } finally {
-      setLoading(false);
+      const response = await api.put(`/api/leave/update-status/${leaveId}`, { status, reason });
+      if (response.data) {
+        showToast({ message: "Leave status updated successfully.", type: "success" });
+        // Optionally refresh data here
+      }
+    } catch (error) {
+      showToast({ message: "Failed to update leave status.", type: "error" });
+      console.error("Error updating leave status:", error);
     }
   };
-
-
-  const handleRejectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rejectionReason.trim()) {
-      setRejectionError("Rejection reason is required.");
-      return;
-    }
-    if (!rejectLeaveId) return;
-    setRejectModalOpen(false);
-    try {
-      await updateLeaveStatus(rejectLeaveId, "Rejected", rejectionReason.trim());
-      showToast({ message: "Leave rejected successfully!", type: "success" });
-      await refreshLeaveData();
-    } catch {
-      showToast({ message: "Failed to reject leave", type: "error" });
-    } finally {
-      setRejectLeaveId(null);
-      setRejectionReason("");
-      setRejectionError("");
-    }
-  };
-
-  const closeRejectModal = () => {
-    setRejectModalOpen(false);
-    setRejectLeaveId(null);
-    setRejectionReason("");
-    setRejectionError("");
-  };
-
-  function getApprovedBy(record: Record<string, unknown>): string {
-    if (typeof record === 'object' && record && 'approvedBy' in record) {
-      return (record as Record<string, unknown>).approvedBy as string || 'N/A';
-    }
-    return 'N/A';
-  }
-
-  function getRejectionReason(record: Record<string, unknown>): string {
-    if (typeof record === 'object' && record && 'rejectionReason' in record) {
-      return (record as Record<string, unknown>).rejectionReason as string || '-';
-    }
-    return '-';
-  }
 
   return (
     <ManagerDashboardLayout>
@@ -162,263 +116,428 @@ export default function LeaveManagementViewPage() {
           gap: 0.75rem;
         }
       `}</style>
-      {/* Move toast container to top right */}
-      {rejectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4 text-red-600">Reject Leave Request</h2>
-            <form onSubmit={handleRejectSubmit}>
+      <div className={`min-h-screen font-sans transition-colors duration-300 flex flex-col ${
+        theme === "dark"
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
+          : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
+      }`}>
+        {/* Filters and Search */}
+        <div className="sticky top-[64px] z-30 backdrop-blur-sm px-4 py-2 mb-3 md:mb-4">
+          <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
+            {/* Leave Type Dropdown */}
+            <div className="flex-1 min-w-[180px] max-w-xs">
+              <select
+                value={filterLeaveType}
+                onChange={e => setFilterLeaveType(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              >
+                <option value="All">All Leave Types</option>
+                {uniqueLeaveTypes.map((type: string) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            {/* Status Dropdown */}
+            <div className="relative w-44 min-w-[130px]">
+              <select
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              >
+                <option value="All">All Status</option>
+                {uniqueStatuses.map((status: string) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+            {/* Search Bar */}
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+              <input
+                type="text"
+                placeholder="Search employee name, ID, or reason..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              />
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <input
+                type="date"
+                value={fromDate}
+                onChange={e => setFromDate(e.target.value)}
+                className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+                title="From Date"
+              />
+              <input
+                type="date"
+                value={toDate}
+                onChange={e => setToDate(e.target.value)}
+                className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+                title="To Date"
+              />
+              <button
+                className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800 border-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-200'}`}
+                onClick={() => {
+                  setLoading(true);
+                  getAllEmployeesLeaveHistory()
+                    .then((data) => {
+                      setAllLeaveData(data);
+                      setLoading(false);
+                    })
+                    .catch(() => {
+                      setError("Failed to fetch leave history for all employees");
+                      setLoading(false);
+                    });
+                }}
+                disabled={loading}
+              >
+                {loading ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+      {viewRecord && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div
+            className={`rounded-xl shadow-2xl p-6 w-full max-w-md ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Leave Details</h2>
+              <button
+                onClick={() => setViewRecord(null)}
+                className="text-2xl font-bold hover:text-red-500"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <span className="font-semibold">Employee Name:</span>{" "}
+                {viewRecord.employeeName}
+              </div>
+              <div>
+                <span className="font-semibold">Employee ID:</span>{" "}
+                {viewRecord.employeeId}
+              </div>
+              <div>
+                <span className="font-semibold">Leave Type:</span>{" "}
+                {viewRecord.leaveType}
+              </div>
+              <div>
+                <span className="font-semibold">No of Days:</span>{" "}
+                {viewRecord.numberOfDays}
+              </div>
+              <div>
+                <span className="font-semibold">Date:</span>{" "}
+                {viewRecord.startDate
+                  ? new Date(viewRecord.startDate).toISOString().split("T")[0]
+                  : "N/A"}
+              </div>
+              <div>
+                <span className="font-semibold">End Date:</span>{" "}
+                {viewRecord.endDate
+                  ? new Date(viewRecord.endDate).toISOString().split("T")[0]
+                  : "N/A"}
+              </div>
+              <div>
+                <span className="font-semibold">Status:</span> {viewRecord.status}
+              </div>
+              <div>
+                <span className="font-semibold">Reason:</span> {viewRecord.reason}
+              </div>
+              <div>
+                <span className="font-semibold">Applied On:</span>{" "}
+                {viewRecord.appliedOn
+                  ? new Date(viewRecord.appliedOn).toISOString().split("T")[0]
+                  : "N/A"}
+              </div>
+              <div>
+                <span className="font-semibold">Last Updated:</span>{" "}
+                {viewRecord.lastUpdated
+                  ? new Date(viewRecord.lastUpdated).toISOString().split("T")[0]
+                  : "N/A"}
+              </div>
+              <div>
+                <span className="font-semibold">Emergency Contact:</span>{" "}
+                {viewRecord.emergencyContact || "N/A"}
+              </div>
+            </div>
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setViewRecord(null)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+        {rejectModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-md relative">
+              <button
+                onClick={() => { setRejectModalOpen(false); setRejectLeave(null); setRejectionReason(""); }}
+                className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl font-bold"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+              <h2 className="text-xl font-bold mb-4 text-red-600 dark:text-red-400">Reject Leave</h2>
               <textarea
-                className="w-full border border-gray-300 rounded-lg p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-red-400 text-black"
+                className={`w-full border rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                  theme === "dark" 
+                    ? "bg-gray-800 border-gray-600 text-white" 
+                    : "bg-white border-gray-300 text-black"
+                }`}
                 rows={4}
-                placeholder="Enter reason for rejection..."
+                placeholder="Enter rejection reason..."
                 value={rejectionReason}
                 onChange={e => setRejectionReason(e.target.value)}
               />
-              {rejectionError && <div className="text-red-500 text-sm mb-2">{rejectionError}</div>}
-              <div className="flex justify-end gap-2 mt-4">
+              <div className="flex justify-end gap-2">
                 <button
-                  type="button"
-                  onClick={closeRejectModal}
-                  className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  onClick={() => { setRejectModalOpen(false); setRejectLeave(null); setRejectionReason(""); }}
+                  className={`px-4 py-2 rounded-lg font-semibold border transition ${
+                    theme === 'dark' 
+                      ? 'border-gray-600 text-gray-300 bg-gray-800 hover:bg-gray-700' 
+                      : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  className="px-4 py-2 rounded bg-red-600 text-white font-semibold hover:bg-red-700"
+                  onClick={async () => {
+                    if (rejectLeave) {
+                      await updateLeaveStatus(rejectLeave.leaveId, "Rejected", rejectionReason);
+                      setRejectModalOpen(false);
+                      setRejectLeave(null);
+                      setRejectionReason("");
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition"
                 >
                   Reject
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-      {viewRecord && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className={`rounded-xl shadow-2xl p-6 w-full max-w-md ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Leave Details</h2>
-              <button onClick={() => setViewRecord(null)} className="text-2xl font-bold hover:text-red-500">&times;</button>
-            </div>
-            <div className="space-y-2">
-              <div><span className="font-semibold">Employee Name:</span> {viewRecord.employeeName}</div>
-              <div><span className="font-semibold">Employee ID:</span> {viewRecord.employeeId}</div>
-              <div><span className="font-semibold">Leave Type:</span> {viewRecord.leaveType}</div>
-              <div><span className="font-semibold">No of Days:</span> {viewRecord.numberOfDays}</div>
-              <div><span className="font-semibold">Date:</span> {viewRecord.startDate ? new Date(viewRecord.startDate).toISOString().split('T')[0] : 'N/A'}</div>
-              <div><span className="font-semibold">End Date:</span> {viewRecord.endDate ? new Date(viewRecord.endDate).toISOString().split('T')[0] : 'N/A'}</div>
-              <div><span className="font-semibold">Status:</span> {viewRecord.status}</div>
-              <div><span className="font-semibold">Reason:</span> {viewRecord.reason}</div>
-              <div><span className="font-semibold">Approved By:</span> {viewRecord ? String(getApprovedBy(viewRecord)) : "N/A"}</div>
-              <div><span className="font-semibold">Applied On:</span> {viewRecord.appliedOn ? new Date(viewRecord.appliedOn).toISOString().split('T')[0] : 'N/A'}</div>
-              <div><span className="font-semibold">Last Updated:</span> {viewRecord.lastUpdated ? new Date(viewRecord.lastUpdated).toISOString().split('T')[0] : 'N/A'}</div>
-              <div><span className="font-semibold">Emergency Contact:</span> {viewRecord.emergencyContact || 'N/A'}</div>
-              <div><span className="font-semibold">Rejection Reason:</span> {viewRecord ? String(getRejectionReason(viewRecord)) : "-"}</div>
-            </div>
-            <div className="flex justify-end mt-6">
-              <button onClick={() => setViewRecord(null)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Close</button>
             </div>
           </div>
-        </div>
-      )}
-      <div
-        className={`p-4 md:p-8 min-h-screen transition-colors duration-300 ${
-          theme === "dark" ? "bg-gray-900" : "bg-gray-50"
-        }`}
-      >
-        {/* Header */}
-        <div className={`rounded-2xl mb-6 p-6 flex items-center gap-5 shadow-lg ${theme === "dark" ? "bg-[#23272f]" : "bg-gradient-to-r from-blue-500 to-blue-700"}`}>
-          <div className={`${theme === "dark" ? "bg-gray-800" : "bg-blue-600 bg-opacity-30"} rounded-xl p-3 flex items-center justify-center`}>
-            <FaUserAlt className="w-8 h-8 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-1 text-white">Employee Leave Report</h1>
-            <p className="text-base opacity-90 text-white">Easily manage leave details for employees in your projects.</p>
-          </div>
-        </div>
-        {/* Tabs for Filtering */}
-        <div className="flex gap-4 mb-6">
-          {["All", "Approved", "Rejected", "Pending"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-lg font-medium transition ${
-                activeTab === tab
-                  ? theme === "dark"
-                    ? "bg-blue-700 text-white shadow-lg"
-                    : "bg-blue-600 text-white shadow-lg"
-                  : theme === "dark"
-                  ? "bg-gray-800 text-gray-300 hover:bg-blue-800 hover:text-white"
-                  : "bg-gray-200 text-gray-600 hover:bg-blue-500 hover:text-white"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-        {/* Search Bar with Filters */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
-            <div className="relative flex-1 min-w-[180px] max-w-xs shadow-sm">
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by name, date, or leave type..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100" : "bg-white border-gray-200 text-black"}`}
-              />
-              {searchQuery && (
-                <button
-                  onClick={clearSearch}
-                  className={`absolute right-2 top-2 transition-colors duration-200 ${theme === "dark" ? "text-gray-400 hover:text-red-400" : "text-gray-500 hover:text-red-500"}`}
-                >
-                  <FaTimesCircle className="text-xl" />
-                </button>
-              )}
-            </div>
-          </div>
-          <div>
-            <select
-              value={filterLeaveType}
-              onChange={(e) => setFilterLeaveType(e.target.value)}
-              className={`px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 shadow-sm transition-colors duration-300 ${theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100 focus:ring-blue-800" : "bg-white border-gray-300 text-gray-900 focus:ring-blue-600"}`}
-            >
-              <option value="All">All Leave Types</option>
-              <option value="EL">EL</option>
-              <option value="CL">CL</option>
-              <option value="SL">SL</option>
-            </select>
-          </div>
-        </div>
-        <div
-          className={`rounded-xl shadow-lg p-6 overflow-x-auto transition-colors duration-300 ${
-            theme === "dark" ? "bg-gray-800" : "bg-white"
-          }`}
-        >
-          {loading ? (
-            <div className="flex justify-center items-center h-40">
-              <FaSpinner className="animate-spin text-3xl text-blue-500" />
-            </div>
-          ) : error ? (
-            <div className="text-red-500 text-center py-8">{error}</div>
-          ) : (
-            <div className="min-w-[1200px]">
-              <div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === "dark" ? "border-gray-700 bg-gray-900" : "border-blue-100 bg-white"}`}>
-                <table className="w-full">
-                  <thead className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-blue-50'}`}>
-                    <tr>
-                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>Date</th>
-                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>Employee ID</th>
-                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>Employee Name</th>
-                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>Leave Type</th>
-                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>No of Days</th>
-                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>Reason</th>
-                      <th className={`p-4 text-xs font-bold uppercase tracking-wider text-left ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>View</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedData.map((leave, idx) => (
-                      <tr
-                        key={leave.leaveId}
-                        className={`align-top ${
-                          theme === 'dark'
-                            ? idx % 2 === 0
-                              ? 'bg-gray-900'
-                              : 'bg-gray-800'
-                            : idx % 2 === 0
-                              ? 'bg-white'
-                              : 'bg-blue-50'
-                        } hover:bg-blue-100 dark:hover:bg-blue-950 transition-colors duration-150`}
+        )}
+        {/* Table - Excel-like compact grid full screen */}
+        <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
+          <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+            {loading ? (
+              <div className="py-12 text-center text-lg font-semibold">Loading leave records...</div>
+            ) : error ? (
+              <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
+            ) : (
+              <>
+              <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+                  <tr>
+                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Photo</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee Name</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Leave Type</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Start Date</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>End Date</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Status</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-32 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Reason</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Actions</th>
+                  </tr>
+                  {/* Inline header filters */}
+                  <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
+                    <th className="px-2 py-1 sticky left-0 z-20"></th>
+                    <th className="px-2 py-1 w-16"></th>
+                    <th className="px-2 py-1">
+                      <input 
+                        value={filterEmpId} 
+                        onChange={e => setFilterEmpId(e.target.value)} 
+                        placeholder="Filter ID" 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                      />
+                    </th>
+                    <th className="px-2 py-1">
+                      <input 
+                        value={filterName} 
+                        onChange={e => setFilterName(e.target.value)} 
+                        placeholder="Filter Name" 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                      />
+                    </th>
+                    <th className="px-2 py-1"></th>
+                    <th className="px-2 py-1">
+                      <select 
+                        value={filterLeaveType} 
+                        onChange={e => setFilterLeaveType(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
                       >
-                        <td className="p-4 align-top font-bold text-left">
-                          {leave.startDate ? new Date(leave.startDate).toISOString().split('T')[0] : 'N/A'}
-                        </td>
-                        <td className="p-4 align-top text-left">{leave.employeeId}</td>
-                        <td className="p-4 align-top text-left">{leave.employeeName}</td>
-                        <td className="p-4 align-top text-left">
-                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                            leave.leaveType === 'EL'
-                              ? 'bg-blue-100 text-blue-700'
-                              : leave.leaveType === 'CL'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : leave.leaveType === 'SL'
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-gray-200 text-gray-700'
-                          }`}>
-                            {leave.leaveType}
-                          </span>
-                        </td>
-                        <td className="p-4 align-top text-left">{leave.numberOfDays}</td>
-                        <td className="p-4 align-top whitespace-pre-line break-words max-w-[180px] text-left" title={leave.reason}>
-                          {leave.reason}
-                        </td>
-                        <td className="p-4 align-top text-center">
+                        <option value="All">All</option>
+                        {uniqueLeaveTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-2 py-1">
+                      <input 
+                        type="date"
+                        value={filterStartDate} 
+                        onChange={e => setFilterStartDate(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                      />
+                    </th>
+                    <th className="px-2 py-1"></th>
+                    <th className="px-2 py-1">
+                      <select 
+                        value={filterStatus} 
+                        onChange={e => setFilterStatus(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      >
+                        <option value="All">All</option>
+                        {uniqueStatuses.map(status => <option key={status} value={status}>{status}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-2 py-1"></th>
+                    <th className="px-2 py-1"></th>
+                  </tr>
+              </thead>
+                <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                  {filteredLeaves.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No leave records found</td>
+                    </tr>
+                  ) : filteredLeaves.map((leave, index) => (
+                    <tr key={leave.leaveId} className={theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"}>
+                      <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600'}`}>{index + 1}</td>
+                      <td className="px-2 py-1">
+                        <Image
+                          src={leave.employeeImage || "/placeholder-user.jpg"}
+                          alt={leave.employeeName}
+                          width={32}
+                          height={32}
+                          className={`rounded object-cover border ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}
+                        />
+                      </td>
+                      <td className={`px-2 py-1 font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>{leave.employeeId}</td>
+                      <td className="px-2 py-1"><div className="truncate" title={leave.employeeName || "-"}>{leave.employeeName || "-"}</div></td>
+                      <td className="px-2 py-1"><div className="truncate" title={leave.designation || "-"}>{leave.designation || "-"}</div></td>
+                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={leave.leaveType}>{leave.leaveType}</div></td>
+                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{leave.startDate ? new Date(leave.startDate).toLocaleDateString() : "N/A"}</td>
+                      <td className={`px-2 py-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{leave.endDate ? new Date(leave.endDate).toLocaleDateString() : "N/A"}</td>
+                      <td className="px-2 py-1 text-center">
+                        <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
+                          leave.status === 'Approved' 
+                            ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
+                            : leave.status === 'Rejected'
+                            ? theme === 'dark' ? 'bg-red-800 text-red-200' : 'bg-red-100 text-red-700'
+                            : theme === 'dark' ? 'bg-yellow-800 text-yellow-200' : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {leave.status || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1"><div className="truncate" title={leave.reason || "-"}>{leave.reason || "-"}</div></td>
+                      <td className="px-2 py-1 text-center">
+                        {leave.status === "Pending" ? (
+                          <div className="flex gap-1">
+                            <button
+                              className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                theme === 'dark' 
+                                  ? 'border-green-500 text-green-400 bg-gray-800 hover:bg-gray-700 focus:ring-green-400' 
+                                  : 'border-green-500 text-green-600 bg-white hover:bg-green-50 focus:ring-green-400'
+                              }`}
+                              onClick={async () => {
+                                await updateLeaveStatus(leave.leaveId, "Approved");
+                              }}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                theme === 'dark' 
+                                  ? 'border-red-500 text-red-400 bg-gray-800 hover:bg-gray-700 focus:ring-red-400' 
+                                  : 'border-red-500 text-red-600 bg-white hover:bg-red-50 focus:ring-red-400'
+                              }`}
+                              onClick={() => { setRejectLeave(leave); setRejectModalOpen(true); }}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
                           <button
-                            className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            title="View"
+                            className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                              theme === 'dark' 
+                                ? 'border-blue-500 text-blue-400 bg-gray-800 hover:bg-gray-700 focus:ring-blue-400' 
+                                : 'border-blue-500 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-400'
+                            }`}
                             onClick={() => setViewRecord(leave)}
                           >
-                            <FaEye />
-                            <span className="font-semibold">View</span>
+                            View
                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Leave Detail Modal */}
+        {viewRecord && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-2xl relative overflow-y-auto max-h-[90vh]">
+              <button className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl font-bold" onClick={() => setViewRecord(null)}>✕</button>
+              <h2 className="text-2xl font-bold mb-4 text-center">Leave Record Details</h2>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <Image src={viewRecord.employeeImage || "/placeholder-user.jpg"} alt="Employee" width={64} height={64} className="w-16 h-16 rounded-full object-cover border" />
+                  <div>
+                    <div className="font-bold text-lg">{viewRecord.employeeName || viewRecord.employeeId}</div>
+                    <div className="text-xs text-gray-500">{viewRecord.employeeId}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><b>Designation:</b> {viewRecord.designation || '-'}</div>
+                  <div><b>Leave Type:</b> {viewRecord.leaveType || '-'}</div>
+                  <div><b>Start Date:</b> {viewRecord.startDate ? new Date(viewRecord.startDate).toLocaleDateString() : '-'}</div>
+                  <div><b>End Date:</b> {viewRecord.endDate ? new Date(viewRecord.endDate).toLocaleDateString() : '-'}</div>
+                  <div><b>Status:</b> {viewRecord.status || '-'}</div>
+                  <div><b>Applied On:</b> {viewRecord.appliedOn ? new Date(viewRecord.appliedOn).toLocaleDateString() : '-'}</div>
+                  <div className="col-span-2">
+                    <b>Reason:</b> 
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">{viewRecord.reason || 'No reason provided'}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <b>Emergency Contact:</b> 
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">{viewRecord.emergencyContact || 'Not provided'}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          )}
-        </div>
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center mt-6 gap-2">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                currentPage === 1
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
-                  : theme === 'dark'
-                    ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
-                    : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
-              }`}
-            >
-              Prev
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`px-4 py-2 rounded-lg font-semibold border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                  currentPage === page
-                    ? theme === 'dark'
-                      ? 'bg-blue-700 text-white border-blue-700 shadow-lg'
-                      : 'bg-blue-600 text-white border-blue-600 shadow-lg'
-                    : theme === 'dark'
-                      ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-blue-800 hover:text-white'
-                      : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 border focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                currentPage === totalPages
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
-                  : theme === 'dark'
-                    ? 'bg-gray-800 text-white border-gray-700 hover:bg-blue-800'
-                    : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
-              }`}
-            >
-              Next
-            </button>
           </div>
         )}
       </div>

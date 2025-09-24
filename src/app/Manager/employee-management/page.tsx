@@ -1,8 +1,77 @@
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
-import { FaSearch,FaChevronRight, FaCheckCircle, FaIdCard, FaTshirt, FaCalendarAlt, FaPlaneDeparture, FaMoneyBillWave, FaFileAlt,  } from "react-icons/fa";
+import { FaSearch, FaCheckCircle, FaEye } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
+import ViewKYCModal from '@/components/dashboard/ViewKYCModal';
+import IDCardModal, { IDCardData } from '@/components/dashboard/IDCardModal';
+import UniformModal from '@/components/dashboard/UniformModal';
+import AttendanceModal from '@/components/dashboard/AttendanceModal';
+
+// Define KYCData interface locally
+interface KYCData {
+  personalDetails: {
+    employeeId: string;
+    projectName: string;
+    fullName: string;
+    fathersName: string;
+    mothersName: string;
+    gender: string;
+    dob: string;
+    phoneNumber: string;
+    designation: string;
+    dateOfJoining: string;
+    nationality: string;
+    religion: string;
+    maritalStatus: string;
+    bloodGroup: string;
+    uanNumber: string;
+    esicNumber: string;
+    experience: string;
+    educationalQualification: string;
+    languages: string[];
+    employeeImage: string;
+    email: string;
+    workType: string;
+  };
+  addressDetails: {
+    permanentAddress: {
+      state: string;
+      city: string;
+      street: string;
+      postalCode: string;
+    };
+    currentAddress: {
+      state: string;
+      city: string;
+      street: string;
+      postalCode: string;
+    };
+  };
+  bankDetails: {
+    bankName: string;
+    branchName: string;
+    accountNumber: string;
+    ifscCode: string;
+  };
+  identificationDetails: {
+    identificationType: string;
+    identificationNumber: string;
+  };
+  emergencyContact: {
+    name: string;
+    phone: string;
+    relationship: string;
+    aadhar: string;
+  };
+  documents: Array<{
+    type: string;
+    url: string;
+    uploadedAt: string;
+    _id: string;
+  }>;
+  status: string;
+}
 
 type WorkflowKey = 'kyc' | 'idCard' | 'uniform' | 'attendance' | 'leave' | 'payslip';
 
@@ -84,16 +153,10 @@ interface EmployeeWithSummary extends Employee {
     projectName?: string;
     // ...other fields
   };
+  kycForm?: KycForm; // Add this field
 }
 
-const workflowSteps: { key: WorkflowKey; label: string; icon: React.ReactNode }[] = [
-  { key: "kyc", label: "KYC", icon: <FaFileAlt className="w-5 h-5" /> },
-  { key: "idCard", label: "ID Card", icon: <FaIdCard className="w-5 h-5" /> },
-  { key: "uniform", label: "Uniform", icon: <FaTshirt className="w-5 h-5" /> },
-  { key: "attendance", label: "Attendance", icon: <FaCalendarAlt className="w-5 h-5" /> },
-  { key: "leave", label: "Leave", icon: <FaPlaneDeparture className="w-5 h-5" /> },
-  { key: "payslip", label: "Payslip", icon: <FaMoneyBillWave className="w-5 h-5" /> },
-];
+// Removed unused workflowSteps array
 
 export default function EmployeeManagementPage() {
   const { theme } = useTheme();
@@ -120,8 +183,11 @@ export default function EmployeeManagementPage() {
     name: boolean;
     designation: boolean;
     project: boolean;
-    workflow: boolean;
-    action: boolean;
+    kyc: boolean;
+    idCard: boolean;
+    uniform: boolean;
+    attendance: boolean;
+    payslip: boolean;
   };
   const [visibleCols, setVisibleCols] = useState<VisibleCols>({
     rownum: true,
@@ -130,11 +196,21 @@ export default function EmployeeManagementPage() {
     name: true,
     designation: true,
     project: true,
-    workflow: true,
-    action: true,
+    kyc: true,
+    idCard: true,
+    uniform: true,
+    attendance: true,
+    payslip: true,
   });
   // Track failed image URLs to show a placeholder instead of broken image
   const [brokenImgUrls, setBrokenImgUrls] = useState<Record<string, boolean>>({});
+  // Track which employee row's workflow dropdown is open
+  // Removed unused openWorkflow state
+  const [kycModal, setKycModal] = useState<{ open: boolean, kycData: KYCData | null }>({ open: false, kycData: null });
+  const [idCardModal, setIdCardModal] = useState<{ open: boolean, cardData: IDCardData | null }>({ open: false, cardData: null });
+  const [uniformModal, setUniformModal] = useState<{ open: boolean, employeeId: string | null }>({ open: false, employeeId: null });
+  const [attendanceModal, setAttendanceModal] = useState<{ open: boolean, employeeId: string | null, employeeName: string | null }>({ open: false, employeeId: null, employeeName: null });
+
   const placeholderSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>
     <defs>
       <linearGradient id='g' x1='0' x2='1' y1='0' y2='1'>
@@ -174,6 +250,7 @@ export default function EmployeeManagementPage() {
             designation: pd.designation || "",
             projectName: pd.projectName || "",
             personalDetails: pd, // for image
+            kycForm: form, // store the full KYC form
           };
         }).filter((emp: { employeeId: string }) => emp.employeeId);
         // Fetch summary for each employee
@@ -289,8 +366,6 @@ export default function EmployeeManagementPage() {
     if (visibleCols.name) header.push("Name");
     if (visibleCols.designation) header.push("Designation");
     if (visibleCols.project) header.push("Project");
-    if (visibleCols.workflow) header.push("Workflow");
-    if (visibleCols.action) header.push("Action");
     const rows = sortedEmployees.map((emp, idx) => {
       const parts: string[] = [];
       if (visibleCols.rownum) parts.push(String(idx + 1));
@@ -299,8 +374,6 @@ export default function EmployeeManagementPage() {
       if (visibleCols.name) parts.push(emp.fullName || "");
       if (visibleCols.designation) parts.push(emp.designation || "");
       if (visibleCols.project) parts.push(emp.projectName || "");
-      if (visibleCols.workflow) parts.push("");
-      if (visibleCols.action) parts.push("");
       return parts.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
     });
     const csv = [header.join(","), ...rows].join("\n");
@@ -501,10 +574,10 @@ export default function EmployeeManagementPage() {
           : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
       }`}
     >
-      <div className="p-3 md:p-4 flex flex-col gap-3 sticky top-0 z-30 backdrop-blur-sm">
+      <div className="sticky top-[64px] z-30 backdrop-blur-sm px-4 py-2 mb-3 md:mb-4">
         {/* Header removed */}
         {/* Search, Designation Filters */}
-        <div className="flex flex-row flex-wrap gap-2 items-center w-full">
+        <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
           {/* Project Dropdown */}
           <div className="flex-1 min-w-[180px] max-w-xs">
             <select
@@ -573,7 +646,7 @@ export default function EmployeeManagementPage() {
                 Columns
               </button>
               {showColsMenu && (
-                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg p-3 border z-40 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-black'}`}>
+                <div className={`absolute right-0 mt-2 w-56 rounded-lg shadow-lg p-3 border z-40 ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-black'}`}>
                   {(Object.keys(visibleCols) as Array<keyof VisibleCols>).map((key) => (
                     <label key={String(key)} className="flex items-center gap-2 py-1 cursor-pointer text-sm">
                       <input type="checkbox" checked={visibleCols[key]} onChange={() => toggleColumn(key)} />
@@ -601,32 +674,25 @@ export default function EmployeeManagementPage() {
             <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
           ) : (
             <>
-            <table className={`w-full text-xs table-fixed`}>
-              <colgroup>
-                {visibleCols.rownum && (<col style={{ width: 56 }} />)}
-                {visibleCols.photo && (<col style={{ width: 68 }} />)}
-                {visibleCols.employeeId && (<col style={{ width: 160 }} />)}
-                {visibleCols.name && (<col style={{ width: 240 }} />)}
-                {visibleCols.designation && (<col style={{ width: 200 }} />)}
-                {visibleCols.project && (<col style={{ width: 220 }} />)}
-                {visibleCols.workflow && (<col style={{ width: 260 }} />)}
-                {visibleCols.action && (<col style={{ width: 160 }} />)}
-              </colgroup>
+            <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
               <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                 <tr>
                   {visibleCols.rownum && (<th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap ${theme === "dark" ? "text-blue-200 bg-blue-900" : "text-blue-700 bg-blue-50"}`}>#</th>)}
-                  {visibleCols.photo && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Photo</th>)}
+                  {visibleCols.photo && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Photo</th>)}
                   {visibleCols.employeeId && (<th onClick={() => onSort('employeeId')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Employee ID {sortBy === 'employeeId' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
                   {visibleCols.name && (<th onClick={() => onSort('name')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Name {sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
                   {visibleCols.designation && (<th onClick={() => onSort('designation')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Designation {sortBy === 'designation' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
                   {visibleCols.project && (<th onClick={() => onSort('project')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Project {sortBy === 'project' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
-                  {visibleCols.workflow && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Workflow</th>)}
-                  {visibleCols.action && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Action</th>)}
+                  {visibleCols.kyc && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>KYC</th>)}
+                  {visibleCols.idCard && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>ID Card</th>)}
+                  {visibleCols.uniform && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Uniform</th>)}
+                  {visibleCols.attendance && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Attendance</th>)}
+                  {visibleCols.payslip && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>Payslip</th>)}
                 </tr>
                 {/* Inline header filters */}
                 <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
                   {visibleCols.rownum && (<th className="px-2 py-1 sticky left-0 z-20"></th>)}
-                  {visibleCols.photo && (<th className="px-2 py-1"></th>)}
+                  {visibleCols.photo && (<th className="px-2 py-1 w-16"></th>)}
                   {visibleCols.employeeId && (
                     <th className="px-2 py-1">
                       <input
@@ -660,9 +726,25 @@ export default function EmployeeManagementPage() {
                       </select>
                     </th>
                   )}
-                  {visibleCols.project && (<th className="px-2 py-1"></th>)}
-                  {visibleCols.workflow && (<th className="px-2 py-1"></th>)}
-                  {visibleCols.action && (<th className="px-2 py-1"></th>)}
+                  {visibleCols.project && (
+                    <th className="px-2 py-1">
+                      <select
+                        value={projectFilter}
+                        onChange={e => setProjectFilter(e.target.value)}
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      >
+                        <option value="All Projects">All Projects</option>
+                        {projectOptions.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </th>
+                  )}
+                  {visibleCols.kyc && (<th className="px-2 py-1"></th>)}
+                  {visibleCols.idCard && (<th className="px-2 py-1"></th>)}
+                  {visibleCols.uniform && (<th className="px-2 py-1"></th>)}
+                  {visibleCols.attendance && (<th className="px-2 py-1"></th>)}
+                  {visibleCols.payslip && (<th className="px-2 py-1"></th>)}
                 </tr>
               </thead>
               <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
@@ -702,42 +784,58 @@ export default function EmployeeManagementPage() {
                     {visibleCols.project && (
                       <td className={`px-2 py-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}><div className="truncate" title={emp.projectName}>{emp.projectName}</div></td>
                     )}
-                    {visibleCols.workflow && (<td className="px-2 py-1">
-                      <div className="flex gap-2 items-center">
-                        {workflowSteps.map((step, i) => (
-                          <span key={step.key} className="flex items-center">
-                            <button
-                              type="button"
-                              className={`rounded p-1 focus:outline-none cursor-pointer transition ring-0 ${emp.workflow[step.key]
-                                ? theme === "dark"
-                                  ? 'bg-green-900 text-green-300'
-                                  : 'bg-green-100 text-green-700'
-                                : theme === "dark"
-                                  ? 'bg-yellow-900 text-yellow-300'
-                                  : 'bg-yellow-100 text-yellow-700'
-                              } hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
-                              onClick={() => {
-                                setSelectedEmployee(emp);
-                                setSelectedStep(step.key);
-                              }}
-                              title={`View ${step.label} details`}
-                              tabIndex={0}
-                            >
-                              {step.icon}
-                            </button>
-                            {i < workflowSteps.length - 1 && <FaChevronRight className={theme === "dark" ? "mx-1 text-gray-600" : "mx-1 text-gray-300"} />}
-                          </span>
-                        ))}
-                      </div>
-                    </td>)}
-                    {visibleCols.action && (<td className="px-2 py-1">
-                      <button
-                        onClick={() => setSelectedEmployee(emp)}
-                        className={`px-3 py-1 rounded font-semibold shadow ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
-                      >
-                        View Workflow
-                      </button>
-                    </td>)}
+                    {visibleCols.kyc && (
+                      <td className="px-2 py-1 text-center">
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => setKycModal({ open: true, kycData: emp.kycForm ? (emp.kycForm as unknown as KYCData) : null })}>
+                          <FaEye />
+                        </button>
+                      </td>
+                    )}
+                    {visibleCols.idCard && (
+                      <td className="px-2 py-1 text-center">
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
+                          const bloodGroup = (emp.personalDetails as Record<string, unknown>)?.bloodGroup as string || '';
+                          let employeeImage = (emp.personalDetails as Record<string, unknown>)?.employeeImage as string;
+                          if (!employeeImage) employeeImage = '/placeholder-user.jpg';
+                          setIdCardModal({
+                            open: true,
+                            cardData: {
+                              fullName: emp.fullName || '',
+                              employeeId: emp.employeeId || '',
+                              designation: emp.designation || '',
+                              projectName: emp.projectName || '',
+                              bloodGroup,
+                              employeeImage,
+                              qrCodeImage: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(emp.employeeId || '')}`,
+                              validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+                            }
+                          });
+                        }}>
+                          <FaEye />
+                        </button>
+                      </td>
+                    )}
+                    {visibleCols.uniform && (
+                      <td className="px-2 py-1 text-center">
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => setUniformModal({ open: true, employeeId: emp.employeeId })}>
+                          <FaEye />
+                        </button>
+                      </td>
+                    )}
+                    {visibleCols.attendance && (
+                      <td className="px-2 py-1 text-center">
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => setAttendanceModal({ open: true, employeeId: emp.employeeId, employeeName: emp.fullName })}>
+                          <FaEye />
+                        </button>
+                      </td>
+                    )}
+                    {visibleCols.payslip && (
+                      <td className="px-2 py-1 text-center">
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => alert('View Payslip')}>
+                          <FaEye />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -756,41 +854,15 @@ export default function EmployeeManagementPage() {
               >
                 &times;
               </button>
-              <h2 className={`text-2xl font-bold mb-6 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Employee Workflow</h2>
+              <h2 className={`text-2xl font-bold mb-6 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>Employee Details</h2>
               <div className="mb-4">
                 <div className={`font-semibold text-lg ${theme === "dark" ? "text-gray-100" : "text-gray-800"}`}>{selectedEmployee.fullName} <span className={theme === "dark" ? "text-gray-400 text-base" : "text-gray-500 text-base"}>({selectedEmployee.employeeId})</span></div>
                 <div className={theme === "dark" ? "text-gray-400 text-sm" : "text-gray-600 text-sm"}>{selectedEmployee.designation}</div>
+                {selectedEmployee.summary?.kyc?.projectName && (
+                  <div className={theme === "dark" ? "text-gray-400 text-sm" : "text-gray-600 text-sm"}>Project: {selectedEmployee.summary.kyc.projectName}</div>
+                )}
               </div>
-              <div className="flex flex-col gap-6">
-                {workflowSteps.map((step,) => (
-                  <div key={step.key} className="flex items-center gap-4">
-                    <button
-                      type="button"
-                      className={`rounded-full p-2 focus:outline-none cursor-pointer transition ring-0 ${selectedEmployee.workflow[step.key]
-                        ? theme === "dark"
-                          ? 'bg-green-900 text-green-300'
-                          : 'bg-green-100 text-green-700'
-                        : theme === "dark"
-                          ? 'bg-yellow-900 text-yellow-300'
-                          : 'bg-yellow-100 text-yellow-700'
-                      } hover:ring-2 hover:ring-blue-400 hover:bg-blue-100`}
-                      onClick={() => {
-                        setSelectedStep(step.key);
-                      }}
-                      title={`View ${step.label} details`}
-                      tabIndex={0}
-                    >
-                      {step.icon}
-                    </button>
-                    <span className="font-medium text-lg w-32 select-none">{step.label}</span>
-                    {selectedEmployee.workflow[step.key] ? (
-                      <FaCheckCircle className="text-green-500 w-5 h-5" />
-                    ) : (
-                      <span className={theme === "dark" ? "text-orange-400" : "text-orange-500"}>Pending</span>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {getStepDetails("kyc", selectedEmployee)}
               <div className="flex justify-end mt-8">
                 <button
                   onClick={() => setSelectedEmployee(null)}
@@ -840,6 +912,28 @@ export default function EmployeeManagementPage() {
           </div>
         )}
       </div>
+      {/* KYC Full Details Modal */}
+      {kycModal.open && kycModal.kycData && (
+        <ViewKYCModal open={kycModal.open} onClose={() => setKycModal({ open: false, kycData: null })} kycData={kycModal.kycData} />
+      )}
+      {/* ID Card Modal */}
+      {idCardModal.open && idCardModal.cardData && (
+        <IDCardModal isOpen={idCardModal.open} onClose={() => setIdCardModal({ open: false, cardData: null })} cardData={idCardModal.cardData} theme={theme} />
+      )}
+      {/* Uniform Modal */}
+      {uniformModal.open && uniformModal.employeeId && (
+        <UniformModal isOpen={uniformModal.open} onClose={() => setUniformModal({ open: false, employeeId: null })} employeeId={uniformModal.employeeId} theme={theme} />
+      )}
+      {/* Attendance Modal */}
+      {attendanceModal.open && attendanceModal.employeeId && attendanceModal.employeeName && (
+        <AttendanceModal 
+          isOpen={attendanceModal.open} 
+          onClose={() => setAttendanceModal({ open: false, employeeId: null, employeeName: null })} 
+          employeeId={attendanceModal.employeeId} 
+          employeeName={attendanceModal.employeeName}
+          theme={theme} 
+        />
+      )}
     </div>
   );
 }

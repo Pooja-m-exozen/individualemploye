@@ -6,7 +6,7 @@ import { useTheme } from "@/context/ThemeContext";
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
 
-interface KYCData {
+export interface KYCData {
   personalDetails: {
     employeeId: string;
     projectName: string;
@@ -90,16 +90,18 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
 
   // Check section completion
   useEffect(() => {
-    if (kycData) {
+    if (kycData && kycData.personalDetails) {
       const { personalDetails, addressDetails, bankDetails, emergencyContact, documents } = kycData;
       
       setCompletionStatus({
-        personal: Object.values(personalDetails).every(val => val !== ''),
-        address: Object.values(addressDetails.permanentAddress).every(val => val !== '') && 
-                Object.values(addressDetails.currentAddress).every(val => val !== ''),
-        bank: Object.values(bankDetails).every(val => val !== ''),
-        emergency: Object.values(emergencyContact).every(val => val !== ''),
-        documents: documents.length > 0
+        personal: personalDetails ? Object.values(personalDetails).every(val => val !== '') : false,
+        address: addressDetails && addressDetails.permanentAddress && addressDetails.currentAddress
+          ? Object.values(addressDetails.permanentAddress).every(val => val !== '') && 
+            Object.values(addressDetails.currentAddress).every(val => val !== '')
+          : false,
+        bank: bankDetails ? Object.values(bankDetails).every(val => val !== '') : false,
+        emergency: emergencyContact ? Object.values(emergencyContact).every(val => val !== '') : false,
+        documents: documents ? documents.length > 0 : false
       });
     }
   }, [kycData]);
@@ -347,6 +349,39 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
   ];
 
   if (!open) return null;
+
+  // Add null check for kycData
+  if (!kycData || !kycData.personalDetails) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-2 sm:p-4">
+        <div className={`rounded-2xl shadow-2xl w-full max-w-full sm:max-w-6xl max-h-[95vh] overflow-hidden
+          ${theme === 'dark' ? 'bg-gray-900 border border-gray-700' : 'bg-white'}`}
+        >
+          <div className={`px-4 sm:px-6 py-4 rounded-t-2xl
+            ${theme === 'dark' ? 'bg-gradient-to-r from-gray-800 to-gray-700' : 'bg-gradient-to-r from-blue-600 to-blue-500'}`}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Error Loading KYC Data</h2>
+              <button onClick={onClose} className="text-white hover:text-gray-200 text-xl font-bold focus:outline-none">
+                <FaTimes />
+              </button>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="text-center">
+              <FaExclamationCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+              <h3 className={`text-lg font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                Unable to Load KYC Data
+              </h3>
+              <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                The KYC data could not be loaded. Please try again or contact support if the issue persists.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-2 sm:p-4">
