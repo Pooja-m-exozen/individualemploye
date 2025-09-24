@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import ManagerDashboardLayout  from "@/components/dashboard/ManagerDashboardLayout";
 import CreateDCModal from "@/components/dashboard/CreateDCmodal";
-import { FaStore, FaInfoCircle, FaBoxOpen, FaSearch, FaFilter, FaPlus, FaTimes } from "react-icons/fa";
+import { FaSearch } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -18,11 +18,6 @@ const toastStyles = `
   }
 `;
 
-const guidelines = [
-  "All DC records are updated in real-time as per store records.",
-  "Click 'View' to see more details about each DC.",
-  "Contact the stores team for any discrepancies.",
-];
 
 // TypeScript types for API response
 interface DCItem {
@@ -163,7 +158,6 @@ export default function StoreDCPage() {
   const [selectedDC, setSelectedDC] = useState<DC | null>(null);
   // Removed unused uniformReq state
   const [employeeDetails, setEmployeeDetails] = useState<Record<string, {fullName: string, designation: string}>>({});
-  const [kycLoading, setKycLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState<string | null>(null);
   const [allPdfLoading, setAllPdfLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -507,7 +501,6 @@ export default function StoreDCPage() {
   useEffect(() => {
     async function fetchEmployeeData() {
       if (selectedDC) {
-        setKycLoading(true);
         console.log("ðŸ” Fetching employee data for DC:", selectedDC.dcNumber);
         console.log("ðŸ” DC items:", selectedDC.items);
        
@@ -533,12 +526,10 @@ export default function StoreDCPage() {
        
         console.log("ðŸ” Fetched employee details:", employeeDetailsMap);
         setEmployeeDetails(employeeDetailsMap);
-        setKycLoading(false);
        
         // Removed uniform request fetching as it's no longer needed
       } else {
         setEmployeeDetails({});
-        setKycLoading(false);
       }
     }
     fetchEmployeeData();
