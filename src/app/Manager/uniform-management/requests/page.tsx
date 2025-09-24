@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import  ManagerDashboardLayout from '@/components/dashboard/ManagerDashboardLayout';
-import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaPlus, FaEdit, FaTimes } from "react-icons/fa";
+import { FaTshirt, FaCheckCircle, FaTimesCircle, FaSpinner, FaSearch, FaPlus, FaEdit } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 // import Select from "react-select";
