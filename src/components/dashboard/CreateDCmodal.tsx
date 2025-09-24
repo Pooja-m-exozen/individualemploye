@@ -206,23 +206,10 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                    !req.projectName.toLowerCase().includes("general")
           );
 
-          // Filter out employees who already have DCs created
-          if (dcData && dcData.length > 0) {
-            // Get all employee IDs that already have DCs
-            const employeesWithDCs = new Set<string>();
-            dcData.forEach(dc => {
-              dc.items.forEach(item => {
-                if (item.employeeId) {
-                  employeesWithDCs.add(item.employeeId);
-                }
-              });
-            });
-
-            // Filter out employees who already have DCs
-            filteredRequests = filteredRequests.filter(req => 
-              !employeesWithDCs.has(req.employeeId)
-            );
-          }
+          // Note: Removed the filter that excluded employees who already have DCs
+          // This allows creating multiple DCs for the same employee if needed
+          // The original logic was preventing employees from appearing in the selection
+          // even if they had new approved uniform requests
 
           setUniformRequests(filteredRequests);
         }
