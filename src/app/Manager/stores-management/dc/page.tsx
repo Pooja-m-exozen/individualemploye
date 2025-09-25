@@ -495,7 +495,7 @@ export default function StoreDCPage() {
     e.stopPropagation();
   };
 
-  const handleDrop = (e: React.DragEvent, dcId?: string) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const files = e.dataTransfer.files;
@@ -1824,7 +1824,7 @@ export default function StoreDCPage() {
                   : 'border-purple-300 bg-purple-50 hover:bg-purple-100'
               }`}
               onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, selectedDC?._id)}
+              onDrop={(e) => handleDrop(e)}
             >
               <FaUpload className={`mx-auto mb-3 text-3xl ${
                 theme === 'dark' ? 'text-purple-400' : 'text-purple-500'
