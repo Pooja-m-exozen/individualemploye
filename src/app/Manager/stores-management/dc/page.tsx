@@ -177,7 +177,6 @@ export default function StoreDCPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [uploadLoading, setUploadLoading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<UploadedFile[]>([]);
   const [savingFiles, setSavingFiles] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -323,7 +322,7 @@ export default function StoreDCPage() {
       if (response.ok) {
         const attachments = await response.json();
         // Update the uploaded files with server data
-        const serverFiles: UploadedFile[] = attachments.map((att: any) => ({
+        const serverFiles: UploadedFile[] = attachments.map((att: { id?: string; _id?: string; filename?: string; name?: string; size?: number; mimetype?: string; type?: string; uploadedAt?: string; createdAt?: string }) => ({
           id: att.id || att._id,
           name: att.filename || att.name,
           size: att.size || 0,
@@ -786,7 +785,7 @@ export default function StoreDCPage() {
       }
     }
     fetchEmployeeData();
-  }, [selectedDC]);
+  }, [selectedDC, fetchDCAttachments]);
 
   // Map API data to table structure
   const mappedDC = dcData.map(dc => ({

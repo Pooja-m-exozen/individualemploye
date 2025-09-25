@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { FaStore, FaCheckCircle, FaInfoCircle, FaTimes, FaPlus, FaExclamationTriangle, FaBoxOpen, FaUpload, FaFileImage, FaFilePdf, FaFileWord, FaFileExcel, FaDownload, FaEye } from "react-icons/fa";
+import { FaStore, FaCheckCircle, FaInfoCircle, FaTimes, FaPlus, FaExclamationTriangle, FaBoxOpen, FaUpload, FaFileImage, FaFilePdf, FaFileWord, FaFileExcel, FaEye } from "react-icons/fa";
 import { showToast } from "@/components/Toast";
 
 // TypeScript types from the original file
@@ -132,7 +132,6 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
   
   // File upload states
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [uploadingFiles, setUploadingFiles] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -286,7 +285,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         const data: UniformApiResponse = await res.json();
         if (data.success) {
           // Only show projects that are NOT generic
-          let filteredRequests = data.uniforms.filter(
+          const filteredRequests = data.uniforms.filter(
             req => req.projectName === selectedProject && 
                    req.approvalStatus === 'Approved' &&
                    req.projectName !== "General" &&
