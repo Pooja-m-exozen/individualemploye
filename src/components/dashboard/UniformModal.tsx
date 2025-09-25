@@ -124,7 +124,7 @@ const UniformModal: React.FC<UniformModalProps> = ({ isOpen, onClose, employeeId
       const response = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc');
       if (response.ok) {
         const result = await response.json();
-        const dc = result.dcs?.find((dc: any) => dc.dcNumber === dcNumber);
+        const dc = result.dcs?.find((dc: { dcNumber: string; _id: string }) => dc.dcNumber === dcNumber);
         return dc?._id || null;
       }
     } catch (err) {
