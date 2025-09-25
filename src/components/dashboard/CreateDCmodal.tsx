@@ -455,6 +455,14 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
       console.log('Selected Project:', selectedProject);
       console.log('Customer field:', payload.customer);
       console.log('Address field:', payload.address);
+      console.log('Items count:', payload.items.length);
+      console.log('Items details:', payload.items.map(item => ({
+        itemId: item.itemId,
+        name: item.name,
+        employeeId: item.employeeId,
+        size: item.size,
+        quantity: item.quantity
+      })));
 
       // Validate that all items have valid itemId
       const invalidItems = payload.items.filter(item => !item.itemId);
@@ -475,29 +483,54 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         return;
       }
 
-      // Create FormData for file upload
-      const formData = new FormData();
+      // Check if we have attachments to decide between JSON and FormData
+      let res: Response;
       
-      // Add DC data as JSON string
-      formData.append('customer', payload.customer);
-      formData.append('dcNumber', payload.dcNumber);
-      formData.append('dcDate', payload.dcDate);
-      formData.append('address', payload.address);
-      formData.append('remarks', payload.remarks);
-      formData.append('items', JSON.stringify(payload.items));
-      
-      // Add attachments if any
       if (attachments.length > 0) {
+        // Use FormData when we have file attachments
+        const formData = new FormData();
+        
+        // Add DC data as individual fields
+        formData.append('customer', payload.customer);
+        formData.append('dcNumber', payload.dcNumber);
+        formData.append('dcDate', payload.dcDate);
+        formData.append('address', payload.address);
+        formData.append('remarks', payload.remarks);
+        
+        // Add items as individual entries - the API expects an array
+        payload.items.forEach((item, index) => {
+          formData.append(`items[${index}][itemId]`, item.itemId);
+          formData.append(`items[${index}][employeeId]`, item.employeeId);
+          formData.append(`items[${index}][itemCode]`, item.itemCode);
+          formData.append(`items[${index}][name]`, item.name);
+          formData.append(`items[${index}][size]`, item.size);
+          formData.append(`items[${index}][quantity]`, item.quantity.toString());
+          formData.append(`items[${index}][price]`, item.price);
+          formData.append(`items[${index}][remarks]`, item.remarks);
+          formData.append(`items[${index}][designation]`, item.designation || '');
+          formData.append(`items[${index}][uniformType]`, item.uniformType);
+        });
+        
+        // Add attachments
         attachments.forEach(file => {
           formData.append('attachments', file);
         });
-      }
 
-      // First, create the DC with attachments
-      const res = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc', {
-        method: 'POST',
-        body: formData, // Use FormData instead of JSON
-      });
+        // Create the DC with attachments using FormData
+        res = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc', {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        // Use JSON when no file attachments
+        res = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+      }
 
       const data = await res.json();
 
