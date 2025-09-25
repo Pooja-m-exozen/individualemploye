@@ -84,6 +84,7 @@ interface DC {
   dcNumber: string;
   dcDate: string;
   remarks: string;
+  address?: string; // Add address field
   items: DCItem[];
   uploadedFiles?: UploadedFile[]; // Add uploaded files array
   createdAt: string;
@@ -199,7 +200,7 @@ export default function StoreDCPage() {
     return <FaFileImage className="text-gray-500" />;
   };
 
-  const handleFileUpload = async (files: FileList | null, dcNumber?: string) => {
+  const handleFileUpload = async (files: FileList | null, dcId?: string) => {
     if (!files || files.length === 0) return;
 
     const newFiles: UploadedFile[] = [];
@@ -224,7 +225,7 @@ export default function StoreDCPage() {
           type: file.type,
           url: previewUrl,
           uploadedAt: new Date().toISOString(),
-          dcNumber: dcNumber,
+          dcNumber: selectedDC?.dcNumber, // Keep dcNumber for display purposes
           file: file,
           isUploaded: false,
           uploadProgress: 0
@@ -249,7 +250,64 @@ export default function StoreDCPage() {
   const handleCameraInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      handleFileUpload(files, selectedDC?.dcNumber);
+      handleFileUpload(files, selectedDC?._id);
+    }
+  };
+
+  // Function to ensure DC has address field before upload
+  const ensureDCHasAddress = async (dcId: string): Promise<boolean> => {
+    try {
+      // First, fetch the current DC to check if it has an address
+      const dcResponse = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/${dcId}`);
+      if (!dcResponse.ok) {
+        console.error('Failed to fetch DC:', dcResponse.status);
+        return false;
+      }
+      
+      const dcData = await dcResponse.json();
+      
+      // Check if DC has address field and it's not empty
+      if (!dcData.address || dcData.address.trim() === '') {
+        console.log('DC missing address, updating with default address...');
+        
+        // Update the DC with all existing data plus the address field
+        const updateResponse = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/${dcId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customer: dcData.customer,
+            dcNumber: dcData.dcNumber,
+            dcDate: dcData.dcDate,
+            remarks: dcData.remarks || '',
+            address: 'Address not provided',
+            items: dcData.items
+          }),
+        });
+        
+        if (!updateResponse.ok) {
+          const errorText = await updateResponse.text();
+          console.error('Failed to update DC address:', updateResponse.status, errorText);
+          console.error('DC data being sent:', {
+            customer: dcData.customer,
+            dcNumber: dcData.dcNumber,
+            dcDate: dcData.dcDate,
+            remarks: dcData.remarks || '',
+            address: 'Address not provided',
+            items: dcData.items
+          });
+          return false;
+        }
+        
+        const updatedData = await updateResponse.json();
+        console.log('DC address updated successfully:', updatedData);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error ensuring DC has address:', error);
+      return false;
     }
   };
 
@@ -257,8 +315,15 @@ export default function StoreDCPage() {
     try {
       if (!file.file) return false;
 
+      // Ensure DC has address field before uploading
+      const addressEnsured = await ensureDCHasAddress(dcId);
+      if (!addressEnsured) {
+        console.error('Failed to ensure DC has address field');
+        return false;
+      }
+
       const formData = new FormData();
-      formData.append('file', file.file);
+      formData.append('attachments', file.file);
 
       const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/${dcId}/upload`, {
         method: 'POST',
@@ -266,7 +331,9 @@ export default function StoreDCPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Upload failed:', response.status, errorText);
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
       }
 
       return true;
@@ -316,11 +383,29 @@ export default function StoreDCPage() {
     }
   };
 
-  const fetchDCAttachments = async (dcId: string) => {
+  const fetchDCAttachments = useCallback(async (dcId: string) => {
     try {
       const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/${dcId}/attachments`);
       if (response.ok) {
-        const attachments = await response.json();
+        const data = await response.json();
+        console.log('Attachments API response:', data);
+        
+        // Handle different response structures
+        let attachments = [];
+        if (Array.isArray(data)) {
+          // Direct array response
+          attachments = data;
+        } else if (data.attachments && Array.isArray(data.attachments)) {
+          // Response with attachments property
+          attachments = data.attachments;
+        } else if (data.success && data.attachments && Array.isArray(data.attachments)) {
+          // Response with success flag and attachments
+          attachments = data.attachments;
+        } else {
+          console.warn('Unexpected attachments response structure:', data);
+          return;
+        }
+        
         // Update the uploaded files with server data
         const serverFiles: UploadedFile[] = attachments.map((att: { id?: string; _id?: string; filename?: string; name?: string; size?: number; mimetype?: string; type?: string; uploadedAt?: string; createdAt?: string }) => ({
           id: att.id || att._id,
@@ -337,11 +422,13 @@ export default function StoreDCPage() {
           const filtered = prev.filter(f => f.dcNumber !== selectedDC?.dcNumber);
           return [...filtered, ...serverFiles];
         });
+      } else {
+        console.warn('Failed to fetch attachments:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching DC attachments:', error);
     }
-  };
+  }, [selectedDC?.dcNumber]);
 
   const deleteAttachment = async (attachmentId: string, dcId: string) => {
     try {
@@ -350,10 +437,14 @@ export default function StoreDCPage() {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        console.log('Delete response:', data);
         setUploadedFiles(prev => prev.filter(f => f.id !== attachmentId));
         setToast('File deleted successfully!');
       } else {
-        throw new Error('Delete failed');
+        const errorText = await response.text();
+        console.error('Delete failed:', response.status, errorText);
+        throw new Error(`Delete failed: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
       console.error('Error deleting attachment:', error);
@@ -404,11 +495,11 @@ export default function StoreDCPage() {
     e.stopPropagation();
   };
 
-  const handleDrop = (e: React.DragEvent, dcNumber?: string) => {
+  const handleDrop = (e: React.DragEvent, dcId?: string) => {
     e.preventDefault();
     e.stopPropagation();
     const files = e.dataTransfer.files;
-    handleFileUpload(files, dcNumber);
+    handleFileUpload(files, dcId);
   };
 
   // Helper function to get project name from uniform requests
@@ -642,7 +733,7 @@ export default function StoreDCPage() {
 
 
   // Function to refresh DC data
-  const refreshDCData = async () => {
+  const refreshDCData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -745,7 +836,7 @@ export default function StoreDCPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     async function fetchEmployeeData() {
@@ -1733,7 +1824,7 @@ export default function StoreDCPage() {
                   : 'border-purple-300 bg-purple-50 hover:bg-purple-100'
               }`}
               onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, selectedDC?.dcNumber)}
+              onDrop={(e) => handleDrop(e, selectedDC?._id)}
             >
               <FaUpload className={`mx-auto mb-3 text-3xl ${
                 theme === 'dark' ? 'text-purple-400' : 'text-purple-500'
@@ -1751,7 +1842,7 @@ export default function StoreDCPage() {
                   type="file"
                   multiple
                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                  onChange={(e) => handleFileUpload(e.target.files, selectedDC?.dcNumber)}
+                  onChange={(e) => handleFileUpload(e.target.files, selectedDC?._id)}
                   className="hidden"
                 />
                 <input
@@ -2013,7 +2104,7 @@ export default function StoreDCPage() {
           </div>
         </div>
       )}
-
+      
       {/* DC Details Modal */}
       {selectedDC && !showUploadModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
