@@ -1,8 +1,8 @@
 ﻿"use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import ManagerDashboardLayout  from "@/components/dashboard/ManagerDashboardLayout";
 import CreateDCModal from "@/components/dashboard/CreateDCmodal";
-import { FaSearch } from "react-icons/fa";
+import { FaSearch, FaUpload, FaFileImage, FaFilePdf, FaFileWord, FaFileExcel, FaTimes, FaDownload, FaEye } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -64,6 +64,19 @@ interface DCItem {
 //   remarks?: string;
 // }
 
+interface UploadedFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  url: string;
+  uploadedAt: string;
+  dcNumber?: string; // Associate file with specific DC
+  file?: File; // Store the actual file for upload
+  isUploaded?: boolean; // Track upload status
+  uploadProgress?: number; // Track upload progress
+}
+
 interface DC {
   _id: string;
   customer: string;
@@ -72,6 +85,7 @@ interface DC {
   dcDate: string;
   remarks: string;
   items: DCItem[];
+  uploadedFiles?: UploadedFile[]; // Add uploaded files array
   createdAt: string;
   updatedAt: string;
   __v: number;
@@ -161,6 +175,242 @@ export default function StoreDCPage() {
   const [pdfLoading, setPdfLoading] = useState<string | null>(null);
   const [allPdfLoading, setAllPdfLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<UploadedFile[]>([]);
+  const [savingFiles, setSavingFiles] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // File upload helper functions
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('image/')) return <FaFileImage className="text-green-500" />;
+    if (fileType.includes('pdf')) return <FaFilePdf className="text-red-500" />;
+    if (fileType.includes('word') || fileType.includes('document')) return <FaFileWord className="text-blue-500" />;
+    if (fileType.includes('excel') || fileType.includes('spreadsheet')) return <FaFileExcel className="text-green-600" />;
+    return <FaFileImage className="text-gray-500" />;
+  };
+
+  const handleFileUpload = async (files: FileList | null, dcNumber?: string) => {
+    if (!files || files.length === 0) return;
+
+    const newFiles: UploadedFile[] = [];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          setToast(`File ${file.name} is too large. Maximum size is 10MB.`);
+          continue;
+        }
+
+        // Create a preview URL
+        const previewUrl = URL.createObjectURL(file);
+        
+        const uploadedFile: UploadedFile = {
+          id: Date.now().toString() + i,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: previewUrl,
+          uploadedAt: new Date().toISOString(),
+          dcNumber: dcNumber,
+          file: file,
+          isUploaded: false,
+          uploadProgress: 0
+        };
+
+        newFiles.push(uploadedFile);
+      }
+
+      setPendingFiles(prev => [...prev, ...newFiles]);
+      setToast(`${newFiles.length} file(s) added to upload queue!`);
+      
+    } catch (error) {
+      console.error('Error adding files:', error);
+      setToast('Error adding files. Please try again.');
+    }
+  };
+
+  const handleCameraCapture = () => {
+    cameraInputRef.current?.click();
+  };
+
+  const handleCameraInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileUpload(files, selectedDC?.dcNumber);
+    }
+  };
+
+  const uploadFileToServer = async (file: UploadedFile, dcId: string): Promise<boolean> => {
+    try {
+      if (!file.file) return false;
+
+      const formData = new FormData();
+      formData.append('file', file.file);
+
+      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/${dcId}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      return false;
+    }
+  };
+
+  const saveFilesToDC = async () => {
+    if (!selectedDC || pendingFiles.length === 0) return;
+
+    setSavingFiles(true);
+    const dcId = selectedDC._id;
+    const successfulUploads: UploadedFile[] = [];
+    const failedUploads: UploadedFile[] = [];
+
+    try {
+      for (const file of pendingFiles) {
+        const success = await uploadFileToServer(file, dcId);
+        if (success) {
+          successfulUploads.push({ ...file, isUploaded: true });
+        } else {
+          failedUploads.push(file);
+        }
+      }
+
+      if (successfulUploads.length > 0) {
+        setUploadedFiles(prev => [...prev, ...successfulUploads]);
+        setToast(`${successfulUploads.length} file(s) uploaded successfully!`);
+      }
+
+      if (failedUploads.length > 0) {
+        setToast(`${failedUploads.length} file(s) failed to upload. Please try again.`);
+      }
+
+      setPendingFiles([]);
+      
+      // Refresh DC attachments
+      await fetchDCAttachments(dcId);
+      
+    } catch (error) {
+      console.error('Error saving files:', error);
+      setToast('Error saving files. Please try again.');
+    } finally {
+      setSavingFiles(false);
+    }
+  };
+
+  const fetchDCAttachments = async (dcId: string) => {
+    try {
+      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/${dcId}/attachments`);
+      if (response.ok) {
+        const attachments = await response.json();
+        // Update the uploaded files with server data
+        const serverFiles: UploadedFile[] = attachments.map((att: any) => ({
+          id: att.id || att._id,
+          name: att.filename || att.name,
+          size: att.size || 0,
+          type: att.mimetype || att.type || 'application/octet-stream',
+          url: `https://inventory.zenapi.co.in/api/inventory/outward-dc/files/${att.filename || att.name}`,
+          uploadedAt: att.uploadedAt || att.createdAt,
+          dcNumber: selectedDC?.dcNumber,
+          isUploaded: true
+        }));
+        
+        setUploadedFiles(prev => {
+          const filtered = prev.filter(f => f.dcNumber !== selectedDC?.dcNumber);
+          return [...filtered, ...serverFiles];
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching DC attachments:', error);
+    }
+  };
+
+  const deleteAttachment = async (attachmentId: string, dcId: string) => {
+    try {
+      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/${dcId}/attachments/${attachmentId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setUploadedFiles(prev => prev.filter(f => f.id !== attachmentId));
+        setToast('File deleted successfully!');
+      } else {
+        throw new Error('Delete failed');
+      }
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      setToast('Error deleting file. Please try again.');
+    }
+  };
+
+  const handleFileDelete = async (fileId: string) => {
+    const fileToDelete = uploadedFiles.find(f => f.id === fileId);
+    if (fileToDelete && selectedDC) {
+      if (fileToDelete.isUploaded) {
+        // Delete from server
+        await deleteAttachment(fileId, selectedDC._id);
+      } else {
+        // Remove from pending files
+        setPendingFiles(prev => prev.filter(f => f.id !== fileId));
+        setToast('File removed from upload queue!');
+      }
+      
+      // Clean up preview URL
+      if (fileToDelete.url.startsWith('blob:')) {
+        URL.revokeObjectURL(fileToDelete.url);
+      }
+    }
+  };
+
+  const removePendingFile = (fileId: string) => {
+    setPendingFiles(prev => {
+      const fileToDelete = prev.find(f => f.id === fileId);
+      if (fileToDelete && fileToDelete.url.startsWith('blob:')) {
+        URL.revokeObjectURL(fileToDelete.url);
+      }
+      return prev.filter(f => f.id !== fileId);
+    });
+  };
+
+  const handleFileDownload = (file: UploadedFile) => {
+    const link = document.createElement('a');
+    link.href = file.url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent, dcNumber?: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = e.dataTransfer.files;
+    handleFileUpload(files, dcNumber);
+  };
 
   // Helper function to get project name from uniform requests
   const getProjectNameFromUniformRequests = useCallback(async (customer: string): Promise<string> => {
@@ -526,6 +776,9 @@ export default function StoreDCPage() {
        
         console.log("ðŸ” Fetched employee details:", employeeDetailsMap);
         setEmployeeDetails(employeeDetailsMap);
+        
+        // Fetch DC attachments
+        await fetchDCAttachments(selectedDC._id);
        
         // Removed uniform request fetching as it's no longer needed
       } else {
@@ -1311,53 +1564,53 @@ export default function StoreDCPage() {
                 <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
                   <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                     <tr>
-                      <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
-                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>DC Number</th>
-                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date</th>
-                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project Name</th>
-                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Customer</th>
-                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
-                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
+                      <th className={`px-1 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border w-12 ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>DC Number</th>
+                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date</th>
+                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project Name</th>
+                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-28 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Customer</th>
+                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-16 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-28 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
                     </tr>
                     {/* Inline header filters */}
                     <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
-                      <th className={`px-2 py-1 sticky left-0 z-20 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
-                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <th className={`px-1 py-1 sticky left-0 z-20 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                           placeholder="Filter DC#" 
-                          className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                          className={`w-full border rounded px-1 py-1 text-xs ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                         />
                       </th>
-                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
-                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <input 
                           value={search} 
                           onChange={e => setSearch(e.target.value)} 
                           placeholder="Filter Project" 
-                          className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                          className={`w-full border rounded px-1 py-1 text-xs ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                         />
                       </th>
-                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <input 
                           value={search} 
                           onChange={e => setSearch(e.target.value)} 
                           placeholder="Filter Customer" 
-                          className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                          className={`w-full border rounded px-1 py-1 text-xs ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                         />
                       </th>
-                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                 <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
-                          className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                          className={`w-full border rounded px-1 py-1 text-xs ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
                         >
                           <option value="">All</option>
                           {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
                       </th>
-                      <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
                     </tr>
                   </thead>
                   <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
@@ -1367,13 +1620,13 @@ export default function StoreDCPage() {
                       </tr>
                     ) : filteredDC.map((dc, idx) => (
                       <tr key={idx} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
-                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
-                        <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{dc.dcNumber}</td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={getProjectName(dc)}>{getProjectName(dc)}</div></td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}><div className="truncate" title={dc.customer}>{dc.customer}</div></td>
-                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                          <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
+                        <td className={`px-1 py-1 sticky left-0 z-10 font-mono text-[9px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
+                        <td className={`px-1 py-1 font-semibold whitespace-nowrap border text-xs ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{dc.dcNumber}</td>
+                        <td className={`px-1 py-1 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
+                        <td className={`px-1 py-1 border text-xs ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={getProjectName(dc)}>{getProjectName(dc)}</div></td>
+                        <td className={`px-1 py-1 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}><div className="truncate" title={dc.customer}>{dc.customer}</div></td>
+                        <td className={`px-1 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className={`inline-block text-[10px] font-semibold px-1 py-0.5 rounded-full ${
                             dc.status === 'Issued' 
                               ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
                               : theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-700'
@@ -1381,12 +1634,12 @@ export default function StoreDCPage() {
                             {dc.status || "N/A"}
                           </span>
                         </td>
-                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                          <div className="flex gap-1">
+                        <td className={`px-1 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex gap-0.5 flex-wrap">
                               <button
                                 onClick={() => setSelectedDC(dc)}
                               title="View Details"
-                              className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                              className={`px-1 py-0.5 rounded font-semibold text-[10px] border transition focus:outline-none focus:ring-1 disabled:opacity-60 disabled:cursor-not-allowed ${
                                 theme === 'dark' 
                                   ? 'border-blue-500 text-blue-400 bg-gray-800 hover:bg-gray-700 focus:ring-blue-400' 
                                   : 'border-blue-500 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-400'
@@ -1398,17 +1651,32 @@ export default function StoreDCPage() {
                                 onClick={() => handleDownloadDC(dc)}
                                 disabled={pdfLoading === dc.dcNumber}
                               title="Download PDF"
-                              className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                              className={`px-1 py-0.5 rounded font-semibold text-[10px] border transition focus:outline-none focus:ring-1 disabled:opacity-60 disabled:cursor-not-allowed ${
                                 theme === 'dark' 
                                   ? 'border-green-500 text-green-400 bg-gray-800 hover:bg-gray-700 focus:ring-green-400' 
                                   : 'border-green-500 text-green-600 bg-white hover:bg-green-50 focus:ring-green-400'
                               }`}
                               >
                                 {pdfLoading === dc.dcNumber ? (
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+                                <div className="animate-spin rounded-full h-2 w-2 border-b-2 border-current"></div>
                                 ) : (
                                 "PDF"
                                 )}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedDC(dc);
+                                  setShowUploadModal(true);
+                                }}
+                              title="Upload Files for this DC"
+                              className={`px-1 py-0.5 rounded font-semibold text-[10px] border transition focus:outline-none focus:ring-1 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                theme === 'dark' 
+                                  ? 'border-purple-500 text-purple-400 bg-gray-800 hover:bg-gray-700 focus:ring-purple-400' 
+                                  : 'border-purple-500 text-purple-600 bg-white hover:bg-purple-50 focus:ring-purple-400'
+                              }`}
+                              >
+                                <FaUpload className="inline mr-0.5 text-[8px]" />
+                                Files
                               </button>
                             </div>
                           </td>
@@ -1436,8 +1704,319 @@ export default function StoreDCPage() {
         </div>
       )}
       
+      {/* File Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className={`rounded-xl shadow-xl p-6 w-full max-w-4xl relative overflow-y-auto max-h-[90vh] ${
+            theme === 'dark' ? 'bg-gray-900' : 'bg-white'
+          }`}>
+            <button 
+              className={`absolute top-2 right-2 text-2xl font-bold ${
+                theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-500'
+              }`} 
+              onClick={() => {
+                setShowUploadModal(false);
+                setSelectedDC(null);
+              }}
+            >
+              &times;
+            </button>
+            
+            <h2 className="text-2xl font-bold mb-4 text-center">
+              {selectedDC ? `Upload Files for DC: ${selectedDC.dcNumber}` : 'Upload Files'}
+            </h2>
+
+            {/* Upload Area */}
+            <div 
+              className={`border-2 border-dashed rounded-lg p-6 text-center mb-6 transition-colors ${
+                theme === 'dark' 
+                  ? 'border-purple-500 bg-gray-800 hover:bg-gray-700' 
+                  : 'border-purple-300 bg-purple-50 hover:bg-purple-100'
+              }`}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, selectedDC?.dcNumber)}
+            >
+              <FaUpload className={`mx-auto mb-3 text-3xl ${
+                theme === 'dark' ? 'text-purple-400' : 'text-purple-500'
+              }`} />
+              <p className={`text-base mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                Drag & drop files here or choose upload method
+              </p>
+              <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                Supports images, PDFs, Word docs, Excel files (Max 10MB each)
+              </p>
+              
+              <div className="flex gap-3 justify-center">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  onChange={(e) => handleFileUpload(e.target.files, selectedDC?.dcNumber)}
+                  className="hidden"
+                />
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleCameraInputChange}
+                  className="hidden"
+                />
+                
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`px-4 py-2 rounded-lg font-semibold border transition flex items-center gap-2 ${
+                    theme === 'dark'
+                      ? 'bg-purple-700 text-white hover:bg-purple-800 border-purple-600'
+                      : 'bg-purple-600 text-white hover:bg-purple-700 border-purple-500'
+                  }`}
+                >
+                  <FaUpload />
+                  Choose Files
+                </button>
+                
+                <button
+                  onClick={handleCameraCapture}
+                  className={`px-4 py-2 rounded-lg font-semibold border transition flex items-center gap-2 ${
+                    theme === 'dark'
+                      ? 'bg-blue-700 text-white hover:bg-blue-800 border-blue-600'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-500'
+                  }`}
+                >
+                  <FaFileImage />
+                  Take Photo
+                </button>
+              </div>
+            </div>
+
+            {/* Pending Files Queue */}
+            {pendingFiles.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold">Files Ready to Upload ({pendingFiles.length})</h3>
+                  <button
+                    onClick={saveFilesToDC}
+                    disabled={savingFiles || !selectedDC}
+                    className={`px-4 py-2 rounded-lg font-semibold border transition flex items-center gap-2 ${
+                      theme === 'dark'
+                        ? 'bg-green-700 text-white hover:bg-green-800 border-green-600'
+                        : 'bg-green-600 text-white hover:bg-green-700 border-green-500'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    {savingFiles ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <FaUpload />
+                        Save Files
+                      </>
+                    )}
+                  </button>
+                </div>
+                
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {pendingFiles.map((file) => (
+                    <div 
+                      key={file.id} 
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        theme === 'dark' 
+                          ? 'bg-yellow-900/20 border-yellow-700' 
+                          : 'bg-yellow-50 border-yellow-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {getFileIcon(file.type)}
+                        <div>
+                          <p className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                            {file.name}
+                          </p>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {formatFileSize(file.size)} • Ready to upload
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {file.type.startsWith('image/') && (
+                          <button
+                            onClick={() => window.open(file.url, '_blank')}
+                            className={`p-2 rounded-lg transition ${
+                              theme === 'dark' 
+                                ? 'text-green-400 hover:bg-gray-700' 
+                                : 'text-green-600 hover:bg-gray-100'
+                            }`}
+                            title="Preview"
+                          >
+                            <FaEye />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => removePendingFile(file.id)}
+                          className={`p-2 rounded-lg transition ${
+                            theme === 'dark' 
+                              ? 'text-red-400 hover:bg-gray-700' 
+                              : 'text-red-600 hover:bg-gray-100'
+                          }`}
+                          title="Remove"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Uploaded Files List */}
+            {uploadedFiles.filter(file => selectedDC ? file.dcNumber === selectedDC.dcNumber : !file.dcNumber).length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">Uploaded Files</h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {uploadedFiles
+                    .filter(file => selectedDC ? file.dcNumber === selectedDC.dcNumber : !file.dcNumber)
+                    .map((file) => (
+                    <div 
+                      key={file.id} 
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        theme === 'dark' 
+                          ? 'bg-gray-800 border-gray-700' 
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {getFileIcon(file.type)}
+                        <div>
+                          <p className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                            {file.name}
+                          </p>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {formatFileSize(file.size)} • {new Date(file.uploadedAt).toLocaleDateString()}
+                            {file.isUploaded && <span className="text-green-500 ml-2">✓ Uploaded</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleFileDownload(file)}
+                          className={`p-2 rounded-lg transition ${
+                            theme === 'dark' 
+                              ? 'text-blue-400 hover:bg-gray-700' 
+                              : 'text-blue-600 hover:bg-gray-100'
+                          }`}
+                          title="Download"
+                        >
+                          <FaDownload />
+                        </button>
+                        {file.type.startsWith('image/') && (
+                          <button
+                            onClick={() => window.open(file.url, '_blank')}
+                            className={`p-2 rounded-lg transition ${
+                              theme === 'dark' 
+                                ? 'text-green-400 hover:bg-gray-700' 
+                                : 'text-green-600 hover:bg-gray-100'
+                            }`}
+                            title="Preview"
+                          >
+                            <FaEye />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleFileDelete(file.id)}
+                          className={`p-2 rounded-lg transition ${
+                            theme === 'dark' 
+                              ? 'text-red-400 hover:bg-gray-700' 
+                              : 'text-red-600 hover:bg-gray-100'
+                          }`}
+                          title="Delete"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Global Files (when no specific DC selected) */}
+            {!selectedDC && uploadedFiles.filter(file => !file.dcNumber).length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">Global Files</h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {uploadedFiles
+                    .filter(file => !file.dcNumber)
+                    .map((file) => (
+                    <div 
+                      key={file.id} 
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        theme === 'dark' 
+                          ? 'bg-gray-800 border-gray-700' 
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {getFileIcon(file.type)}
+                        <div>
+                          <p className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                            {file.name}
+                          </p>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {formatFileSize(file.size)} • {new Date(file.uploadedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleFileDownload(file)}
+                          className={`p-2 rounded-lg transition ${
+                            theme === 'dark' 
+                              ? 'text-blue-400 hover:bg-gray-700' 
+                              : 'text-blue-600 hover:bg-gray-100'
+                          }`}
+                          title="Download"
+                        >
+                          <FaDownload />
+                        </button>
+                        {file.type.startsWith('image/') && (
+                          <button
+                            onClick={() => window.open(file.url, '_blank')}
+                            className={`p-2 rounded-lg transition ${
+                              theme === 'dark' 
+                                ? 'text-green-400 hover:bg-gray-700' 
+                                : 'text-green-600 hover:bg-gray-100'
+                            }`}
+                            title="Preview"
+                          >
+                            <FaEye />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleFileDelete(file.id)}
+                          className={`p-2 rounded-lg transition ${
+                            theme === 'dark' 
+                              ? 'text-red-400 hover:bg-gray-700' 
+                              : 'text-red-600 hover:bg-gray-100'
+                          }`}
+                          title="Delete"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* DC Details Modal */}
-      {selectedDC && (
+      {selectedDC && !showUploadModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
             <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-2xl relative overflow-y-auto max-h-[90vh]">
               <button className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl font-bold" onClick={() => setSelectedDC(null)}>&times;</button>
@@ -1485,6 +2064,73 @@ export default function StoreDCPage() {
                     })()}
                   </div>
                 </div>
+
+                {/* Uploaded Files for this DC */}
+                {uploadedFiles.filter(file => file.dcNumber === selectedDC.dcNumber).length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Attached Files ({uploadedFiles.filter(file => file.dcNumber === selectedDC.dcNumber).length})</h3>
+                    <div className="space-y-2">
+                      {uploadedFiles
+                        .filter(file => file.dcNumber === selectedDC.dcNumber)
+                        .map((file) => (
+                        <div 
+                          key={file.id} 
+                          className={`flex items-center justify-between p-2 rounded border ${
+                            theme === 'dark' 
+                              ? 'bg-gray-800 border-gray-700' 
+                              : 'bg-gray-50 border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {getFileIcon(file.type)}
+                            <span className="text-sm">{file.name}</span>
+                            <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                              ({formatFileSize(file.size)})
+                            </span>
+                            {file.isUploaded && <span className="text-green-500 text-xs">✓</span>}
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleFileDownload(file)}
+                              className={`p-1 rounded transition ${
+                                theme === 'dark' 
+                                  ? 'text-blue-400 hover:bg-gray-700' 
+                                  : 'text-blue-600 hover:bg-gray-100'
+                              }`}
+                              title="Download"
+                            >
+                              <FaDownload />
+                            </button>
+                            {file.type.startsWith('image/') && (
+                              <button
+                                onClick={() => window.open(file.url, '_blank')}
+                                className={`p-1 rounded transition ${
+                                  theme === 'dark' 
+                                    ? 'text-green-400 hover:bg-gray-700' 
+                                    : 'text-green-600 hover:bg-gray-100'
+                                }`}
+                                title="Preview"
+                              >
+                                <FaEye />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleFileDelete(file.id)}
+                              className={`p-1 rounded transition ${
+                                theme === 'dark' 
+                                  ? 'text-red-400 hover:bg-gray-700' 
+                                  : 'text-red-600 hover:bg-gray-100'
+                              }`}
+                              title="Delete"
+                            >
+                              <FaTimes />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Remarks */}
                 {selectedDC?.remarks && (

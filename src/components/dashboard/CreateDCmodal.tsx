@@ -1,7 +1,7 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { FaStore, FaCheckCircle, FaInfoCircle, FaTimes, FaPlus, FaExclamationTriangle, FaBoxOpen } from "react-icons/fa";
+import { FaStore, FaCheckCircle, FaInfoCircle, FaTimes, FaPlus, FaExclamationTriangle, FaBoxOpen, FaUpload, FaFileImage, FaFilePdf, FaFileWord, FaFileExcel, FaDownload, FaEye } from "react-icons/fa";
 import { showToast } from "@/components/Toast";
 
 // TypeScript types from the original file
@@ -39,6 +39,13 @@ interface DC {
   dcDate: string;
   remarks: string;
   items: DCItem[];
+  attachments?: Array<{
+    filename: string;
+    originalName: string;
+    mimetype: string;
+    size: number;
+    path: string;
+  }>;
   createdAt: string;
   updatedAt: string;
   __v: number;
@@ -122,6 +129,87 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
   const [success, setSuccess] = useState(false);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<Record<string, Record<string, string>>>({}); // { [requestId]: { [type]: size } }
+  
+  // File upload states
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // File upload helper functions
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('image/')) return <FaFileImage className="text-green-500" />;
+    if (fileType.includes('pdf')) return <FaFilePdf className="text-red-500" />;
+    if (fileType.includes('word') || fileType.includes('document')) return <FaFileWord className="text-blue-500" />;
+    if (fileType.includes('excel') || fileType.includes('spreadsheet')) return <FaFileExcel className="text-green-600" />;
+    return <FaFileImage className="text-gray-500" />;
+  };
+
+  const handleFileUpload = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const newFiles: File[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        showToast({ message: `File ${file.name} is too large. Maximum size is 10MB.`, type: "error" });
+        continue;
+      }
+
+      // Validate file type
+      const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt|csv/;
+      const extname = allowedTypes.test(file.name.toLowerCase());
+      if (!extname) {
+        showToast({ message: `File ${file.name} is not a supported file type.`, type: "error" });
+        continue;
+      }
+
+      newFiles.push(file);
+    }
+
+    if (newFiles.length > 0) {
+      setAttachments(prev => [...prev, ...newFiles]);
+      showToast({ message: `${newFiles.length} file(s) added successfully!`, type: "success" });
+    }
+  };
+
+  const handleCameraCapture = () => {
+    cameraInputRef.current?.click();
+  };
+
+  const handleCameraInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileUpload(files);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+    showToast({ message: "File removed successfully!", type: "success" });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = e.dataTransfer.files;
+    handleFileUpload(files);
+  };
 
   // Only match inventory item by name, not subCategory
   const findInventoryItemByType = (type: string) => {
@@ -198,7 +286,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         const data: UniformApiResponse = await res.json();
         if (data.success) {
           // Only show projects that are NOT generic
-          const filteredRequests = data.uniforms.filter(
+          let filteredRequests = data.uniforms.filter(
             req => req.projectName === selectedProject && 
                    req.approvalStatus === 'Approved' &&
                    req.projectName !== "General" &&
@@ -206,10 +294,42 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                    !req.projectName.toLowerCase().includes("general")
           );
 
-          // Note: Removed the filter that excluded employees who already have DCs
-          // This allows creating multiple DCs for the same employee if needed
-          // The original logic was preventing employees from appearing in the selection
-          // even if they had new approved uniform requests
+          // Debug logging to understand the data structure
+          console.log('=== DEBUGGING FILTERING ISSUE ===');
+          console.log('Selected project:', selectedProject);
+          console.log('All uniform requests for project:', data.uniforms.filter(req => req.projectName === selectedProject));
+          console.log('Existing DC data:', dcData);
+          console.log('Number of existing DCs:', dcData.length);
+          
+          // Check if we have any DC data at all
+          if (dcData.length === 0) {
+            console.log('No existing DCs found - showing all requests');
+          } else {
+            console.log('DC items breakdown:');
+            dcData.forEach((dc, dcIndex) => {
+              console.log(`DC ${dcIndex + 1}:`, {
+                customer: dc.customer,
+                projectName: dc.projectName,
+                items: dc.items.map(item => ({
+                  employeeId: item.employeeId,
+                  name: item.name,
+                  quantity: item.quantity,
+                  _id: item._id
+                }))
+              });
+            });
+          }
+
+          // For now, let's temporarily disable filtering to see all requests
+          // TODO: Re-enable filtering once we understand the data structure
+          console.log('TEMPORARILY DISABLED FILTERING - showing all requests');
+          console.log('Final requests (no filtering applied):', filteredRequests.map(req => ({ 
+            name: req.fullName, 
+            employeeId: req.employeeId, 
+            requestId: req._id,
+            uniformTypes: req.uniformType,
+            qty: req.qty
+          })));
 
           setUniformRequests(filteredRequests);
         }
@@ -356,11 +476,28 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         return;
       }
 
-      // First, create the DC
+      // Create FormData for file upload
+      const formData = new FormData();
+      
+      // Add DC data as JSON string
+      formData.append('customer', payload.customer);
+      formData.append('dcNumber', payload.dcNumber);
+      formData.append('dcDate', payload.dcDate);
+      formData.append('address', payload.address);
+      formData.append('remarks', payload.remarks);
+      formData.append('items', JSON.stringify(payload.items));
+      
+      // Add attachments if any
+      if (attachments.length > 0) {
+        attachments.forEach(file => {
+          formData.append('attachments', file);
+        });
+      }
+
+      // First, create the DC with attachments
       const res = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: formData, // Use FormData instead of JSON
       });
 
       const data = await res.json();
@@ -639,10 +776,17 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         <FaCheckCircle className="w-16 h-16 text-green-600 animate-bounce" />
       </div>
       <div className="text-2xl font-bold text-green-700 mb-2">DC Created!</div>
-      <div className="text-gray-600 mb-6">Your Delivery Challan has been successfully created.</div>
+      <div className="text-gray-600 mb-6">
+        Your Delivery Challan has been successfully created.
+        {attachments.length > 0 && (
+          <div className="text-sm mt-2 text-blue-600">
+            📎 {attachments.length} file(s) attached successfully
+          </div>
+        )}
+      </div>
       <button
         className={`px-8 py-3 rounded-lg font-medium text-lg transition-all duration-200 ${theme === "dark" ? "bg-blue-700 text-white hover:bg-blue-800" : "bg-blue-600 text-white hover:bg-blue-700"}`}
-        onClick={() => { setSuccess(false); setStep(1); setSelectedProject(''); setSelectedRequests([]); setCustomer(''); setDcNumber(''); setRemarks(''); }}
+        onClick={() => { setSuccess(false); setStep(1); setSelectedProject(''); setSelectedRequests([]); setCustomer(''); setDcNumber(''); setRemarks(''); setAttachments([]); }}
       >Create Another</button>
       <button
         className="mt-4 underline text-blue-600 text-sm"
@@ -1347,6 +1491,143 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                     }
                     return null;
                   })()}
+
+                  {/* File Upload Section */}
+                  <div className={`md:col-span-2 p-6 rounded-xl border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"} shadow-sm`}>
+                    <div className={`font-semibold text-lg mb-4 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                      📎 Attach Files (Optional)
+                    </div>
+                    <div className={`text-sm mb-4 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                      Upload supporting documents, photos, or other files related to this DC. Maximum 10MB per file, up to 5 files total.
+                    </div>
+
+                    {/* Upload Area */}
+                    <div 
+                      className={`border-2 border-dashed rounded-lg p-6 text-center mb-4 transition-colors ${
+                        theme === 'dark' 
+                          ? 'border-purple-500 bg-gray-800 hover:bg-gray-700' 
+                          : 'border-purple-300 bg-purple-50 hover:bg-purple-100'
+                      }`}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                    >
+                      <FaUpload className={`mx-auto mb-3 text-3xl ${
+                        theme === 'dark' ? 'text-purple-400' : 'text-purple-500'
+                      }`} />
+                      <p className={`text-base mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Drag & drop files here or choose upload method
+                      </p>
+                      <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Supports images, PDFs, Word docs, Excel files (Max 10MB each)
+                      </p>
+                      
+                      <div className="flex gap-3 justify-center">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          multiple
+                          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                          onChange={(e) => handleFileUpload(e.target.files)}
+                          className="hidden"
+                        />
+                        <input
+                          ref={cameraInputRef}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handleCameraInputChange}
+                          className="hidden"
+                        />
+                        
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className={`px-4 py-2 rounded-lg font-semibold border transition flex items-center gap-2 ${
+                            theme === 'dark'
+                              ? 'bg-purple-700 text-white hover:bg-purple-800 border-purple-600'
+                              : 'bg-purple-600 text-white hover:bg-purple-700 border-purple-500'
+                          }`}
+                        >
+                          <FaUpload />
+                          Choose Files
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={handleCameraCapture}
+                          className={`px-4 py-2 rounded-lg font-semibold border transition flex items-center gap-2 ${
+                            theme === 'dark'
+                              ? 'bg-blue-700 text-white hover:bg-blue-800 border-blue-600'
+                              : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-500'
+                          }`}
+                        >
+                          <FaFileImage />
+                          Take Photo
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Attached Files List */}
+                    {attachments.length > 0 && (
+                      <div className="space-y-2">
+                        <div className={`font-semibold text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                          Attached Files ({attachments.length})
+                        </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {attachments.map((file, index) => (
+                            <div 
+                              key={index}
+                              className={`flex items-center justify-between p-3 rounded-lg border ${
+                                theme === 'dark' 
+                                  ? 'bg-gray-700 border-gray-600' 
+                                  : 'bg-gray-50 border-gray-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                {getFileIcon(file.type)}
+                                <div>
+                                  <p className={`font-medium text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                                    {file.name}
+                                  </p>
+                                  <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    {formatFileSize(file.size)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                {file.type.startsWith('image/') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => window.open(URL.createObjectURL(file), '_blank')}
+                                    className={`p-2 rounded-lg transition ${
+                                      theme === 'dark' 
+                                        ? 'text-green-400 hover:bg-gray-600' 
+                                        : 'text-green-600 hover:bg-gray-100'
+                                    }`}
+                                    title="Preview"
+                                  >
+                                    <FaEye />
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => removeFile(index)}
+                                  className={`p-2 rounded-lg transition ${
+                                    theme === 'dark' 
+                                      ? 'text-red-400 hover:bg-gray-600' 
+                                      : 'text-red-600 hover:bg-gray-100'
+                                  }`}
+                                  title="Remove"
+                                >
+                                  <FaTimes />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
