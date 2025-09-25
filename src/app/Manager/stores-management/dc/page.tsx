@@ -200,7 +200,7 @@ export default function StoreDCPage() {
     return <FaFileImage className="text-gray-500" />;
   };
 
-  const handleFileUpload = async (files: FileList | null, dcId?: string) => {
+  const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     const newFiles: UploadedFile[] = [];
@@ -250,7 +250,7 @@ export default function StoreDCPage() {
   const handleCameraInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      handleFileUpload(files, selectedDC?._id);
+      handleFileUpload(files);
     }
   };
 
@@ -499,7 +499,7 @@ export default function StoreDCPage() {
     e.preventDefault();
     e.stopPropagation();
     const files = e.dataTransfer.files;
-    handleFileUpload(files, dcId);
+    handleFileUpload(files);
   };
 
   // Helper function to get project name from uniform requests
@@ -836,7 +836,7 @@ export default function StoreDCPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getProjectNameFromUniformRequests]);
 
   useEffect(() => {
     async function fetchEmployeeData() {
@@ -1842,7 +1842,7 @@ export default function StoreDCPage() {
                   type="file"
                   multiple
                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                  onChange={(e) => handleFileUpload(e.target.files, selectedDC?._id)}
+                  onChange={(e) => handleFileUpload(e.target.files)}
                   className="hidden"
                 />
                 <input
