@@ -585,16 +585,26 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             let hoursWorked = 'Incomplete';
             let hoursWorkedNum: number | null = null;
             
-            // Fix: Check if punchInTime and punchOutTime contain actual time values
-            const punchInTime = (record.punchInTime && record.punchInTime.includes(':')) ? record.punchInTime : null;
-            const punchOutTime = (record.punchOutTime && record.punchOutTime.includes(':')) ? record.punchOutTime : null;
+            // Use UTC times if available, otherwise use regular times
+            const punchInTime = record.punchInUtc || record.punchInTime;
+            const punchOutTime = record.punchOutUtc || record.punchOutTime;
             
-            if (punchInTime && punchOutTime) {
-                const hw = parseFloat(safeCalculateHoursUtc(punchInTime, punchOutTime));
-                hoursWorkedNum = isNaN(hw) ? null : hw;
-                hoursWorked = hoursWorkedNum !== null
-                    ? formatHoursToHoursAndMinutes(hoursWorkedNum.toString())
-                    : 'Incomplete';
+            // Check if we have valid times (not null, not empty, and contain time format)
+            if (punchInTime && punchOutTime && 
+                punchInTime !== '-' && punchOutTime !== '-' &&
+                (punchInTime.includes(':') || punchInTime.includes('T')) &&
+                (punchOutTime.includes(':') || punchOutTime.includes('T'))) {
+                
+                try {
+                    const hw = parseFloat(safeCalculateHoursUtc(punchInTime, punchOutTime));
+                    hoursWorkedNum = isNaN(hw) ? null : hw;
+                    hoursWorked = hoursWorkedNum !== null
+                        ? formatHoursToHoursAndMinutes(hoursWorkedNum.toString())
+                        : 'Incomplete';
+                } catch (error) {
+                    console.error('Error calculating hours for PDF:', error);
+                    hoursWorked = 'Error';
+                }
             } else if (dayType !== 'Working Day') {
                 hoursWorked = '-';
             }
@@ -1391,17 +1401,37 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             return formatTime(record.punchOutTime);
                           })()}
                         </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm text-center ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           {(() => {
                             const dayType = getDayType(record.date, selectedYear, selectedMonth);
-                            // Fix: Check if punchInTime and punchOutTime contain actual time values
-                            const punchInTime = (record.punchInTime && record.punchInTime.includes(':')) ? record.punchInTime : null;
-                            const punchOutTime = (record.punchOutTime && record.punchOutTime.includes(':')) ? record.punchOutTime : null;
                             
-                            if (punchInTime && punchOutTime) {
-                              return formatHoursToHoursAndMinutes(
-                                calculateHoursUtc(record.punchInUtc || punchInTime, record.punchOutUtc || punchOutTime)
-                              );
+                            // Debug: log the record to understand the data structure
+                            console.log('Hours calculation for', record.date, ':', {
+                              punchInTime: record.punchInTime,
+                              punchOutTime: record.punchOutTime,
+                              punchInUtc: record.punchInUtc,
+                              punchOutUtc: record.punchOutUtc,
+                              dayType
+                            });
+                            
+                            // Use UTC times if available, otherwise use regular times
+                            const punchInTime = record.punchInUtc || record.punchInTime;
+                            const punchOutTime = record.punchOutUtc || record.punchOutTime;
+                            
+                            // Check if we have valid times (not null, not empty, and contain time format)
+                            if (punchInTime && punchOutTime && 
+                                punchInTime !== '-' && punchOutTime !== '-' &&
+                                (punchInTime.includes(':') || punchInTime.includes('T')) &&
+                                (punchOutTime.includes(':') || punchOutTime.includes('T'))) {
+                              
+                              try {
+                                const hoursWorked = calculateHoursUtc(punchInTime, punchOutTime);
+                                console.log('Calculated hours:', hoursWorked);
+                                return formatHoursToHoursAndMinutes(hoursWorked);
+                              } catch (error) {
+                                console.error('Error calculating hours:', error);
+                                return 'Error';
+                              }
                             } else if (dayType !== 'Working Day') {
                               return '-';
                             } else {
@@ -1409,22 +1439,37 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             }
                           })()}
                         </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm text-center ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
                           {(() => {
                             const dayType = getDayType(record.date, selectedYear, selectedMonth);
-                            // Fix: Check if punchInTime and punchOutTime contain actual time values
-                            const punchInTime = (record.punchInTime && record.punchInTime.includes(':')) ? record.punchInTime : null;
-                            const punchOutTime = (record.punchOutTime && record.punchOutTime.includes(':')) ? record.punchOutTime : null;
                             
-                            if (punchInTime && punchOutTime) {
-                              const hoursWorked = parseFloat(calculateHoursUtc(record.punchInUtc || punchInTime, record.punchOutUtc || punchOutTime));
-                              const shortage = Math.max(0, 9 - hoursWorked);
-                              if (shortage > 0) {
-                                const hours = Math.floor(shortage);
-                                const minutes = Math.round((shortage - hours) * 60);
-                                return `${hours}h ${minutes}m`;
+                            // Use UTC times if available, otherwise use regular times
+                            const punchInTime = record.punchInUtc || record.punchInTime;
+                            const punchOutTime = record.punchOutUtc || record.punchOutTime;
+                            
+                            // Check if we have valid times and it's a working day
+                            if (punchInTime && punchOutTime && 
+                                punchInTime !== '-' && punchOutTime !== '-' &&
+                                (punchInTime.includes(':') || punchInTime.includes('T')) &&
+                                (punchOutTime.includes(':') || punchOutTime.includes('T')) &&
+                                dayType === 'Working Day') {
+                              
+                              try {
+                                const hoursWorked = parseFloat(calculateHoursUtc(punchInTime, punchOutTime));
+                                console.log('Shortage calculation - Hours worked:', hoursWorked, 'for', record.date);
+                                
+                                if (hoursWorked < 9) {
+                                  const shortage = 9 - hoursWorked;
+                                  const hours = Math.floor(shortage);
+                                  const minutes = Math.round((shortage - hours) * 60);
+                                  console.log('Shortage calculated:', `${hours}h ${minutes}m`);
+                                  return `${hours}h ${minutes}m`;
+                                }
+                                return '-';
+                              } catch (error) {
+                                console.error('Error calculating shortage:', error);
+                                return 'Error';
                               }
-                              return '-';
                             } else if (dayType !== 'Working Day') {
                               return '-';
                             } else {
