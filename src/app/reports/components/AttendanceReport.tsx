@@ -598,7 +598,12 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             } else if (dayType !== 'Working Day') {
                 hoursWorked = '-';
             }
-            const shortage = hoursWorkedNum !== null && hoursWorkedNum < 9 ? formatShortage(hoursWorkedNum) : '-';
+            
+            // Fix shortage calculation - only show shortage for working days with actual hours
+            let shortage = '-';
+            if (hoursWorkedNum !== null && dayType === 'Working Day' && hoursWorkedNum < 9) {
+                shortage = formatShortage(hoursWorkedNum);
+            }
 
             return [
                 formatDate(record.date),
@@ -617,28 +622,32 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             startY: yPosition,
             theme: 'grid',
             styles: { 
-                fontSize: 8, 
-                cellPadding: 2,
+                fontSize: 7, 
+                cellPadding: 3,
                 overflow: 'linebreak',
-                cellWidth: 'wrap'
+                cellWidth: 'wrap',
+                halign: 'center',
+                valign: 'middle'
             },
             headStyles: {
                 fillColor: [41, 128, 185],
                 textColor: 255,
-                fontSize: 9,
-                fontStyle: 'bold'
+                fontSize: 8,
+                fontStyle: 'bold',
+                halign: 'center',
+                valign: 'middle'
             },
             columnStyles: {
-                0: { cellWidth: 22 }, // Date
-                1: { cellWidth: 20 }, // Check In
-                2: { cellWidth: 20 }, // Check Out
-                3: { cellWidth: 22 }, // Hours Worked
-                4: { cellWidth: 22 }, // Shortage Hours
-                5: { cellWidth: 22 }, // Day Type
-                6: { cellWidth: 22 }  // Status
+                0: { cellWidth: 25, halign: 'center' }, // Date
+                1: { cellWidth: 25, halign: 'center' }, // Check In
+                2: { cellWidth: 25, halign: 'center' }, // Check Out
+                3: { cellWidth: 30, halign: 'center' }, // Hours Worked
+                4: { cellWidth: 30, halign: 'center' }, // Shortage Hours
+                5: { cellWidth: 30, halign: 'center' }, // Day Type
+                6: { cellWidth: 30, halign: 'center' }  // Status
             },
             pageBreak: singlePage ? 'avoid' : 'auto',
-            margin: { top: 20, right: 15, bottom: 20, left: 15 },
+            margin: { top: 20, right: 10, bottom: 20, left: 10 },
             tableWidth: 'auto',
             showHead: 'everyPage',
             didDrawPage: (data) => {
@@ -750,33 +759,36 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             startY: yPosition,
             theme: 'grid',
             styles: { 
-              fontSize: 7, 
-              cellPadding: 2, 
+              fontSize: 6, 
+              cellPadding: 3, 
               halign: 'center',
+              valign: 'middle',
               overflow: 'linebreak'
             },
             headStyles: { 
               fillColor: [41, 128, 185], 
               textColor: 255, 
               fontSize: 7, 
-              fontStyle: 'bold' 
+              fontStyle: 'bold',
+              halign: 'center',
+              valign: 'middle'
             },
             columnStyles: {
-              0: { cellWidth: 15 },
-              1: { cellWidth: 15 },
-              2: { cellWidth: 15 },
-              3: { cellWidth: 15 },
-              4: { cellWidth: 18 },
-              5: { cellWidth: 15 },
-              6: { cellWidth: 18 },
-              7: { cellWidth: 15 },
-              8: { cellWidth: 15 },
-              9: { cellWidth: 15 },
-              10: { cellWidth: 15 },
-              11: { cellWidth: 15 },
-              12: { cellWidth: 15 }
+              0: { cellWidth: 18, halign: 'center' },
+              1: { cellWidth: 18, halign: 'center' },
+              2: { cellWidth: 20, halign: 'center' },
+              3: { cellWidth: 18, halign: 'center' },
+              4: { cellWidth: 20, halign: 'center' },
+              5: { cellWidth: 18, halign: 'center' },
+              6: { cellWidth: 20, halign: 'center' },
+              7: { cellWidth: 18, halign: 'center' },
+              8: { cellWidth: 15, halign: 'center' },
+              9: { cellWidth: 15, halign: 'center' },
+              10: { cellWidth: 15, halign: 'center' },
+              11: { cellWidth: 18, halign: 'center' },
+              12: { cellWidth: 15, halign: 'center' }
             },
-            margin: { top: 10, left: 10, right: 10, bottom: 10 },
+            margin: { top: 10, left: 5, right: 5, bottom: 10 },
             pageBreak: 'auto'
           });
           yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
@@ -979,31 +991,34 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             startY: yPosition,
             theme: 'grid',
             styles: { 
-              fontSize: 7, 
-              cellPadding: 2, 
+              fontSize: 6, 
+              cellPadding: 3, 
               halign: 'center',
+              valign: 'middle',
               overflow: 'linebreak'
             },
             headStyles: { 
               fillColor: [41, 128, 185], 
               textColor: 255, 
               fontSize: 7, 
-              fontStyle: 'bold' 
+              fontStyle: 'bold',
+              halign: 'center',
+              valign: 'middle'
             },
             columnStyles: {
-              0: { cellWidth: 15 },
-              1: { cellWidth: 15 },
-              2: { cellWidth: 15 },
-              3: { cellWidth: 15 },
-              4: { cellWidth: 18 },
-              5: { cellWidth: 15 },
-              6: { cellWidth: 15 },
-              7: { cellWidth: 15 },
-              8: { cellWidth: 15 },
-              9: { cellWidth: 20 },
-              10: { cellWidth: 15 }
+              0: { cellWidth: 18, halign: 'center' },
+              1: { cellWidth: 18, halign: 'center' },
+              2: { cellWidth: 18, halign: 'center' },
+              3: { cellWidth: 20, halign: 'center' },
+              4: { cellWidth: 20, halign: 'center' },
+              5: { cellWidth: 18, halign: 'center' },
+              6: { cellWidth: 15, halign: 'center' },
+              7: { cellWidth: 15, halign: 'center' },
+              8: { cellWidth: 15, halign: 'center' },
+              9: { cellWidth: 22, halign: 'center' },
+              10: { cellWidth: 15, halign: 'center' }
             },
-            margin: { top: 10, left: 10, right: 10, bottom: 10 },
+            margin: { top: 10, left: 5, right: 5, bottom: 10 },
             pageBreak: 'auto'
           });
 
@@ -1034,49 +1049,24 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           yPosition += 8;
         }
 
-        // Add Leave History section after leave balance
-        if (leaveHistory.length > 0) {
-            yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
-            doc.setFontSize(12);
-            doc.setTextColor(41, 128, 185);
-            doc.text('Leave History', 15, yPosition);
-            yPosition += 10;
+        // Leave History section will be added later - removing duplicate
 
-            const leaveHistoryHead = [['Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason']];
-            const leaveHistoryRows = leaveHistory.map(leave => [
-                leave.leaveType,
-                new Date(leave.startDate).toLocaleDateString(),
-                new Date(leave.endDate).toLocaleDateString(),
-                leave.numberOfDays + (leave.isHalfDay ? ' (Half)' : ''),
-                leave.status,
-                leave.reason.substring(0, 20) + (leave.reason.length > 20 ? '...' : '')
-            ]);
-
-            autoTable(doc, {
-                head: leaveHistoryHead,
-                body: leaveHistoryRows,
-                startY: yPosition,
-                theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 4 },
-                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-                columnStyles: {
-                    0: { cellWidth: 25 },
-                    1: { cellWidth: 30 },
-                    2: { cellWidth: 30 },
-                    3: { cellWidth: 20 },
-                    4: { cellWidth: 25 },
-                    5: { cellWidth: 50 }
-                },
-                margin: { left: 15 }
-            });
+        // Add Leave History section with proper spacing
+        yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
+        
+        // Check if we need a new page for leave history
+        const leaveHistoryPageHeight = doc.internal.pageSize.getHeight();
+        const requiredSpaceForLeaveHistory = 60; // Approximate space needed for leave history
+        
+        if (yPosition + requiredSpaceForLeaveHistory > leaveHistoryPageHeight - 20) {
+            doc.addPage();
+            yPosition = 15;
         }
-
-        // Get the final Y position after all tables
-        // Add note below the leave history table with proper spacing
+        
         doc.setFontSize(11);
         doc.setTextColor(41, 128, 185);
-        doc.text('Leave History', 12, yPosition);
-        yPosition += 5;
+        doc.text('Leave History', 15, yPosition);
+        yPosition += 8;
 
         const leaveHistoryHead = [['Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason']];
         let leaveHistoryRows = [];
@@ -1088,7 +1078,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 new Date(leave.endDate).toLocaleDateString(),
                 leave.numberOfDays + (leave.isHalfDay ? ' (Half)' : ''),
                 leave.status,
-                leave.reason.substring(0, 20) + (leave.reason.length > 20 ? '...' : '')
+                leave.reason.substring(0, 25) + (leave.reason.length > 25 ? '...' : '')
             ]);
         } else {
             // Show "No leave history found" message
@@ -1102,20 +1092,26 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             theme: 'grid',
             styles: { 
               fontSize: 7, 
-              cellPadding: 2,
-              overflow: 'linebreak'
+              cellPadding: 4,
+              overflow: 'linebreak',
+              halign: 'center',
+              valign: 'middle'
             },
             headStyles: { 
               fillColor: [41, 128, 185], 
-              textColor: 255 
+              textColor: 255,
+              fontSize: 8,
+              fontStyle: 'bold',
+              halign: 'center',
+              valign: 'middle'
             },
             columnStyles: {
-                0: { cellWidth: 18 },
-                1: { cellWidth: 22 },
-                2: { cellWidth: 22 },
-                3: { cellWidth: 12 },
-                4: { cellWidth: 18 },
-                5: { cellWidth: 40 }
+                0: { cellWidth: 25, halign: 'center' }, // Type
+                1: { cellWidth: 30, halign: 'center' }, // Start Date
+                2: { cellWidth: 30, halign: 'center' }, // End Date
+                3: { cellWidth: 20, halign: 'center' }, // Days
+                4: { cellWidth: 25, halign: 'center' }, // Status
+                5: { cellWidth: 50, halign: 'left' }    // Reason
             },
             margin: { top: 10, left: 10, right: 10, bottom: 10 },
             pageBreak: 'auto'
