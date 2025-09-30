@@ -769,8 +769,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             startY: yPosition,
             theme: 'grid',
             styles: { 
-              fontSize: 6, 
-              cellPadding: 3, 
+              fontSize: 7, 
+              cellPadding: 4, 
               halign: 'center',
               valign: 'middle',
               overflow: 'linebreak'
@@ -778,27 +778,27 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             headStyles: { 
               fillColor: [41, 128, 185], 
               textColor: 255, 
-              fontSize: 7, 
+              fontSize: 8, 
               fontStyle: 'bold',
               halign: 'center',
               valign: 'middle'
             },
             columnStyles: {
-              0: { cellWidth: 18, halign: 'center' },
-              1: { cellWidth: 18, halign: 'center' },
-              2: { cellWidth: 20, halign: 'center' },
-              3: { cellWidth: 18, halign: 'center' },
-              4: { cellWidth: 20, halign: 'center' },
-              5: { cellWidth: 18, halign: 'center' },
-              6: { cellWidth: 20, halign: 'center' },
-              7: { cellWidth: 18, halign: 'center' },
-              8: { cellWidth: 15, halign: 'center' },
-              9: { cellWidth: 15, halign: 'center' },
-              10: { cellWidth: 15, halign: 'center' },
-              11: { cellWidth: 18, halign: 'center' },
-              12: { cellWidth: 15, halign: 'center' }
+              0: { cellWidth: 22, halign: 'center' }, // Total Days
+              1: { cellWidth: 22, halign: 'center' }, // Present Days
+              2: { cellWidth: 25, halign: 'center' }, // Regularized Present
+              3: { cellWidth: 20, halign: 'center' }, // Half Days
+              4: { cellWidth: 25, halign: 'center' }, // Partially Absent
+              5: { cellWidth: 22, halign: 'center' }, // Total Weekoff
+              6: { cellWidth: 25, halign: 'center' }, // Week Offs Worked
+              7: { cellWidth: 20, halign: 'center' }, // Holidays
+              8: { cellWidth: 18, halign: 'center' }, // EL
+              9: { cellWidth: 18, halign: 'center' }, // SL
+              10: { cellWidth: 18, halign: 'center' }, // CL
+              11: { cellWidth: 22, halign: 'center' }, // Comp Off
+              12: { cellWidth: 18, halign: 'center' }  // LOP
             },
-            margin: { top: 10, left: 5, right: 5, bottom: 10 },
+            margin: { top: 10, left: 3, right: 3, bottom: 10 },
             pageBreak: 'auto'
           });
           yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
@@ -1001,8 +1001,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             startY: yPosition,
             theme: 'grid',
             styles: { 
-              fontSize: 6, 
-              cellPadding: 3, 
+              fontSize: 7, 
+              cellPadding: 4, 
               halign: 'center',
               valign: 'middle',
               overflow: 'linebreak'
@@ -1010,25 +1010,25 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             headStyles: { 
               fillColor: [41, 128, 185], 
               textColor: 255, 
-              fontSize: 7, 
+              fontSize: 8, 
               fontStyle: 'bold',
               halign: 'center',
               valign: 'middle'
             },
             columnStyles: {
-              0: { cellWidth: 18, halign: 'center' },
-              1: { cellWidth: 18, halign: 'center' },
-              2: { cellWidth: 18, halign: 'center' },
-              3: { cellWidth: 20, halign: 'center' },
-              4: { cellWidth: 20, halign: 'center' },
-              5: { cellWidth: 18, halign: 'center' },
-              6: { cellWidth: 15, halign: 'center' },
-              7: { cellWidth: 15, halign: 'center' },
-              8: { cellWidth: 15, halign: 'center' },
-              9: { cellWidth: 22, halign: 'center' },
-              10: { cellWidth: 15, halign: 'center' }
+              0: { cellWidth: 22, halign: 'center' }, // Total Days
+              1: { cellWidth: 22, halign: 'center' }, // Present Days
+              2: { cellWidth: 20, halign: 'center' }, // Half Days
+              3: { cellWidth: 25, halign: 'center' }, // Partially Absent
+              4: { cellWidth: 22, halign: 'center' }, // Total Weekoff
+              5: { cellWidth: 20, halign: 'center' }, // Holidays
+              6: { cellWidth: 18, halign: 'center' }, // EL
+              7: { cellWidth: 18, halign: 'center' }, // SL
+              8: { cellWidth: 18, halign: 'center' }, // CL
+              9: { cellWidth: 25, halign: 'center' }, // Comp Off (Gained)
+              10: { cellWidth: 18, halign: 'center' } // LOP
             },
-            margin: { top: 10, left: 5, right: 5, bottom: 10 },
+            margin: { top: 10, left: 3, right: 3, bottom: 10 },
             pageBreak: 'auto'
           });
 
