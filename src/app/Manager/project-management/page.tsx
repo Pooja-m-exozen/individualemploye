@@ -39,8 +39,8 @@ interface Project {
   notes: string;
   documents: string[];
   servicesProvided: string[];
-  updatedDate?: string;
-  createdDate?: string;
+  updatedAt?: string;
+  createdAt?: string;
 }
 
 interface DesignationCount {
@@ -132,7 +132,7 @@ export default function ProjectManagementPage() {
     | "projectEndDate"
     | "contractStartDate"
     | "contractEndDate"
-    | "updatedDate"
+    | "updatedAt"
     | "totalManpower"
     | null
   >(null);
@@ -154,7 +154,7 @@ export default function ProjectManagementPage() {
     contractEndDate: boolean;
     designationSalaries: boolean;
     employeeSalaries: boolean;
-    updatedDate: boolean;
+    updatedAt: boolean;
     action: boolean;
   };
   const [visibleCols, setVisibleCols] = useState<VisibleCols>({
@@ -172,7 +172,7 @@ export default function ProjectManagementPage() {
     contractEndDate: false,
     designationSalaries: false,
     employeeSalaries: false,
-    updatedDate: true,
+    updatedAt: true,
     action: true,
   });
   
@@ -465,7 +465,7 @@ export default function ProjectManagementPage() {
       if (!res.ok) throw new Error("Failed to save changes");
       const data = await res.json();
       setToast("Changes saved successfully");
-      setProjects((prev) => prev.map((p) => p._id === project._id ? { ...p, ...data.project, updatedDate: data.project.updatedDate || new Date().toISOString() } : p));
+      setProjects((prev) => prev.map((p) => p._id === project._id ? { ...p, ...data.project, updatedAt: data.project.updatedAt || new Date().toISOString() } : p));
       setEditingRowId(null);
       setRowDesignationDrafts((prev) => {
         const newDrafts = { ...prev };
@@ -557,8 +557,8 @@ export default function ProjectManagementPage() {
         return (new Date(a.contractStartDate ?? "").getTime() - new Date(b.contractStartDate ?? "").getTime()) * dir;
       } else if (sortBy === "contractEndDate") {
         return (new Date(a.contractEndDate ?? "").getTime() - new Date(b.contractEndDate ?? "").getTime()) * dir;
-      } else if (sortBy === "updatedDate") {
-        return (new Date(a.updatedDate ?? "").getTime() - new Date(b.updatedDate ?? "").getTime()) * dir;
+      } else if (sortBy === "updatedAt") {
+        return (new Date(a.updatedAt ?? "").getTime() - new Date(b.updatedAt ?? "").getTime()) * dir;
       }
       return aVal.localeCompare(bVal, undefined, { sensitivity: "base" }) * dir;
     });
@@ -576,7 +576,7 @@ export default function ProjectManagementPage() {
       | "projectEndDate"
       | "contractStartDate"
       | "contractEndDate"
-      | "updatedDate"
+      | "updatedAt"
   ) => {
     setSortBy(key);
     setSortDir(sortBy === key ? (sortDir === "asc" ? "desc" : "asc") : "asc");
@@ -602,7 +602,7 @@ export default function ProjectManagementPage() {
     if (visibleCols.contractEndDate) header.push("Contract End Date");
     if (visibleCols.designationSalaries) header.push("Designation-wise Salary");
     if (visibleCols.employeeSalaries) header.push("Employee-wise Salary");
-    if (visibleCols.updatedDate) header.push("Last Updated");
+    if (visibleCols.updatedAt) header.push("Last Updated");
     if (visibleCols.action) header.push("Action");
 
     const rows = sortedProjects.map((p, idx) => {
@@ -621,7 +621,7 @@ export default function ProjectManagementPage() {
       if (visibleCols.contractEndDate) parts.push(p.contractEndDate ? new Date(p.contractEndDate).toLocaleDateString() : "");
       if (visibleCols.designationSalaries) parts.push(Object.entries(p.designationWiseSalary || {}).map(([d, s]) => `${d}:${s}`).join("; "));
       if (visibleCols.employeeSalaries) parts.push((p.employeeWiseSalary || []).map(e => `${e.employeeId}:${e.salary}@${e.effectiveFrom}`).join("; "));
-      if (visibleCols.updatedDate) parts.push(p.updatedDate ? new Date(p.updatedDate).toLocaleDateString() : "");
+      if (visibleCols.updatedAt) parts.push(p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "");
       if (visibleCols.action) parts.push("");
       return parts.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
     });
@@ -1163,8 +1163,8 @@ export default function ProjectManagementPage() {
                       {visibleCols.employeeSalaries && (
                         <th className={`px-2 py-1 text-left font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee-wise Salary</th>
                       )}
-                      {visibleCols.updatedDate && (
-                        <th onClick={() => onSort("updatedDate")} className={`px-2 py-1 text-left font-semibold cursor-pointer select-none whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Last Updated {sortBy === "updatedDate" ? (sortDir === "asc" ? "▲" : "▼") : ""}</th>
+                      {visibleCols.updatedAt && (
+                        <th onClick={() => onSort("updatedAt")} className={`px-2 py-1 text-left font-semibold cursor-pointer select-none whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Last Updated {sortBy === "updatedAt" ? (sortDir === "asc" ? "▲" : "▼") : ""}</th>
                       )}
                       {visibleCols.action && (
                         <th className={`px-2 py-1 text-center font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Action</th>
@@ -1540,9 +1540,9 @@ export default function ProjectManagementPage() {
                             </div>
                           </td>
                         )}
-                        {visibleCols.updatedDate && (
+                        {visibleCols.updatedAt && (
                           <td className={`px-2 py-1 whitespace-nowrap border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                            {new Date(project.updatedDate ?? "").toLocaleDateString()}
+                            {project.updatedAt ? new Date(project.updatedAt).toLocaleDateString() : '-'}
                           </td>
                         )}
                         {visibleCols.action && (
