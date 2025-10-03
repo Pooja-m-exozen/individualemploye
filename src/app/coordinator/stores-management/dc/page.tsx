@@ -641,8 +641,8 @@ export default function StoreDCPage() {
         // Create a map to handle uniform types with their specific sizes
         const uniformTypeSizeMap: Record<string, string> = {};
         
-        // Process items in order to map uniform types to sizes correctly
-        items.forEach((item, itemIndex) => {
+        // Process items to extract all unique uniform types
+        items.forEach((item) => {
           const itemUniformType = item.uniformType || item.name;
           if (itemUniformType) {
             if (typeof itemUniformType === 'string') {
@@ -650,23 +650,13 @@ export default function StoreDCPage() {
               if (itemUniformType.includes(',')) {
                 // Split by comma and add each part as separate uniform type
                 const parts = itemUniformType.split(',').map(part => part.trim()).filter(part => part);
-                
-                // Map based on the order:
-                // First item: parts[0] = "Commercial HK Pant" gets size 28
-                // Second item: parts[1] = "HK Commercial Shirt" gets size 36
-                if (itemIndex === 0) {
-                  // First item: map the first uniform type to this size
-                  if (parts[0] && !uniformTypes.includes(parts[0])) {
-                    uniformTypes.push(parts[0]);
-                    uniformTypeSizeMap[parts[0]] = item.size || 'N/A';
+                parts.forEach(part => {
+                  if (!uniformTypes.includes(part)) {
+                    uniformTypes.push(part);
                   }
-                } else if (itemIndex === 1) {
-                  // Second item: map the second uniform type to this size
-                  if (parts[1] && !uniformTypes.includes(parts[1])) {
-                    uniformTypes.push(parts[1]);
-                    uniformTypeSizeMap[parts[1]] = item.size || 'N/A';
-                  }
-                }
+                  // Map each uniform type to its specific size
+                  uniformTypeSizeMap[part] = item.size || 'N/A';
+                });
               } else {
                 if (!uniformTypes.includes(itemUniformType)) {
                   uniformTypes.push(itemUniformType);
@@ -924,12 +914,9 @@ export default function StoreDCPage() {
       const tableBody: (string | number)[][] = [];
      
       employeeData.forEach((employee, index) => {
-        // Check if employee has accessories to determine "No of Set"
-        const hasAccessories = employee.uniformType?.some((type: string) =>
-          (type && type.toLowerCase().includes('accessories')) ||
-          (type && type.toLowerCase().includes('accessory'))
-        );
-        const noOfSet = hasAccessories ? "Full set" : "N/A";
+        // Calculate actual set count based on unique uniform types
+        const uniqueUniformTypes = [...new Set(employee.uniformType)];
+        const noOfSet = uniqueUniformTypes.length > 0 ? uniqueUniformTypes.length : "N/A";
        
         // Create row with sizes for each uniform type
         const row = [

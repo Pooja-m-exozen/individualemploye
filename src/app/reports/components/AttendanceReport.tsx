@@ -222,17 +222,17 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
     ): ExtendedRawAttendanceRecord[] => {
         return data.map(record => ({
             ...record,
-            punchInLocation: record.punchInLatitude && record.punchInLongitude
+            punchInLocation: record.punchInLocation?.latitude && record.punchInLocation?.longitude
                 ? {
-                    latitude: record.punchInLatitude,
-                    longitude: record.punchInLongitude,
+                    latitude: record.punchInLocation?.latitude,
+                    longitude: record.punchInLocation?.longitude,
                     address: null
                 }
                 : undefined,
-            punchOutLocation: record.punchOutLatitude && record.punchOutLongitude
+            punchOutLocation: record.punchOutLocation?.latitude && record.punchOutLocation?.longitude
                 ? {
-                    latitude: record.punchOutLatitude,
-                    longitude: record.punchOutLongitude,
+                    latitude: record.punchOutLocation?.latitude,
+                    longitude: record.punchOutLocation?.longitude,
                     address: null
                 }
                 : undefined
@@ -1192,12 +1192,165 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         return `${hours}h ${minutes}m`;
     };
 
-    // Stub downloads to avoid reference errors (implement as needed)
-    const downloadLocationPDF = () => {
-        console.warn('downloadLocationPDF not implemented');
+    // Location Report PDF Download
+    const downloadLocationPDF = async () => {
+        const doc = new jsPDF();
+        let yPosition = 15;
+
+        // Header
+        doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 15, yPosition, 25, 8);
+        doc.setFontSize(11);
+        doc.setTextColor(41, 128, 185);
+        doc.text(`Location Report - ${months[selectedMonth - 1]} ${selectedYear}`, 45, yPosition + 4);
+        doc.setFontSize(9);
+        doc.text(`Employee ID: ${employeeId}`, 45, yPosition + 8);
+
+        yPosition += 12;
+        doc.setDrawColor(200, 200, 200);
+        doc.line(15, yPosition, 195, yPosition);
+        yPosition += 5;
+
+        // Filter records that have location data (either punch in OR punch out)
+        const recordsWithLocation = processedAttendanceData.filter(record => 
+            (record.punchInLocation?.latitude && record.punchInLocation?.longitude) || 
+            (record.punchOutLocation?.latitude && record.punchOutLocation?.longitude)
+        );
+
+        if (recordsWithLocation.length === 0) {
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text('No location data available for the selected period.', 15, yPosition);
+            doc.save(`location_report_${selectedMonth}_${selectedYear}.pdf`);
+            return;
+        }
+
+        // Location table
+        const locationColumns = ["Date", "Project", "Punch In Location", "Punch Out Location"];
+        const locationRows = [];
+
+        for (const record of recordsWithLocation) {
+            let punchInAddress = '-';
+            let punchOutAddress = '-';
+
+            // Get addresses for punch in and out locations
+            try {
+                if (record.punchInLocation?.latitude && record.punchInLocation?.longitude) {
+                    punchInAddress = await reverseGeocode(record.punchInLocation?.latitude, record.punchInLocation?.longitude);
+                }
+                if (record.punchOutLocation?.latitude && record.punchOutLocation?.longitude) {
+                    punchOutAddress = await reverseGeocode(record.punchOutLocation?.latitude, record.punchOutLocation?.longitude);
+                }
+            } catch (error) {
+                console.error('Error fetching location addresses:', error);
+                if (record.punchInLocation?.latitude && record.punchInLocation?.longitude) {
+                    punchInAddress = `Location (${record.punchInLocation?.latitude?.toFixed(4)}, ${record.punchInLocation?.longitude?.toFixed(4)})`;
+                }
+                if (record.punchOutLocation?.latitude && record.punchOutLocation?.longitude) {
+                    punchOutAddress = `Location (${record.punchOutLocation?.latitude?.toFixed(4)}, ${record.punchOutLocation?.longitude?.toFixed(4)})`;
+                }
+            }
+
+            locationRows.push([
+                formatDate(record.date),
+                record.projectName || 'N/A',
+                punchInAddress.length > 40 ? punchInAddress.substring(0, 40) + '...' : punchInAddress,
+                punchOutAddress.length > 40 ? punchOutAddress.substring(0, 40) + '...' : punchOutAddress
+            ]);
+        }
+
+        autoTable(doc, {
+            head: [locationColumns],
+            body: locationRows,
+            startY: yPosition,
+            theme: 'grid',
+            styles: { 
+                fontSize: 7, 
+                cellPadding: 3,
+                overflow: 'linebreak',
+                cellWidth: 'wrap',
+                halign: 'center',
+                valign: 'middle'
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontSize: 8,
+                fontStyle: 'bold',
+                halign: 'center',
+                valign: 'middle'
+            },
+            columnStyles: {
+                0: { cellWidth: 25, halign: 'center' }, // Date
+                1: { cellWidth: 30, halign: 'center' }, // Project
+                2: { cellWidth: 70, halign: 'left' },   // Punch In Location
+                3: { cellWidth: 70, halign: 'left' }    // Punch Out Location
+            },
+            pageBreak: 'auto',
+            margin: { top: 20, right: 10, bottom: 20, left: 10 },
+            tableWidth: 'auto',
+            showHead: 'everyPage'
+        });
+
+        doc.save(`location_report_${selectedMonth}_${selectedYear}.pdf`);
     };
-    const downloadLocationExcel = () => {
-        console.warn('downloadLocationExcel not implemented');
+
+    // Location Report Excel Download
+    const downloadLocationExcel = async () => {
+        // Filter records that have location data (either punch in OR punch out)
+        const recordsWithLocation = processedAttendanceData.filter(record => 
+            (record.punchInLocation?.latitude && record.punchInLocation?.longitude) || 
+            (record.punchOutLocation?.latitude && record.punchOutLocation?.longitude)
+        );
+
+        if (recordsWithLocation.length === 0) {
+            alert('No location data available for the selected period.');
+            return;
+        }
+
+        // Prepare data for Excel with location addresses
+        const excelData = [];
+        
+        for (const record of recordsWithLocation) {
+            let punchInAddress = '-';
+            let punchOutAddress = '-';
+
+            // Get addresses for punch in and out locations
+            try {
+                if (record.punchInLocation?.latitude && record.punchInLocation?.longitude) {
+                    punchInAddress = await reverseGeocode(record.punchInLocation?.latitude, record.punchInLocation?.longitude);
+                }
+                if (record.punchOutLocation?.latitude && record.punchOutLocation?.longitude) {
+                    punchOutAddress = await reverseGeocode(record.punchOutLocation?.latitude, record.punchOutLocation?.longitude);
+                }
+            } catch (error) {
+                console.error('Error fetching location addresses:', error);
+                if (record.punchInLocation?.latitude && record.punchInLocation?.longitude) {
+                    punchInAddress = `Location (${record.punchInLocation?.latitude?.toFixed(4)}, ${record.punchInLocation?.longitude?.toFixed(4)})`;
+                }
+                if (record.punchOutLocation?.latitude && record.punchOutLocation?.longitude) {
+                    punchOutAddress = `Location (${record.punchOutLocation?.latitude?.toFixed(4)}, ${record.punchOutLocation?.longitude?.toFixed(4)})`;
+                }
+            }
+
+            excelData.push({
+                'Date': formatDate(record.date),
+                'Project Name': record.projectName || 'N/A',
+                'Designation': record.designation || 'N/A',
+                'Punch In Time': formatTime(record.punchInTime),
+                'Punch Out Time': formatTime(record.punchOutTime),
+                'Punch In Latitude': record.punchInLocation?.latitude,
+                'Punch In Longitude': record.punchInLocation?.longitude,
+                'Punch In Address': punchInAddress,
+                'Punch Out Latitude': record.punchOutLocation?.latitude,
+                'Punch Out Longitude': record.punchOutLocation?.longitude,
+                'Punch Out Address': punchOutAddress
+            });
+        }
+
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Location Report');
+        XLSX.writeFile(workbook, `location_report_${selectedMonth}_${selectedYear}.xlsx`);
     };
     const downloadRegularizationHistoryPDF = () => {
         console.warn('downloadRegularizationHistoryPDF not implemented');

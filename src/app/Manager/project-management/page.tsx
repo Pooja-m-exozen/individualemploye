@@ -558,7 +558,9 @@ export default function ProjectManagementPage() {
       } else if (sortBy === "contractEndDate") {
         return (new Date(a.contractEndDate ?? "").getTime() - new Date(b.contractEndDate ?? "").getTime()) * dir;
       } else if (sortBy === "updatedAt") {
-        return (new Date(a.updatedAt ?? "").getTime() - new Date(b.updatedAt ?? "").getTime()) * dir;
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return (aTime - bTime) * dir;
       }
       return aVal.localeCompare(bVal, undefined, { sensitivity: "base" }) * dir;
     });
@@ -621,7 +623,7 @@ export default function ProjectManagementPage() {
       if (visibleCols.contractEndDate) parts.push(p.contractEndDate ? new Date(p.contractEndDate).toLocaleDateString() : "");
       if (visibleCols.designationSalaries) parts.push(Object.entries(p.designationWiseSalary || {}).map(([d, s]) => `${d}:${s}`).join("; "));
       if (visibleCols.employeeSalaries) parts.push((p.employeeWiseSalary || []).map(e => `${e.employeeId}:${e.salary}@${e.effectiveFrom}`).join("; "));
-      if (visibleCols.updatedAt) parts.push(p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "");
+      if (visibleCols.updatedAt) parts.push(p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "-");
       if (visibleCols.action) parts.push("");
       return parts.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
     });
