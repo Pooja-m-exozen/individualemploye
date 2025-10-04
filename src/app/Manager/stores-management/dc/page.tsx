@@ -2805,17 +2805,22 @@ export default function StoreDCPage() {
     setIsCreatingIssue(true);
     try {
       const issueData = {
-        ...bulkIssueData,
+        issueTo: bulkIssueData.issueTo,
+        department: bulkIssueData.department,
+        purpose: bulkIssueData.purpose,
+        address: bulkIssueData.address,
+        issueDate: bulkIssueData.issueDate,
         items: selectedItems.map(item => ({
-          itemId: item.itemId,
+          id: item.itemId,
           quantity: item.quantity,
           size: item.size,
-          employeeId: item.employeeId,
-          remarks: item.remarks || ""
+          employeeId: item.employeeId
         }))
       };
 
-      const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issues", {
+      console.log('Creating issue with payload:', issueData);
+
+      const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issue", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
