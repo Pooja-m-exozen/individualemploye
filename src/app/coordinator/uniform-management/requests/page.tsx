@@ -75,36 +75,6 @@ interface Project {
   projectName: string;
 }
 
-interface ProjectEmployee {
-  employeeId: string;
-  fullName: string;
-  designation: string;
-}
-
-interface UniformApiEmployee {
-  projectName: string;
-  employeeId: string;
-  fullName: string;
-  designation: string;
-}
-
-interface UniformOptionItem {
-  type: string;
-  sizes?: string[];
-  set?: string[];
-}
-
-interface UniformOptions {
-  employeeDetails: {
-    fullName: string;
-    employeeId: string;
-    designation: string;
-    projectName: string;
-  };
-  uniformOptions: UniformOptionItem[];
-  maxQuantity: number;
-}
-
 interface Mapping {
   _id: string;
   project: string;
@@ -249,7 +219,6 @@ export default function UniformRequestsPage() {
   const [projectError, setProjectError] = useState('');
   const [projectList, setProjectList] = useState<{ _id: string; projectName: string, designationWiseCount?: Record<string, number> }[]>([]);
   const [designationOptions, setDesignationOptions] = useState<string[]>([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [availableOptions, setAvailableOptions] = useState<AvailableOptions | null>(null);
   const [availableOptionsLoading, setAvailableOptionsLoading] = useState(false);
   const [mappings, setMappings] = useState<Mapping[]>([]);
@@ -2049,7 +2018,6 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                               value={mapForm.project}
                               onChange={e => {
                                 setMapForm(f => ({ ...f, project: e.target.value, designations: [], employeeId: '' }));
-                                setSelectedEmployeeId('');
                               }}
                               required
                             >
