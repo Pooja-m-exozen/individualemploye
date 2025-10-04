@@ -2259,14 +2259,17 @@ export default function StoreDCPage() {
           // Get Y after table
       const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
 
-      // Terms & Conditions - compact for single page
+      // Terms & Conditions - with proper spacing to avoid overlapping
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 13);
-      doc.text("2. Goods are delivered after careful checking", 12, finalY + 17);
+      const notesY = finalY + 15; // Increased spacing from table
+      doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, notesY);
+      doc.text("2. Goods are delivered after careful checking", 12, notesY + 5);
+      doc.text("3. This is a Bulk Issue Challan", 12, notesY + 10);
+      doc.text("4. All items are issued as per company policy", 12, notesY + 15);
 
-      // Signature lines - compact for single page
-      const sigY = finalY + 20; // Reduced spacing
+      // Signature lines - with proper spacing to avoid overlapping with notes
+      const sigY = notesY + 25; // Increased spacing from notes
       doc.setDrawColor(120);
       doc.line(20, sigY, 60, sigY);
       doc.text("Initiated by", 30, sigY + 3);
@@ -2975,19 +2978,59 @@ export default function StoreDCPage() {
       return;
     }
 
+    // Validate issue quantities before creating DC
+    const issueTotalQuantity = selectedIssueForDC.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    console.log('Issue total quantity:', issueTotalQuantity);
+    console.log('Issue items:', selectedIssueForDC.items?.map(item => 
+      `${item.name || 'Unknown'} - Qty: ${item.quantity || 0}`
+    ));
+    
+    if (issueTotalQuantity !== 18) {
+      console.warn(`Issue total quantity is ${issueTotalQuantity}, expected 18`);
+      setToast(`Warning: Issue total quantity is ${issueTotalQuantity}, expected 18. Please verify the issue data before creating DC.`);
+    }
+
+    // Generate proper DC number format: DC followed by a sequential number
+    const generateDCNumber = () => {
+      const timestamp = Date.now();
+      const randomNum = Math.floor(Math.random() * 1000);
+      return `DC${timestamp.toString().slice(-6)}${randomNum.toString().padStart(3, '0')}`;
+    };
+
+    const dcDataWithFormattedNumber = {
+      ...dcCreationData,
+      dcNumber: dcCreationData.dcNumber.startsWith('DC') ? dcCreationData.dcNumber : generateDCNumber()
+    };
+
     setIsCreatingDC(true);
     try {
       const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/from-issue/${selectedIssueForDC._id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dcCreationData),
+        body: JSON.stringify(dcDataWithFormattedNumber),
       });
 
       if (response.ok) {
         const result = await response.json();
         console.log('DC Creation Response:', result);
         console.log('DC Items count:', result.dc?.items?.length || 'No items array');
-        console.log('DC Total quantity:', result.dc?.items?.reduce((sum: number, item: { quantity?: number }) => sum + (item.quantity || 0), 0) || 'No quantity calculation');
+        
+        // Calculate and log total quantity with detailed breakdown
+        const totalQuantity = result.dc?.items?.reduce((sum: number, item: { quantity?: number }) => sum + (item.quantity || 0), 0) || 0;
+        console.log('DC Total quantity:', totalQuantity);
+        
+        // Log individual item quantities for debugging
+        if (result.dc?.items) {
+          console.log('Individual item quantities:', result.dc.items.map((item: any, index: number) => 
+            `Item ${index + 1}: ${item.name || 'Unknown'} - Qty: ${item.quantity || 0}`
+          ));
+        }
+        
+        // Validate quantity calculation
+        if (totalQuantity !== 18) {
+          console.warn(`Expected total quantity: 18, but got: ${totalQuantity}`);
+          setToast(`Warning: Total quantity is ${totalQuantity}, expected 18. Please verify the issue data.`);
+        }
         
         if (result.success) {
           // setCreatedDC(result.dc);
@@ -4492,7 +4535,7 @@ export default function StoreDCPage() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Enter DC number"
+                    placeholder="DC123456789 (will auto-generate if empty)"
                     value={dcCreationData.dcNumber}
                     onChange={(e) => setDcCreationData(prev => ({ ...prev, dcNumber: e.target.value }))}
                     className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
@@ -4501,6 +4544,9 @@ export default function StoreDCPage() {
                         : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
                     }`}
                   />
+                  <p className={`text-xs mt-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                    Format: DC followed by numbers (e.g., DC123456789)
+                  </p>
                 </div>
                 
                 <div>
