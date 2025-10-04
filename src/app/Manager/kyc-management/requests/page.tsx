@@ -134,6 +134,9 @@ export default function KYCRequestsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedKYCData, setSelectedKYCData] = useState<KYCData | null>(null);
   const [loadingKYCData, setLoadingKYCData] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectingKYCId, setRejectingKYCId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRequests();
@@ -245,11 +248,44 @@ export default function KYCRequestsPage() {
 
   const designationOptions = Array.from(new Set(requests.map(f => f.personalDetails.designation))).filter(Boolean);
 
-  const handleAction = async (id: string, action: "approve" | "reject", employeeId: string) => {
+  const handleRejectClick = (id: string) => {
+    setRejectingKYCId(id);
+    setRejectReason("");
+    setShowRejectModal(true);
+  };
+
+  const handleRejectConfirm = () => {
+    if (!rejectReason.trim()) {
+      setToast({ type: "error", message: "Please provide a rejection reason." });
+      return;
+    }
+    if (rejectingKYCId) {
+      const request = requests.find(req => req._id === rejectingKYCId);
+      if (request) {
+        handleAction(rejectingKYCId, "reject", request.personalDetails.employeeId, rejectReason);
+      }
+    }
+    setShowRejectModal(false);
+    setRejectingKYCId(null);
+    setRejectReason("");
+  };
+
+  const handleAction = async (id: string, action: "approve" | "reject", employeeId: string, reason?: string) => {
     setActionLoading(id + action);
     setError(null);
     try {
-      const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${employeeId}/${action}`, { method: "POST" });
+      const body: { reason?: string } = {};
+      if (action === "reject" && reason) {
+        body.reason = reason;
+      }
+      
+      const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${employeeId}/${action}`, { 
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body)
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.reason || data.message || "Action failed");
       setRequests((prev) => prev.filter((req) => req._id !== id));
@@ -619,7 +655,7 @@ export default function KYCRequestsPage() {
                                   {actionLoading === req._id + "approve" ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />}
                                 </button>
                                 <button
-                                  onClick={() => handleAction(req._id, "reject", req.personalDetails.employeeId)}
+                                  onClick={() => handleRejectClick(req._id)}
                                   disabled={actionLoading === req._id + "reject"}
                                   title="Reject KYC"
                                   className={`px-2 py-1 rounded font-semibold text-xs shadow transition disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2
@@ -708,6 +744,52 @@ export default function KYCRequestsPage() {
           kycData={selectedKYCData}
           onSave={handleSaveKYC}
         />
+      )}
+
+      {/* Reject KYC Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`p-6 rounded-lg shadow-xl max-w-md w-full mx-4 ${
+            theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+          }`}>
+            <h3 className="text-lg font-semibold mb-4">Reject KYC</h3>
+            <p className={`mb-4 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+              Please provide a reason for rejecting this KYC:
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Enter rejection reason..."
+              className={`w-full p-3 border rounded-lg resize-none h-24 focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                theme === "dark" 
+                  ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400" 
+                  : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+              }`}
+            />
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectingKYCId(null);
+                  setRejectReason("");
+                }}
+                className={`px-4 py-2 rounded-lg font-semibold border transition ${
+                  theme === "dark" 
+                    ? "border-gray-600 text-gray-300 hover:bg-gray-700" 
+                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRejectConfirm}
+                className="px-4 py-2 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition"
+              >
+                Reject KYC
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </ManagerDashboardLayout>
   );

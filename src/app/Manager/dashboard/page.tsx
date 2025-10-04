@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FaChartBar, FaSearch, FaCheck, FaTimes, FaEye } from "react-icons/fa";
+import { FaChartBar, FaSearch, FaCheck, FaTimes, FaEye, FaCog, FaUsers, FaProjectDiagram, FaClock, FaStore, FaMoneyBillWave, FaTable } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Link from "next/link";
 import Image from 'next/image';
@@ -237,13 +237,97 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 }
 
 export default function ManagerDashboardPage() {
-  const { } = useTheme();
+  const { theme } = useTheme();
 
   // Summary (static placeholders; replace with API values when available)
   const [totalEmployees, setTotalEmployees] = useState("-");
   const [activeProjects, setActiveProjects] = useState("-");
   const [pendingKYC, setPendingKYC] = useState("-");
   const [pendingLeaves, setPendingLeaves] = useState("-");
+
+  // Dashboard customization state
+  const [showCustomizeDropdown, setShowCustomizeDropdown] = useState(false);
+  const [customization, setCustomization] = useState({
+    projects: true,
+    employees: true,
+    attendance: true,
+    stores: true,
+    payroll: true,
+    kyc: true,
+    leaves: true,
+    recentActivity: true
+  });
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Load saved customization on component mount
+  useEffect(() => {
+    const savedCustomization = localStorage.getItem('dashboard-customization');
+    if (savedCustomization) {
+      try {
+        const parsed = JSON.parse(savedCustomization);
+        setCustomization(parsed);
+      } catch (error) {
+        console.error('Failed to parse saved customization:', error);
+      }
+    }
+  }, []);
+
+  // Auto-hide toast after 3 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const handleCustomizeToggle = (key: keyof typeof customization) => {
+    const newCustomization = {
+      ...customization,
+      [key]: !customization[key]
+    };
+    setCustomization(newCustomization);
+    
+    // Save immediately to localStorage
+    try {
+      localStorage.setItem('dashboard-customization', JSON.stringify(newCustomization));
+      setToast({ type: "success", message: `${key.charAt(0).toUpperCase() + key.slice(1)} ${newCustomization[key] ? 'added to' : 'removed from'} dashboard` });
+    } catch {
+      setToast({ type: "error", message: "Failed to save customization" });
+    }
+  };
+
+  const handleResetCustomization = () => {
+    const defaultCustomization = {
+      projects: true,
+      employees: true,
+      attendance: true,
+      stores: true,
+      payroll: true,
+      kyc: true,
+      leaves: true,
+      recentActivity: true
+    };
+    setCustomization(defaultCustomization);
+    localStorage.setItem('dashboard-customization', JSON.stringify(defaultCustomization));
+    setToast({ type: "success", message: "Dashboard reset to default settings" });
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showCustomizeDropdown) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.customize-dropdown')) {
+          setShowCustomizeDropdown(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCustomizeDropdown]);
 
   useEffect(() => {
     // Total Employees
@@ -280,13 +364,18 @@ export default function ManagerDashboardPage() {
   const [kycModalState, setKycModalState] = useState<{ open: boolean, kycData: KYCData | null }>({ open: false, kycData: null });
 
   // Add summary cards for each module (order: Projects, Employees, Attendance, Stores, Payroll)
-  const moduleSummaries = [
-    { label: "Projects", link: "/Manager/project-management/", color: "bg-orange-100 dark:bg-orange-900" },
-    { label: "Employees", link: "/Manager/employee-management/", color: "bg-green-100 dark:bg-green-900" },
-    { label: "Attendance", link: "/Manager/attendance-management/view", color: "bg-blue-100 dark:bg-blue-900" },
-    { label: "Stores",  link: "/Manager/stores-management/in-stock", color: "bg-teal-100 dark:bg-teal-900" },
-    { label: "Payroll",  link: "/Manager/payroll-management/view", color: "bg-indigo-100 dark:bg-indigo-900" },
+  const allModuleSummaries = [
+    { key: "projects", label: "Projects", link: "/Manager/project-management/", color: "bg-orange-100 dark:bg-orange-900", icon: FaProjectDiagram, iconColor: "text-orange-600 dark:text-orange-300" },
+    { key: "employees", label: "Employees", link: "/Manager/employee-management/", color: "bg-green-100 dark:bg-green-900", icon: FaUsers, iconColor: "text-green-600 dark:text-green-300" },
+    { key: "attendance", label: "Attendance", link: "/Manager/attendance-management/view", color: "bg-blue-100 dark:bg-blue-900", icon: FaClock, iconColor: "text-blue-600 dark:text-blue-300" },
+    { key: "stores", label: "Stores", link: "/Manager/stores-management/in-stock", color: "bg-teal-100 dark:bg-teal-900", icon: FaStore, iconColor: "text-teal-600 dark:text-teal-300" },
+    { key: "payroll", label: "Payroll", link: "/Manager/payroll-management/view", color: "bg-indigo-100 dark:bg-indigo-900", icon: FaMoneyBillWave, iconColor: "text-indigo-600 dark:text-indigo-300" },
   ];
+
+  // Filter module summaries based on customization
+  const moduleSummaries = allModuleSummaries.filter(module => 
+    customization[module.key as keyof typeof customization]
+  );
 
   // Excel-like table states
   const [searchTerm, setSearchTerm] = useState("");
@@ -502,6 +591,15 @@ export default function ManagerDashboardPage() {
 
   return (
     <div className="w-full min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-white to-blue-50 dark:from-gray-950 dark:via-gray-900 dark:to-blue-950">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-8 right-8 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-semibold text-base flex items-center gap-3 animate-fade-in ${
+          toast.type === "success" ? "bg-green-500" : "bg-red-500"
+        }`}>
+          {toast.type === "success" ? "✓" : "✗"} {toast.message}
+        </div>
+      )}
+
       {/* Summary Cards for Each Module */}
       <div className="flex flex-row justify-between gap-4 p-4">
         {moduleSummaries.map((mod) => (
@@ -511,7 +609,8 @@ export default function ManagerDashboardPage() {
           </Link>
         ))}
       </div>
-      {/* Summary Row (below cards, above table) */}
+      {/* Summary Row (below cards, above table) - Only show if enabled */}
+      {(customization.kyc || customization.leaves) && (
       <div className="flex flex-row justify-between px-8 pb-2 pt-2">
         <div className="flex flex-col items-center flex-1">
           <span className="text-blue-600 font-bold">{totalEmployees}</span>
@@ -521,15 +620,20 @@ export default function ManagerDashboardPage() {
           <span className="text-blue-600 font-bold">{activeProjects}</span>
           <span className="text-sm text-gray-600">Active Projects</span>
         </div>
+          {customization.kyc && (
         <div className="flex flex-col items-center flex-1">
           <span className="text-blue-600 font-bold">{pendingKYC}</span>
           <span className="text-sm text-gray-600">Pending KYC</span>
         </div>
+          )}
+          {customization.leaves && (
         <div className="flex flex-col items-center flex-1">
           <span className="text-blue-600 font-bold">{pendingLeaves}</span>
           <span className="text-sm text-gray-600">Pending Leaves</span>
         </div>
+          )}
       </div>
+      )}
       {/* Excel-like Header */}
       <div className="sticky top-0 z-50 border-b-2 border-gray-300 dark:border-gray-700">
         <div className="flex items-center justify-between p-4">
@@ -546,12 +650,222 @@ export default function ManagerDashboardPage() {
           {/* Summary Stats Row */
           }
           <div className="flex gap-6">
-            {/* Summary items are now rendered inline */}
+            <div className="relative">
+              <button
+                onClick={() => setShowCustomizeDropdown(!showCustomizeDropdown)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold border transition ${
+                  theme === 'dark' 
+                    ? 'border-gray-600 text-gray-300 hover:bg-gray-700 bg-gray-800' 
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50 bg-white'
+                }`}
+                title="Customize Dashboard"
+              >
+                <FaCog className="w-4 h-4" />
+                Customize
+              </button>
+              
+              {/* Customization Dropdown */}
+              {showCustomizeDropdown && (
+                <div className={`absolute right-0 mt-2 w-96 rounded-lg shadow-lg border z-50 customize-dropdown ${
+                  theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+                }`}>
+                  <div className="p-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold">Customize Dashboard</h3>
+                      <button
+                        onClick={() => setShowCustomizeDropdown(false)}
+                        className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                          theme === "dark" ? "text-gray-400" : "text-gray-600"
+                        }`}
+                      >
+                        <FaTimes className="w-4 h-4" />
+                      </button>
+          </div>
+                    
+                    <div className="space-y-4">
+                      {/* Module Cards */}
+                      <div>
+                        <h4 className="font-semibold mb-3 text-sm">Module Cards</h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          {allModuleSummaries.map((module) => (
+                            <div 
+                              key={module.key} 
+                              className={`relative p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                                customization[module.key as keyof typeof customization]
+                                  ? theme === 'dark' 
+                                    ? 'border-green-500 bg-green-900/20' 
+                                    : 'border-green-500 bg-green-50'
+                                  : theme === 'dark' 
+                                    ? 'border-gray-600 bg-gray-800/50 opacity-60' 
+                                    : 'border-gray-300 bg-gray-50 opacity-60'
+                              }`}
+                              onClick={() => handleCustomizeToggle(module.key as keyof typeof customization)}
+                            >
+                              {/* Checkmark indicator */}
+                              {customization[module.key as keyof typeof customization] && (
+                                <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                  <FaCheck className="w-3 h-3 text-white" />
+                                </div>
+                              )}
+                              
+                              {/* Card content */}
+                              <div className="flex items-center gap-2">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                  theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                                }`}>
+                                  <module.icon className={`w-4 h-4 ${module.iconColor}`} />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium">{module.label}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {customization[module.key as keyof typeof customization] ? 'Visible' : 'Hidden'}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+        </div>
+      </div>
+
+                      {/* Summary Statistics */}
+                      <div>
+                        <h4 className="font-semibold mb-3 text-sm">Summary Statistics</h4>
+                        <div className="grid grid-cols-1 gap-3">
+                          <div 
+                            className={`relative p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                              customization.kyc
+                                ? theme === 'dark' 
+                                  ? 'border-green-500 bg-green-900/20' 
+                                  : 'border-green-500 bg-green-50'
+                                : theme === 'dark' 
+                                  ? 'border-gray-600 bg-gray-800/50 opacity-60' 
+                                  : 'border-gray-300 bg-gray-50 opacity-60'
+                            }`}
+                            onClick={() => handleCustomizeToggle('kyc')}
+                          >
+                            {/* Checkmark indicator */}
+                            {customization.kyc && (
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                <FaCheck className="w-3 h-3 text-white" />
+                              </div>
+                            )}
+                            
+                            {/* Card content */}
+                            <div className="flex items-center gap-2">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                theme === 'dark' ? 'bg-blue-700' : 'bg-blue-200'
+                              }`}>
+                                <FaEye className="w-4 h-4 text-blue-600 dark:text-blue-300" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium">Pending KYC</div>
+                                <div className="text-xs text-gray-500">
+                                  {customization.kyc ? 'Visible' : 'Hidden'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div 
+                            className={`relative p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                              customization.leaves
+                                ? theme === 'dark' 
+                                  ? 'border-green-500 bg-green-900/20' 
+                                  : 'border-green-500 bg-green-50'
+                                : theme === 'dark' 
+                                  ? 'border-gray-600 bg-gray-800/50 opacity-60' 
+                                  : 'border-gray-300 bg-gray-50 opacity-60'
+                            }`}
+                            onClick={() => handleCustomizeToggle('leaves')}
+                          >
+                            {/* Checkmark indicator */}
+                            {customization.leaves && (
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                <FaCheck className="w-3 h-3 text-white" />
+                              </div>
+                            )}
+                            
+                            {/* Card content */}
+                            <div className="flex items-center gap-2">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                theme === 'dark' ? 'bg-orange-700' : 'bg-orange-200'
+                              }`}>
+                                <FaChartBar className="w-4 h-4 text-orange-600 dark:text-orange-300" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium">Pending Leaves</div>
+                                <div className="text-xs text-gray-500">
+                                  {customization.leaves ? 'Visible' : 'Hidden'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Activity Table */}
+                      <div>
+                        <h4 className="font-semibold mb-3 text-sm">Activity Table</h4>
+                        <div 
+                          className={`relative p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                            customization.recentActivity
+                              ? theme === 'dark' 
+                                ? 'border-green-500 bg-green-900/20' 
+                                : 'border-green-500 bg-green-50'
+                              : theme === 'dark' 
+                                ? 'border-gray-600 bg-gray-800/50 opacity-60' 
+                                : 'border-gray-300 bg-gray-50 opacity-60'
+                          }`}
+                          onClick={() => handleCustomizeToggle('recentActivity')}
+                        >
+                          {/* Checkmark indicator */}
+                          {customization.recentActivity && (
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                              <FaCheck className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                          
+                          {/* Card content */}
+                          <div className="flex items-center gap-2">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              theme === 'dark' ? 'bg-purple-700' : 'bg-purple-200'
+                            }`}>
+                              <FaTable className="w-4 h-4 text-purple-600 dark:text-purple-300" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium">Recent Activity Table</div>
+                              <div className="text-xs text-gray-500">
+                                {customization.recentActivity ? 'Visible' : 'Hidden'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Reset Button */}
+                      <div className="pt-4 border-t border-gray-300 dark:border-gray-600">
+                        <button
+                          onClick={handleResetCustomization}
+                          className={`w-full px-4 py-2 rounded-lg font-semibold border transition ${
+                            theme === "dark" 
+                              ? "border-gray-600 text-gray-300 hover:bg-gray-700" 
+                              : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          Reset to Default
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Search and Record Count */}
+      {/* Search and Record Count - Only show if activity table is enabled */}
+      {customization.recentActivity && (
       <div className="sticky top-16 z-40 bg-white dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700">
         <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3">
@@ -594,8 +908,11 @@ export default function ManagerDashboardPage() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Excel-like Table */}
+      {/* Excel-like Table - Only show if activity table is enabled */}
+      {customization.recentActivity && (
+        <>
       <div className="w-full flex-1 overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
@@ -947,6 +1264,9 @@ export default function ManagerDashboardPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
+
       {/* Attendance Modal */}
       {attendanceModal.open && attendanceModal.record && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
@@ -1052,6 +1372,7 @@ export default function ManagerDashboardPage() {
       {kycModalState.open && kycModalState.kycData && (
         <ViewKYCModal open={kycModalState.open} onClose={() => setKycModalState({ open: false, kycData: null })} kycData={kycModalState.kycData} />
       )}
+
     </div>
   );
 }

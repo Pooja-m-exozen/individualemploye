@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import CoordinatorDashboardLayout from "@/components/dashboard/CoordinatorDashboardLayout";
-import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaEdit, FaTrash, FaBriefcase, FaListAlt, FaUsers, FaDownload, FaEye, FaSort, FaSortUp, FaSortDown, FaBuilding, FaClock, FaTimes } from "react-icons/fa";
+import { FaIdCard, FaUser, FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaUsers, FaSort, FaSortUp, FaSortDown, FaTimes } from "react-icons/fa";
 import EditKYCModal from "@/components/dashboard/EditKYCModal";
 import ViewKYCModal from "@/components/dashboard/ViewKYCModal";
+import CreateKYCForm from '../create/CreateKYCForm';
 import { useTheme } from "@/context/ThemeContext";
 import * as XLSX from 'xlsx';
 import Image from 'next/image';
@@ -96,13 +97,10 @@ type KYCDataFromModal = Omit<KYCForm, '_id'>;
 
 export default function ViewAllKYCPage() {
   const { theme } = useTheme();
-  const router = useRouter();
   const [kycForms, setKYCForms] = useState<KYCForm[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 10;
   const [projectFilter, setProjectFilter] = useState("All Projects");
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [statusFilter] = useState("All Status");
@@ -116,6 +114,7 @@ export default function ViewAllKYCPage() {
   const [modal, setModal] = useState<null | { type: 'joiner' | 'view' | 'edit', data: KYCForm | null }>(null);
   const [newJoinersSearch, setNewJoinersSearch] = useState("");
   const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
+  const [showCreateKycModal, setShowCreateKycModal] = useState(false);
 
   const designationOptions = Array.from(new Set(kycForms.map(f => f.personalDetails.designation))).filter(Boolean);
 
@@ -180,20 +179,6 @@ export default function ViewAllKYCPage() {
     }
   };
 
-  const handleSort = (field: typeof sortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
-  const getSortIcon = (field: typeof sortField) => {
-    if (sortField !== field) return <FaSort className="w-3 h-3 text-gray-400" />;
-    return sortDirection === "asc" ? <FaSortUp className="w-3 h-3 text-blue-600" /> : <FaSortDown className="w-3 h-3 text-blue-600" />;
-  };
-
   // Calculate filtered and paginated data
   const filtered = kycForms
     .filter(form => {
@@ -242,22 +227,7 @@ export default function ViewAllKYCPage() {
       }
     });
 
-  // Paginate only the filtered results
-  const totalPages = Math.ceil(filtered.length / rowsPerPage);
-  const paginated = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'pending':
-        return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
 
   // Filter new joiners based on search
   const filteredNewJoiners = newJoiners.filter(joiner => {
@@ -271,120 +241,11 @@ export default function ViewAllKYCPage() {
     );
   });
 
-  const handleExportToExcel = () => {
-    // Prepare data for export (flatten nested objects as needed)
-    const exportData = filtered.map(form => ({
-      EmployeeID: form.personalDetails.employeeId,
-      Name: form.personalDetails.fullName,
-      Designation: form.personalDetails.designation,
-      Project: form.personalDetails.projectName,
-      Status: form.status,
-      Phone: form.personalDetails.phoneNumber,
-      Email: form.personalDetails.email,
-      DateOfJoining: form.personalDetails.dateOfJoining,
-      // Add more fields as needed
-    }));
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'KYC Records');
-    XLSX.writeFile(workbook, 'kyc_records.xlsx');
-  };
 
-  const handleExportToPDF = async () => {
-    const jsPDF = (await import('jspdf')).default;
-    const autoTable = (await import('jspdf-autotable')).default;
-    const doc = new jsPDF();
-
-    const exportData = filtered.map(form => ([
-      form.personalDetails.employeeId,
-      form.personalDetails.fullName,
-      form.personalDetails.designation,
-      form.personalDetails.projectName,
-      form.status,
-      form.personalDetails.phoneNumber,
-      form.personalDetails.email,
-      form.personalDetails.dateOfJoining
-    ]));
-
-    doc.text('KYC Records', 14, 16);
-    autoTable(doc, {
-      head: [[
-        'EmployeeID',
-        'Name',
-        'Designation',
-        'Project',
-        'Status',
-        'Phone',
-        'Email',
-        'DateOfJoining',
-      ]],
-      body: exportData,
-      startY: 22,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [41, 128, 185] },
-    });
-    doc.save('kyc_records.pdf');
-  };
 
   return (
     <CoordinatorDashboardLayout>
       <div className={`min-h-screen flex flex-col items-center justify-center py-8 transition-colors duration-200 ${theme === "dark" ? "bg-gray-900" : "bg-gradient-to-br from-indigo-50 via-white to-blue-50"}`}>
-        {/* Modern KYC Header */}
-        <div className={`rounded-2xl mb-8 p-6 flex items-center justify-between shadow-lg w-full max-w-7xl mx-auto
-          ${theme === 'dark' ? 'bg-gradient-to-r from-gray-800 to-gray-700' : 'bg-gradient-to-r from-blue-500 to-blue-800'}`}
-        >
-          <div className="flex items-center gap-5">
-            <div className={`rounded-xl p-4 flex items-center justify-center
-              ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-blue-600 bg-opacity-30'}`}
-            >
-              <FaIdCard className="w-10 h-10 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-1">KYC Records</h1>
-              <p className="text-white text-base opacity-90">Comprehensive employee KYC records and management</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md
-              ${theme === 'dark' ? 'bg-gray-800 text-blue-200 hover:bg-gray-700' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
-              onClick={handleExportToExcel}
-            >
-              <FaDownload className="w-4 h-4" />
-              Export Data
-            </button>
-            <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md
-              ${theme === 'dark' ? 'bg-gray-800 text-blue-200 hover:bg-gray-700' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
-              onClick={handleExportToPDF}
-            >
-              <FaDownload className="w-4 h-4" />
-              Export PDF
-            </button>
-          </div>
-        </div>
-        {/* Tabs for Create/View KYC */}
-        <div className="flex gap-2 mb-8 w-full max-w-7xl mx-auto">
-          <button
-            className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
-              theme === 'dark'
-                ? 'bg-gray-700 border-transparent text-gray-300 hover:text-blue-300'
-                : 'bg-gray-100 border-transparent text-gray-500 hover:text-blue-700'
-            }`}
-            onClick={() => router.push('/coordinator/kyc-management')}
-          >
-            Create KYC
-          </button>
-          <button
-            className={`px-6 py-2 rounded-t-lg font-semibold border-b-2 transition-all duration-200 focus:outline-none ${
-              theme === 'dark'
-                ? 'bg-gray-800 border-blue-400 text-blue-400'
-                : 'bg-white border-blue-600 text-blue-700'
-            }`}
-            style={{ borderBottomWidth: '3px' }}
-            onClick={() => router.push('/coordinator/kyc-management/view')}
-          >
-            View KYC
-          </button>
-        </div>
 
         {/* Main Content Area */}
         <div className="flex-1 px-6">
@@ -402,10 +263,15 @@ export default function ViewAllKYCPage() {
               </div>
             )}
 
+            {/* Create KYC Form */}
+            {showCreateKycModal && (
+              <div className="mb-6">
+                <CreateKYCForm />
+              </div>
+            )}
+
             {/* Enhanced Data Table */}
-            <div className={`rounded-xl shadow-sm border overflow-hidden
-              ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
-            >
+            <div className="overflow-hidden">
               {/* Filter Row - Match Employee Management Page */}
               <div className="flex flex-row flex-wrap gap-2 px-6 py-4 border-b items-center w-full
                 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}">
@@ -413,7 +279,7 @@ export default function ViewAllKYCPage() {
                 <div className="flex-1 min-w-[180px] max-w-xs">
                   <select
                     value={projectFilter}
-                    onChange={e => { setProjectFilter(e.target.value); setCurrentPage(1); }}
+                    onChange={e => setProjectFilter(e.target.value)}
                     className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       theme === "dark"
                         ? "bg-gray-800 border-blue-900 text-white"
@@ -429,7 +295,7 @@ export default function ViewAllKYCPage() {
                 <div className="relative w-44 min-w-[130px]">
                   <select
                     value={designationFilter}
-                    onChange={e => { setDesignationFilter(e.target.value); setCurrentPage(1); }}
+                    onChange={e => setDesignationFilter(e.target.value)}
                     className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       theme === "dark"
                         ? "bg-gray-800 border-blue-900 text-white"
@@ -448,7 +314,7 @@ export default function ViewAllKYCPage() {
                     type="text"
                     placeholder="Search employee name or ID..."
                     value={search}
-                    onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+                    onChange={e => setSearch(e.target.value)}
                     onKeyDown={e => {
                       if (e.key === 'Enter') {
                         const found = filtered.find(form =>
@@ -457,8 +323,6 @@ export default function ViewAllKYCPage() {
                         );
                         if (found) {
                           setModal({ type: 'view', data: found });
-                          const idx = filtered.findIndex(form => form._id === found._id);
-                          setCurrentPage(Math.floor(idx / rowsPerPage) + 1);
                         }
                       }
                     }}
@@ -469,7 +333,7 @@ export default function ViewAllKYCPage() {
                     }`}
                   />
                 </div>
-                {/* New Joiners Button */}
+                {/* New Joiners and Create KYC Buttons */}
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setModal({ type: 'joiner', data: null })}
@@ -481,6 +345,17 @@ export default function ViewAllKYCPage() {
                   >
                     <FaUsers className="w-4 h-4" />
                     New Joiners
+                  </button>
+                  <button
+                    onClick={() => setShowCreateKycModal(prev => !prev)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                      ${showCreateKycModal
+                        ? theme === 'dark' ? 'bg-green-900 text-green-200 border border-green-700' : 'bg-green-100 text-green-700 border border-green-200'
+                        : theme === 'dark' ? 'bg-gray-800 text-green-200 border border-gray-700 hover:bg-gray-700' : 'bg-white text-green-700 border border-gray-200 hover:bg-gray-50'}
+                    `}
+                  >
+                    <FaIdCard className="w-4 h-4" />
+                    {showCreateKycModal ? 'Close KYC' : 'Create KYC'}
                   </button>
                 </div>
               </div>
@@ -529,143 +404,86 @@ export default function ViewAllKYCPage() {
                 </div>
               ) : (
                 <>
-                  {/* KYC Records Table */}
-                  <div className="overflow-x-auto">
-                    <table className={`min-w-full divide-y
-                      ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}
-                    >
-                      <thead className={theme === 'dark' ? 'bg-gray-900 sticky top-0 z-10' : 'bg-gray-50 sticky top-0 z-10'}>
+                  {/* Excel-like Table */}
+                  <div className={`overflow-x-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+                    <table className="w-full text-sm table-auto border-separate min-w-[1000px]" style={{ borderSpacing: 0 }}>
+                      <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                         <tr>
-                          {/* Column Headers */}
-                          {[
-                            { title: 'Employee', icon: FaUser, sortKey: 'name' },
-                            { title: 'Designation', icon: FaBriefcase, sortKey: 'designation' },
-                            { title: 'Project', icon: FaBuilding, sortKey: 'project' },
-                            { title: 'Status', icon: FaListAlt, sortKey: 'status' },
-                            { title: 'Actions', icon: FaEdit }
-                          ].map(col => (
-                            <th
-                              key={col.title}
-                              className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer transition-colors duration-200
-                                ${theme === 'dark' ? 'text-blue-200 hover:bg-blue-950' : 'text-gray-600 hover:bg-blue-50'}`}
-                              onClick={() => col.sortKey && handleSort(col.sortKey as "name" | "employeeId" | "designation" | "project" | "status")}
-                            >
-                              <div className="flex items-center gap-2">
-                                <col.icon className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
-                                {col.title}
-                                {col.sortKey && getSortIcon(col.sortKey as "name" | "employeeId" | "designation" | "project" | "status")}
-                              </div>
-                            </th>
-                          ))}
+                          <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Photo</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-24 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee ID</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-32 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee Name</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-28 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Designation</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-32 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-28 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Phone</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-32 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date of Joining</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-24 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
                         </tr>
                       </thead>
-                      <tbody className={theme === 'dark' ? 'bg-gray-800 divide-gray-700' : 'bg-white divide-gray-200'}>
-                        {paginated.map(form => (
-                          <tr key={form._id} className={`transition-all duration-200 group
-                            ${theme === 'dark' ? 'hover:bg-blue-950' : 'hover:bg-blue-50'}`}
-                          >
-                            {/* Employee Cell */}
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center gap-4">
-                                <div className="z-0">
-                                  {form.personalDetails.employeeImage ? (
-                                    <Image
-                                      src={form.personalDetails.employeeImage}
-                                      alt={form.personalDetails.fullName}
-                                      width={48}
-                                      height={48}
-                                      className={`rounded-full object-cover border-2 shadow-sm group-hover:border-blue-300 transition-colors duration-200
-                                        ${theme === 'dark' ? 'border-blue-900' : 'border-gray-200'}`}
-                                    />
-                                  ) : (
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 shadow-sm group-hover:border-blue-300
-                                      ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-200 border-gray-300'}`}
-                                    >
-                                      <FaUser className={`w-6 h-6 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`} />
-                                    </div>
-                                  )}
+                      <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                        {filtered.map((form, index) => (
+                          <tr key={form._id} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                            <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{index + 1}</td>
+                            <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                              {form.personalDetails.employeeImage ? (
+                                <Image
+                                  src={form.personalDetails.employeeImage}
+                                  alt={form.personalDetails.fullName}
+                                  width={32}
+                                  height={32}
+                                  className={`rounded object-cover border ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}
+                                />
+                              ) : (
+                                <div className={`w-8 h-8 rounded flex items-center justify-center border ${theme === 'dark' ? 'bg-gray-700 border-blue-900' : 'bg-gray-200 border-blue-200'}`}>
+                                  <FaUser className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`} />
                                 </div>
-                                <div>
-                                  <div className={`text-sm font-semibold group-hover:text-blue-400 transition-colors duration-200
-                                    ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
-                                  >
-                                    {form.personalDetails.fullName}
-                                  </div>
-                                  <div className={`text-xs font-mono mt-1
-                                    ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}
-                                  >
-                                    {form.personalDetails.employeeId}
-                                  </div>
-                                </div>
-                              </div>
+                              )}
                             </td>
-                            {/* Designation Cell */}
-                            <td className={`px-6 py-4 whitespace-nowrap
-                              ${theme === 'dark' ? 'text-blue-100' : 'text-gray-700'} font-medium`}
-                            >{form.personalDetails.designation}</td>
-                            {/* Project Cell */}
-                            <td className={`px-6 py-4 whitespace-nowrap
-                              ${theme === 'dark' ? 'text-blue-100' : 'text-gray-700'} font-medium`}
-                            >{form.personalDetails.projectName}</td>
-                            {/* Status Cell */}
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200
-                                ${theme === 'dark'
-                                  ? form.status.toLowerCase() === 'approved'
-                                    ? 'bg-emerald-900/30 text-emerald-200 border-emerald-800'
-                                    : form.status.toLowerCase() === 'pending'
-                                      ? 'bg-amber-900/30 text-amber-200 border-amber-800'
-                                      : form.status.toLowerCase() === 'rejected'
-                                        ? 'bg-red-900/30 text-red-200 border-red-800'
-                                        : 'bg-gray-700 text-gray-200 border-gray-600'
-                                  : getStatusColor(form.status)
-                                }`}
-                              >
-                                {form.status === 'approved' && <FaCheckCircle className="w-3 h-3 mr-1" />}
-                                {form.status === 'pending' && <FaClock className="w-3 h-3 mr-1" />}
-                                {form.status === 'rejected' && <FaTimesCircle className="w-3 h-3 mr-1" />}
+                            <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{form.personalDetails.employeeId}</td>
+                            <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={form.personalDetails.fullName}>{form.personalDetails.fullName}</div></td>
+                            <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={form.personalDetails.designation}>{form.personalDetails.designation}</div></td>
+                            <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={form.personalDetails.projectName}>{form.personalDetails.projectName}</div></td>
+                            <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                              <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
+                                form.status === 'approved' 
+                                  ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
+                                  : form.status === 'pending'
+                                  ? theme === 'dark' ? 'bg-yellow-800 text-yellow-200' : 'bg-yellow-100 text-yellow-700'
+                                  : form.status === 'rejected'
+                                  ? theme === 'dark' ? 'bg-red-800 text-red-200' : 'bg-red-100 text-red-700'
+                                  : theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-700'
+                              }`}>
                                 {form.status}
                               </span>
                             </td>
-                            {/* Actions Cell */}
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => setModal({ type: 'edit', data: form })}
-                                  className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105
-                                    ${theme === 'dark' ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                  title="Edit KYC"
-                                >
-                                  <FaEdit className="w-3 h-3" />
-                                  Edit
-                                </button>
+                            <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={form.personalDetails.phoneNumber}>{form.personalDetails.phoneNumber}</div></td>
+                            <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                              {new Date(form.personalDetails.dateOfJoining).toLocaleDateString()}
+                            </td>
+                            <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                              <div className="flex gap-1">
                                 <button
                                   onClick={() => setModal({ type: 'view', data: form })}
-                                  className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105
-                                    ${theme === 'dark' ? 'bg-gray-700 text-blue-200 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                                   title="View Details"
+                                  className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                    theme === 'dark' 
+                                      ? 'border-blue-500 text-blue-400 bg-gray-800 hover:bg-gray-700 focus:ring-blue-400' 
+                                      : 'border-blue-500 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-400'
+                                  }`}
                                 >
-                                  <FaEye className="w-3 h-3" />
                                   View
                                 </button>
                                 <button
-                                  onClick={async () => {
-                                    if (window.confirm('Are you sure you want to delete this KYC record? This action cannot be undone.')) {
-                                      try {
-                                        await fetch(`https://cafm.zenapi.co.in/api/kyc/${form.personalDetails.employeeId}`, { method: 'DELETE' });
-                                        setKYCForms(prev => prev.filter(f => f._id !== form._id));
-                                        setToast({ type: 'success', message: 'KYC record deleted successfully.' });
-                                      } catch {
-                                        setToast({ type: 'error', message: 'Failed to delete KYC record.' });
-                                      }
-                                    }
-                                  }}
-                                  className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105
-                                    ${theme === 'dark' ? 'bg-red-900/30 text-red-200 hover:bg-red-900/50' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
-                                  title="Delete KYC"
+                                  onClick={() => setModal({ type: 'edit', data: form })}
+                                  title="Edit KYC"
+                                  className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                    theme === 'dark' 
+                                      ? 'border-green-500 text-green-400 bg-gray-800 hover:bg-gray-700 focus:ring-green-400' 
+                                      : 'border-green-500 text-green-600 bg-white hover:bg-green-50 focus:ring-green-400'
+                                  }`}
                                 >
-                                  <FaTrash className="w-3 h-3" />
-                                  Delete
+                                  Edit
                                 </button>
                               </div>
                             </td>
@@ -675,66 +493,6 @@ export default function ViewAllKYCPage() {
                     </table>
                   </div>
 
-                  {/* Pagination Controls */}
-                  {totalPages > 1 && (
-                    <div className={`px-6 py-4 border-t flex items-center justify-between
-                      ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
-                    >
-                      <div className={`text-sm
-                        ${theme === 'dark' ? 'text-blue-200' : 'text-gray-600'}`}
-                      >
-                        Showing <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
-                        <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{Math.min(currentPage * rowsPerPage, filtered.length)}</span>{' '}
-                        of <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{filtered.length}</span> results
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                          disabled={currentPage === 1}
-                          className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200
-                            ${theme === 'dark' ? 'text-blue-200 bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed' : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'}`}
-                        >
-                          <FaChevronLeft className="w-4 h-4" />
-                          Previous
-                        </button>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            let pageNum;
-                            if (totalPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (currentPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (currentPage >= totalPages - 2) {
-                              pageNum = totalPages - 4 + i;
-                            } else {
-                              pageNum = currentPage - 2 + i;
-                            }
-                            return (
-                              <button
-                                key={pageNum}
-                                onClick={() => setCurrentPage(pageNum)}
-                                className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200
-                                  ${currentPage === pageNum
-                                    ? theme === 'dark' ? 'bg-blue-700 text-white shadow-md' : 'bg-blue-600 text-white shadow-md'
-                                    : theme === 'dark' ? 'text-blue-200 bg-gray-800 border border-gray-700 hover:bg-gray-700' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'}`}
-                              >
-                                {pageNum}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <button
-                          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                          disabled={currentPage === totalPages}
-                          className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200
-                            ${theme === 'dark' ? 'text-blue-200 bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed' : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'}`}
-                        >
-                          Next
-                          <FaChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
             </div>

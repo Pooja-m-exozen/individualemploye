@@ -80,6 +80,15 @@ interface DCItem {
   size: string;
   employeeId: string | null;
   uniformType: string;
+  // New properties for employee mappings
+  totalQuantity?: number;
+  remainingQuantity?: number;
+  employeeMappings?: Array<{
+    employeeId: string;
+    quantity: number;
+    mappedAt: string;
+    _id: string;
+  }>;
 }
 
 interface EmployeeMapping {
@@ -414,6 +423,24 @@ export default function BulkIssuePage() {
   };
 
   // Refresh issues
+  const isDCFullyMapped = (issue: Issue): boolean => {
+    if (!issue.outwardDC) return false;
+    
+    return issue.outwardDC.items.every(item => {
+      // Check if remainingQuantity is 0 (most reliable indicator)
+      if (item.remainingQuantity !== undefined) {
+        return item.remainingQuantity === 0;
+      }
+      
+      // Fallback: Check if item has employeeMappings and all quantity is mapped
+      if (item.employeeMappings && item.employeeMappings.length > 0) {
+        const totalMappedQuantity = item.employeeMappings.reduce((sum: number, mapping: { quantity: number }) => sum + mapping.quantity, 0);
+        return totalMappedQuantity >= (item.totalQuantity || item.quantity || 1);
+      }
+      return false;
+    });
+  };
+
   const refreshIssues = async () => {
     setIssuesLoading(true);
     try {
@@ -605,21 +632,40 @@ export default function BulkIssuePage() {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 30px;
+            border: 2px solid #333;
           }
           .items-table th,
           .items-table td {
             border: 1px solid #333;
-            padding: 8px;
+            padding: 6px 8px;
             text-align: center;
-            font-size: 12px;
+            font-size: 11px;
+            font-family: Arial, sans-serif;
           }
           .items-table th {
-            background-color: #f0f0f0;
+            background-color: #f8f8f8;
             font-weight: bold;
+            text-align: center;
+            font-size: 11px;
           }
           .items-table .item-name {
             text-align: left;
-            font-weight: bold;
+            font-weight: normal;
+          }
+          .items-table td {
+            text-align: left;
+          }
+          .items-table td:nth-child(1),
+          .items-table td:nth-child(2),
+          .items-table td:nth-child(5),
+          .items-table td:nth-child(6),
+          .items-table td:nth-child(7),
+          .items-table td:nth-child(8),
+          .items-table td:nth-child(9),
+          .items-table td:nth-child(10),
+          .items-table td:nth-child(11),
+          .items-table td:nth-child(12) {
+            text-align: center;
           }
           .notes {
             margin-bottom: 30px;
@@ -648,12 +694,13 @@ export default function BulkIssuePage() {
           }
           .signature-line {
             border-bottom: 1px solid #333;
-            height: 40px;
-            margin-bottom: 5px;
+            height: 30px;
+            margin-top: 5px;
           }
           .signature-label {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
+            margin-bottom: 5px;
           }
           @media print {
             body { margin: 0; }
@@ -665,12 +712,12 @@ export default function BulkIssuePage() {
         <div class="header">
           <div class="company-name">EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED</div>
           <div class="company-address">25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka</div>
-          <div class="document-title">Delivery Challan - ${dc.dcNumber}</div>
+          <div class="document-title">Non-Returnable Delivery Challan</div>
         </div>
         
         <div class="document-info">
           <div class="info-item">
-            <span class="info-label">DC Number:</span>
+            <span class="info-label">NRDC No:</span>
             <span class="info-value">${dc.dcNumber}</span>
           </div>
           <div class="info-item">
@@ -696,14 +743,16 @@ export default function BulkIssuePage() {
         <table class="items-table">
           <thead>
             <tr>
-              <th>Sl No</th>
+              <th>SI No</th>
               <th>Emp ID</th>
               <th>Names</th>
-              <th>Designation</th>
+              <th>DESIGNATION</th>
               <th>No of Set</th>
-              <th>Item Name</th>
-              <th>Size</th>
-              <th>Quantity</th>
+              <th>Commercial HK Pant</th>
+              <th>Yellow</th>
+              <th>HK Ladies pant</th>
+              <th>Green</th>
+              <th>Ladies Shoes</th>
               <th>Amount</th>
               <th>Emp Sign</th>
             </tr>
@@ -711,7 +760,30 @@ export default function BulkIssuePage() {
           <tbody>
             ${dc.items.map((item, index) => {
               const empDetails = employeeDetails[item.employeeId || ''] || { fullName: 'N/A', designation: 'N/A' };
-              const setCount = employeeSetCounts[item.employeeId || ''] || 0;
+              const setCount = employeeSetCounts[item.employeeId || ''] || 1;
+              
+              // Map uniform types to the new column structure
+              const getUniformData = (uniformType: string, size: string) => {
+                const typeLower = uniformType?.toLowerCase() || '';
+                
+                if (typeLower.includes('commercial') && typeLower.includes('pant')) {
+                  return { commercialPant: size || 'N/A', yellow: 'N/A', ladiesPant: 'N/A', green: 'N/A', ladiesShoes: 'N/A' };
+                } else if (typeLower.includes('yellow')) {
+                  return { commercialPant: 'N/A', yellow: size || 'N/A', ladiesPant: 'N/A', green: 'N/A', ladiesShoes: 'N/A' };
+                } else if (typeLower.includes('ladies') && typeLower.includes('pant')) {
+                  return { commercialPant: 'N/A', yellow: 'N/A', ladiesPant: size || 'N/A', green: 'N/A', ladiesShoes: 'N/A' };
+                } else if (typeLower.includes('green')) {
+                  return { commercialPant: 'N/A', yellow: 'N/A', ladiesPant: 'N/A', green: size || 'N/A', ladiesShoes: 'N/A' };
+                } else if (typeLower.includes('ladies') && typeLower.includes('shoe')) {
+                  return { commercialPant: 'N/A', yellow: 'N/A', ladiesPant: 'N/A', green: 'N/A', ladiesShoes: size || 'N/A' };
+                } else {
+                  // Default mapping for other uniform types
+                  return { commercialPant: 'N/A', yellow: 'N/A', ladiesPant: 'N/A', green: 'N/A', ladiesShoes: 'N/A' };
+                }
+              };
+              
+              const uniformData = getUniformData(item.uniformType || '', item.size || '');
+              
               return `
                 <tr>
                   <td>${index + 1}</td>
@@ -719,9 +791,11 @@ export default function BulkIssuePage() {
                   <td class="item-name">${empDetails.fullName}</td>
                   <td>${empDetails.designation}</td>
                   <td>${setCount}</td>
-                  <td>${item.uniformType || 'N/A'}</td>
-                  <td>${item.size || 'N/A'}</td>
-                  <td>${item.quantity || 'N/A'}</td>
+                  <td>${uniformData.commercialPant}</td>
+                  <td>${uniformData.yellow}</td>
+                  <td>${uniformData.ladiesPant}</td>
+                  <td>${uniformData.green}</td>
+                  <td>${uniformData.ladiesShoes}</td>
                   <td>N/A</td>
                   <td></td>
                 </tr>
@@ -731,27 +805,25 @@ export default function BulkIssuePage() {
         </table>
         
         <div class="notes">
-          <h3>Notes/Conditions:</h3>
+          <h3>Terms and Conditions:</h3>
           <ol>
             <li>Complaints will be entertained if the goods are received within 24hrs of delivery</li>
             <li>Goods are delivered after careful checking</li>
-            <li>This is a Bulk Issue Challan</li>
-            <li>All items are issued as per company policy</li>
           </ol>
         </div>
         
         <div class="signatures">
           <div class="signature-box">
-            <div class="signature-line"></div>
             <div class="signature-label">Initiated by</div>
+            <div class="signature-line"></div>
           </div>
           <div class="signature-box">
-            <div class="signature-line"></div>
             <div class="signature-label">Received by</div>
+            <div class="signature-line"></div>
           </div>
           <div class="signature-box">
-            <div class="signature-line"></div>
             <div class="signature-label">Issued by</div>
+            <div class="signature-line"></div>
           </div>
         </div>
         
@@ -1753,13 +1825,24 @@ export default function BulkIssuePage() {
                                   <button
                                     onClick={() => {
                                       console.log('Button clicked for issue:', issue._id, 'outwardDC:', issue.outwardDC, 'dcNumber:', issue.dcNumber);
-                                      handleCreateDC(issue);
+                                      if (issue.outwardDC || issue.dcNumber) {
+                                        if (!isDCFullyMapped(issue)) {
+                                          handleCreateDC(issue);
+                                        }
+                                      } else {
+                                        handleCreateDC(issue);
+                                      }
                                     }}
+                                    disabled={issue.outwardDC && isDCFullyMapped(issue)}
                                     className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 transform hover:scale-105 ${
                                       issue.outwardDC || issue.dcNumber
-                                        ? theme === "dark" 
-                                          ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-blue-500/25" 
-                                          : "bg-blue-500 text-white hover:bg-blue-600 shadow-md hover:shadow-lg"
+                                        ? isDCFullyMapped(issue)
+                                          ? theme === "dark" 
+                                            ? "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed" 
+                                            : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
+                                          : theme === "dark" 
+                                            ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-blue-500/25" 
+                                            : "bg-blue-500 text-white hover:bg-blue-600 shadow-md hover:shadow-lg"
                                         : theme === "dark" 
                                           ? "bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-green-500/25" 
                                           : "bg-green-500 text-white hover:bg-green-600 shadow-md hover:shadow-lg"
@@ -1769,7 +1852,7 @@ export default function BulkIssuePage() {
                                       {issue.outwardDC || issue.dcNumber ? (
                                         <>
                                           <FaUserPlus className="w-3 h-3" />
-                                          Map Employees
+                                          {isDCFullyMapped(issue) ? "✓ Mapped" : "Map Employees"}
                                         </>
                                       ) : (
                                         <>
@@ -2563,44 +2646,6 @@ export default function BulkIssuePage() {
                   </div>
                 </div>
 
-                {/* Available Employees */}
-                <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
-                  <h3 className={`font-semibold mb-4 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>
-                    Available Employees ({availableEmployees.length} employees)
-                  </h3>
-                  
-                  {/* Debug Information */}
-                  <div className={`mb-4 p-3 rounded text-xs ${theme === "dark" ? "bg-gray-800 text-gray-300" : "bg-gray-100 text-gray-600"}`}>
-                    <div><strong>Project:</strong> {selectedIssueForDC?.department}</div>
-                    <div><strong>Total Employees Loaded:</strong> {employees.length}</div>
-                    <div><strong>Available Projects:</strong> {[...new Set(employees.map(emp => emp.projectName))].slice(0, 5).join(', ')}</div>
-                  </div>
-                  
-                  {employeesLoading ? (
-                    <div className="flex items-center justify-center py-4">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
-                      <span className={`ml-2 ${theme === "dark" ? "text-green-200" : "text-green-700"}`}>Loading employees...</span>
-                    </div>
-                  ) : availableEmployees.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {availableEmployees.map((emp) => (
-                        <div key={emp.employeeId} className={`p-2 rounded text-xs ${theme === "dark" ? "bg-green-900 text-green-100" : "bg-green-100 text-green-800"}`}>
-                          <div className="font-medium">{emp.fullName}</div>
-                          <div className="text-xs opacity-75">{emp.employeeId} - {emp.designation}</div>
-                          <div className="text-xs opacity-50">Project: {emp.projectName}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className={`text-center py-4 ${theme === "dark" ? "text-green-200" : "text-green-700"}`}>
-                      <div className="mb-2">No employees found for this project</div>
-                      <div className="text-xs opacity-75">
-                        Check console for detailed debugging information
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 {/* Items to Map */}
                 <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
                   <h3 className={`font-semibold mb-4 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
@@ -2638,7 +2683,7 @@ export default function BulkIssuePage() {
                               {item.size}
                             </td>
                             <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
-                              {item.quantity}
+                              {item.remainingQuantity !== undefined ? item.remainingQuantity : item.quantity}
                             </td>
                             <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
                               {item.employeeId || (

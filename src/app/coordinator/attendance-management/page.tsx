@@ -2,7 +2,7 @@
 
 import React, { JSX, useEffect, useState } from "react";
 import CoordinatorDashboardLayout from "@/components/dashboard/CoordinatorDashboardLayout";
-import { FaSpinner, FaFileExcel, FaFilePdf, FaCalendar, FaUser,  FaEye } from "react-icons/fa";
+import { FaSpinner, FaFileExcel, FaFilePdf, FaCalendar } from "react-icons/fa";
 // import { calculateHoursUtc } from "@/app/utils/attendanceUtils";
 import { useTheme } from "@/context/ThemeContext";
 import * as XLSX from 'xlsx';
@@ -171,8 +171,6 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
   const [projectFilter, setProjectFilter] = useState<string>("");
   const [designationFilter, setDesignationFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const cardsPerPage = 8;
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -196,6 +194,22 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear + 2 - i);
 
+  // Extract unique project names and designations
+  const projectNames = Array.from(new Set(employees.map(e => e.projectName).filter(Boolean)));
+  const designations = Array.from(new Set(employees.map(e => e.designation).filter(Boolean)));
+
+  // Filter employees based on selected filters and search
+  const filteredEmployees = employees.filter(emp => {
+    const matchesProject = projectFilter ? emp.projectName === projectFilter : true;
+    const matchesDesignation = designationFilter ? emp.designation === designationFilter : true;
+    const matchesSearch = searchQuery
+      ? emp.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.employeeId.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+    return matchesProject && matchesDesignation && matchesSearch;
+  });
+
+
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
@@ -204,7 +218,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
 
         if (data.kycForms) {
           type KycForm = { personalDetails: { employeeId: string; employeeImage: string; fullName: string; designation: string; projectName: string; } };
-          const filteredEmployees = (data.kycForms as KycForm[])
+          const employeeList = (data.kycForms as KycForm[])
             // .filter((form) => form.personalDetails.projectName === "Exozen - Ops")
             .map((form) => ({
               employeeId: form.personalDetails.employeeId,
@@ -214,7 +228,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
               projectName: form.personalDetails.projectName,
             }));
 
-          setEmployees(filteredEmployees);
+          setEmployees(employeeList);
         }
       } catch (error) {
         console.error("Error fetching employees:", error);
@@ -225,6 +239,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
 
     fetchEmployees();
   }, []);
+
 
   useEffect(() => {
     if (!selectedEmployee || !month || !year) return;
@@ -835,24 +850,6 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
     });
   };
 
-  // Extract unique project names and designations
-  const projectNames = Array.from(new Set(employees.map(e => e.projectName).filter(Boolean)));
-  const designations = Array.from(new Set(employees.map(e => e.designation).filter(Boolean)));
-
-  // Filter employees based on selected filters and search
-  const filteredEmployees = employees.filter(emp => {
-    const matchesProject = projectFilter ? emp.projectName === projectFilter : true;
-    const matchesDesignation = designationFilter ? emp.designation === designationFilter : true;
-    const matchesSearch = searchQuery
-      ? emp.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.employeeId.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
-    return matchesProject && matchesDesignation && matchesSearch;
-  });
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredEmployees.length / cardsPerPage);
-  const paginatedEmployees = filteredEmployees.slice((currentPage - 1) * cardsPerPage, currentPage * cardsPerPage);
 
   return (
     <CoordinatorDashboardLayout>
@@ -860,32 +857,6 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
         theme === 'dark' ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'
       }`}>
         <div className="p-6 space-y-6">
-          {/* Header */}
-          <div className={`${
-            theme === 'dark' 
-              ? 'bg-gray-800' 
-              : 'bg-blue-600'
-          } text-white p-8 rounded-xl shadow-lg`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className={`p-3 ${
-                  theme === 'dark' 
-                    ? 'bg-white/10' 
-                    : 'bg-white/20'
-                } backdrop-blur-sm rounded-xl`}>
-                  <FaFileExcel className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold">Employee-wise Attendance Report</h1>
-                  <p className={`${
-                    theme === 'dark' 
-                      ? 'text-gray-300' 
-                      : 'text-blue-100'
-                  } mt-1`}>View attendance details for employees</p>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {loading ? (
             <div className="flex justify-center items-center min-h-[300px]">
@@ -903,7 +874,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
                   {/* Project Dropdown */}
                   <select
                     value={projectFilter}
-                    onChange={e => { setProjectFilter(e.target.value); setCurrentPage(1); }}
+                    onChange={e => setProjectFilter(e.target.value)}
                     className={`border rounded-lg p-2 min-w-[140px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
                   >
                     <option value="">All Projects</option>
@@ -914,7 +885,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
                   {/* Designation Dropdown */}
                   <select
                     value={designationFilter}
-                    onChange={e => { setDesignationFilter(e.target.value); setCurrentPage(1); }}
+                    onChange={e => setDesignationFilter(e.target.value)}
                     className={`border rounded-lg p-2 min-w-[140px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
                   >
                     <option value="">All Designations</option>
@@ -926,7 +897,7 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
                   <input
                     type="text"
                     value={searchQuery}
-                    onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                    onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Search by name or ID"
                     className={`border rounded-lg p-2 min-w-[180px] ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-black border-gray-300'}`}
                   />
@@ -966,117 +937,71 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
                 </div>
               </div>
 
-              {/* Employee Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                {paginatedEmployees.map((employee) => (
-                  <div
-                    key={employee.employeeId}
-                    className={`${
-                      theme === 'dark'
-                        ? 'bg-gray-800 text-gray-100 hover:bg-gray-700'
-                        : 'bg-white hover:bg-gray-50'
-                    } rounded-xl shadow-lg p-6 transition-colors`}
-                  >
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className={`w-16 h-16 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-blue-100'} flex items-center justify-center overflow-hidden`}>
-                        {employee.employeeImage ? (
+              {/* Excel-like Table */}
+              <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+                <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                  <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+                    <tr>
+                      <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Photo</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee ID</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee Name</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Designation</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project</th>
+                      <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                    {filteredEmployees.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No employees found</td>
+                      </tr>
+                    ) : filteredEmployees.map((employee, index) => (
+                      <tr key={employee.employeeId} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{index + 1}</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <Image
-                            src={employee.employeeImage}
+                            src={employee.employeeImage || "/placeholder-user.jpg"}
                             alt={employee.fullName}
-                            width={64}
-                            height={64}
-                            className="w-full h-full object-cover"
+                            width={32}
+                            height={32}
+                            className={`rounded object-cover border ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}
                           />
-                        ) : (
-                          <FaUser className={`w-8 h-8 ${theme === 'dark' ? 'text-gray-400' : 'text-blue-500'}`} />
-                        )}
-                      </div>
-                      <div>
-                        <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
-                          {employee.fullName}
-                        </h3>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {employee.employeeId}
-                        </p>
-                      </div>
-                    </div>
-                    <p className={`mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'}`}>
-                      <span className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                        Designation:
-                      </span>{" "}
-                      {employee.designation}
-                    </p>
-                    <button
-                      onClick={() => {
-                        setSelectedEmployee(employee.employeeId);
-                        fetchAttendance(employee.employeeId);
-                      }}
-                      className={`w-full ${
-                        theme === 'dark'
-                          ? 'bg-blue-600 hover:bg-blue-700'
-                          : 'bg-blue-500 hover:bg-blue-600'
-                      } text-white py-2 rounded-lg transition-colors`}
-                    >
-                      View Attendance
-                    </button>
-                  </div>
-                ))}
+                        </td>
+                        <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{employee.employeeId}</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={employee.fullName}>{employee.fullName}</div></td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={employee.designation}>{employee.designation}</div></td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={employee.projectName}>{employee.projectName}</div></td>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <button
+                            onClick={() => {
+                              setSelectedEmployee(employee.employeeId);
+                              fetchAttendance(employee.employeeId);
+                            }}
+                            title="View Attendance"
+                            className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                              theme === 'dark' 
+                                ? 'border-blue-500 text-blue-400 bg-gray-800 hover:bg-gray-700 focus:ring-blue-400' 
+                                : 'border-blue-500 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-400'
+                            }`}
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-2 my-6">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                      theme === 'dark'
-                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    } disabled:opacity-50`}
-                  >
-                    Previous
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setCurrentPage(i + 1)}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                        currentPage === i + 1
-                          ? theme === 'dark'
-                            ? 'bg-blue-700 text-white'
-                            : 'bg-blue-600 text-white'
-                          : theme === 'dark'
-                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                      theme === 'dark'
-                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    } disabled:opacity-50`}
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
 
               {/* Attendance Table */}
               {selectedEmployee && (
-                <div className={`overflow-x-auto rounded-xl border ${
-                  theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-                }`}>
+                <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
                   <div className={`flex justify-between items-center p-4 ${
                     theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'
                   }`}>
-                    <h2 className="text-xl font-semibold text-gray-800">
+                    <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
                       Attendance Details
                     </h2>
                     <div className="flex gap-3">
@@ -1098,123 +1023,97 @@ const EmployeeWiseAttendancePage = (): JSX.Element => {
                   </div>
 
                   {attendanceLoading ? (
-                    <div className="flex justify-center items-center">
-                      <FaSpinner className="animate-spin text-blue-600 w-12 h-12" />
+                    <div className="flex justify-center items-center py-12">
+                      <FaSpinner className={`animate-spin ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'} w-12 h-12`} />
                     </div>
                   ) : attendance.length === 0 ? (
-                    <p className="text-gray-600 text-lg">
+                    <div className={`py-12 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                       No attendance records found for the selected month.
-                    </p>
+                    </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full bg-white rounded-lg shadow-md overflow-hidden">
-                        <thead className={`${
-                          theme === 'dark'
-                            ? 'bg-gray-700 text-gray-200'
-                            : 'bg-gradient-to-r from-blue-500 to-blue-700 text-white'
-                        }`}>
-                          <tr>
-                            <th className="p-4 text-left font-semibold">Date</th>
-                            <th className="p-4 text-left font-semibold">Project</th>
-                            <th className="p-4 text-left font-semibold">Check-In</th>
-                            <th className="p-4 text-left font-semibold">Check-Out</th>
-                            <th className="p-4 text-left font-semibold">Hours Worked</th>
-                            <th className="p-4 text-left font-semibold">Day Type</th>
-                            <th className="p-4 text-left font-semibold">Status</th>
-                            <th className="p-4 text-left font-semibold">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className={`${
-                          theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-                        } divide-y ${
-                          theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'
-                        }`}>
-                          {attendance.map((record, index) => {
-                            const dayType = getDayType(record.date, year, month);
-                            const status = getAttendanceStatus(record, dayType);
-                            let hoursWorked = dayType !== 'Working Day' ? '-' : '0h 0m';
-                            
-                            if (record.punchInTime && record.punchOutTime) {
-                                const inTime = new Date(record.punchInTime);
-                                const outTime = new Date(record.punchOutTime);
-                                const diffMs = outTime.getTime() - inTime.getTime();
-                                const hours = Math.floor(diffMs / (1000 * 60 * 60));
-                                const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                                hoursWorked = `${hours}h ${minutes}m`;
-                            }
+                    <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                      <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+                        <tr>
+                          <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Check-In</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Check-Out</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Hours Worked</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Day Type</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+                          <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                        {attendance.map((record, index) => {
+                          const dayType = getDayType(record.date, year, month);
+                          const status = getAttendanceStatus(record, dayType);
+                          let hoursWorked = dayType !== 'Working Day' ? '-' : '0h 0m';
+                          
+                          if (record.punchInTime && record.punchOutTime) {
+                              const inTime = new Date(record.punchInTime);
+                              const outTime = new Date(record.punchOutTime);
+                              const diffMs = outTime.getTime() - inTime.getTime();
+                              const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                              const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                              hoursWorked = `${hours}h ${minutes}m`;
+                          }
 
-                            return (
-                              <tr
-                                key={record._id}
-                                className={`${
-                                  theme === 'dark' 
-                                    ? 'hover:bg-gray-700' 
-                                    : index % 2 === 0 ? 'bg-gray-50 hover:bg-gray-100' : 'hover:bg-gray-100'
-                                } transition-colors`}
-                              >
-                                <td className={`p-4 ${
-                                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                                }`}>
-                                  {new Date(record.date).toLocaleDateString(
-                                    "en-US",
-                                    {
-                                      year: "numeric",
-                                      month: "long",
-                                      day: "numeric",
-                                    }
-                                  )}
-                                </td>
-                                <td className={`p-4 ${
-                                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                                }`}>
-                                  {record.projectName || "N/A"}
-                                </td>
-                                <td className={`p-4 ${
-                                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                                }`}>
-                                  {formatTime(record.punchInTime)}
-                                </td>
-                                <td className={`p-4 ${
-                                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                                }`}>
-                                  {formatTime(record.punchOutTime)}
-                                </td>
-                                <td className={`p-4 ${
-                                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                                }`}>
-                                  {hoursWorked}
-                                </td>
-                                <td className={`p-4 ${
-                                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                                }`}>
-                                  {dayType}
-                                </td>
-                                <td className={`p-4 ${
-                                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                          return (
+                            <tr key={record._id} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                              <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{index + 1}</td>
+                              <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                                {new Date(record.date).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                })}
+                              </td>
+                              <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}>
+                                <div className="truncate" title={record.projectName || "N/A"}>{record.projectName || "N/A"}</div>
+                              </td>
+                              <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                                {formatTime(record.punchInTime)}
+                              </td>
+                              <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                                {formatTime(record.punchOutTime)}
+                              </td>
+                              <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                                {hoursWorked}
+                              </td>
+                              <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                                {dayType}
+                              </td>
+                              <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                                <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
+                                  status === 'Present' 
+                                    ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
+                                    : status === 'Absent'
+                                    ? theme === 'dark' ? 'bg-red-800 text-red-200' : 'bg-red-100 text-red-700'
+                                    : theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-700'
                                 }`}>
                                   {status}
-                                </td>
-                                <td className={`p-4 ${
-                                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                                }`}>
-                                  <button
-                                    onClick={() => setSelectedRecord(record)}
-                                    className={`${
-                                      theme === 'dark'
-                                        ? 'bg-blue-600 hover:bg-blue-700'
-                                        : 'bg-blue-500 hover:bg-blue-600'
-                                    } text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2`}
-                                  >
-                                    <FaEye className="w-4 h-4" />
-                                    View
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                                </span>
+                              </td>
+                              <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                                <button
+                                  onClick={() => setSelectedRecord(record)}
+                                  title="View Details"
+                                  className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                    theme === 'dark' 
+                                      ? 'border-blue-500 text-blue-400 bg-gray-800 hover:bg-gray-700 focus:ring-blue-400' 
+                                      : 'border-blue-500 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-400'
+                                  }`}
+                                >
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   )}
                 </div>
               )}
