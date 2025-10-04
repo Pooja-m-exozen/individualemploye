@@ -2,25 +2,76 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import ManagerDashboardLayout  from "@/components/dashboard/ManagerDashboardLayout";
 import CreateDCModal from "@/components/dashboard/CreateDCmodal";
-import { FaSearch, FaUpload, FaFileImage, FaFilePdf, FaFileWord, FaFileExcel, FaTimes, FaDownload, FaEye } from "react-icons/fa";
+import { FaSearch, FaUpload, FaFileImage, FaFilePdf, FaFileWord, FaFileExcel, FaTimes, FaDownload, FaEye, FaBoxOpen, FaUsers, FaTshirt, FaFileAlt, FaUserPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Add CSS animation for toast
-const toastStyles = `
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-out;
-  }
-`;
 
 
 // TypeScript types for API response
-interface DCItem {
+interface DCItemAPI {
+  _id: string;
+  customer: string;
+  dcNumber: string;
+  dcDate: string;
+  address: string;
+  remarks: string;
+  issueId?: string;
+  issue?: string;
+  items: Array<{
+    itemId: string;
+    quantity: number;
+    size: string;
+    employeeId?: string;
+    uniformType?: string;
+    totalQuantity?: number;
+    remainingQuantity?: number;
+    employeeMappings?: Array<{
+      employeeId: string;
+      quantity: number;
+      mappedAt: string;
+      _id: string;
+    }>;
+    _id: string;
+  }>;
+  attachments: unknown[];
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+interface InventoryItem {
+  itemId: string | { _id: string; name: string };
+  quantity: number;
+  size?: string;
+  employeeId?: string;
+  uniformType?: string | string[];
+  totalQuantity?: number;
+  remainingQuantity?: number;
+  employeeMappings?: Array<{
+    employeeId: string;
+    quantity: number;
+    mappedAt: string;
+    _id: string;
+  }>;
+  _id?: string;
+  name?: string;
+  itemCode?: string;
+  category?: string;
+  subCategory?: string;
+  sizes?: string[];
+  sizeInventory?: Array<{
+    size: string;
+    quantity: number;
+    unit: string;
+    price: string;
+    openingBalance: number;
+    _id: string;
+  }>;
+}
+
+interface DCItemOriginal {
   employeeId: string;
   itemCode: string;
   name: string;
@@ -50,6 +101,15 @@ interface DCItem {
     qty: number;
     projectName: string;
   };
+  // New properties for employee mappings
+  totalQuantity?: number;
+  remainingQuantity?: number;
+  employeeMappings?: Array<{
+    employeeId: string;
+    quantity: number;
+    mappedAt: string;
+    _id: string;
+  }>;
   _id: string;
 }
 
@@ -85,7 +145,7 @@ interface DC {
   dcDate: string;
   remarks: string;
   address?: string; // Add address field
-  items: DCItem[];
+  items: DCItemOriginal[];
   uploadedFiles?: UploadedFile[]; // Add uploaded files array
   createdAt: string;
   updatedAt: string;
@@ -94,6 +154,118 @@ interface DC {
 
 interface ApiResponse {
   dcs: DC[];
+}
+
+// Additional interfaces for bulk issue functionality
+
+interface Employee {
+  employeeId: string;
+  fullName: string;
+  designation: string;
+  projectName: string;
+  department: string;
+}
+
+interface Project {
+  _id: string;
+  projectName: string;
+  address: string;
+  totalManpower: number;
+  designationWiseCount: Record<string, number>;
+  updatedDate: string;
+}
+
+interface BulkIssueItem {
+  itemId: string;
+  itemName: string;
+  itemCode: string;
+  size: string;
+  quantity: number;
+  employeeId: string;
+  employeeName: string;
+  remarks?: string;
+}
+
+interface BulkIssueRequest {
+  issueTo: string;
+  department: string;
+  purpose: string;
+  address: string;
+  issueDate: string;
+  items: BulkIssueItem[];
+}
+
+interface UniformMapping {
+  _id: string;
+  project: string;
+  designations: string[];
+  uniformTypes: string[];
+  payable: 'payable' | 'non-payable';
+  isActive: boolean;
+}
+
+interface EmployeeMapping {
+  itemId: string;
+  employeeId: string;
+  quantity: number;
+  size: string;
+  uniformType: string;
+}
+
+interface ItemEmployeeMapping {
+  itemId: string;
+  itemName: string;
+  size: string;
+  totalQuantity: number;
+  selectedEmployees: Array<{
+    employeeId: string;
+    employeeName: string;
+    quantity: number;
+  }>;
+  remainingQuantity: number;
+}
+
+interface OutwardDC {
+  _id: string;
+  customer?: string;
+  dcNumber: string;
+  dcDate: string;
+  address: string;
+  remarks: string;
+  items: DCItemOriginal[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Issue {
+  _id: string;
+  issueTo: string;
+  department: string;
+  purpose: string;
+  issueDate: string;
+  address?: string;
+  items: Array<{
+    _id: string;
+    itemId: {
+      _id: string;
+      itemCode: string;
+      category: string;
+      subCategory: string;
+      name: string;
+    };
+    quantity: number;
+    size?: string;
+    employeeId?: string;
+    name?: string;
+    itemCode?: string;
+    price?: string;
+    remarks?: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+  outwardDC?: OutwardDC;
+  dcNumber?: string;
 }
 
 // Add new interface for preview data
@@ -164,11 +336,70 @@ async function fetchEmployeeDetailsFromKYC(employeeId: string): Promise<{fullNam
 
 export default function StoreDCPage() {
   const { theme } = useTheme();
+  
+  // Add CSS animation for toast
+  const toastStyles = `
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+  `;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [showBulkIssue, setShowBulkIssue] = useState(false);
+  const [showDCCreationModal, setShowDCCreationModal] = useState(false);
+  const [showEmployeeMappingModal, setShowEmployeeMappingModal] = useState(false);
+  const [showDCPreviewModal, setShowDCPreviewModal] = useState(false);
+  const [selectedDCPreview, setSelectedDCPreview] = useState<Issue | null>(null);
+  
+  // Employee mapping state
+  const [selectedIssueForMapping, setSelectedIssueForMapping] = useState<Issue | null>(null);
+  const [availableEmployees, setAvailableEmployees] = useState<Employee[]>([]);
+  const [employeeMappings, setEmployeeMappings] = useState<EmployeeMapping[]>([]);
+  const [isUpdatingMappings, setIsUpdatingMappings] = useState(false);
+  
+  // New checkbox-based mapping state
+  const [itemEmployeeMappings, setItemEmployeeMappings] = useState<ItemEmployeeMapping[]>([]);
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
   const [dcData, setDcData] = useState<DC[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Bulk issue state variables
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [uniformMappings, setUniformMappings] = useState<UniformMapping[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issuesLoading, setIssuesLoading] = useState(false);
+  const [issuesError, setIssuesError] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<'dc' | 'bulk-issue'>('dc');
+  const [selectedItems, setSelectedItems] = useState<BulkIssueItem[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedDesignations, setSelectedDesignations] = useState<string[]>([]);
+  const [selectedUniforms, setSelectedUniforms] = useState<Array<{name: string, quantity: number, size: string}>>([]);
+  const [isCreatingIssue, setIsCreatingIssue] = useState(false);
+  const [bulkIssueData, setBulkIssueData] = useState<BulkIssueRequest>({
+    issueTo: "",
+    department: "",
+    purpose: "",
+    address: "",
+    issueDate: new Date().toISOString().split('T')[0],
+    items: []
+  });
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedIssueForView, setSelectedIssueForView] = useState<Issue | null>(null);
+  const [selectedIssueForDC, setSelectedIssueForDC] = useState<Issue | null>(null);
+  const [dcCreationData, setDcCreationData] = useState({
+    dcNumber: "",
+    dcDate: new Date().toISOString().split('T')[0],
+    address: "",
+    remarks: ""
+  });
+  const [isCreatingDC, setIsCreatingDC] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDC, setSelectedDC] = useState<DC | null>(null);
   // Removed unused uniformReq state
@@ -696,6 +927,166 @@ export default function StoreDCPage() {
     fetchDCs();
   }, [getProjectNameFromUniformRequests]);
 
+  // Fetch bulk issue data on component mount
+  useEffect(() => {
+    const fetchBulkIssueData = async () => {
+      try {
+        const inventoryRes = await fetch("https://inventory.zenapi.co.in/api/inventory/items");
+        const inventoryData = await inventoryRes.json();
+        
+        const employeesRes = await fetch("https://cafm.zenapi.co.in/api/kyc");
+        const employeesData = await employeesRes.json();
+        
+        const projectsRes = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+        const projectsData = await projectsRes.json();
+
+        const mappingsRes = await fetch("https://cafm.zenapi.co.in/api/uniforms/uniform-mappings");
+        const mappingsData = await mappingsRes.json();
+        
+        if (inventoryData && Array.isArray(inventoryData)) {
+          setInventoryItems(inventoryData);
+        }
+        
+        if (employeesData && employeesData.kycForms) {
+          // Handle the correct API structure: {kycForms: [...]}
+          const employeeList = employeesData.kycForms.map((kyc: { personalDetails?: { employeeId?: string; fullName?: string; designation?: string; projectName?: string; department?: string } }) => ({
+            employeeId: kyc.personalDetails?.employeeId || "",
+            fullName: kyc.personalDetails?.fullName || "",
+            designation: kyc.personalDetails?.designation || "",
+            projectName: kyc.personalDetails?.projectName || "",
+            department: kyc.personalDetails?.department || ""
+          })).filter((emp: Employee) => emp.employeeId && emp.fullName);
+          
+          setEmployees(employeeList);
+          console.log('Initial employee data loaded from kycForms:', employeeList.length);
+        } else if (employeesData && employeesData.kycData) {
+          const employeeList = employeesData.kycData.map((kyc: { personalDetails?: { employeeId?: string; fullName?: string; designation?: string; projectName?: string; department?: string } }) => ({
+            employeeId: kyc.personalDetails?.employeeId || "",
+            fullName: kyc.personalDetails?.fullName || "",
+            designation: kyc.personalDetails?.designation || "",
+            projectName: kyc.personalDetails?.projectName || "",
+            department: kyc.personalDetails?.department || ""
+          })).filter((emp: Employee) => emp.employeeId && emp.fullName);
+          
+          setEmployees(employeeList);
+        } else if (employeesData && Array.isArray(employeesData)) {
+          const employeeList = employeesData.map((kyc: { personalDetails?: { employeeId?: string; fullName?: string; designation?: string; projectName?: string; department?: string } }) => ({
+            employeeId: kyc.personalDetails?.employeeId || "",
+            fullName: kyc.personalDetails?.fullName || "",
+            designation: kyc.personalDetails?.designation || "",
+            projectName: kyc.personalDetails?.projectName || "",
+            department: kyc.personalDetails?.department || ""
+          })).filter((emp: Employee) => emp.employeeId && emp.fullName);
+          
+          setEmployees(employeeList);
+        } else if (employeesRes.ok === false) {
+          console.warn("Employee API failed, proceeding without employee data");
+          setEmployees([]);
+        }
+
+        if (projectsData && Array.isArray(projectsData)) {
+          console.log('Projects loaded:', projectsData);
+          setProjects(projectsData);
+        }
+
+        if (mappingsData && mappingsData.success) {
+          const activeMappings = mappingsData.data.filter((m: UniformMapping) => m.isActive !== false);
+          console.log('Uniform mappings loaded:', activeMappings);
+          setUniformMappings(activeMappings);
+        }
+      } catch (err) {
+        console.error("Error fetching bulk issue data:", err);
+      }
+    };
+    
+    fetchBulkIssueData();
+  }, []);
+
+  // Fetch issues
+  useEffect(() => {
+    const fetchIssues = async () => {
+      setIssuesLoading(true);
+      try {
+        const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issue");
+        const data = await response.json();
+        
+        
+        let issues: Issue[] = [];
+        if (data && data.success && Array.isArray(data.data)) {
+          issues = data.data;
+        } else if (Array.isArray(data)) {
+          issues = data;
+        } else {
+          console.warn("Unexpected issue data format:", data);
+          issues = [];
+        }
+
+        // Fetch DC details for each issue
+        const issuesWithDC = await fetchDCDetailsForIssues(issues);
+        setIssues(issuesWithDC);
+
+      } catch (err) {
+        console.error("Error fetching issues:", err);
+        setIssuesError("Failed to fetch issues");
+      } finally {
+        setIssuesLoading(false);
+      }
+    };
+
+    fetchIssues();
+  }, []);
+
+  // Function to fetch DC data for issues
+  const fetchDCDetailsForIssues = async (issues: Issue[]): Promise<Issue[]> => {
+    try {
+      // Try to fetch all DCs first
+      const allDCsResponse = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc');
+      
+      if (allDCsResponse.ok) {
+        const allDCsData = await allDCsResponse.json();
+        
+        let allDCs = [];
+        if (allDCsData.success && Array.isArray(allDCsData.data)) {
+          allDCs = allDCsData.data;
+        } else if (Array.isArray(allDCsData)) {
+          allDCs = allDCsData;
+        } else if (allDCsData.dcs && Array.isArray(allDCsData.dcs)) {
+          allDCs = allDCsData.dcs;
+        }
+        
+        // Match DCs with issues by multiple criteria
+        const updatedIssues = issues.map(issue => {
+          const matchingDC = allDCs.find((dc: DCItemAPI) => {
+            // Try multiple matching criteria
+            const customerMatch = dc.customer === issue.issueTo;
+            const remarksMatch = dc.remarks?.includes(issue._id);
+            const issueIdMatch = dc.issueId === issue._id || dc.issue === issue._id;
+            // Additional matching: check if DC was created from this issue
+            const createdFromIssue = dc.remarks?.includes(`Generated from Issue ${issue._id}`) || 
+                                   dc.remarks?.includes(issue._id) ||
+                                   dc.customer === issue.issueTo;
+            
+            return customerMatch || remarksMatch || issueIdMatch || createdFromIssue;
+          });
+          
+          if (matchingDC) {
+            return { ...issue, outwardDC: matchingDC };
+          }
+          
+          return issue;
+        });
+        
+        return updatedIssues;
+      } else {
+        console.error('Failed to fetch DCs:', allDCsResponse.status, allDCsResponse.statusText);
+        return issues;
+      }
+    } catch (error) {
+      console.error('Error fetching DC details for issues:', error);
+      return issues;
+    }
+  };
+
   // Helper function to extract project name from customer and remarks
   const extractProjectName = (): string => {
     // Try to extract project name from remarks first
@@ -731,6 +1122,388 @@ export default function StoreDCPage() {
 
 
 
+
+  // Function to fetch DC details
+  const fetchDCDetails = async (dcId: string): Promise<OutwardDC | null> => {
+    try {
+      console.log('Fetching DC details for ID:', dcId);
+      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/${dcId}`);
+      
+      if (!response.ok) {
+        console.error('DC API response not ok:', response.status, response.statusText);
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('DC API response:', result);
+      
+      if (result.success && result.dc) {
+        const dcData = result.dc;
+        return {
+          _id: dcData._id,
+          customer: dcData.customer || '',
+          dcNumber: dcData.dcNumber,
+          dcDate: dcData.dcDate,
+          address: dcData.address,
+          remarks: dcData.remarks,
+          items: dcData.items || [],
+          createdAt: dcData.createdAt,
+          updatedAt: dcData.updatedAt
+        };
+      } else {
+        console.error('DC API returned unsuccessful response:', result);
+        throw new Error(result.message || "Failed to fetch DC details");
+      }
+    } catch (error) {
+      console.error("Error fetching DC details:", error);
+      setToast(`Error fetching DC details: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return null;
+    }
+  };
+
+  // Function to fetch employees for specific project and designation
+  const fetchEmployeesForMapping = async (projectName: string, designation?: string) => {
+      // setEmployeesLoading(true);
+    try {
+      console.log('Fetching employees for project:', projectName, 'designation:', designation);
+      console.log('Total employees available:', employees.length);
+      console.log('Sample employee data:', employees.slice(0, 3));
+      
+      let employeesToFilter = employees;
+      
+      // If no employees loaded locally, try to fetch fresh data
+      if (employees.length === 0) {
+        console.log('No employees loaded locally, fetching fresh data...');
+        try {
+          const employeesRes = await fetch("https://cafm.zenapi.co.in/api/kyc");
+          const employeesData = await employeesRes.json();
+          
+          if (employeesData && employeesData.kycForms) {
+            // Handle the correct API structure: {kycForms: [...]}
+            const employeeList = employeesData.kycForms.map((kyc: { personalDetails?: { employeeId?: string; fullName?: string; designation?: string; projectName?: string; department?: string } }) => ({
+              employeeId: kyc.personalDetails?.employeeId || "",
+              fullName: kyc.personalDetails?.fullName || "",
+              designation: kyc.personalDetails?.designation || "",
+              projectName: kyc.personalDetails?.projectName || "",
+              department: kyc.personalDetails?.department || ""
+            })).filter((emp: Employee) => emp.employeeId && emp.fullName);
+            
+            employeesToFilter = employeeList;
+            setEmployees(employeeList); // Update the global employees state
+            console.log('Fresh employee data loaded from kycForms:', employeeList.length);
+            console.log('Sample employees:', employeeList.slice(0, 5));
+          } else if (employeesData && employeesData.kycData) {
+            const employeeList = employeesData.kycData.map((kyc: { personalDetails?: { employeeId?: string; fullName?: string; designation?: string; projectName?: string; department?: string } }) => ({
+              employeeId: kyc.personalDetails?.employeeId || "",
+              fullName: kyc.personalDetails?.fullName || "",
+              designation: kyc.personalDetails?.designation || "",
+              projectName: kyc.personalDetails?.projectName || "",
+              department: kyc.personalDetails?.department || ""
+            })).filter((emp: Employee) => emp.employeeId && emp.fullName);
+            
+            employeesToFilter = employeeList;
+            setEmployees(employeeList); // Update the global employees state
+            console.log('Fresh employee data loaded from kycData:', employeeList.length);
+          } else if (employeesData && Array.isArray(employeesData)) {
+            // Handle direct array response
+            const employeeList = employeesData.map((kyc: { personalDetails?: { employeeId?: string; fullName?: string; designation?: string; projectName?: string; department?: string } }) => ({
+              employeeId: kyc.personalDetails?.employeeId || "",
+              fullName: kyc.personalDetails?.fullName || "",
+              designation: kyc.personalDetails?.designation || "",
+              projectName: kyc.personalDetails?.projectName || "",
+              department: kyc.personalDetails?.department || ""
+            })).filter((emp: Employee) => emp.employeeId && emp.fullName);
+            
+            employeesToFilter = employeeList;
+            setEmployees(employeeList); // Update the global employees state
+            console.log('Fresh employee data loaded (array format):', employeeList.length);
+          }
+        } catch (fetchError) {
+          console.error('Error fetching fresh employee data:', fetchError);
+        }
+      }
+      
+      // Filter employees based on project and optionally designation
+      // Try both exact match and partial match for project name
+      const filteredEmployees = employeesToFilter.filter(emp => {
+        // Normalize project names for better matching
+        const normalizedProjectName = projectName?.trim().toLowerCase() || '';
+        const normalizedEmpProject = emp.projectName?.trim().toLowerCase() || '';
+        
+        const projectMatch = emp.projectName === projectName || 
+                           normalizedEmpProject === normalizedProjectName ||
+                           normalizedEmpProject.includes(normalizedProjectName) ||
+                           normalizedProjectName.includes(normalizedEmpProject);
+        const designationMatch = !designation || emp.designation === designation;
+        
+        console.log(`Employee ${emp.employeeId}: projectName="${emp.projectName}" (normalized: "${normalizedEmpProject}"), searchProject="${projectName}" (normalized: "${normalizedProjectName}"), matches=${projectMatch}, designation="${emp.designation}", designationMatch=${designationMatch}`);
+        
+        return projectMatch && designationMatch;
+      });
+      
+      console.log('Filtered employees:', filteredEmployees);
+      console.log('Available project names in employees:', [...new Set(employeesToFilter.map(emp => emp.projectName))]);
+      
+      setAvailableEmployees(filteredEmployees);
+      
+      if (filteredEmployees.length === 0) {
+        console.log('No employees found. Available projects:', [...new Set(employeesToFilter.map(emp => emp.projectName))]);
+        setToast(`No employees found for "${projectName}". Available projects: ${[...new Set(employeesToFilter.map(emp => emp.projectName))].slice(0, 3).join(', ')}`);
+      } else {
+        setToast(`Found ${filteredEmployees.length} employees for ${projectName}`);
+      }
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      setToast(`Error fetching employees for mapping`);
+    } finally {
+      // setEmployeesLoading(false);
+    }
+  };
+
+  // Function to initialize item-employee mappings
+  const initializeItemEmployeeMappings = (items: InventoryItem[]) => {
+    const mappings: ItemEmployeeMapping[] = items.map((item, index) => {
+      const baseItemId = typeof item.itemId === 'string' ? item.itemId : item.itemId?._id || item._id || `item_${index}`;
+      const itemName = Array.isArray(item.uniformType) ? item.uniformType.join(', ') : (item.uniformType || (typeof item.itemId === 'object' ? item.itemId?.name : '') || item.name || 'N/A');
+      const size = item.size || 'N/A';
+      
+      // Create unique itemId that includes base item ID, size, and index to ensure uniqueness
+      const itemId = `${baseItemId}_${size}_${index}`;
+      
+      return {
+        itemId,
+        itemName,
+        size,
+        totalQuantity: item.totalQuantity || item.quantity || 1,
+        selectedEmployees: [],
+        remainingQuantity: item.remainingQuantity !== undefined ? item.remainingQuantity : (item.totalQuantity || item.quantity || 1)
+      };
+    });
+    
+    setItemEmployeeMappings(mappings);
+  };
+
+  // Function to toggle employee selection for an item
+  const toggleEmployeeSelection = (itemId: string, employee: Employee, isSelected: boolean) => {
+    setItemEmployeeMappings(prev => prev.map(itemMapping => {
+      if (itemMapping.itemId === itemId) {
+        if (isSelected) {
+          // Add employee if not already selected
+          const existingEmployee = itemMapping.selectedEmployees.find(emp => emp.employeeId === employee.employeeId);
+          if (!existingEmployee) {
+            const newEmployee = {
+              employeeId: employee.employeeId,
+              employeeName: employee.fullName,
+              quantity: 1 // Default quantity per employee
+            };
+            
+            const updatedSelectedEmployees = [...itemMapping.selectedEmployees, newEmployee];
+            const totalSelectedQuantity = updatedSelectedEmployees.reduce((sum, emp) => sum + emp.quantity, 0);
+            
+            return {
+              ...itemMapping,
+              selectedEmployees: updatedSelectedEmployees,
+              remainingQuantity: itemMapping.totalQuantity - totalSelectedQuantity
+            };
+          }
+        } else {
+          // Remove employee
+          const updatedSelectedEmployees = itemMapping.selectedEmployees.filter(emp => emp.employeeId !== employee.employeeId);
+          const totalSelectedQuantity = updatedSelectedEmployees.reduce((sum, emp) => sum + emp.quantity, 0);
+          
+          return {
+            ...itemMapping,
+            selectedEmployees: updatedSelectedEmployees,
+            remainingQuantity: itemMapping.totalQuantity - totalSelectedQuantity
+          };
+        }
+      }
+      return itemMapping;
+    }));
+  };
+
+  // Function to update quantity for a specific employee
+  const updateEmployeeQuantity = (itemId: string, employeeId: string, newQuantity: number) => {
+    setItemEmployeeMappings(prev => prev.map(itemMapping => {
+      if (itemMapping.itemId === itemId) {
+        const updatedSelectedEmployees = itemMapping.selectedEmployees.map(emp => {
+          if (emp.employeeId === employeeId) {
+            return { ...emp, quantity: Math.max(1, newQuantity) };
+          }
+          return emp;
+        });
+        
+        const totalSelectedQuantity = updatedSelectedEmployees.reduce((sum, emp) => sum + emp.quantity, 0);
+        
+        return {
+          ...itemMapping,
+          selectedEmployees: updatedSelectedEmployees,
+          remainingQuantity: itemMapping.totalQuantity - totalSelectedQuantity
+        };
+      }
+      return itemMapping;
+    }));
+  };
+
+  // Function to convert checkbox mappings to API format
+  const convertMappingsToAPIFormat = (): EmployeeMapping[] => {
+    const apiMappings: EmployeeMapping[] = [];
+    
+    itemEmployeeMappings.forEach(itemMapping => {
+      itemMapping.selectedEmployees.forEach(employee => {
+        // Extract the original itemId from the combined itemId (remove size and index suffix)
+        const originalItemId = itemMapping.itemId.split('_')[0];
+        
+        // Find the original item to get uniformType
+        const originalItem = (selectedIssueForMapping?.outwardDC?.items || selectedIssueForMapping?.items || [])
+          .find((item: InventoryItem, index: number) => {
+            const baseItemId = typeof item.itemId === 'string' ? item.itemId : item.itemId?._id || item._id || `item_${index}`;
+            return baseItemId === originalItemId;
+          });
+        
+        if (originalItem) {
+          const item = originalItem as DCItemOriginal;
+          apiMappings.push({
+            itemId: originalItemId, // Use original itemId for API
+            employeeId: employee.employeeId,
+            quantity: employee.quantity,
+            size: itemMapping.size,
+            uniformType: (() => {
+              const uniformType = (item as DCItemOriginal).uniformType;
+              if (Array.isArray(uniformType)) {
+                return uniformType.join(', ');
+              }
+              return uniformType || (item as DCItemOriginal).name || 'N/A';
+            })()
+          });
+        }
+      });
+    });
+    
+    return apiMappings;
+  };
+
+  // Function to handle employee mapping button click
+  const handleMapEmployees = async (issue: Issue) => {
+    setSelectedIssueForMapping(issue);
+    
+    // Check if DC exists for this issue (either outwardDC object or dcNumber)
+    if (issue.outwardDC) {
+      // DC exists with full object, fetch employees and show mapping modal
+      await fetchEmployeesForMapping(issue.department);
+      // Initialize checkbox mappings
+      const items = issue.outwardDC?.items || issue.items || [];
+      initializeItemEmployeeMappings(items);
+      setShowEmployeeMappingModal(true);
+    } else if (issue.dcNumber) {
+      // DC exists but we don't have the full DC object, fetch it by DC number
+      console.log('DC number exists, fetching DC details by DC number:', issue.dcNumber);
+      try {
+        // Fetch all DCs and find the one with matching DC number
+        const response = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc');
+        if (response.ok) {
+          const result = await response.json();
+          let allDCs = [];
+          if (result.success && Array.isArray(result.data)) {
+            allDCs = result.data;
+          } else if (Array.isArray(result)) {
+            allDCs = result;
+          } else if (result.dcs && Array.isArray(result.dcs)) {
+            allDCs = result.dcs;
+          }
+          
+          // Find DC with matching DC number
+          const matchingDC = allDCs.find((dc: DCItemAPI) => dc.dcNumber === issue.dcNumber);
+          
+          if (matchingDC) {
+            console.log('Found DC by number:', matchingDC);
+            // Update the issue with the full DC object
+            const updatedIssue = { ...issue, outwardDC: matchingDC };
+            setSelectedIssueForMapping(updatedIssue);
+            await fetchEmployeesForMapping(issue.department);
+            // Initialize checkbox mappings
+            const items = matchingDC?.items || issue.items || [];
+            initializeItemEmployeeMappings(items);
+            setShowEmployeeMappingModal(true);
+          } else {
+            setToast(`DC ${issue.dcNumber} exists but could not find details in system. Please contact support.`);
+          }
+        } else {
+          setToast(`Failed to fetch DC details. Please try again.`);
+        }
+      } catch (error) {
+        console.error('Error fetching DC by number:', error);
+        setToast(`Error fetching DC details. Please try again.`);
+      }
+    } else {
+      // No DC exists, show error
+      setToast("No DC found for this issue. Please create DC first.");
+    }
+  };
+
+  // Function to remove employee mapping
+  const removeEmployeeMapping = (itemId: string) => {
+    setEmployeeMappings((prev: EmployeeMapping[]) => prev.filter(m => m.itemId !== itemId));
+    setToast("Employee mapping removed");
+  };
+
+  // Function to update DC with employee mappings
+  const updateDCWithEmployeeMappings = async () => {
+    if (!selectedIssueForMapping?.outwardDC) {
+      setToast("No DC selected for mapping");
+      return;
+    }
+
+    // Convert checkbox mappings to API format
+    const apiMappings = convertMappingsToAPIFormat();
+    
+    if (apiMappings.length === 0) {
+      setToast("Please select at least one employee for mapping");
+      return;
+    }
+
+    setIsUpdatingMappings(true);
+    try {
+      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/${selectedIssueForMapping.outwardDC._id}/update-employee-mappings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeMappings: apiMappings }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Employee Mapping Update Response:', result);
+        
+        if (result.success) {
+          setToast("Employee mappings updated successfully!");
+          
+          // Close modal and reset state
+          setShowEmployeeMappingModal(false);
+          setItemEmployeeMappings([]);
+          setEmployeeMappings([]);
+          setSelectedIssueForMapping(null);
+          
+          // Refresh DC data to show updated mappings
+          await refreshDCData();
+          
+          // Also refresh the issues data to update the UI
+          await refreshIssues();
+          
+        } else {
+          setToast(result.message || "Failed to update employee mappings");
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Employee Mapping Update Error:', errorData);
+        setToast(errorData.message || "Failed to update employee mappings");
+      }
+    } catch (error) {
+      console.error("Error updating employee mappings:", error);
+      setToast("Error updating employee mappings. Please try again.");
+    } finally {
+      setIsUpdatingMappings(false);
+    }
+  };
 
   // Function to refresh DC data
   const refreshDCData = useCallback(async () => {
@@ -890,6 +1663,15 @@ export default function StoreDCPage() {
   const statusOptions = Array.from(new Set(mappedDC.map(dc => dc.status)));
 
   const filteredDC = mappedDC.filter(dc => {
+    // Filter out bulk DCs - exclude DCs that were created from bulk issues
+    // Bulk DCs have remarks containing "Generated from Issue"
+    const isBulkDC = dc.remarks && dc.remarks.includes('Generated from Issue');
+    
+    // Only show individual DCs (exclude bulk DCs)
+    if (isBulkDC) {
+      return false;
+    }
+    
     const matchesStatus = statusFilter ? dc.status === statusFilter : true;
     const matchesSearch = search ? (
       (dc.dcNumber && dc.dcNumber.toLowerCase().includes(search.toLowerCase())) ||
@@ -979,13 +1761,13 @@ export default function StoreDCPage() {
         uniformType: string[];
         size: Record<string, string>;
         projectName: string;
-        items: DCItem[];
+        items: DCItemOriginal[];
         totalSetCount: number; // Add total set count for this employee
       }> = [];
       
       // Group DC items by employeeId - ONLY employees in this specific DC
       // Keep all items separate to handle multiple items with same type but different sizes
-      const employeeGroups = dc.items.reduce((groups: Record<string, DCItem[]>, item) => {
+      const employeeGroups = dc.items.reduce((groups: Record<string, DCItemOriginal[]>, item) => {
         const empId = item.employeeId || 'Unknown';
         if (!groups[empId]) {
           groups[empId] = [];
@@ -1121,10 +1903,23 @@ export default function StoreDCPage() {
           }
         });
         
+        // Handle bulk employee IDs differently
+        let displayName = 'Employee Not Found';
+        let displayDesignation = 'Employee';
+        
+        if (employeeId.startsWith('BULK_')) {
+          // For bulk issues, use a more descriptive name
+          displayName = 'Bulk Issue Employee';
+          displayDesignation = 'Bulk Issue';
+        } else if (kycDetails) {
+          displayName = kycDetails.fullName;
+          displayDesignation = kycDetails.designation;
+        }
+        
         employeeData.push({
           employeeId: employeeId,
-          fullName: kycDetails?.fullName || 'Employee Not Found',
-          designation: kycDetails?.designation || 'Employee',
+          fullName: displayName,
+          designation: displayDesignation,
           uniformType: uniformTypes,
           size: sizeMap,
           projectName: dc.projectName || dc.customer,
@@ -1132,7 +1927,7 @@ export default function StoreDCPage() {
           totalSetCount: totalSetCount
         });
         
-        console.log(`Added employee to PDF: ${employeeId} - ${kycDetails?.fullName || 'Not Found'} (${kycDetails?.designation || 'Employee'})`);
+        console.log(`Added employee to PDF: ${employeeId} - ${displayName} (${displayDesignation})`);
         console.log(`Uniform types for ${employeeId}:`, uniformTypes);
         console.log(`Size map for ${employeeId}:`, sizeMap);
         console.log(`Total set count for ${employeeId}:`, totalSetCount);
@@ -1162,7 +1957,7 @@ export default function StoreDCPage() {
               }
             }
           } else if (Array.isArray(item.uniformType)) {
-            item.uniformType.forEach(type => {
+            item.uniformType.forEach((type: string) => {
               if (typeof type === 'string' && type.trim()) {
                 // Check if the uniform type contains multiple items separated by comma
                 if (type.includes(',')) {
@@ -1346,14 +2141,14 @@ export default function StoreDCPage() {
         // Create row with sizes for each uniform type
         const row = [
           index + 1, // SI No
-          employee.employeeId, // Use actual employee ID from DC
+          employee.employeeId.startsWith('BULK_') ? 'BULK' : employee.employeeId, // Show 'BULK' for bulk employee IDs
           employee.fullName,   // Use actual full name from KYC
           employee.designation, // Use actual designation from KYC
           noOfSet,
           // Add size values for each uniform type
           ...uniformTypesArray.map((uniformType: string) => {
             // Check if this employee has this uniform type in their items
-            const matchingItem = employee.items.find((item: DCItem) => {
+            const matchingItem = employee.items.find((item: DCItemOriginal) => {
               const itemType = item.uniformType || item.name;
               if (typeof itemType === 'string') {
                 return itemType.trim() === uniformType.trim();
@@ -1574,6 +2369,714 @@ export default function StoreDCPage() {
     }
   };
 
+  // Bulk Issue Functions
+  const handleProjectChange = (projectName: string) => {
+    const project = projects.find(p => p.projectName === projectName);
+    console.log('Selected project:', project);
+    console.log('Project designationWiseCount:', project?.designationWiseCount);
+    setSelectedProject(project || null);
+    setSelectedDesignations([]);
+    setSelectedUniforms([]);
+    setSelectedItems([]);
+    
+    // Update bulkIssueData with project information
+    setBulkIssueData(prev => ({
+      ...prev,
+      department: projectName,
+      address: project?.address || prev.address
+    }));
+  };
+
+  const handleDesignationChange = (designation: string, checked: boolean) => {
+    if (checked) {
+      setSelectedDesignations(prev => [...prev, designation]);
+    } else {
+      setSelectedDesignations(prev => prev.filter(d => d !== designation));
+      setSelectedUniforms([]);
+      setSelectedItems([]);
+    }
+  };
+
+  const getAvailableDesignations = () => {
+    if (!selectedProject) return [];
+    
+    // Get designations from project's designationWiseCount
+    if (selectedProject.designationWiseCount) {
+      const designations = Object.keys(selectedProject.designationWiseCount);
+      console.log('Available designations from project:', designations);
+      return designations;
+    }
+    
+    // Fallback to uniform mappings if designationWiseCount is not available
+    const mapping = uniformMappings.find(m => m.project === selectedProject.projectName);
+    const designations = mapping ? mapping.designations : [];
+    console.log('Available designations from mapping:', designations);
+    return designations;
+  };
+
+  const getAvailableUniforms = (): InventoryItem[] => {
+    if (!selectedProject || selectedDesignations.length === 0) return [];
+    const mapping = uniformMappings.find(m => 
+      m.project === selectedProject.projectName && 
+      selectedDesignations.some(d => m.designations.includes(d))
+    );
+    if (!mapping) return [];
+    
+    // Return actual inventory items instead of just uniform type names
+    return inventoryItems.filter(item => 
+      mapping.uniformTypes.includes(item.name || '')
+    );
+  };
+
+  const handleUniformSelection = (uniformName: string, size: string, quantity: number) => {
+    const existingIndex = selectedUniforms.findIndex(u => u.name === uniformName && u.size === size);
+    if (existingIndex >= 0) {
+      const updated = [...selectedUniforms];
+      updated[existingIndex].quantity = quantity;
+      setSelectedUniforms(updated);
+    } else {
+      setSelectedUniforms(prev => [...prev, { name: uniformName, size, quantity }]);
+    }
+  };
+
+  const createBulkIssueEntries = (uniforms: Array<{name: string, quantity: number, size: string}>, project: Project, designations: string[]) => {
+    const entries: BulkIssueItem[] = [];
+    
+    const relevantEmployees = employees.filter(emp => 
+      emp.projectName === project.projectName && 
+      designations.includes(emp.designation)
+    );
+
+    if (relevantEmployees.length > 0) {
+      uniforms.forEach(uniform => {
+        const inventoryItem = inventoryItems.find(item => item.name === uniform.name);
+        if (inventoryItem) {
+          const quantityPerEmployee = Math.ceil(uniform.quantity / relevantEmployees.length);
+          
+          relevantEmployees.forEach((employee, index) => {
+            const actualQuantity = index === relevantEmployees.length - 1 
+              ? uniform.quantity - (quantityPerEmployee * (relevantEmployees.length - 1))
+              : quantityPerEmployee;
+            
+            if (actualQuantity > 0) {
+              entries.push({
+                itemId: inventoryItem._id || '',
+                itemName: inventoryItem.name || '',
+                itemCode: inventoryItem.itemCode || '',
+                size: uniform.size,
+                quantity: actualQuantity,
+                employeeId: employee.employeeId,
+                employeeName: employee.fullName,
+                remarks: `Bulk issue for ${designations.join(', ')} - ${project.projectName} | Employee: ${employee.fullName} (${employee.designation}) | Project Address: ${project.address || 'N/A'}`
+              });
+            }
+          });
+        }
+      });
+    } else {
+      // Create bulk entries when no specific employees are found
+      uniforms.forEach(uniform => {
+        const inventoryItem = inventoryItems.find(item => item.name === uniform.name);
+        if (inventoryItem) {
+          entries.push({
+            itemId: inventoryItem._id || '',
+            itemName: inventoryItem.name || '',
+            itemCode: inventoryItem.itemCode || '',
+            size: uniform.size,
+            quantity: uniform.quantity,
+            employeeId: `BULK_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            employeeName: `Bulk Issue - ${designations.join(', ')}`,
+            remarks: `Bulk issue for ${designations.join(', ')} - ${project.projectName} | Project Address: ${project.address || 'N/A'} | Total Manpower: ${project.totalManpower}`
+          });
+        }
+      });
+    }
+    
+    console.log('Created bulk issue entries:', entries);
+    console.log('Project details used:', project);
+    console.log('Designations used:', designations);
+    console.log('Relevant employees found:', relevantEmployees.length);
+    
+    return entries;
+  };
+
+  const showDCPopupForUniforms = () => {
+    if (selectedUniforms.length === 0) {
+      setToast("Please select at least one uniform with quantity");
+      return;
+    }
+
+    if (!selectedProject || selectedDesignations.length === 0) {
+      setToast("Please select both project and at least one designation");
+      return;
+    }
+
+    try {
+      const newEntries = createBulkIssueEntries(selectedUniforms, selectedProject, selectedDesignations);
+      
+      if (newEntries.length === 0) {
+        setToast("No valid entries could be created. Please check your selections.");
+        return;
+      }
+      
+      setSelectedItems(prev => [...prev, ...newEntries]);
+      setToast(`Added ${newEntries.length} items to bulk issue for ${selectedProject.projectName} - ${selectedDesignations.join(', ')}`);
+      setSelectedUniforms([]);
+      
+      // Show summary of what was added
+      const summary: Record<string, { totalQty: number; sizes: Set<string> }> = {};
+      newEntries.forEach(item => {
+        if (!summary[item.itemName]) {
+          summary[item.itemName] = { totalQty: 0, sizes: new Set() };
+        }
+        summary[item.itemName].totalQty += item.quantity;
+        summary[item.itemName].sizes.add(item.size);
+      });
+      
+      const summaryText = Object.entries(summary)
+        .map(([itemName, details]) => 
+          `${itemName}: ${details.totalQty} pieces (sizes: ${Array.from(details.sizes).join(', ')})`
+        )
+        .join('\n');
+      
+      console.log('Bulk Issue Summary:', summaryText);
+      
+    } catch (error) {
+      console.error("Error processing uniforms:", error);
+      setToast("Error processing uniforms. Please try again.");
+    }
+  };
+
+  // Handle DC download
+  const handleDCDownload = async (issue: Issue) => {
+    let dc = issue.outwardDC;
+    
+    // If we don't have the DC object but have dcNumber, fetch it
+    if (!dc && issue.dcNumber) {
+      try {
+        // Fetch all DCs and find the one with matching DC number
+        const response = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc');
+        if (response.ok) {
+          const result = await response.json();
+          let allDCs = [];
+          if (result.success && Array.isArray(result.data)) {
+            allDCs = result.data;
+          } else if (Array.isArray(result)) {
+            allDCs = result;
+          } else if (result.dcs && Array.isArray(result.dcs)) {
+            allDCs = result.dcs;
+          }
+          
+          // Find DC with matching DC number
+          const matchingDC = allDCs.find((dcItem: DCItemAPI) => dcItem.dcNumber === issue.dcNumber);
+          if (matchingDC) {
+            dc = matchingDC;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching DC by number:', error);
+      }
+    }
+    
+    if (!dc) {
+      setToast("No DC found for this issue");
+      return;
+    }
+    
+    // Generate and download DC PDF
+    await handleDownloadDC(dc as DC);
+  };
+
+  // Handle downloading issue (generate PDF from issue data)
+  const handleDownloadIssue = async (issue: Issue) => {
+    try {
+      setPdfLoading(issue._id);
+      
+      // Fetch employee details for the mapped employees if DC exists
+      const employeeDetailsMap: Record<string, {fullName: string, designation: string}> = {};
+      if (issue.outwardDC) {
+        const uniqueEmployeeIds = [...new Set(
+          issue.outwardDC.items.flatMap(item => 
+            ('employeeMappings' in item && item.employeeMappings) ? item.employeeMappings.map((mapping: { employeeId: string }) => mapping.employeeId) : []
+          )
+        )].filter(Boolean);
+        
+        if (uniqueEmployeeIds.length > 0) {
+          for (const employeeId of uniqueEmployeeIds) {
+            try {
+              const details = await fetchEmployeeDetailsFromKYC(employeeId);
+              if (details) {
+                employeeDetailsMap[employeeId] = details;
+              }
+            } catch (error) {
+              console.error(`Error fetching details for employee ${employeeId}:`, error);
+            }
+          }
+        }
+      }
+      
+      const doc = new jsPDF('portrait', 'mm', 'a4');
+      
+      // Add page border
+      doc.setDrawColor(0, 0, 0); // Black border
+      doc.setLineWidth(0.5);
+      doc.rect(10, 10, 190, 277); // Full page border with margins
+      
+      // Add company header
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text('EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED', 105, 20, { align: 'center' });
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text('25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka', 105, 28, { align: 'center' });
+      
+      // Add title with DC number
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text(`Delivery Challan - ${issue.dcNumber || issue._id}`, 105, 40, { align: 'center' });
+      
+      // Add separator line
+      doc.setDrawColor(0, 0, 0); // Black line
+      doc.setLineWidth(0.5);
+      doc.line(20, 45, 190, 45);
+      
+      // Add DC number and date below separator
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text('DC Number:', 20, 55);
+      doc.setFont('helvetica', 'normal');
+      doc.text(issue.dcNumber || issue._id, 20, 62);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('Date:', 150, 55);
+      doc.setFont('helvetica', 'normal');
+      doc.text(new Date(issue.issueDate).toISOString().split('T')[0], 150, 62);
+      
+      // Add From/To sections with horizontal lines
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text('From:', 20, 75);
+      
+      // Add horizontal line directly below From label
+      doc.setDrawColor(0, 0, 0); // Black line
+      doc.setLineWidth(0.1);
+      doc.line(20, 78, 70, 78);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0); // Black text
+      // Split long company name into multiple lines with proper wrapping
+      doc.text('EXOZEN FACILITY MANAGEMENT', 20, 85);
+      doc.text('SERVICES PRIVATE LIMITED', 20, 92);
+      doc.text('25/1, 4th Floor, SKIP House, Museum Road,', 20, 99);
+      doc.text('Near Brigade Tower, Bangalore - 560025,', 20, 106);
+      doc.text('Karnataka', 20, 113);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('To:', 100, 75);
+      
+      // Add horizontal line directly below To label
+      doc.line(100, 78, 160, 78);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text(issue.issueTo, 100, 85);
+      doc.text(issue.department, 100, 92);
+      doc.text(`Generated from Issue ${issue._id}`, 100, 99);
+      
+      // Add items table with Delivery Challan format
+      const tableData = issue.items.map((item, index) => {
+        // If DC exists, get employee ID from employeeMappings, otherwise use item.employeeId
+        let employeeId = item.employeeId;
+        if (issue.outwardDC) {
+          const dcItem = issue.outwardDC.items.find(dcItem => 
+            dcItem.itemId === item.itemId?._id || dcItem.uniformType === item.itemId?.name
+          );
+          if (dcItem?.employeeMappings && dcItem.employeeMappings.length > 0) {
+            employeeId = dcItem.employeeMappings[0].employeeId;
+          }
+        }
+        
+        const employeeDetail = employeeId && employeeDetailsMap[employeeId] 
+          ? employeeDetailsMap[employeeId] 
+          : null;
+        
+        return [
+        index + 1,
+          employeeId || 'N/A', // Emp ID
+          employeeDetail?.fullName || 'N/A', // Names
+          employeeDetail?.designation || 'N/A', // Designation
+        item.itemId?.name || item.name || 'N/A',
+        item.size || 'N/A',
+        item.quantity,
+        'N/A', // Amount
+        '' // Emp Sign
+        ];
+      });
+      
+      autoTable(doc, {
+        startY: 125,
+        head: [['SI No', 'Emp ID', 'Names', 'Designation', 'Item Name', 'Size', 'Quantity', 'Amount', 'Emp Sign']],
+        body: tableData,
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+          halign: 'center',
+          textColor: [0, 0, 0], // Black text
+          lineColor: [0, 0, 0], // Black borders
+          lineWidth: 0.1,
+        },
+        headStyles: {
+          fillColor: [240, 240, 240], // Light grey background
+          textColor: [0, 0, 0], // Black text
+          fontStyle: 'bold',
+          halign: 'center',
+          lineColor: [0, 0, 0], // Black borders
+          lineWidth: 0.1,
+        },
+        columnStyles: {
+          0: { halign: 'center' }, // SI No
+          1: { halign: 'center' }, // Emp ID
+          2: { halign: 'left' },   // Names
+          3: { halign: 'center' }, // Designation
+          4: { halign: 'left' },   // Item Name
+          5: { halign: 'center' }, // Size
+          6: { halign: 'center' }, // Quantity
+          7: { halign: 'center' }, // Amount
+          8: { halign: 'center' }, // Emp Sign
+        },
+        alternateRowStyles: {
+          fillColor: [255, 255, 255], // White background
+        },
+        margin: { left: 20, right: 20 },
+        theme: 'grid',
+        tableLineColor: [0, 0, 0],
+        tableLineWidth: 0.1,
+      });
+      
+      // Add terms and conditions
+      const finalY = (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 200;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text('Notes/Conditions:', 20, finalY);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text('1. Complaints will be entertained if the goods are received within 24hrs of delivery', 20, finalY + 6);
+      doc.text('2. Goods are delivered after careful checking', 20, finalY + 12);
+      doc.text('3. This is a Bulk Issue Challan', 20, finalY + 18);
+      doc.text('4. All items are issued as per company policy', 20, finalY + 24);
+      
+      // Add signature lines
+      const signatureY = finalY + 35;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text('Initiated by: _________________', 20, signatureY);
+      doc.text('Received by: _________________', 90, signatureY);
+      doc.text('Issued by: _________________', 150, signatureY);
+      
+      // Save the PDF
+      doc.save(`Delivery_Challan_${issue.issueTo}_${new Date(issue.issueDate).toISOString().split('T')[0]}.pdf`);
+      
+    } catch (error) {
+      console.error('Error generating issue PDF:', error);
+      setToast('Error generating PDF. Please try again.');
+    } finally {
+      setPdfLoading(null);
+    }
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setSelectedItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const createIssueFromBulkItems = async () => {
+    if (!bulkIssueData.issueTo || !bulkIssueData.purpose || selectedItems.length === 0) {
+      setToast("Please fill all required fields and select items");
+      return;
+    }
+
+    setIsCreatingIssue(true);
+    try {
+      const issueData = {
+        ...bulkIssueData,
+        items: selectedItems.map(item => ({
+          itemId: item.itemId,
+          quantity: item.quantity,
+          size: item.size,
+          employeeId: item.employeeId,
+          remarks: item.remarks || ""
+        }))
+      };
+
+      const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issues", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(issueData),
+      });
+
+      if (response.ok) {
+        setToast("Bulk issue created successfully!");
+        setShowBulkIssue(false);
+        setBulkIssueData({
+          issueTo: "",
+          department: "",
+          purpose: "",
+          address: "",
+          issueDate: new Date().toISOString().split('T')[0],
+          items: []
+        });
+        setSelectedItems([]);
+        setSelectedProject(null);
+        setSelectedDesignations([]);
+        setSelectedUniforms([]);
+        // Refresh issues list
+        const fetchIssues = async () => {
+          try {
+            const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issue");
+            const data = await response.json();
+            
+            let issues: Issue[] = [];
+            if (data && data.success && Array.isArray(data.data)) {
+              issues = data.data;
+            } else if (Array.isArray(data)) {
+              issues = data;
+            }
+            
+            const issuesWithDC = await fetchDCDetailsForIssues(issues);
+            setIssues(issuesWithDC);
+          } catch (err) {
+            console.error("Error refreshing issues:", err);
+          }
+        };
+        fetchIssues();
+      } else {
+        const errorData = await response.text();
+        setToast(`Error creating issue: ${errorData}`);
+      }
+    } catch (error) {
+      console.error("Error creating issue:", error);
+      setToast("Error creating issue. Please try again.");
+    } finally {
+      setIsCreatingIssue(false);
+    }
+  };
+
+  // DC Creation from Issues Functions
+  const handleViewIssue = async (issue: Issue) => {
+    setSelectedIssueForView(issue);
+    setShowViewModal(true);
+    
+    // Fetch employee details for the mapped employees if DC exists
+    if (issue.outwardDC) {
+      const uniqueEmployeeIds = [...new Set(
+        issue.outwardDC.items.flatMap(item => 
+          ('employeeMappings' in item && item.employeeMappings) ? item.employeeMappings.map((mapping: { employeeId: string }) => mapping.employeeId) : []
+        )
+      )].filter(Boolean);
+      
+      if (uniqueEmployeeIds.length > 0) {
+        const employeeDetailsMap: Record<string, {fullName: string, designation: string}> = {};
+        
+        for (const employeeId of uniqueEmployeeIds) {
+          try {
+            const details = await fetchEmployeeDetailsFromKYC(employeeId);
+            if (details) {
+              employeeDetailsMap[employeeId] = details;
+            }
+          } catch (error) {
+            console.error(`Error fetching details for employee ${employeeId}:`, error);
+          }
+        }
+        
+        setEmployeeDetails(prev => ({ ...prev, ...employeeDetailsMap }));
+      }
+    }
+  };
+
+  // Function to handle DC creation/mapping button click
+  const handleCreateDC = async (issue: Issue) => {
+    setSelectedIssueForDC(issue);
+    
+    // Check if DC already exists for this issue (either outwardDC object or dcNumber)
+    if (issue.outwardDC || issue.dcNumber) {
+      // DC already exists, try to fetch latest DC details
+      console.log('DC exists for issue, fetching details...');
+      const dcId = issue.outwardDC?._id;
+      if (dcId) {
+        const dcDetails = await fetchDCDetails(dcId);
+      
+        if (dcDetails) {
+          // Successfully fetched latest DC details
+          // setCreatedDC(dcDetails);
+          // Fetch employees for this project/designation
+          await fetchEmployeesForMapping(issue.department);
+          setShowEmployeeMappingModal(true);
+        } else {
+          // Fallback: use existing DC data from issue
+          console.log('Using fallback DC data from issue');
+          if (issue.outwardDC) {
+            // setCreatedDC(issue.outwardDC!);
+          } else {
+            setToast("DC exists but details are not available. Please contact support.");
+            return;
+          }
+          // Fetch employees for this project/designation
+          await fetchEmployeesForMapping(issue.department);
+          setShowEmployeeMappingModal(true);
+          setToast("Using cached DC data. Some details might not be up-to-date.");
+        }
+      } else if (issue.dcNumber) {
+        // DC exists but we don't have the full DC object, fetch it by DC number
+        console.log('DC number exists, fetching DC details by DC number:', issue.dcNumber);
+        try {
+          // Fetch all DCs and find the one with matching DC number
+          const response = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc');
+          if (response.ok) {
+            const result = await response.json();
+            let allDCs = [];
+            if (result.success && Array.isArray(result.data)) {
+              allDCs = result.data;
+            } else if (Array.isArray(result)) {
+              allDCs = result;
+            } else if (result.dcs && Array.isArray(result.dcs)) {
+              allDCs = result.dcs;
+            }
+            
+            // Find DC with matching DC number
+            const matchingDC = allDCs.find((dc: DCItemAPI) => dc.dcNumber === issue.dcNumber);
+            
+            if (matchingDC) {
+              console.log('Found DC by number:', matchingDC);
+              // setCreatedDC(matchingDC);
+              await fetchEmployeesForMapping(issue.department);
+              setShowEmployeeMappingModal(true);
+            } else {
+              setToast(`DC ${issue.dcNumber} exists but could not find details in system. Please contact support.`);
+            }
+          } else {
+            setToast(`Failed to fetch DC details. Please try again.`);
+          }
+        } catch (error) {
+          console.error('Error fetching DC by number:', error);
+          setToast(`Error fetching DC details. Please try again.`);
+        }
+      }
+    } else {
+      // No DC exists, show DC creation modal
+      setDcCreationData({
+        dcNumber: `DC${Date.now()}`,
+        dcDate: new Date().toISOString().split('T')[0],
+        address: issue.department,
+        remarks: `Generated from Issue ${issue._id}`
+      });
+      setShowDCCreationModal(true);
+    }
+  };
+
+  const createDCFromIssue = async () => {
+    if (!selectedIssueForDC) {
+      setToast("No issue selected for DC creation");
+      return;
+    }
+
+    if (!dcCreationData.dcNumber || !dcCreationData.address) {
+      setToast("Please fill in DC Number and Address");
+      return;
+    }
+
+    setIsCreatingDC(true);
+    try {
+      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/from-issue/${selectedIssueForDC._id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dcCreationData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('DC Creation Response:', result);
+        
+        if (result.success) {
+          // setCreatedDC(result.dc);
+          
+          // Update the issue in the local state to include the DC
+          setIssues(prev => prev.map(issue => 
+            issue._id === selectedIssueForDC._id 
+              ? { ...issue, outwardDC: result.dc }
+              : issue
+          ));
+          
+          setToast(`DC created successfully! DC Number: ${result.dc.dcNumber}`);
+          
+          // Close DC creation modal and refresh DC data
+          setShowDCCreationModal(false);
+          await refreshDCData();
+          
+        } else {
+          setToast(result.message || "Failed to create DC");
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('DC Creation Error:', errorData);
+        setToast(errorData.message || "Failed to create DC");
+      }
+    } catch (error) {
+      console.error("Error creating DC:", error);
+      setToast("Error creating DC. Please try again.");
+    } finally {
+      setIsCreatingDC(false);
+    }
+  };
+
+  // Helper function to check if all items in a DC are fully mapped
+  const isDCFullyMapped = (issue: Issue): boolean => {
+    if (!issue.outwardDC) return false;
+    
+    return issue.outwardDC.items.every(item => {
+      // Check if remainingQuantity is 0 (most reliable indicator)
+      if (item.remainingQuantity !== undefined) {
+        return item.remainingQuantity === 0;
+      }
+      
+      // Fallback: Check if item has employeeMappings and all quantity is mapped
+      if ('employeeMappings' in item && item.employeeMappings && item.employeeMappings.length > 0) {
+        const totalMappedQuantity = item.employeeMappings.reduce((sum: number, mapping: { quantity: number }) => sum + mapping.quantity, 0);
+        return totalMappedQuantity >= (item.totalQuantity || item.quantity || 1);
+      }
+      return false;
+    });
+  };
+
+  const refreshIssues = async () => {
+    try {
+      const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issue");
+      const data = await response.json();
+      
+      let issues: Issue[] = [];
+      if (data && data.success && Array.isArray(data.data)) {
+        issues = data.data;
+      } else if (Array.isArray(data)) {
+        issues = data;
+      }
+      
+      const issuesWithDC = await fetchDCDetailsForIssues(issues);
+      
+      // Force re-render by creating a new array reference
+      setIssues([...issuesWithDC]);
+    } catch (err) {
+      console.error("Error refreshing issues:", err);
+    }
+  };
+
   return (
     <>
       <style>{toastStyles}</style>
@@ -1609,12 +3112,47 @@ export default function StoreDCPage() {
                   ))}
                 </select>
               </div>
+              {/* View Toggle Radio Buttons */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id="dc-view"
+                    name="view-toggle"
+                    value="dc"
+                    checked={activeView === 'dc'}
+                    onChange={(e) => setActiveView(e.target.value as 'dc' | 'bulk-issue')}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
+                  />
+                  <label htmlFor="dc-view" className={`text-sm font-medium cursor-pointer ${
+                    theme === "dark" ? "text-gray-300" : "text-gray-700"
+                  }`}>
+                    DC
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id="bulk-issue-view"
+                    name="view-toggle"
+                    value="bulk-issue"
+                    checked={activeView === 'bulk-issue'}
+                    onChange={(e) => setActiveView(e.target.value as 'dc' | 'bulk-issue')}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
+                  />
+                  <label htmlFor="bulk-issue-view" className={`text-sm font-medium cursor-pointer ${
+                    theme === "dark" ? "text-gray-300" : "text-gray-700"
+                  }`}>
+                    Bulk Issue
+                  </label>
+                </div>
+              </div>
               {/* Search Bar */}
               <div className="relative flex-1 min-w-[180px] max-w-xs">
                 <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
                 <input
                   type="text"
-                  placeholder="Search DC number, project name, or customer..."
+                  placeholder={activeView === 'dc' ? "Search DC number, project name, or customer..." : "Search issue date, project name, or customer..."}
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
@@ -1631,6 +3169,12 @@ export default function StoreDCPage() {
           >
             Create DC
           </button>
+          <button
+                  className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-green-700 text-white hover:bg-green-800 border-green-900' : 'bg-green-600 text-white hover:bg-green-700 border-green-200'}`}
+            onClick={() => setShowBulkIssue(true)}
+          >
+            Bulk DC
+          </button>
               <button
                   className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-blue-700'}`}
                 onClick={handleDownloadAllDCs}
@@ -1642,67 +3186,28 @@ export default function StoreDCPage() {
             </div>
           </div>
 
-          {/* Table - Excel-like compact grid full screen */}
-          <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
-            <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
-              {loading ? (
-                <div className="py-12 text-center text-lg font-semibold">Loading DC records...</div>
-              ) : error ? (
-                <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
-              ) : (
-                <>
-                <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
-                  <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
-                    <tr>
-                      <th className={`px-1 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border w-12 ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
-                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>DC Number</th>
-                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date</th>
-                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project Name</th>
-                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-28 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Customer</th>
-                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-16 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
-                      <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border w-28 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
-                    </tr>
-                    {/* Inline header filters */}
-                    <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
-                      <th className={`px-1 py-1 sticky left-0 z-20 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
-                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                          placeholder="Filter DC#" 
-                          className={`w-full border rounded px-1 py-1 text-xs ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
-                        />
-                      </th>
-                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
-                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                        <input 
-                          value={search} 
-                          onChange={e => setSearch(e.target.value)} 
-                          placeholder="Filter Project" 
-                          className={`w-full border rounded px-1 py-1 text-xs ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
-                        />
-                      </th>
-                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                        <input 
-                          value={search} 
-                          onChange={e => setSearch(e.target.value)} 
-                          placeholder="Filter Customer" 
-                          className={`w-full border rounded px-1 py-1 text-xs ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
-                        />
-                      </th>
-                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                <select
-                  value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
-                          className={`w-full border rounded px-1 py-1 text-xs ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
-                        >
-                          <option value="">All</option>
-                          {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                      </th>
-                      <th className={`px-1 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
-                    </tr>
-                  </thead>
+          {/* DC Table */}
+          {activeView === 'dc' && (
+            <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
+              <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+                {loading ? (
+                  <div className="py-12 text-center text-lg font-semibold">Loading DC records...</div>
+                ) : error ? (
+                  <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
+                ) : (
+                  <>
+                  <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                    <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+                      <tr>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border w-12 ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>DC Number</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project Name</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-28 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Customer</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
+                      </tr>
+                    </thead>
                   <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
                     {filteredDC.length === 0 ? (
                       <tr>
@@ -1710,12 +3215,20 @@ export default function StoreDCPage() {
                       </tr>
                     ) : filteredDC.map((dc, idx) => (
                       <tr key={idx} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
-                        <td className={`px-1 py-1 sticky left-0 z-10 font-mono text-[9px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
-                        <td className={`px-1 py-1 font-semibold whitespace-nowrap border text-xs ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{dc.dcNumber}</td>
-                        <td className={`px-1 py-1 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{dc.dcDate ? dc.dcDate.split('T')[0] : ''}</td>
-                        <td className={`px-1 py-1 border text-xs ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={getProjectName(dc)}>{getProjectName(dc)}</div></td>
-                        <td className={`px-1 py-1 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}><div className="truncate" title={dc.customer}>{dc.customer}</div></td>
-                        <td className={`px-1 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                        <td className={`px-2 py-0.5 sticky left-0 z-10 font-mono text-xs border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
+                        <td className={`px-2 py-0.5 font-semibold whitespace-nowrap border text-xs ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{dc.dcNumber}</td>
+                        <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          <div className="whitespace-nowrap" title={dc.dcDate ? dc.dcDate.split('T')[0] : ''}>
+                            {dc.dcDate ? dc.dcDate.split('T')[0] : ''}
+                          </div>
+                        </td>
+                        <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}>
+                          <div className="truncate" title={getProjectName(dc)}>{getProjectName(dc)}</div>
+                        </td>
+                        <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          <div className="truncate max-w-[120px]" title={dc.customer}>{dc.customer}</div>
+                        </td>
+                        <td className={`px-2 py-0.5 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <span className={`inline-block text-[10px] font-semibold px-1 py-0.5 rounded-full ${
                             dc.status === 'Issued' 
                               ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
@@ -1724,61 +3237,590 @@ export default function StoreDCPage() {
                             {dc.status || "N/A"}
                           </span>
                         </td>
-                        <td className={`px-1 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                          <div className="flex gap-0.5 flex-wrap">
-                              <button
-                                onClick={() => setSelectedDC(dc)}
-                              title="View Details"
-                              className={`px-1 py-0.5 rounded font-semibold text-[10px] border transition focus:outline-none focus:ring-1 disabled:opacity-60 disabled:cursor-not-allowed ${
-                                theme === 'dark' 
-                                  ? 'border-blue-500 text-blue-400 bg-gray-800 hover:bg-gray-700 focus:ring-blue-400' 
-                                  : 'border-blue-500 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-400'
+                        <td className={`px-2 py-0.5 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center gap-1 justify-center">
+                            <button
+                              onClick={() => setSelectedDC(dc)}
+                              className={`px-2 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                                theme === "dark" 
+                                  ? "bg-white text-blue-600 border-blue-600 hover:bg-blue-50" 
+                                  : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
                               }`}
-                              >
-                                 View
-                              </button>
-                              <button
-                                onClick={() => handleDownloadDC(dc)}
-                                disabled={pdfLoading === dc.dcNumber}
-                              title="Download PDF"
-                              className={`px-1 py-0.5 rounded font-semibold text-[10px] border transition focus:outline-none focus:ring-1 disabled:opacity-60 disabled:cursor-not-allowed ${
-                                theme === 'dark' 
-                                  ? 'border-green-500 text-green-400 bg-gray-800 hover:bg-gray-700 focus:ring-green-400' 
-                                  : 'border-green-500 text-green-600 bg-white hover:bg-green-50 focus:ring-green-400'
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={() => handleDownloadDC(dc)}
+                              disabled={pdfLoading === dc.dcNumber}
+                              className={`px-2 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                                theme === "dark" 
+                                  ? "bg-white text-green-600 border-green-600 hover:bg-green-50" 
+                                  : "bg-white text-green-600 border-green-600 hover:bg-green-50"
                               }`}
-                              >
-                                {pdfLoading === dc.dcNumber ? (
-                                <div className="animate-spin rounded-full h-2 w-2 border-b-2 border-current"></div>
-                                ) : (
-                                "PDF"
-                                )}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedDC(dc);
-                                  setShowUploadModal(true);
-                                }}
-                              title="Upload Files for this DC"
-                              className={`px-1 py-0.5 rounded font-semibold text-[10px] border transition focus:outline-none focus:ring-1 disabled:opacity-60 disabled:cursor-not-allowed ${
-                                theme === 'dark' 
-                                  ? 'border-purple-500 text-purple-400 bg-gray-800 hover:bg-gray-700 focus:ring-purple-400' 
-                                  : 'border-purple-500 text-purple-600 bg-white hover:bg-purple-50 focus:ring-purple-400'
+                            >
+                              {pdfLoading === dc.dcNumber ? (
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+                              ) : (
+                                <>
+                                  <FaDownload className="inline mr-1 text-xs" />
+                                  Download
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedDC(dc);
+                                setShowUploadModal(true);
+                              }}
+                              className={`px-2 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                                theme === "dark" 
+                                  ? "bg-white text-purple-600 border-purple-600 hover:bg-purple-50" 
+                                  : "bg-white text-purple-600 border-purple-600 hover:bg-purple-50"
                               }`}
-                              >
-                                <FaUpload className="inline mr-0.5 text-[8px]" />
-                                Files
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                            >
+                              <FaUpload className="inline mr-1 text-xs" />
+                              Files
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
                 </>
-              )}
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Issues Table */}
+          {activeView === 'bulk-issue' && (
+            <div className={`px-3 md:px-4 pb-4`}>
+              <div className={`rounded-lg border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+                <div className={`p-4 border-b ${theme === "dark" ? "border-blue-900" : "border-blue-100"}`}>
+                  <h3 className={`text-lg font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                    <FaBoxOpen className="inline mr-2" />
+                    Bulk Issues ({issues.length})
+                  </h3>
+                  <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                    Manage bulk issues and create DCs from them
+                  </p>
+                </div>
+              
+              {issuesLoading ? (
+                <div className="py-12 text-center text-lg font-semibold">Loading issues...</div>
+              ) : issuesError ? (
+                <div className="py-12 text-center text-red-500 font-semibold">{issuesError}</div>
+              ) : issues.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 font-semibold">No bulk issues found</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                    <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+                      <tr>
+                      <th className={`px-2 py-0.5 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border w-12 ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                      <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date</th>
+                      <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project Name</th>
+                      <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Customer</th>
+                      <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+                      <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                      {issues.map((issue, idx) => (
+                        <tr key={`${issue._id}-${issue.outwardDC?._id || 'no-dc'}-${issue.outwardDC?.items?.[0]?.remainingQuantity || 'unknown'}`} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                          <td className={`px-2 py-0.5 sticky left-0 z-10 font-mono text-xs border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
+                          <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                            <div className="whitespace-nowrap" title={new Date(issue.issueDate).toISOString().split('T')[0]}>
+                              {new Date(issue.issueDate).toISOString().split('T')[0]}
+                            </div>
+                          </td>
+                          <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}>
+                            <div className="truncate" title={issue.department}>{issue.department}</div>
+                          </td>
+                          <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                            <div className="truncate max-w-[120px]" title={issue.issueTo}>{issue.issueTo}</div>
+                          </td>
+                          <td className={`px-2 py-0.5 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                            <span className={`inline-block text-[10px] font-semibold px-1 py-0.5 rounded-full ${
+                              issue.outwardDC || issue.dcNumber
+                                ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
+                                : theme === 'dark' ? 'bg-yellow-800 text-yellow-200' : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {issue.outwardDC || issue.dcNumber ? 'Issued' : 'Pending'}
+                            </span>
+                          </td>
+                          <td className={`px-2 py-0.5 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                            <div className="flex items-center gap-1 justify-center">
+                              <button
+                                onClick={() => handleViewIssue(issue)}
+                                className={`px-2 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                                  theme === "dark" 
+                                    ? "bg-white text-blue-600 border-blue-600 hover:bg-blue-50" 
+                                    : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
+                                }`}
+                              >
+                                View
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (issue.outwardDC || issue.dcNumber) {
+                                    if (!isDCFullyMapped(issue)) {
+                                    handleMapEmployees(issue);
+                                    }
+                                  } else {
+                                    handleCreateDC(issue);
+                                  }
+                                }}
+                                disabled={issue.outwardDC && isDCFullyMapped(issue)}
+                                className={`px-2 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                                  issue.outwardDC || issue.dcNumber
+                                    ? isDCFullyMapped(issue)
+                                    ? theme === "dark" 
+                                        ? "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed" 
+                                        : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
+                                      : theme === "dark" 
+                                      ? "bg-white text-blue-600 border-blue-600 hover:bg-blue-50" 
+                                      : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
+                                    : theme === "dark" 
+                                      ? "bg-white text-green-600 border-green-600 hover:bg-green-50" 
+                                      : "bg-white text-green-600 border-green-600 hover:bg-green-50"
+                                }`}
+                              >
+                                {issue.outwardDC || issue.dcNumber 
+                                  ? isDCFullyMapped(issue) 
+                                    ? "✓ Mapped" 
+                                    : "Map Employees"
+                                  : "Create DC"
+                                }
+                              </button>
+                              <button
+                                onClick={() => handleDownloadIssue(issue)}
+                                className={`px-2 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                                  theme === "dark" 
+                                    ? "bg-white text-purple-600 border-purple-600 hover:bg-purple-50" 
+                                    : "bg-white text-purple-600 border-purple-600 hover:bg-purple-50"
+                                }`}
+                              >
+                                {pdfLoading === issue._id ? (
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+                                ) : (
+                                  <>
+                                    <FaDownload className="inline mr-1 text-xs" />
+                                    Download Issue
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Employee Mapping Modal */}
+        {showEmployeeMappingModal && selectedIssueForMapping && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className={`rounded-2xl shadow-2xl max-w-4xl w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+              <button
+                className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
+                onClick={() => {
+                  setShowEmployeeMappingModal(false);
+                  setSelectedIssueForMapping(null);
+                  setEmployeeMappings([]);
+                }}
+              >
+                <FaTimes className="w-6 h-6" />
+              </button>
+              
+              <h2 className={`text-2xl font-bold mb-6 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                <FaUserPlus className="w-6 h-6" />
+                Employee Mapping for DC: {selectedIssueForMapping.outwardDC?.dcNumber || selectedIssueForMapping.dcNumber}
+              </h2>
+
+              <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+                {/* DC Information */}
+                <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
+                  <h3 className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
+                    DC Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Customer: </span>
+                      <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedIssueForMapping.outwardDC?.customer || selectedIssueForMapping.issueTo}</span>
+                    </div>
+                    <div>
+                      <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Number: </span>
+                      <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedIssueForMapping.outwardDC?.dcNumber || selectedIssueForMapping.dcNumber}</span>
+                    </div>
+                    <div>
+                      <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Address: </span>
+                      <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedIssueForMapping.outwardDC?.address || selectedIssueForMapping.department}</span>
+                    </div>
+                    <div>
+                      <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Total Items: </span>
+                      <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedIssueForMapping.outwardDC?.items?.length || selectedIssueForMapping.items.length}</span>
+                    </div>
+                  </div>
+                </div>
+
+
+                {/* Items to Map with Checkbox System */}
+                <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                  <h3 className={`font-semibold mb-4 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                    Items to Map ({itemEmployeeMappings.length} items)
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {itemEmployeeMappings.map((itemMapping) => (
+                      <div key={itemMapping.itemId} className={`p-4 rounded-lg border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-white border-gray-200"}`}>
+                        {/* Item Header */}
+                        <div className="flex justify-between items-center mb-3">
+                          <div>
+                            <h4 className={`font-medium ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                              {itemMapping.itemName}
+                            </h4>
+                            <p className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                              Size: {itemMapping.size} | Total Quantity: {itemMapping.totalQuantity}
+                            </p>
+                          </div>
+                          <div className={`text-sm px-2 py-1 rounded ${
+                            itemMapping.remainingQuantity === 0 
+                              ? theme === "dark" ? "bg-green-800 text-green-200" : "bg-green-100 text-green-800"
+                              : theme === "dark" ? "bg-yellow-800 text-yellow-200" : "bg-yellow-100 text-yellow-800"
+                          }`}>
+                            Remaining: {itemMapping.remainingQuantity}
+                          </div>
+                        </div>
+
+                        {/* Employee Selection - Excel-like Table */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <div>
+                          <h5 className={`text-sm font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                            Select Employees:
+                          </h5>
+                              {employeeSearchTerm && (
+                                <p className={`text-xs mt-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                  {availableEmployees.filter(employee => {
+                                    const searchLower = employeeSearchTerm.toLowerCase();
+                                    return (
+                                      employee.fullName.toLowerCase().includes(searchLower) ||
+                                      employee.employeeId.toLowerCase().includes(searchLower) ||
+                                      employee.designation.toLowerCase().includes(searchLower)
+                                    );
+                                  }).length} employee(s) found
+                                </p>
+                              )}
+                            </div>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                placeholder="Search employees..."
+                                value={employeeSearchTerm}
+                                onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                                className={`w-64 px-3 py-1.5 text-sm rounded-md border ${
+                                  theme === "dark" 
+                                    ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400" 
+                                    : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                                } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                              />
+                              <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                                <svg className={`w-4 h-4 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className={`min-w-full border-collapse ${theme === "dark" ? "border-gray-600" : "border-gray-300"}`}>
+                              <thead>
+                                <tr className={`${theme === "dark" ? "bg-gray-700" : "bg-gray-100"}`}>
+                                  <th className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border ${theme === "dark" ? "border-gray-600 text-gray-300" : "border-gray-300 text-gray-600"}`}>
+                                    Select
+                                  </th>
+                                  <th className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border ${theme === "dark" ? "border-gray-600 text-gray-300" : "border-gray-300 text-gray-600"}`}>
+                                    Employee ID
+                                  </th>
+                                  <th className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border ${theme === "dark" ? "border-gray-600 text-gray-300" : "border-gray-300 text-gray-600"}`}>
+                                    Name
+                                  </th>
+                                  <th className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border ${theme === "dark" ? "border-gray-600 text-gray-300" : "border-gray-300 text-gray-600"}`}>
+                                    Designation
+                                  </th>
+                                  <th className={`px-3 py-2 text-center text-xs font-medium uppercase tracking-wider border ${theme === "dark" ? "border-gray-600 text-gray-300" : "border-gray-300 text-gray-600"}`}>
+                                    Quantity
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className={`${theme === "dark" ? "divide-y divide-gray-600" : "divide-y divide-gray-200"}`}>
+                                {availableEmployees
+                                  .filter(employee => {
+                                    if (!employeeSearchTerm) return true;
+                                    const searchLower = employeeSearchTerm.toLowerCase();
+                                    return (
+                                      employee.fullName.toLowerCase().includes(searchLower) ||
+                                      employee.employeeId.toLowerCase().includes(searchLower) ||
+                                      employee.designation.toLowerCase().includes(searchLower)
+                                    );
+                                  })
+                                  .map((employee) => {
+                              const isSelected = itemMapping.selectedEmployees.some(emp => emp.employeeId === employee.employeeId);
+                              const selectedEmployee = itemMapping.selectedEmployees.find(emp => emp.employeeId === employee.employeeId);
+                                  
+                              
+                              return (
+                                    <tr 
+                                      key={`${itemMapping.itemId}_${employee.employeeId}`} 
+                                      className={`cursor-pointer transition-colors ${
+                                        isSelected 
+                                          ? theme === "dark" 
+                                            ? "bg-blue-900 hover:bg-blue-800" 
+                                            : "bg-blue-50 hover:bg-blue-100"
+                                          : theme === "dark" 
+                                            ? "hover:bg-gray-700" 
+                                            : "hover:bg-gray-50"
+                                      }`}
+                                      onClick={() => toggleEmployeeSelection(itemMapping.itemId, employee, !isSelected)}
+                                    >
+                                      <td className={`px-3 py-2 border ${theme === "dark" ? "border-gray-600" : "border-gray-300"}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                          onChange={(e) => {
+                                            e.stopPropagation();
+                                            toggleEmployeeSelection(itemMapping.itemId, employee, e.target.checked);
+                                          }}
+                                    disabled={!isSelected && itemMapping.remainingQuantity <= 0}
+                                          className={`w-4 h-4 rounded border-2 ${
+                                            theme === "dark" 
+                                              ? "border-gray-500 bg-gray-700 text-blue-500" 
+                                              : "border-gray-300 bg-white text-blue-600"
+                                          } focus:ring-2 focus:ring-blue-500`}
+                                        />
+                                      </td>
+                                      <td className={`px-3 py-2 text-sm border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-900"}`}>
+                                        {employee.employeeId}
+                                      </td>
+                                      <td className={`px-3 py-2 text-sm border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-900"}`}>
+                                      {employee.fullName}
+                                      </td>
+                                      <td className={`px-3 py-2 text-sm border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-900"}`}>
+                                        {employee.designation}
+                                      </td>
+                                      <td className={`px-3 py-2 text-center border ${theme === "dark" ? "border-gray-600" : "border-gray-300"}`}>
+                                        {isSelected && selectedEmployee ? (
+                                          <div className="flex items-center justify-center space-x-1">
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                updateEmployeeQuantity(itemMapping.itemId, employee.employeeId, Math.max(1, selectedEmployee.quantity - 1));
+                                              }}
+                                              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                                theme === "dark" 
+                                                  ? "bg-gray-600 text-gray-200 hover:bg-gray-500" 
+                                                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                              }`}
+                                            >
+                                              -
+                                            </button>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max={itemMapping.remainingQuantity + selectedEmployee.quantity}
+                                        value={selectedEmployee.quantity}
+                                              onChange={(e) => {
+                                                e.stopPropagation();
+                                                updateEmployeeQuantity(itemMapping.itemId, employee.employeeId, parseInt(e.target.value) || 1);
+                                              }}
+                                        className={`w-12 px-1 py-0.5 text-xs text-center rounded border ${
+                                          theme === "dark" ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+                                        }`}
+                                      />
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                updateEmployeeQuantity(itemMapping.itemId, employee.employeeId, Math.min(itemMapping.remainingQuantity, selectedEmployee.quantity + 1));
+                                              }}
+                                              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                                theme === "dark" 
+                                                  ? "bg-gray-600 text-gray-200 hover:bg-gray-500" 
+                                                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                              }`}
+                                            >
+                                              +
+                                            </button>
+                                    </div>
+                                        ) : (
+                                          <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                            -
+                                          </span>
+                                  )}
+                                      </td>
+                                    </tr>
+                              );
+                            })}
+                                {availableEmployees.filter(employee => {
+                                  if (!employeeSearchTerm) return true;
+                                  const searchLower = employeeSearchTerm.toLowerCase();
+                                  return (
+                                    employee.fullName.toLowerCase().includes(searchLower) ||
+                                    employee.employeeId.toLowerCase().includes(searchLower) ||
+                                    employee.designation.toLowerCase().includes(searchLower)
+                                  );
+                                }).length === 0 && (
+                                  <tr>
+                                    <td colSpan={5} className={`px-3 py-8 text-center text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                      {employeeSearchTerm ? `No employees found matching "${employeeSearchTerm}"` : "No employees available"}
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Selected Employees Summary */}
+                        {itemMapping.selectedEmployees.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-600">
+                            <h6 className={`text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                              Selected Employees:
+                            </h6>
+                            <div className="space-y-1">
+                              {itemMapping.selectedEmployees.map((employee) => (
+                                <div key={employee.employeeId} className={`flex justify-between items-center px-2 py-1 rounded ${
+                                  theme === "dark" ? "bg-gray-600" : "bg-gray-100"
+                                }`}>
+                                  <span className={`text-sm ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                    {employee.employeeName} ({employee.employeeId})
+                                  </span>
+                                  <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                                    Qty: {employee.quantity}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Employee Mappings */}
+                {employeeMappings.length > 0 && (
+                  <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
+                    <h3 className={`font-semibold mb-4 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>
+                      Employee Mappings ({employeeMappings.length} mappings)
+                    </h3>
+                    
+                    <div className="overflow-x-auto">
+                      <table className={`min-w-full divide-y ${theme === "dark" ? "divide-gray-700" : "divide-gray-200"}`}>
+                        <thead className={theme === "dark" ? "bg-gray-700" : "bg-gray-100"}>
+                          <tr>
+                            <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                              Employee ID
+                            </th>
+                            <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                              Item
+                            </th>
+                            <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                              Size
+                            </th>
+                            <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                              Quantity
+                            </th>
+                            <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                              Action
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700 bg-gray-800" : "divide-gray-200 bg-white"}`}>
+                          {employeeMappings.map((mapping: EmployeeMapping, index: number) => (
+                            <tr key={index} className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}>
+                              <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                {mapping.employeeId}
+                              </td>
+                              <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                {mapping.uniformType}
+                              </td>
+                              <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                {mapping.size}
+                              </td>
+                              <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                {mapping.quantity}
+                              </td>
+                              <td className="px-4 py-3 text-sm">
+                                <button
+                                  onClick={() => removeEmployeeMapping(mapping.itemId as string)}
+                                  className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                    theme === "dark" 
+                                      ? "bg-red-800 text-red-200 hover:bg-red-700" 
+                                      : "bg-red-100 text-red-700 hover:bg-red-200"
+                                  }`}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-4 pt-6">
+                <button
+                  onClick={() => {
+                    setShowEmployeeMappingModal(false);
+                    setSelectedIssueForMapping(null);
+                    setEmployeeMappings([]);
+                  }}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
+                    theme === "dark" ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={updateDCWithEmployeeMappings}
+                  disabled={!itemEmployeeMappings.some(item => item.selectedEmployees.length > 0) || isUpdatingMappings}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
+                    itemEmployeeMappings.some(item => item.selectedEmployees.length > 0) && !isUpdatingMappings
+                      ? theme === "dark"
+                        ? "bg-green-600 text-white hover:bg-green-700"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  {isUpdatingMappings ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Updating Mappings...
+                    </>
+                  ) : (
+                    <>
+                      <FaUserPlus className="w-4 h-4" />
+                      Update Employee Mappings
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
+        )}
       </ManagerDashboardLayout>
       
       {/* Create DC Modal */}
@@ -1793,11 +3835,953 @@ export default function StoreDCPage() {
           />
         </div>
       )}
+
+      {/* Bulk Issue Modal */}
+      {showBulkIssue && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className={`rounded-2xl shadow-2xl max-w-4xl w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+            <button
+              className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
+              onClick={() => {
+                setShowBulkIssue(false);
+                setSelectedProject(null);
+                setSelectedDesignations([]);
+                setSelectedUniforms([]);
+                setSelectedItems([]);
+                setBulkIssueData({
+                  issueTo: "",
+                  department: "",
+                  purpose: "",
+                  address: "",
+                  issueDate: new Date().toISOString().split('T')[0],
+                  items: []
+                });
+              }}
+            >
+              <FaTimes className="w-6 h-6" />
+            </button>
+            
+            <h2 className={`text-2xl font-bold mb-6 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+              <FaBoxOpen className="w-6 h-6" />
+              Create Bulk Issue
+            </h2>
+
+            <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Issue To <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={bulkIssueData.issueTo}
+                    onChange={e => setBulkIssueData(prev => ({ ...prev, issueTo: e.target.value }))}
+                    placeholder="Department or recipient name"
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  />
+                </div>
+                
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Project <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={bulkIssueData.department}
+                    onChange={e => handleProjectChange(e.target.value)}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  >
+                    <option value="">Select Project</option>
+                    {projects.map(project => (
+                      <option key={project._id} value={project.projectName}>
+                        {project.projectName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedProject && (
+                  <div>
+                    <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                      Designations <span className="text-red-500">*</span>
+                    </label>
+                    <div className={`p-3 border rounded-lg ${theme === "dark" ? "bg-gray-800 border-gray-600" : "bg-white border-gray-300"}`}>
+                      <p className={`text-sm mb-3 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                        Select one or more designations:
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {getAvailableDesignations().map(designation => (
+                          <label key={designation} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedDesignations.includes(designation)}
+                              onChange={(e) => handleDesignationChange(designation, e.target.checked)}
+                              className={`w-4 h-4 rounded border-2 focus:ring-2 focus:ring-offset-0 transition-colors ${
+                                theme === "dark"
+                                  ? "bg-gray-700 border-gray-500 text-blue-400 focus:ring-blue-900"
+                                  : "bg-white border-gray-300 text-blue-600 focus:ring-blue-500"
+                              }`}
+                            />
+                            <span className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                              {designation}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                      {selectedDesignations.length > 0 && (
+                        <p className={`text-xs mt-2 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`}>
+                          Selected: {selectedDesignations.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Purpose <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={bulkIssueData.purpose}
+                    onChange={e => setBulkIssueData(prev => ({ ...prev, purpose: e.target.value }))}
+                    placeholder="Purpose of issue"
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  />
+                </div>
+                
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Issue Date
+                  </label>
+                  <input
+                    type="date"
+                    value={bulkIssueData.issueDate}
+                    onChange={e => setBulkIssueData(prev => ({ ...prev, issueDate: e.target.value }))}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                  Address
+                </label>
+                <textarea
+                  value={bulkIssueData.address}
+                  onChange={e => setBulkIssueData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Delivery address"
+                  rows={3}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                    theme === "dark"
+                      ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                      : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                  }`}
+                />
+              </div>
+
+              {selectedProject && (
+                <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
+                  <h3 className={`font-semibold mb-3 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
+                    <FaUsers className="w-4 h-4" />
+                    Project Information (This will be used in DC)
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                        Total Manpower:
+                      </span>
+                      <span className={`ml-2 text-lg font-bold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                        {selectedProject.totalManpower}
+                      </span>
+                    </div>
+                    
+                    <div>
+                      <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                        Project Address:
+                      </span>
+                      <span className={`ml-2 text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                        {selectedProject.address}
+                      </span>
+                    </div>
+                  </div>
+
+                  {selectedProject.designationWiseCount && Object.keys(selectedProject.designationWiseCount).length > 0 && (
+                    <div className="mt-4">
+                      <h4 className={`text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                        Designation-wise Distribution:
+                      </h4>
+                      <div className="overflow-x-auto">
+                        <table className={`min-w-full divide-y ${theme === "dark" ? "divide-gray-700" : "divide-gray-200"}`}>
+                          <thead className={theme === "dark" ? "bg-gray-800" : "bg-gray-50"}>
+                            <tr>
+                              <th className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>
+                                Designation
+                              </th>
+                              <th className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>
+                                Count
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700 bg-gray-800" : "divide-gray-200 bg-white"}`}>
+                            {Object.entries(selectedProject.designationWiseCount).map(([designation, count]) => (
+                              <tr key={designation} className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}>
+                                <td className={`px-3 py-2 text-sm ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                  {designation}
+                                </td>
+                                <td className={`px-3 py-2 text-sm font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                                  {count}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedProject && selectedDesignations.length > 0 && (
+                <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
+                  <h3 className={`font-semibold mb-3 flex items-center gap-2 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>
+                    <FaTshirt className="w-4 h-4" />
+                    Available Uniforms for {selectedDesignations.join(', ')}
+                  </h3>
+                  
+                  {getAvailableUniforms().length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className={`min-w-full border-collapse ${theme === "dark" ? "border-gray-600" : "border-gray-300"}`}>
+                        <thead>
+                          <tr className={`${theme === "dark" ? "bg-gray-800" : "bg-gray-100"}`}>
+                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                              Item Name
+                            </th>
+                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                              Category
+                            </th>
+                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                              Size
+                            </th>
+                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                              Stock
+                            </th>
+                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                              Quantity
+                            </th>
+                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                              Action
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className={theme === "dark" ? "divide-y divide-gray-600" : "divide-y divide-gray-200"}>
+                          {getAvailableUniforms().map((uniform) => 
+                            uniform.sizes?.map((size: string, sizeIndex: number) => {
+                              const availableQty = uniform.sizeInventory?.find((si: { size: string; quantity: number }) => si.size === size)?.quantity || 0;
+                              const selectedUniform = selectedUniforms.find(u => u.name === uniform.name && u.size === size);
+                              const currentQty = selectedUniform?.quantity || 0;
+                              
+                              return (
+                                <tr key={`${uniform._id}-${size}`} className={`${theme === "dark" ? "hover:bg-gray-700 transition even:bg-gray-800" : "hover:bg-gray-50 transition even:bg-gray-25"}`}>
+                                  {sizeIndex === 0 && (
+                                    <td 
+                                      rowSpan={uniform.sizes?.length || 1}
+                                      className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'} align-top`}
+                                    >
+                                      <div>
+                                        <div className="font-semibold">{uniform.name}</div>
+                                        <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                          {uniform.subCategory}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  )}
+                                  {sizeIndex === 0 && (
+                                    <td 
+                                      rowSpan={uniform.sizes?.length || 1}
+                                      className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'} align-top`}
+                                    >
+                                      {uniform.category}
+                                    </td>
+                                  )}
+                                  <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                                    <div className="text-center font-medium">{size}</div>
+                                  </td>
+                                  <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                                    <div className="text-center">
+                                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                        theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-700"
+                                      }`}>
+                                        {availableQty}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max={availableQty}
+                                        value={currentQty}
+                                        onChange={(e) => handleUniformSelection(uniform.name || '', size, parseInt(e.target.value) || 0)}
+                                        className={`w-16 px-2 py-1 text-xs border rounded focus:ring-2 focus:border-transparent ${
+                                          theme === "dark"
+                                            ? "bg-gray-600 border-gray-500 text-gray-100 focus:ring-green-900"
+                                            : "bg-white border-gray-300 text-gray-900 focus:ring-green-500"
+                                        }`}
+                                        placeholder="0"
+                                      />
+                                      <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                        /{availableQty}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                                    <div className="text-center">
+                                      {currentQty > 0 && (
+                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                          theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-700"
+                                        }`}>
+                                          Selected
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                      
+                      <div className="flex justify-end pt-4">
+                        <button
+                          type="button"
+                          onClick={showDCPopupForUniforms}
+                          disabled={selectedUniforms.length === 0}
+                          className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
+                            selectedUniforms.length > 0
+                              ? theme === "dark"
+                                ? "bg-green-600 text-white hover:bg-green-700"
+                                : "bg-green-600 text-white hover:bg-green-700"
+                              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          }`}
+                        >
+                          <FaBoxOpen className="w-4 h-4" />
+                          Add to Bulk Issue ({selectedUniforms.length})
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`text-center py-4 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                      No uniforms mapped for {selectedDesignations.join(', ')} in {selectedProject.projectName}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedItems.length > 0 && (
+                <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
+                  <h3 className={`font-semibold mb-3 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
+                    Items to Issue ({selectedItems.length})
+                  </h3>
+                  
+                  {selectedProject && (
+                    <div className={`mb-4 p-3 rounded-lg ${theme === "dark" ? "bg-blue-900" : "bg-blue-100"}`}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Project: </span>
+                          <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedProject.projectName}</span>
+                        </div>
+                        <div>
+                          <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Address: </span>
+                          <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedProject.address || "N/A"}</span>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Designations: </span>
+                        <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedDesignations.join(', ')}</span>
+                      </div>
+                      <div className="mt-2">
+                        <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Total Items: </span>
+                        <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedItems.length} types</span>
+                        <span className={`ml-4 font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Total Quantity: </span>
+                        <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedItems.reduce((sum, item) => sum + item.quantity, 0)} pieces</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="overflow-x-auto">
+                    <table className={`min-w-full border-collapse ${theme === "dark" ? "border-gray-600" : "border-gray-300"}`}>
+                      <thead>
+                        <tr className={`${theme === "dark" ? "bg-gray-800" : "bg-gray-100"}`}>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-gray-600" : "text-blue-700 border-gray-300"}`}>
+                            Item Name
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-gray-600" : "text-blue-700 border-gray-300"}`}>
+                            Code
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-gray-600" : "text-blue-700 border-gray-300"}`}>
+                            Size
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-gray-600" : "text-blue-700 border-gray-300"}`}>
+                            Quantity
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-gray-600" : "text-blue-700 border-gray-300"}`}>
+                            Designation
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-gray-600" : "text-blue-700 border-gray-300"}`}>
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className={theme === "dark" ? "divide-y divide-gray-600" : "divide-y divide-gray-200"}>
+                        {selectedItems.map((item, index) => (
+                          <tr key={index} className={`${theme === "dark" ? "hover:bg-gray-700 transition even:bg-gray-800" : "hover:bg-gray-50 transition even:bg-gray-25"}`}>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              <div className="font-semibold">{item.itemName}</div>
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              {item.itemCode}
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              <div className="text-center font-medium">{item.size}</div>
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              <div className="text-center">
+                                <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                  theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-700"
+                                }`}>
+                                  {item.quantity}
+                                </span>
+                              </div>
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              <div className="text-xs">{selectedDesignations.join(', ')}</div>
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              <div className="text-center">
+                                <button
+                                  onClick={() => handleRemoveItem(index)}
+                                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                    theme === "dark" 
+                                      ? "bg-red-800 text-red-200 hover:bg-red-700" 
+                                      : "bg-red-100 text-red-700 hover:bg-red-200"
+                                  }`}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                 </div>
+               )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-4 pt-4">
+                <button
+                  onClick={() => {
+                    setShowBulkIssue(false);
+                    setSelectedProject(null);
+                    setSelectedDesignations([]);
+                    setSelectedUniforms([]);
+                    setSelectedItems([]);
+                    setBulkIssueData({
+                      issueTo: "",
+                      department: "",
+                      purpose: "",
+                      address: "",
+                      issueDate: new Date().toISOString().split('T')[0],
+                      items: []
+                    });
+                  }}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
+                    theme === "dark" ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={createIssueFromBulkItems}
+                  disabled={selectedItems.length === 0 || isCreatingIssue}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
+                    selectedItems.length > 0 && !isCreatingIssue
+                      ? theme === "dark"
+                        ? "bg-green-600 text-white hover:bg-green-700"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  {isCreatingIssue ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Creating Issue...
+                    </>
+                  ) : (
+                    <>
+                      <FaBoxOpen className="w-4 h-4" />
+                      Create Issue from Bulk Items
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DC Creation Modal */}
+      {showDCCreationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className={`rounded-2xl shadow-2xl max-w-6xl w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+            <button
+              className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
+              onClick={() => setShowDCCreationModal(false)}
+            >
+              <FaTimes className="w-6 h-6" />
+            </button>
+            
+            <h2 className={`text-2xl font-bold mb-6 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+              <FaFileAlt className="w-6 h-6" />
+              Preview Bulk Issue Items
+            </h2>
+
+            <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+              {/* Items Preview */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className={`p-4 ${theme === "dark" ? "bg-gray-800" : "bg-gray-50"}`}>
+                  <h3 className={`text-lg font-semibold ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
+                    Selected Items ({selectedItems.length})
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className={`${theme === "dark" ? "bg-gray-700" : "bg-gray-100"}`}>
+                      <tr>
+                        <th className={`px-4 py-2 text-left text-sm font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                          Employee
+                        </th>
+                        <th className={`px-4 py-2 text-left text-sm font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                          Item
+                        </th>
+                        <th className={`px-4 py-2 text-left text-sm font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                          Size
+                        </th>
+                        <th className={`px-4 py-2 text-left text-sm font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                          Quantity
+                        </th>
+                        <th className={`px-4 py-2 text-left text-sm font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedItems.map((item, index) => (
+                        <tr key={index} className={`border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                          <td className={`px-4 py-2 text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
+                            {item.employeeName} ({item.employeeId})
+                          </td>
+                          <td className={`px-4 py-2 text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
+                            {item.itemName}
+                          </td>
+                          <td className={`px-4 py-2 text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
+                            {item.size}
+                          </td>
+                          <td className={`px-4 py-2 text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
+                            {item.quantity}
+                          </td>
+                          <td className={`px-4 py-2 text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
+                            <button
+                              onClick={() => handleRemoveItem(index)}
+                              className={`px-2 py-1 rounded text-xs transition-colors ${
+                                theme === "dark"
+                                  ? "bg-red-600 text-white hover:bg-red-700"
+                                  : "bg-red-500 text-white hover:bg-red-600"
+                              }`}
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-4 pt-4">
+                <button
+                  onClick={() => setShowDCCreationModal(false)}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
+                    theme === "dark" ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Back
+                </button>
+                <button
+                  onClick={createIssueFromBulkItems}
+                  disabled={isCreatingIssue}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
+                    theme === "dark"
+                      ? "bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                      : "bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  }`}
+                >
+                  {isCreatingIssue ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                      Creating Issue...
+                    </>
+                  ) : (
+                    <>
+                      <FaBoxOpen className="w-4 h-4" />
+                      Create Issue
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DC Creation Modal */}
+      {showDCCreationModal && selectedIssueForDC && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className={`rounded-2xl shadow-2xl max-w-2xl w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+            <button
+              className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
+              onClick={() => setShowDCCreationModal(false)}
+            >
+              <FaTimes className="w-6 h-6" />
+            </button>
+            
+            <h2 className={`text-2xl font-bold mb-6 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+              <FaFileAlt className="w-6 h-6" />
+              Create DC from Issue
+            </h2>
+
+            <div className="space-y-6">
+              {/* Issue Info */}
+              <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                <h3 className={`font-semibold mb-2 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
+                  Issue Details
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><strong>Issue To:</strong> {selectedIssueForDC.issueTo}</div>
+                  <div><strong>Project:</strong> {selectedIssueForDC.department}</div>
+                  <div><strong>Purpose:</strong> {selectedIssueForDC.purpose}</div>
+                  <div><strong>Items:</strong> {selectedIssueForDC.items.length}</div>
+                </div>
+              </div>
+
+              {/* DC Creation Form */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    DC Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter DC number"
+                    value={dcCreationData.dcNumber}
+                    onChange={(e) => setDcCreationData(prev => ({ ...prev, dcNumber: e.target.value }))}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  />
+                </div>
+                
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    DC Date
+                  </label>
+                  <input
+                    type="date"
+                    value={dcCreationData.dcDate}
+                    onChange={(e) => setDcCreationData(prev => ({ ...prev, dcDate: e.target.value }))}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                  Address <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  placeholder="Delivery address"
+                  rows={3}
+                  value={dcCreationData.address}
+                  onChange={(e) => setDcCreationData(prev => ({ ...prev, address: e.target.value }))}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                    theme === "dark"
+                      ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                      : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                  Remarks
+                </label>
+                <textarea
+                  placeholder="Additional remarks"
+                  rows={2}
+                  value={dcCreationData.remarks}
+                  onChange={(e) => setDcCreationData(prev => ({ ...prev, remarks: e.target.value }))}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                    theme === "dark"
+                      ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                      : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                  }`}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-4 pt-4">
+                <button
+                  onClick={() => setShowDCCreationModal(false)}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
+                    theme === "dark" ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={createDCFromIssue}
+                  disabled={isCreatingDC || !dcCreationData.dcNumber || !dcCreationData.address}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
+                    theme === "dark"
+                      ? "bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                      : "bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  }`}
+                >
+                  {isCreatingDC ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                      Creating DC...
+                    </>
+                  ) : (
+                    <>
+                      <FaFileAlt className="w-4 h-4" />
+                      Create DC
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Issue View Modal */}
+      {showViewModal && selectedIssueForView && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className={`rounded-2xl shadow-2xl max-w-3xl w-full p-6 relative transition-colors duration-300 overflow-y-auto max-h-[80vh] ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+            <button
+              className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
+              onClick={() => setShowViewModal(false)}
+            >
+              <FaTimes className="w-6 h-6" />
+            </button>
+            
+            <h2 className={`text-2xl font-bold mb-6 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+              <FaBoxOpen className="w-6 h-6" />
+              Issue Details
+            </h2>
+
+            <div className="space-y-6">
+              {/* Issue Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Issue To
+                  </label>
+                  <div className={`p-3 border rounded-lg ${theme === "dark" ? "bg-gray-800 border-gray-600 text-gray-100" : "bg-gray-50 border-gray-300 text-gray-900"}`}>
+                    {selectedIssueForView.issueTo}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Project
+                  </label>
+                  <div className={`p-3 border rounded-lg ${theme === "dark" ? "bg-gray-800 border-gray-600 text-gray-100" : "bg-gray-50 border-gray-300 text-gray-900"}`}>
+                    {selectedIssueForView.department}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Purpose
+                  </label>
+                  <div className={`p-3 border rounded-lg ${theme === "dark" ? "bg-gray-800 border-gray-600 text-gray-100" : "bg-gray-50 border-gray-300 text-gray-900"}`}>
+                    {selectedIssueForView.purpose}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Issue Date
+                  </label>
+                  <div className={`p-3 border rounded-lg ${theme === "dark" ? "bg-gray-800 border-gray-600 text-gray-100" : "bg-gray-50 border-gray-300 text-gray-900"}`}>
+                    {new Date(selectedIssueForView.issueDate).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div>
+                <h3 className={`text-lg font-semibold mb-4 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
+                  Items ({selectedIssueForView.items.length})
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className={`w-full text-sm border-collapse ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}>
+                    <thead>
+                      <tr className={`${theme === "dark" ? "bg-gray-700" : "bg-gray-100"}`}>
+                        <th className={`px-3 py-2 text-left font-semibold border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-700"}`}>
+                          Item Name
+                        </th>
+                        <th className={`px-3 py-2 text-center font-semibold border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-700"}`}>
+                          Size
+                        </th>
+                        <th className={`px-3 py-2 text-center font-semibold border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-700"}`}>
+                          Quantity
+                        </th>
+                        <th className={`px-3 py-2 text-left font-semibold border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-700"}`}>
+                          Employee ID
+                        </th>
+                        <th className={`px-3 py-2 text-left font-semibold border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-700"}`}>
+                          Employee Name
+                        </th>
+                        <th className={`px-3 py-2 text-left font-semibold border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-700"}`}>
+                          Designation
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedIssueForView.items.map((item, index) => (
+                        <tr key={index} className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} ${index % 2 === 0 ? (theme === "dark" ? "bg-gray-800" : "bg-white") : (theme === "dark" ? "bg-gray-800/50" : "bg-gray-50")}`}>
+                          <td className={`px-3 py-2 border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-800"}`}>
+                            {item.itemId?.name || item.name || 'N/A'}
+                          </td>
+                          <td className={`px-3 py-2 text-center border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-800"}`}>
+                            {item.size || 'N/A'}
+                          </td>
+                          <td className={`px-3 py-2 text-center border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-800"}`}>
+                            {item.quantity}
+                          </td>
+                          <td className={`px-3 py-2 border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-800"}`}>
+                            {(() => {
+                              // If DC exists, get employee ID from employeeMappings, otherwise use item.employeeId
+                              if (selectedIssueForView?.outwardDC) {
+                                const dcItem = selectedIssueForView.outwardDC.items.find(dcItem => 
+                                  dcItem.itemId === item.itemId?._id || dcItem.uniformType === item.itemId?.name
+                                );
+                                if (dcItem?.employeeMappings && dcItem.employeeMappings.length > 0) {
+                                  return dcItem.employeeMappings[0].employeeId;
+                                }
+                              }
+                              return item.employeeId || 'N/A';
+                            })()}
+                          </td>
+                          <td className={`px-3 py-2 border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-800"}`}>
+                            {(() => {
+                              // If DC exists, get employee ID from employeeMappings, otherwise use item.employeeId
+                              let employeeId = item.employeeId;
+                              if (selectedIssueForView?.outwardDC) {
+                                const dcItem = selectedIssueForView.outwardDC.items.find(dcItem => 
+                                  dcItem.itemId === item.itemId?._id || dcItem.uniformType === item.itemId?.name
+                                );
+                                if (dcItem?.employeeMappings && dcItem.employeeMappings.length > 0) {
+                                  employeeId = dcItem.employeeMappings[0].employeeId;
+                                }
+                              }
+                              return employeeId && employeeDetails[employeeId] 
+                                ? employeeDetails[employeeId].fullName 
+                                : 'N/A';
+                            })()}
+                          </td>
+                          <td className={`px-3 py-2 border ${theme === "dark" ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-800"}`}>
+                            {(() => {
+                              // If DC exists, get employee ID from employeeMappings, otherwise use item.employeeId
+                              let employeeId = item.employeeId;
+                              if (selectedIssueForView?.outwardDC) {
+                                const dcItem = selectedIssueForView.outwardDC.items.find(dcItem => 
+                                  dcItem.itemId === item.itemId?._id || dcItem.uniformType === item.itemId?.name
+                                );
+                                if (dcItem?.employeeMappings && dcItem.employeeMappings.length > 0) {
+                                  employeeId = dcItem.employeeMappings[0].employeeId;
+                                }
+                              }
+                              return employeeId && employeeDetails[employeeId] 
+                                ? employeeDetails[employeeId].designation 
+                                : 'N/A';
+                            })()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* DC Status */}
+              {selectedIssueForView.outwardDC && (
+                <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-900/20 border-green-700" : "bg-green-50 border-green-200"}`}>
+                  <h3 className={`text-lg font-semibold mb-2 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>
+                    DC Created
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div><strong>DC Number:</strong> {selectedIssueForView.outwardDC.dcNumber}</div>
+                    <div><strong>DC Date:</strong> {new Date(selectedIssueForView.outwardDC.dcDate).toLocaleDateString()}</div>
+                    <div><strong>Address:</strong> {selectedIssueForView.outwardDC.address}</div>
+                    <div><strong>Items:</strong> {selectedIssueForView.outwardDC.items.length}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* File Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className={`rounded-xl shadow-xl p-6 w-full max-w-4xl relative overflow-y-auto max-h-[90vh] ${
+          <div className={`rounded-xl shadow-xl p-4 w-full max-w-3xl relative overflow-y-auto max-h-[80vh] ${
             theme === 'dark' ? 'bg-gray-900' : 'bg-white'
           }`}>
             <button 
@@ -2108,7 +5092,7 @@ export default function StoreDCPage() {
       {/* DC Details Modal */}
       {selectedDC && !showUploadModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-2xl relative overflow-y-auto max-h-[90vh]">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-4 w-full max-w-4xl relative overflow-y-auto max-h-[80vh]">
               <button className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl font-bold" onClick={() => setSelectedDC(null)}>&times;</button>
               <h2 className="text-2xl font-bold mb-4 text-center">Delivery Challan Details</h2>
               <div className="space-y-4">
@@ -2127,7 +5111,7 @@ export default function StoreDCPage() {
                   <div className="space-y-3">
                     {(() => {
                       // Group DC items by employeeId
-                      const employeeGroups = selectedDC?.items.reduce((groups: Record<string, DCItem[]>, item) => {
+                      const employeeGroups = selectedDC?.items.reduce((groups: Record<string, DCItemOriginal[]>, item) => {
                         const empId = item.employeeId || 'Unknown';
                         if (!groups[empId]) {
                           groups[empId] = [];
@@ -2146,7 +5130,37 @@ export default function StoreDCPage() {
                               <div><b>Designation:</b> {empDetails?.designation || 'Not found in KYC'}</div>
                             </div>
                             <div className="text-sm">
-                              <b>Items:</b> {items.map(item => `${item.name || item.uniformType} (Size: ${item.size}, Qty: ${item.quantity})`).join(', ')}
+                              <b>Items:</b>
+                              <div className="mt-2 overflow-x-auto">
+                                <table className={`w-full text-xs border-collapse ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}>
+                                  <thead>
+                                    <tr className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                      <th className={`px-2 py-1 text-left border ${theme === 'dark' ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`}>Item Name</th>
+                                      <th className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`}>Size</th>
+                                      <th className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`}>Quantity</th>
+                                      <th className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`}>Price</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {items.map((item, itemIndex) => (
+                                      <tr key={itemIndex} className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
+                                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'}`}>
+                                          {item.name || item.uniformType}
+                                        </td>
+                                        <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'}`}>
+                                          {item.size}
+                                        </td>
+                                        <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'}`}>
+                                          {item.quantity}
+                                        </td>
+                                        <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'}`}>
+                                          ₹{item.price || '0'}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
                           </div>
                         );
@@ -2228,6 +5242,185 @@ export default function StoreDCPage() {
                     <span className="font-semibold">Remarks:</span> {selectedDC?.remarks}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DC Preview Modal */}
+        {showDCPreviewModal && selectedDCPreview && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className={`rounded-2xl shadow-2xl max-w-4xl w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+              <button
+                className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
+                onClick={() => {
+                  setShowDCPreviewModal(false);
+                  setSelectedDCPreview(null);
+                }}
+              >
+                <FaTimes className="w-6 h-6" />
+              </button>
+              
+              <h2 className={`text-2xl font-bold mb-6 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+                <FaFileAlt className="w-6 h-6" />
+                DC Preview - {selectedDCPreview.outwardDC?.dcNumber || selectedDCPreview.dcNumber}
+              </h2>
+
+              <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+                {/* DC Information */}
+                <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
+                  <h3 className={`font-semibold mb-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
+                    DC Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>DC Number: </span>
+                      <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedDCPreview.outwardDC?.dcNumber || selectedDCPreview.dcNumber}</span>
+                    </div>
+                    <div>
+                      <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Date: </span>
+                      <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedDCPreview.outwardDC?.dcDate ? new Date(selectedDCPreview.outwardDC.dcDate).toLocaleDateString() : 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Customer: </span>
+                      <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedDCPreview.outwardDC?.customer || selectedDCPreview.issueTo}</span>
+                    </div>
+                    <div>
+                      <span className={`font-medium ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>Address: </span>
+                      <span className={`${theme === "dark" ? "text-blue-100" : "text-blue-900"}`}>{selectedDCPreview.outwardDC?.address || selectedDCPreview.department}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Items Preview */}
+                <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                  <h3 className={`font-semibold mb-4 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                    Items Preview ({selectedDCPreview.outwardDC?.items?.length || selectedDCPreview.items.length} items)
+                  </h3>
+                  
+                  <div className="overflow-x-auto">
+                    <table className={`min-w-full border-collapse ${theme === "dark" ? "border-gray-600" : "border-gray-300"}`}>
+                      <thead>
+                        <tr className={`${theme === "dark" ? "bg-gray-700" : "bg-gray-100"}`}>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-300"}`}>
+                            Sl No
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-300"}`}>
+                            Emp ID
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-300"}`}>
+                            Names
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-300"}`}>
+                            Designation
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-300"}`}>
+                            No of Set
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-300"}`}>
+                            Item Name
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-300"}`}>
+                            Size
+                          </th>
+                          <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-300"}`}>
+                            Quantity
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className={theme === "dark" ? "divide-y divide-gray-600" : "divide-y divide-gray-200"}>
+                        {(selectedDCPreview.outwardDC?.items || selectedDCPreview.items).map((item, index) => (
+                          <tr key={index} className={`${theme === "dark" ? "hover:bg-gray-700 transition even:bg-gray-800" : "hover:bg-gray-50 transition even:bg-gray-25"}`}>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              {index + 1}
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              {(() => {
+                                // If DC exists, get employee ID from employeeMappings, otherwise use item.employeeId
+                                if ('employeeMappings' in item && item.employeeMappings && item.employeeMappings.length > 0) {
+                                  return item.employeeMappings[0].employeeId;
+                                }
+                                return item.employeeId || 'N/A';
+                              })()}
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              {(() => {
+                                let employeeId = item.employeeId;
+                                if ('employeeMappings' in item && item.employeeMappings && item.employeeMappings.length > 0) {
+                                  employeeId = item.employeeMappings[0].employeeId;
+                                }
+                                return employeeId ? (employeeDetails[employeeId]?.fullName || 'N/A') : 'N/A';
+                              })()}
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              {(() => {
+                                let employeeId = item.employeeId;
+                                if ('employeeMappings' in item && item.employeeMappings && item.employeeMappings.length > 0) {
+                                  employeeId = item.employeeMappings[0].employeeId;
+                                }
+                                return employeeId ? (employeeDetails[employeeId]?.designation || 'N/A') : 'N/A';
+                              })()}
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              <div className="text-center">
+                                <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                  theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-700"
+                                }`}>
+                                  {item.employeeId ? (() => {
+                                    const items = selectedDCPreview.outwardDC?.items || selectedDCPreview.items;
+                                    const employeeItems = items.filter((i: InventoryItem) => i.employeeId === item.employeeId);
+                                    return employeeItems.length > 0 ? employeeItems.length : 'N/A';
+                                  })() : 'N/A'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              {(item as DCItemOriginal).uniformType || (typeof item.itemId === 'object' ? item.itemId?.name : item.itemId) || 'N/A'}
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              <div className="text-center">{item.size || 'N/A'}</div>
+                            </td>
+                            <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                              <div className="text-center">
+                                <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                  theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-700"
+                                }`}>
+                                  {item.quantity || 'N/A'}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-4 pt-6">
+                <button
+                  onClick={() => {
+                    setShowDCPreviewModal(false);
+                    setSelectedDCPreview(null);
+                  }}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
+                    theme === "dark" ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => selectedDCPreview && handleDCDownload(selectedDCPreview)}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
+                    theme === "dark"
+                      ? "bg-green-600 text-white hover:bg-green-700"
+                      : "bg-green-600 text-white hover:bg-green-700"
+                  }`}
+                >
+                  <FaDownload className="w-4 h-4" />
+                  Download DC
+                </button>
               </div>
             </div>
           </div>
