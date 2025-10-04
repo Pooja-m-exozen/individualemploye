@@ -249,13 +249,7 @@ export default function UniformRequestsPage() {
   const [projectError, setProjectError] = useState('');
   const [projectList, setProjectList] = useState<{ _id: string; projectName: string, designationWiseCount?: Record<string, number> }[]>([]);
   const [designationOptions, setDesignationOptions] = useState<string[]>([]);
-  const [mapProjectEmployees, setMapProjectEmployees] = useState<ProjectEmployee[]>([]);
-  const [employeeLoading, setEmployeeLoading] = useState(false);
-  const [employeeError, setEmployeeError] = useState('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
-  const [mapUniformOptions, setMapUniformOptions] = useState<UniformOptions | null>(null);
-  const [uniformOptionsLoading, setUniformOptionsLoading] = useState(false);
-  const [uniformOptionsError, setUniformOptionsError] = useState('');
   const [availableOptions, setAvailableOptions] = useState<AvailableOptions | null>(null);
   const [availableOptionsLoading, setAvailableOptionsLoading] = useState(false);
   const [mappings, setMappings] = useState<Mapping[]>([]);
@@ -1006,55 +1000,7 @@ const handleCreateRequest = async (e: React.FormEvent) => {
     }
   }, [editModalForm.project, projectList, showEditModal]);
 
-  useEffect(() => {
-    if (!mapForm.project) {
-      setMapProjectEmployees([]);
-      return;
-    }
-    setEmployeeLoading(true);
-    setEmployeeError('');
-    fetch('https://cafm.zenapi.co.in/api/uniforms/all')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && Array.isArray(data.uniforms)) {
-          const emps = data.uniforms.filter((u: UniformApiEmployee) => u.projectName === mapForm.project)
-            .map((u: UniformApiEmployee) => ({ employeeId: u.employeeId, fullName: u.fullName, designation: u.designation }));
-          setMapProjectEmployees(emps);
-        } else {
-          setMapProjectEmployees([]);
-        }
-        setEmployeeLoading(false);
-      })
-      .catch(() => {
-        setEmployeeError('Failed to load employees');
-        setEmployeeLoading(false);
-      });
-  }, [mapForm.project]);
 
-  useEffect(() => {
-    if (!selectedEmployeeId) {
-      setMapUniformOptions(null);
-      return;
-    }
-    setUniformOptionsLoading(true);
-    setUniformOptionsError('');
-    fetch(`https://cafm.zenapi.co.in/api/uniforms/${selectedEmployeeId}/options`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setMapUniformOptions(data);
-        } else {
-          setMapUniformOptions(null);
-          setUniformOptionsError('No uniform options found');
-        }
-        setUniformOptionsLoading(false);
-      })
-      .catch(() => {
-        setMapUniformOptions(null);
-        setUniformOptionsError('Failed to load uniform options');
-        setUniformOptionsLoading(false);
-      });
-  }, [selectedEmployeeId]);
 
   return (
     <CoordinatorDashboardLayout>
