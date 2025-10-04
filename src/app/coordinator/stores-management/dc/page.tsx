@@ -3021,7 +3021,7 @@ export default function StoreDCPage() {
         
         // Log individual item quantities for debugging
         if (result.dc?.items) {
-          console.log('Individual item quantities:', result.dc.items.map((item: any, index: number) => 
+          console.log('Individual item quantities:', result.dc.items.map((item: { name?: string; quantity?: number }, index: number) => 
             `Item ${index + 1}: ${item.name || 'Unknown'} - Qty: ${item.quantity || 0}`
           ));
         }
