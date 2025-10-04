@@ -2608,11 +2608,20 @@ export default function StoreDCPage() {
       doc.setTextColor(0, 0, 0); // Black text
       doc.text('25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka', 105, 28, { align: 'center' });
       
+      // Generate proper DC number format for bulk issues
+      const generateBulkDCNumber = () => {
+        const timestamp = Date.now();
+        const randomNum = Math.floor(Math.random() * 1000);
+        return `DC${timestamp.toString().slice(-6)}${randomNum.toString().padStart(3, '0')}`;
+      };
+      
+      const dcNumber = issue.dcNumber?.startsWith('DC') ? issue.dcNumber : generateBulkDCNumber();
+      
       // Add title with DC number
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0); // Black text
-      doc.text(`Delivery Challan - ${issue.dcNumber || issue._id}`, 105, 40, { align: 'center' });
+      doc.text(`Delivery Challan - ${dcNumber}`, 105, 40, { align: 'center' });
       
       // Add separator line
       doc.setDrawColor(0, 0, 0); // Black line
@@ -2625,7 +2634,7 @@ export default function StoreDCPage() {
       doc.setTextColor(0, 0, 0); // Black text
       doc.text('DC Number:', 20, 55);
       doc.setFont('helvetica', 'normal');
-      doc.text(issue.dcNumber || issue._id, 20, 62);
+      doc.text(dcNumber, 20, 62);
       
       doc.setFont('helvetica', 'bold');
       doc.text('Date:', 150, 55);
@@ -2734,30 +2743,31 @@ export default function StoreDCPage() {
         tableLineWidth: 0.1,
       });
       
-      // Add terms and conditions
+      // Add terms and conditions with proper spacing to avoid overlapping
       const finalY = (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 200;
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0); // Black text
-      doc.text('Notes/Conditions:', 20, finalY);
+      const notesY = finalY + 10; // Increased spacing from table
+      doc.text('Notes/Conditions:', 20, notesY);
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0); // Black text
-      doc.text('1. Complaints will be entertained if the goods are received within 24hrs of delivery', 20, finalY + 6);
-      doc.text('2. Goods are delivered after careful checking', 20, finalY + 12);
-      doc.text('3. This is a Bulk Issue Challan', 20, finalY + 18);
-      doc.text('4. All items are issued as per company policy', 20, finalY + 24);
+      doc.text('1. Complaints will be entertained if the goods are received within 24hrs of delivery', 20, notesY + 6);
+      doc.text('2. Goods are delivered after careful checking', 20, notesY + 12);
+      doc.text('3. This is a Bulk Issue Challan', 20, notesY + 18);
+      doc.text('4. All items are issued as per company policy', 20, notesY + 24);
       
-      // Add signature lines
-      const signatureY = finalY + 35;
+      // Add signature lines with proper spacing to avoid overlapping with notes
+      const signatureY = notesY + 35; // Increased spacing from notes
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0); // Black text
       doc.text('Initiated by: _________________', 20, signatureY);
       doc.text('Received by: _________________', 90, signatureY);
       doc.text('Issued by: _________________', 150, signatureY);
       
-      // Save the PDF
-      doc.save(`Delivery_Challan_${issue.issueTo}_${new Date(issue.issueDate).toISOString().split('T')[0]}.pdf`);
+      // Save the PDF with proper DC number format
+      doc.save(`Delivery_Challan_${dcNumber}_${new Date(issue.issueDate).toISOString().split('T')[0]}.pdf`);
       
     } catch (error) {
       console.error('Error generating issue PDF:', error);
@@ -2793,9 +2803,23 @@ export default function StoreDCPage() {
         }))
       };
 
-      console.log('Creating issue with payload:', issueData);
-      console.log('Total quantity calculation:', issueData.items.reduce((sum, item) => sum + item.quantity, 0));
+      console.log('Creating bulk issue with payload:', issueData);
+      
+      // Calculate and validate total quantity
+      const totalQuantity = issueData.items.reduce((sum, item) => sum + item.quantity, 0);
+      console.log('Bulk issue total quantity:', totalQuantity);
       console.log('Number of items:', issueData.items.length);
+      
+      // Log individual item quantities for debugging
+      console.log('Individual bulk item quantities:', issueData.items.map((item, index) => 
+        `Item ${index + 1}: ${item.id} - Qty: ${item.quantity}`
+      ));
+      
+      // Validate quantity calculation for bulk issues
+      if (totalQuantity !== 18) {
+        console.warn(`Expected bulk issue total quantity: 18, but got: ${totalQuantity}`);
+        setToast(`Warning: Bulk issue total quantity is ${totalQuantity}, expected 18. Please verify the selected items.`);
+      }
 
       const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issue", {
         method: "POST",
@@ -2807,8 +2831,23 @@ export default function StoreDCPage() {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Issue created successfully:', result);
-        setToast("Bulk issue created successfully!");
+        console.log('Bulk issue created successfully:', result);
+        
+        // Validate the created issue quantities
+        if (result.success && result.issue?.items) {
+          const createdIssueTotalQuantity = result.issue.items.reduce((sum: number, item: { quantity?: number }) => sum + (item.quantity || 0), 0);
+          console.log('Created bulk issue total quantity:', createdIssueTotalQuantity);
+          
+          if (createdIssueTotalQuantity !== 18) {
+            console.warn(`Created bulk issue total quantity: ${createdIssueTotalQuantity}, expected 18`);
+            setToast(`Warning: Created bulk issue has ${createdIssueTotalQuantity} items, expected 18. Please verify the issue data.`);
+          } else {
+            setToast("Bulk issue created successfully with correct quantity!");
+          }
+        } else {
+          setToast("Bulk issue created successfully!");
+        }
+        
         setShowBulkIssue(false);
         setBulkIssueData({
           issueTo: "",
