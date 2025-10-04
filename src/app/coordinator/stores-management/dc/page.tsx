@@ -2987,7 +2987,7 @@ export default function StoreDCPage() {
         const result = await response.json();
         console.log('DC Creation Response:', result);
         console.log('DC Items count:', result.dc?.items?.length || 'No items array');
-        console.log('DC Total quantity:', result.dc?.items?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 'No quantity calculation');
+        console.log('DC Total quantity:', result.dc?.items?.reduce((sum: number, item: { quantity?: number }) => sum + (item.quantity || 0), 0) || 'No quantity calculation');
         
         if (result.success) {
           // setCreatedDC(result.dc);
