@@ -2447,50 +2447,22 @@ export default function StoreDCPage() {
       designations.includes(emp.designation)
     );
 
-    if (relevantEmployees.length > 0) {
-      uniforms.forEach(uniform => {
-        const inventoryItem = inventoryItems.find(item => item.name === uniform.name);
-        if (inventoryItem) {
-          const quantityPerEmployee = Math.ceil(uniform.quantity / relevantEmployees.length);
-          
-          relevantEmployees.forEach((employee, index) => {
-            const actualQuantity = index === relevantEmployees.length - 1 
-              ? uniform.quantity - (quantityPerEmployee * (relevantEmployees.length - 1))
-              : quantityPerEmployee;
-            
-            if (actualQuantity > 0) {
-              entries.push({
-                itemId: inventoryItem._id || '',
-                itemName: inventoryItem.name || '',
-                itemCode: inventoryItem.itemCode || '',
-                size: uniform.size,
-                quantity: actualQuantity,
-                employeeId: employee.employeeId,
-                employeeName: employee.fullName,
-                remarks: `Bulk issue for ${designations.join(', ')} - ${project.projectName} | Employee: ${employee.fullName} (${employee.designation}) | Project Address: ${project.address || 'N/A'}`
-              });
-            }
-          });
-        }
-      });
-    } else {
-      // Create bulk entries when no specific employees are found
-      uniforms.forEach(uniform => {
-        const inventoryItem = inventoryItems.find(item => item.name === uniform.name);
-        if (inventoryItem) {
-          entries.push({
-            itemId: inventoryItem._id || '',
-            itemName: inventoryItem.name || '',
-            itemCode: inventoryItem.itemCode || '',
-            size: uniform.size,
-            quantity: uniform.quantity,
-            employeeId: `BULK_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            employeeName: `Bulk Issue - ${designations.join(', ')}`,
-            remarks: `Bulk issue for ${designations.join(', ')} - ${project.projectName} | Project Address: ${project.address || 'N/A'} | Total Manpower: ${project.totalManpower}`
-          });
-        }
-      });
-    }
+    // Always create bulk entries (one per item/size combination)
+    uniforms.forEach(uniform => {
+      const inventoryItem = inventoryItems.find(item => item.name === uniform.name);
+      if (inventoryItem) {
+        entries.push({
+          itemId: inventoryItem._id || '',
+          itemName: inventoryItem.name || '',
+          itemCode: inventoryItem.itemCode || '',
+          size: uniform.size,
+          quantity: uniform.quantity, // Keep original quantity as single bulk entry
+          employeeId: `BULK_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          employeeName: `Bulk Issue - ${designations.join(', ')}`,
+          remarks: `Bulk issue for ${designations.join(', ')} - ${project.projectName} | Project Address: ${project.address || 'N/A'} | Total Manpower: ${project.totalManpower} | Affected Employees: ${relevantEmployees.length}`
+        });
+      }
+    });
     
     console.log('Created bulk issue entries:', entries);
     console.log('Project details used:', project);
@@ -2819,6 +2791,8 @@ export default function StoreDCPage() {
       };
 
       console.log('Creating issue with payload:', issueData);
+      console.log('Total quantity calculation:', issueData.items.reduce((sum, item) => sum + item.quantity, 0));
+      console.log('Number of items:', issueData.items.length);
 
       const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issue", {
         method: "POST",
@@ -3009,6 +2983,8 @@ export default function StoreDCPage() {
       if (response.ok) {
         const result = await response.json();
         console.log('DC Creation Response:', result);
+        console.log('DC Items count:', result.dc?.items?.length || 'No items array');
+        console.log('DC Total quantity:', result.dc?.items?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 'No quantity calculation');
         
         if (result.success) {
           // setCreatedDC(result.dc);
