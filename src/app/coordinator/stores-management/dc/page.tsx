@@ -3127,7 +3127,25 @@ export default function StoreDCPage() {
     if (!issue.outwardDC) return false;
     
     return issue.outwardDC.items.every(item => {
-      // Check if remainingQuantity is 0 (most reliable indicator)
+      // For bulk issues, check if employee details are properly mapped
+      if (item.employeeId && item.employeeId.startsWith('BULK_')) {
+        // For bulk issues, we need to check if the employee mappings contain real employee IDs
+        if (item.employeeMappings && item.employeeMappings.length > 0) {
+          // Check if all mappings have real employee IDs (not bulk IDs)
+          const hasRealEmployeeMappings = item.employeeMappings.some(mapping => 
+            !mapping.employeeId.startsWith('BULK_') && mapping.employeeId.trim() !== ''
+          );
+          
+          // Also check if total mapped quantity matches total quantity
+          const totalMappedQuantity = item.employeeMappings.reduce((sum: number, mapping: { quantity: number }) => sum + mapping.quantity, 0);
+          const totalQuantity = item.totalQuantity || item.quantity || 1;
+          
+          return hasRealEmployeeMappings && totalMappedQuantity >= totalQuantity;
+        }
+        return false; // Bulk issue without proper employee mappings
+      }
+      
+      // For regular items, check if remainingQuantity is 0 (most reliable indicator)
       if (item.remainingQuantity !== undefined) {
         return item.remainingQuantity === 0;
       }
