@@ -2996,8 +2996,15 @@ export default function StoreDCPage() {
       }
     } else {
       // No DC exists, show DC creation modal
+      // Generate proper DC number format consistent with PDF generation
+      const generateDCNumber = () => {
+        const timestamp = Date.now();
+        const randomNum = Math.floor(Math.random() * 1000);
+        return `DC${timestamp.toString().slice(-6)}${randomNum.toString().padStart(3, '0')}`;
+      };
+      
       setDcCreationData({
-        dcNumber: `DC${Date.now()}`,
+        dcNumber: generateDCNumber(),
         dcDate: new Date().toISOString().split('T')[0],
         address: issue.department,
         remarks: `Generated from Issue ${issue._id}`
@@ -3041,6 +3048,10 @@ export default function StoreDCPage() {
       dcNumber: dcCreationData.dcNumber.startsWith('DC') ? dcCreationData.dcNumber : generateDCNumber()
     };
 
+    // Debug: Log the DC data being sent to API
+    console.log('DC Data being sent to API:', dcDataWithFormattedNumber);
+    console.log('DC Number being sent:', dcDataWithFormattedNumber.dcNumber);
+
     setIsCreatingDC(true);
     try {
       const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/from-issue/${selectedIssueForDC._id}`, {
@@ -3052,6 +3063,8 @@ export default function StoreDCPage() {
       if (response.ok) {
         const result = await response.json();
         console.log('DC Creation Response:', result);
+        console.log('DC Number returned by API:', result.dc?.dcNumber);
+        console.log('DC Number we sent:', dcDataWithFormattedNumber.dcNumber);
         console.log('DC Items count:', result.dc?.items?.length || 'No items array');
         
         // Calculate and log total quantity with detailed breakdown
@@ -3069,6 +3082,12 @@ export default function StoreDCPage() {
         if (totalQuantity !== 18) {
           console.warn(`Expected total quantity: 18, but got: ${totalQuantity}`);
           setToast(`Warning: Total quantity is ${totalQuantity}, expected 18. Please verify the issue data.`);
+        }
+        
+        // Check if API overrode our DC number
+        if (result.dc?.dcNumber !== dcDataWithFormattedNumber.dcNumber) {
+          console.warn(`API overrode DC number! Sent: ${dcDataWithFormattedNumber.dcNumber}, Got: ${result.dc?.dcNumber}`);
+          setToast(`Warning: API changed DC number from ${dcDataWithFormattedNumber.dcNumber} to ${result.dc?.dcNumber}`);
         }
         
         if (result.success) {
