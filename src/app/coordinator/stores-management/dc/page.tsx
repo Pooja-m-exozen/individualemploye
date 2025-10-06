@@ -5997,7 +5997,6 @@ export default function StoreDCPage() {
                                     <tr className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
                                       <th className={`px-2 py-1 text-left border ${theme === 'dark' ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`}>Item Name</th>
                                       <th className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`}>Size</th>
-                                      <th className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`}>Quantity</th>
                                       <th className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`}>Price</th>
                                     </tr>
                                   </thead>
@@ -6009,9 +6008,6 @@ export default function StoreDCPage() {
                                         </td>
                                         <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'}`}>
                                           {item.size}
-                                        </td>
-                                        <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'}`}>
-                                          {item.quantity}
                                         </td>
                                         <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'}`}>
                                           ₹{item.price || '0'}
