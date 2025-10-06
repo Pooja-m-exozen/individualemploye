@@ -127,67 +127,6 @@ const isExozenOpsProject = (projectName: string): boolean => {
     );
 };
 
-// Utility function to check if a project should have 2nd and 4th Saturday holidays
-// Note: Exozen - Ops projects are excluded as ALL Saturdays are working days for them
-const isExozenProjectWithSaturdayHolidays = (projectName: string): boolean => {
-    if (!projectName) {
-        console.log('❌ No project name provided');
-        return false;
-    }
-   
-    const normalizedName = projectName.trim().toLowerCase();
-   
-    // First check if it's Exozen - Ops (which should NOT have Saturday holidays)
-    if (isExozenOpsProject(projectName)) {
-        console.log('🔍 Exozen - Ops project detected - NO Saturday holidays:', {
-            original: projectName,
-            normalized: normalizedName,
-            result: false
-        });
-        return false;
-    }
-   
-    console.log('🔍 Project name analysis:', {
-        original: projectName,
-        normalized: normalizedName,
-        trimmed: projectName.trim()
-    });
-   
-    // Check for exact matches and common variations (excluding Ops)
-    const matches = [
-        normalizedName === 'exozen - it',
-        normalizedName === 'exozen - fms',
-        normalizedName === 'exozen-it',
-        normalizedName === 'exozen-fms',
-        normalizedName === 'exozen it',
-        normalizedName === 'exozen fms',
-        normalizedName === 'exozenit',
-        normalizedName === 'exozenfms',
-        // Additional variations that might be used
-        normalizedName.includes('exozen') && normalizedName.includes('it'),
-        normalizedName.includes('exozen') && normalizedName.includes('fms'),
-        normalizedName.startsWith('exozen') && (normalizedName.includes('it') || normalizedName.includes('fms'))
-    ];
-   
-    const isMatch = matches.some(match => match);
-   
-    console.log('🎯 Project matching results:', {
-        'exozen - it': matches[0],
-        'exozen - fms': matches[1],
-        'exozen-it': matches[2],
-        'exozen-fms': matches[3],
-        'exozen it': matches[4],
-        'exozen fms': matches[5],
-        'exozenit': matches[6],
-        'exozenfms': matches[7],
-        'exozen+it (includes)': matches[8],
-        'exozen+fms (includes)': matches[9],
-        'exozen+it/fms (startsWith)': matches[10],
-        finalMatch: isMatch
-    });
-   
-    return isMatch;
-};
 
 
 const AttendanceReport: React.FC<AttendanceReportProps> = ({
@@ -1144,7 +1083,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               'SL',
               'CL',
               'Comp Off (Gained)',
-              'Comp Off (Leave)'
+              'Comp Off (Leave)',
+              'LOP'
             ]],
             body: [[
               filteredRecords.length,
@@ -1156,7 +1096,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               sl,
               cl,
               compOffGained,
-              compOffLeave
+              compOffLeave,
+              lop
             ]],
             startY: yPosition,
             theme: 'grid',
@@ -1185,7 +1126,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               6: { cellWidth: 12, halign: 'center' }, // SL
               7: { cellWidth: 12, halign: 'center' }, // CL
               8: { cellWidth: 16, halign: 'center' }, // Comp Off (Gained)
-              9: { cellWidth: 16, halign: 'center' }  // Comp Off (Leave)
+              9: { cellWidth: 16, halign: 'center' }, // Comp Off (Leave)
+              10: { cellWidth: 12, halign: 'center' }  // LOP
             },
             margin: { top: 10, left: 3, right: 3, bottom: 10 },
             pageBreak: 'auto'

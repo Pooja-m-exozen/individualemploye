@@ -6,12 +6,12 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { getEmployeeId, isAuthenticated } from '@/services/auth';
 import { useTheme } from "@/context/ThemeContext";
 import { RawAttendanceRecord } from '@/app/types/attendance';
+import { MonthSummaryResponse } from '@/app/types/attendance';
 
 const AttendancePage = () => {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [attendanceData, setAttendanceData] = useState<RawAttendanceRecord[]>([]);
-  const [summaryData, setSummaryData] = useState<any>(null); // Add summary data state
+  const [summaryData, setSummaryData] = useState<MonthSummaryResponse['data'] | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [employeeId, setEmployeeId] = useState<string>('');
@@ -19,7 +19,6 @@ const AttendancePage = () => {
 
 
   const fetchAttendanceData = useCallback(async () => {
-    setLoading(true);
     try {
       const id = getEmployeeId();
       if (!id) {
@@ -63,8 +62,6 @@ const AttendancePage = () => {
       console.error('Error fetching data:', error);
       setAttendanceData([]);
       setSummaryData(null);
-    } finally {
-      setLoading(false);
     }
   }, [selectedMonth, selectedYear, router]);
 
