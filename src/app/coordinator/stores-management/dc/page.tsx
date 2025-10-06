@@ -1672,7 +1672,7 @@ export default function StoreDCPage() {
             designation: item.designation || "Employee", // Use stored designation if available
             // Use the size from API response (this is the modified/selected size)
             size: item.size || "",
-            quantity: item.quantity || 1,
+            quantity: item.quantity ?? 1,
             // Use stored individualEmployeeData if available, otherwise create from available info
             individualEmployeeData: item.individualEmployeeData || {
               employeeId: item.employeeId || extractEmployeeId(dc.customer),
@@ -1680,7 +1680,7 @@ export default function StoreDCPage() {
               designation: item.designation || "Employee",
               uniformType: item.uniformType || [item.name], // Use stored uniform type if available
               size: { [item.name]: item.size }, // Create size object
-              qty: item.quantity || 1,
+              qty: item.quantity ?? 1,
               projectName: actualProjectName || dc.customer
             }
           }))
