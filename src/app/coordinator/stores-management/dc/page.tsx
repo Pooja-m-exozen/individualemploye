@@ -39,6 +39,10 @@ interface DCItemAPI {
   createdAt: string;
   updatedAt: string;
   __v: number;
+  // RDC properties
+  isRetrievable?: boolean;
+  retrievalStatus?: string;
+  retrievalDeadline?: string;
 }
 
 interface InventoryItem {
@@ -69,6 +73,29 @@ interface InventoryItem {
     openingBalance: number;
     _id: string;
   }>;
+}
+
+interface UniformItem {
+  _id: string;
+  itemCode: string;
+  category: string;
+  subCategory: string;
+  name: string;
+  sizes: string[];
+  sizeInventory: Array<{
+    size: string;
+    quantity: number;
+    unit: string;
+    price: string;
+    openingBalance: number;
+    _id: string;
+  }>;
+  description: string;
+  notes: string;
+  instructions: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
 }
 
 interface DCItemOriginal {
@@ -110,6 +137,8 @@ interface DCItemOriginal {
     mappedAt: string;
     _id: string;
   }>;
+  retrievableQuantity?: number; // Add retrievable quantity for RDC - Updated
+  retrievalStatus?: string; // Add retrieval status for RDC items - Updated
   _id: string;
 }
 
@@ -150,6 +179,9 @@ interface DC {
   createdAt: string;
   updatedAt: string;
   __v: number;
+  retrievalStatus?: string; // Add retrieval status for RDC
+  isRetrievable?: boolean; // Add retrievable flag for RDC
+  retrievalDeadline?: string; // Add retrieval deadline for RDC - Updated
 }
 
 interface ApiResponse {
@@ -268,6 +300,47 @@ interface Issue {
   dcNumber?: string;
 }
 
+// TypeScript interface for Bulk Issue DC API response
+interface BulkIssueDC {
+  _id: string;
+  customer: string;
+  dcNumber: string;
+  dcDate: string;
+  address: string;
+  remarks: string;
+  items: Array<{
+    itemId: string;
+    totalQuantity: number;
+    size: string;
+    uniformType: string;
+    employeeMappings: Array<{
+      employeeId: string;
+      quantity: number;
+      mappedAt: string;
+      _id: string;
+    }>;
+    remainingQuantity: number;
+    employeeId: string | null;
+    quantity: number;
+    _id: string;
+  }>;
+  attachments: unknown[];
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+  isBulkIssue: boolean;
+  sourceType: string;
+  isRetrievable?: boolean;
+  retrievalStatus?: string;
+}
+
+interface BulkIssueDCResponse {
+  success: boolean;
+  bulkIssueDCs: BulkIssueDC[];
+  totalCount: number;
+  filters: Record<string, unknown>;
+}
+
 // Add new interface for preview data
 // interface DCPreviewData {
 //   dcNumber: string;
@@ -373,15 +446,47 @@ export default function StoreDCPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [uniformMappings, setUniformMappings] = useState<UniformMapping[]>([]);
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [issuesLoading, setIssuesLoading] = useState(false);
-  const [issuesError, setIssuesError] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<'dc' | 'bulk-issue'>('dc');
+  
+  // State for bulk issue DCs
+  const [bulkIssueDCs, setBulkIssueDCs] = useState<BulkIssueDC[]>([]);
+  const [bulkIssueDCsLoading, setBulkIssueDCsLoading] = useState(false);
+  const [bulkIssueDCsError, setBulkIssueDCsError] = useState<string | null>(null);
+  
+  const [activeView, setActiveView] = useState<'nrdc' | 'bulk-issue' | 'rdc'>('nrdc');
+  const [dcType, setDcType] = useState<'nrdc' | 'rdc'>('nrdc');
+  
+  // RDC (Retrievable DC) state variables
+  const [rdcData, setRdcData] = useState<DC[]>([]);
+  const [rdcLoading, setRdcLoading] = useState(false);
+  const [showRdcModal, setShowRdcModal] = useState(false);
+  const [rdcCreationData, setRdcCreationData] = useState({
+    issueTo: "",
+    department: "",
+    purpose: "",
+    address: "",
+    issueDate: new Date().toISOString().split('T')[0],
+    deadlineDate: "",
+    items: []
+  });
+  const [isCreatingRdc, setIsCreatingRdc] = useState(false);
+  const [selectedRdcProject, setSelectedRdcProject] = useState<Project | null>(null);
+  const [selectedRdcItems, setSelectedRdcItems] = useState<Array<{itemId: string, itemName: string, quantity: number, size?: string}>>([]);
+  const [availableItems, setAvailableItems] = useState<UniformItem[]>([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState<BulkIssueItem[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedDesignations, setSelectedDesignations] = useState<string[]>([]);
   const [selectedUniforms, setSelectedUniforms] = useState<Array<{name: string, quantity: number, size: string}>>([]);
   const [isCreatingIssue, setIsCreatingIssue] = useState(false);
+
+  // Filter items based on search term
+  const filteredItems = availableItems.filter(item => 
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.subCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.itemCode.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   const [bulkIssueData, setBulkIssueData] = useState<BulkIssueRequest>({
     issueTo: "",
     department: "",
@@ -1002,41 +1107,9 @@ export default function StoreDCPage() {
     fetchBulkIssueData();
   }, []);
 
-  // Fetch issues
-  useEffect(() => {
-    const fetchIssues = async () => {
-      setIssuesLoading(true);
-      try {
-        const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issue");
-        const data = await response.json();
-        
-        
-        let issues: Issue[] = [];
-        if (data && data.success && Array.isArray(data.data)) {
-          issues = data.data;
-        } else if (Array.isArray(data)) {
-          issues = data;
-        } else {
-          console.warn("Unexpected issue data format:", data);
-          issues = [];
-        }
-
-        // Fetch DC details for each issue
-        const issuesWithDC = await fetchDCDetailsForIssues(issues);
-        setIssues(issuesWithDC);
-
-      } catch (err) {
-        console.error("Error fetching issues:", err);
-        setIssuesError("Failed to fetch issues");
-      } finally {
-        setIssuesLoading(false);
-      }
-    };
-
-    fetchIssues();
-  }, []);
 
   // Function to fetch DC data for issues
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const fetchDCDetailsForIssues = async (issues: Issue[]): Promise<Issue[]> => {
     try {
       // Try to fetch all DCs first
@@ -1054,7 +1127,9 @@ export default function StoreDCPage() {
           allDCs = allDCsData.dcs;
         }
         
-        // Match DCs with issues by multiple criteria
+        console.log('Found', allDCs.length, 'DCs total');
+        
+        // Match DCs with issues by multiple criteria (coordinator-style logic)
         const updatedIssues = issues.map(issue => {
           const matchingDC = allDCs.find((dc: DCItemAPI) => {
             // Try multiple matching criteria
@@ -1069,6 +1144,15 @@ export default function StoreDCPage() {
             return customerMatch || remarksMatch || issueIdMatch || createdFromIssue;
           });
           
+          // Only exclude if it's clearly an RDC (starts with RDC prefix)
+          const isRDC = matchingDC && matchingDC.dcNumber.startsWith('RDC');
+          
+          // If it's an RDC, don't include this issue in bulk issues
+          if (isRDC) {
+            console.log(`Excluding issue ${issue._id} from bulk issues - has RDC: ${matchingDC.dcNumber}`);
+            return null; // This will be filtered out
+          }
+          
           if (matchingDC) {
             return { ...issue, outwardDC: matchingDC };
           }
@@ -1076,7 +1160,12 @@ export default function StoreDCPage() {
           return issue;
         });
         
-        return updatedIssues;
+        // Filter out null values (issues with RDCs that were excluded)
+        const filteredIssues = updatedIssues.filter(issue => issue !== null);
+        
+        console.log(`Final bulk issues: ${filteredIssues.length} (excluded ${updatedIssues.length - filteredIssues.length} issues with RDCs)`);
+        
+        return filteredIssues;
       } else {
         console.error('Failed to fetch DCs:', allDCsResponse.status, allDCsResponse.statusText);
         return issues;
@@ -1650,6 +1739,21 @@ export default function StoreDCPage() {
     }
     fetchEmployeeData();
   }, [selectedDC, fetchDCAttachments]);
+
+  // Fetch RDCs when RDC view is active
+  useEffect(() => {
+    if (activeView === 'rdc') {
+      fetchRDCs();
+    }
+  }, [activeView]);
+
+  // Fetch bulk issue DCs when bulk-issue view is active
+  useEffect(() => {
+    if (activeView === 'bulk-issue') {
+      fetchBulkIssueDCs();
+    }
+  }, [activeView]);
+
 
   // Map API data to table structure
   const mappedDC = dcData.map(dc => ({
@@ -2259,17 +2363,14 @@ export default function StoreDCPage() {
           // Get Y after table
       const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
 
-      // Terms & Conditions - with proper spacing to avoid overlapping
+      // Terms & Conditions - compact for single page
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      const notesY = finalY + 15; // Increased spacing from table
-      doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, notesY);
-      doc.text("2. Goods are delivered after careful checking", 12, notesY + 5);
-      doc.text("3. This is a Bulk Issue Challan", 12, notesY + 10);
-      doc.text("4. All items are issued as per company policy", 12, notesY + 15);
+      doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 13);
+      doc.text("2. Goods are delivered after careful checking", 12, finalY + 25);
 
-      // Signature lines - with proper spacing to avoid overlapping with notes
-      const sigY = notesY + 25; // Increased spacing from notes
+      // Signature lines - compact for single page
+      const sigY = finalY + 35; // Increased spacing
       doc.setDrawColor(120);
       doc.line(20, sigY, 60, sigY);
       doc.text("Initiated by", 30, sigY + 3);
@@ -2283,6 +2384,301 @@ export default function StoreDCPage() {
     } catch (error) {
       console.error("Error generating PDF:", error);
       setToast("Error generating PDF. Please try again.");
+    } finally {
+      setPdfLoading(null);
+    }
+  };
+
+  // Download RDC as PDF (simple format matching the image)
+  const handleDownloadRDCPDF = async (rdc: DC) => {
+    try {
+      setPdfLoading(rdc.dcNumber);
+      
+      // Log the RDC data for debugging
+      console.log("Generating PDF for RDC:", rdc);
+      console.log("RDC items:", rdc.items);
+      
+      // Create PDF with A4 portrait orientation
+      const doc = new jsPDF('portrait', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let y = 15; // Starting position
+
+      // Company Name & Address
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED", pageWidth / 2, y, { align: "center" });
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", pageWidth / 2, y + 8, { align: "center" });
+
+      // Document Title
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Returnable Delivery Challan", pageWidth / 2, y + 16, { align: "center" });
+
+      // Outer border
+      doc.setDrawColor(180);
+      doc.rect(5, 5, pageWidth - 10, pageHeight - 10, 'S');
+
+      y += 25;
+
+      // RDC No and Date row
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(`RDC No: ${rdc.dcNumber}`, 12, y);
+      doc.text(`Date: ${rdc.dcDate ? rdc.dcDate.split("T")[0] : ""}`, pageWidth - 80, y);
+
+      y += 8;
+
+      // From/To boxes
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("From:", 15, y + 3);
+      doc.text("To:", pageWidth / 2 + 2, y + 3);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      
+      const fromBoxWidth = pageWidth / 2 - 25;
+      const toBoxWidth = pageWidth / 2 - 25;
+      const boxHeight = 20;
+      
+      doc.rect(15, y + 5, fromBoxWidth, boxHeight);
+      doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED\n25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", 17, y + 8, { maxWidth: fromBoxWidth - 2 });
+      doc.rect(pageWidth / 2 + 2, y + 5, toBoxWidth, boxHeight);
+     
+      // Use the actual project name from the created RDC
+      const projectName = rdc.projectName || rdc.customer;
+      console.log("Project name for RDC PDF (from RDC):", projectName);
+     
+      // If project name is still generic, try to get it from the first item's individualEmployeeData
+      let finalProjectName = projectName;
+      if (rdc.items && rdc.items.length > 0 && rdc.items[0].individualEmployeeData?.projectName) {
+        finalProjectName = rdc.items[0].individualEmployeeData.projectName;
+        console.log("Using project name from individualEmployeeData:", finalProjectName);
+      }
+     
+      // Ensure we don't use "N/A" as project name
+      if (!finalProjectName || finalProjectName === "N/A" || finalProjectName === "General") {
+        finalProjectName = rdc.customer || "Project Details";
+      }
+     
+      // Fetch customer address from project API
+      let customerAddress = "";
+      try {
+        const projectRes = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+        if (projectRes.ok) {
+          const projectData = await projectRes.json();
+          console.log("Available projects for address matching:", projectData);
+          
+          let matchingProject = null;
+          
+          // First try to match by finalProjectName (most accurate)
+          if (finalProjectName && finalProjectName !== "N/A" && finalProjectName !== "Project Details") {
+            matchingProject = projectData.find((p: { projectName: string; address?: string }) =>
+              p.projectName.toLowerCase().trim() === finalProjectName.toLowerCase().trim()
+            );
+            console.log(`Trying to match by finalProjectName "${finalProjectName}":`, matchingProject);
+          }
+          
+          // If no match by project name, try by customer name
+          if (!matchingProject && rdc.customer) {
+            const customerNames = rdc.customer.split(',').map(name => name.trim());
+            
+            // First try exact match
+            matchingProject = projectData.find((p: { projectName: string; address?: string }) =>
+              customerNames.some(customerName => 
+                customerName.toLowerCase().trim() === p.projectName.toLowerCase().trim()
+              )
+            );
+            console.log(`Trying exact match by customer names:`, customerNames, matchingProject);
+            
+            // If no exact match, try partial match
+            if (!matchingProject) {
+              matchingProject = projectData.find((p: { projectName: string; address?: string }) =>
+                customerNames.some(customerName =>
+                  customerName.toLowerCase().includes(p.projectName.toLowerCase()) ||
+                  p.projectName.toLowerCase().includes(customerName.toLowerCase())
+                )
+              );
+              console.log(`Trying partial match by customer names:`, customerNames, matchingProject);
+            }
+          }
+          
+          // If still no match, try to find by any project that contains keywords from the customer name
+          if (!matchingProject && rdc.customer) {
+            const customerKeywords = rdc.customer.toLowerCase().split(/[,\s]+/).filter(word => word.length > 2);
+            matchingProject = projectData.find((p: { projectName: string; address?: string }) =>
+              customerKeywords.some(keyword =>
+                p.projectName.toLowerCase().includes(keyword)
+              )
+            );
+            console.log(`Trying keyword match by customer keywords:`, customerKeywords, matchingProject);
+          }
+         
+          if (matchingProject && matchingProject.address) {
+            customerAddress = matchingProject.address;
+            console.log(`✅ Found address for project "${matchingProject.projectName}": ${customerAddress}`);
+          } else {
+            console.log(`❌ No matching project found for customer: ${rdc.customer}, finalProjectName: ${finalProjectName}`);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching customer address:", error);
+      }
+     
+      // Create the "To" text with project name and address (avoid duplication)
+      let toText = `${finalProjectName}`;
+     
+      // Add customer address if found
+      if (customerAddress && customerAddress.trim() !== "" && customerAddress !== "N/A" && customerAddress !== "Address not available") {
+        // Format the address properly - split long addresses into multiple lines
+        const addressLines = customerAddress.split(',').map(line => line.trim()).filter(line => line);
+        if (addressLines.length > 1) {
+          // If address has multiple parts, join them with newlines
+          toText += `\n${addressLines.join('\n')}`;
+        } else {
+          toText += `\n${customerAddress}`;
+        }
+        console.log(`✅ Using fetched address: ${customerAddress}`);
+      } else {
+        console.log(`❌ No valid address found, customerAddress: "${customerAddress}"`);
+        
+        // Fallback: try to use customer name if it's different from project name
+        if (rdc.customer && rdc.customer.trim() !== "N/A" && rdc.customer.trim() !== "" && finalProjectName !== rdc.customer) {
+          // Handle long customer names by truncating if necessary
+          const customerName = rdc.customer.length > 50 ? rdc.customer.substring(0, 50) + "..." : rdc.customer;
+          toText += `\n${customerName}`;
+          console.log(`Using customer name as fallback: ${customerName}`);
+        }
+        
+        // If still no address, try to use a default address for known projects
+        if (finalProjectName.toLowerCase().includes('skootr')) {
+          toText += `\n213, Rainmakers Workspace, Mahatma Gandhi Road\nRamanashree Arcade, Bengaluru, 560001\nKarnataka, INDIA`;
+          console.log(`Using default Skootr address`);
+        } else if (finalProjectName.toLowerCase().includes('exozen')) {
+          toText += `\n25/1, 4th Floor, SKIP House\nMuseum Road, Near Brigade Tower\nBangalore - 560025, Karnataka`;
+          console.log(`Using default Exozen address`);
+        } else if (finalProjectName.toLowerCase().includes('testing')) {
+          toText += `\n25/1, 4th Floor, Skip House\nMuseum Road, Near Brigade Tower\nBangalore - 560025, Karnataka`;
+          console.log(`Using default Testing address`);
+        }
+      }
+     
+      // Log the final "To" text for debugging
+      console.log("Final 'To' text for RDC PDF:", toText);
+     
+      // Try to get better project information after we fetch employee data
+      doc.text(toText, pageWidth / 2 + 4, y + 8, { maxWidth: toBoxWidth - 2 });
+
+      y += 30;
+
+      // Create table headers - simple format like the image
+      const tableHeaders = ["SI No", "Item Name", "Size", "Quantity", "Amount"];
+     
+      // Create table body using RDC items directly
+      const tableBody: (string | number)[][] = [];
+     
+      rdc.items.forEach((item, index) => {
+        // Create simple row for each item
+        const itemName = item.uniformType || item.name || "N/A";
+        const row: (string | number)[] = [
+          index + 1, // SI No
+          Array.isArray(itemName) ? itemName.join(", ") : String(itemName), // Item Name - handle arrays
+          item.size || "N/A", // Size
+          item.quantity || 0, // Quantity
+          "N/A" // Amount field
+        ];
+       
+        console.log(`Created RDC item row ${index + 1}:`, row);
+        tableBody.push(row);
+      });
+     
+      // Validate that we have a valid table body
+      if (tableBody.length === 0) {
+        console.error("No valid RDC items found for PDF table");
+        throw new Error("No valid RDC items available for PDF generation");
+      }
+     
+      console.log(`Table body for RDC items:`, tableBody);
+     
+      // Calculate optimal column widths for simple 5-column format
+      const totalColumnsForWidth = 5; // SI No, Item Name, Size, Quantity, Amount
+      
+      // Adjust margins and widths
+      const margin = 15;
+      const availableWidth = pageWidth - (margin * 2);
+      
+      // Calculate column widths
+      const maxColumnWidth = Math.min(availableWidth / totalColumnsForWidth, 30);
+     
+      const columnWidths: Record<string, { cellWidth: number }> = {
+        '0': { cellWidth: Math.min(20, maxColumnWidth) }, // SI No
+        '1': { cellWidth: Math.min(60, maxColumnWidth * 2) }, // Item Name - wider
+        '2': { cellWidth: Math.min(30, maxColumnWidth) }, // Size
+        '3': { cellWidth: Math.min(25, maxColumnWidth) }, // Quantity
+        '4': { cellWidth: Math.min(25, maxColumnWidth) } // Amount
+      };
+     
+      // Table styling - simple format
+      autoTable(doc, {
+        startY: y,
+        head: [tableHeaders],
+        body: tableBody,
+        theme: "grid",
+        headStyles: { 
+          fillColor: [230, 230, 230], 
+          textColor: 20, 
+          fontStyle: 'bold', 
+          fontSize: 9,
+          halign: 'center'
+        },
+        styles: { 
+          fontSize: 8, 
+          cellPadding: 3, 
+          textColor: 20,
+          halign: 'left'
+        },
+        columnStyles: {
+          ...columnWidths,
+          0: { ...columnWidths['0'], halign: 'center' }, // SI No - centered
+          1: { ...columnWidths['1'], halign: 'left' }, // Item Name - left aligned
+          2: { ...columnWidths['2'], halign: 'left' }, // Size - left aligned
+          3: { ...columnWidths['3'], halign: 'center' }, // Quantity - centered
+          4: { ...columnWidths['4'], halign: 'center' } // Amount - centered
+        },
+        margin: { left: margin, right: margin, top: 2, bottom: 2 },
+        tableWidth: availableWidth,
+      });
+
+      // Get Y after table
+      const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
+
+      // Terms & Conditions - compact for single page
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 13);
+      doc.text("2. Goods are delivered after careful checking", 12, finalY + 25);
+      doc.text("3. This is a Returnable Delivery Challan (RDC)", 12, finalY + 37);
+      if (rdc.retrievalDeadline) {
+        doc.text(`4. Items must be returned by: ${rdc.retrievalDeadline.split('T')[0]}`, 12, finalY + 49);
+      }
+
+      // Signature lines - compact for single page
+      const sigY = finalY + (rdc.retrievalDeadline ? 60 : 50); // Increased spacing
+      doc.setDrawColor(120);
+      doc.line(20, sigY, 60, sigY);
+      doc.text("Initiated by", 30, sigY + 3);
+      doc.line(pageWidth / 2 - 20, sigY, pageWidth / 2 + 20, sigY);
+      doc.text("Received by", pageWidth / 2 - 8, sigY + 3);
+      doc.line(pageWidth - 60, sigY, pageWidth - 20, sigY);
+      doc.text("Issued by", pageWidth - 50, sigY + 3);
+
+    doc.save(`RDC_${rdc.dcNumber}.pdf`);
+    setToast(`RDC ${rdc.dcNumber} PDF generated successfully!`);
+    } catch (error) {
+      console.error("Error generating RDC PDF:", error);
+      setToast("Error generating RDC PDF. Please try again.");
     } finally {
       setPdfLoading(null);
     }
@@ -2314,14 +2710,14 @@ export default function StoreDCPage() {
     // Table Title
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("Delivery Challan Summary", pageWidth / 2, y, { align: "center" });
+    doc.text("Non-Returnable Delivery Challan Summary", pageWidth / 2, y, { align: "center" });
 
     y += 12;
 
-    // Table - Only required columns: Sl.No, Customer, DC Number, Quantity, Size
+    // Table - Only required columns: Sl.No, Customer, NRDC Number, Quantity, Size
     autoTable(doc, {
       startY: y,
-      head: [["Sl.No", "Customer", "DC Number", "Quantity", "Size"]],
+      head: [["Sl.No", "Customer", "NRDC Number", "Quantity", "Size"]],
       body: dcData.map((dc, idx) => [
         idx + 1,
         dc.customer.length > 50 ? dc.customer.substring(0, 50) + "..." : dc.customer, // Increased to 50 for full data
@@ -2337,7 +2733,7 @@ export default function StoreDCPage() {
       columnStyles: {
         '0': { cellWidth: 20 }, // Sl.No - increased for full data
         '1': { cellWidth: 80 }, // Customer - increased for full data
-        '2': { cellWidth: 40 }, // DC Number - increased for full data
+        '2': { cellWidth: 40 }, // NRDC Number - increased for full data
         '3': { cellWidth: 30 }, // Quantity - increased for full data
         '4': { cellWidth: 80 }  // Size - increased for full data
       },
@@ -2353,14 +2749,14 @@ export default function StoreDCPage() {
     doc.text("Terms & Conditions", 14, finalY + 10);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery.", 14, finalY + 15);
-    doc.text("2. Goods are delivered after careful checking.", 14, finalY + 20);
+    doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery.", 14, finalY + 20);
+    doc.text("2. Goods are delivered after careful checking.", 14, finalY + 32);
 
     // Footer
     doc.setFontSize(10);
-    doc.text("Initiated by", 14, finalY + 35);
-    doc.text("Received by", 80, finalY + 35);
-    doc.text("Issued by", 150, finalY + 35);
+    doc.text("Initiated by", 14, finalY + 50);
+    doc.text("Received by", 80, finalY + 50);
+    doc.text("Issued by", 150, finalY + 50);
 
     doc.save("All_DCs_Summary.pdf");
     setToast("All DCs Summary PDF generated successfully!");
@@ -2595,7 +2991,7 @@ export default function StoreDCPage() {
       // Add page border
       doc.setDrawColor(0, 0, 0); // Black border
       doc.setLineWidth(0.5);
-      doc.rect(10, 10, 190, 277); // Full page border with margins
+      doc.rect(10, 10, 190, 277); // Full page border with margins (portrait)
       
       // Add company header
       doc.setFontSize(16);
@@ -2608,20 +3004,11 @@ export default function StoreDCPage() {
       doc.setTextColor(0, 0, 0); // Black text
       doc.text('25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka', 105, 28, { align: 'center' });
       
-      // Generate proper DC number format for bulk issues
-      const generateBulkDCNumber = () => {
-        const timestamp = Date.now();
-        const randomNum = Math.floor(Math.random() * 1000);
-        return `DC${timestamp.toString().slice(-6)}${randomNum.toString().padStart(3, '0')}`;
-      };
-      
-      const dcNumber = issue.dcNumber?.startsWith('DC') ? issue.dcNumber : generateBulkDCNumber();
-      
       // Add title with DC number
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0); // Black text
-      doc.text(`Delivery Challan - ${dcNumber}`, 105, 40, { align: 'center' });
+      doc.text(`Delivery Challan - ${issue.dcNumber || issue._id}`, 105, 40, { align: 'center' });
       
       // Add separator line
       doc.setDrawColor(0, 0, 0); // Black line
@@ -2634,7 +3021,7 @@ export default function StoreDCPage() {
       doc.setTextColor(0, 0, 0); // Black text
       doc.text('DC Number:', 20, 55);
       doc.setFont('helvetica', 'normal');
-      doc.text(dcNumber, 20, 62);
+      doc.text(issue.dcNumber || issue._id, 20, 62);
       
       doc.setFont('helvetica', 'bold');
       doc.text('Date:', 150, 55);
@@ -2743,31 +3130,30 @@ export default function StoreDCPage() {
         tableLineWidth: 0.1,
       });
       
-      // Add terms and conditions with proper spacing to avoid overlapping
+      // Add terms and conditions
       const finalY = (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 200;
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0); // Black text
-      const notesY = finalY + 10; // Increased spacing from table
-      doc.text('Notes/Conditions:', 20, notesY);
+      doc.text('Notes/Conditions:', 20, finalY + 10);
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0); // Black text
-      doc.text('1. Complaints will be entertained if the goods are received within 24hrs of delivery', 20, notesY + 6);
-      doc.text('2. Goods are delivered after careful checking', 20, notesY + 12);
-      doc.text('3. This is a Bulk Issue Challan', 20, notesY + 18);
-      doc.text('4. All items are issued as per company policy', 20, notesY + 24);
+      doc.text('1. Complaints will be entertained if the goods are received within 24hrs of delivery', 20, finalY + 20);
+      doc.text('2. Goods are delivered after careful checking', 20, finalY + 32);
+      doc.text('3. This is a Bulk Issue Challan', 20, finalY + 44);
+      doc.text('4. All items are issued as per company policy', 20, finalY + 56);
       
-      // Add signature lines with proper spacing to avoid overlapping with notes
-      const signatureY = notesY + 35; // Increased spacing from notes
+      // Add signature lines
+      const signatureY = finalY + 75;
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0); // Black text
       doc.text('Initiated by: _________________', 20, signatureY);
       doc.text('Received by: _________________', 90, signatureY);
       doc.text('Issued by: _________________', 150, signatureY);
       
-      // Save the PDF with proper DC number format
-      doc.save(`Delivery_Challan_${dcNumber}_${new Date(issue.issueDate).toISOString().split('T')[0]}.pdf`);
+      // Save the PDF
+      doc.save(`Delivery_Challan_${issue.issueTo}_${new Date(issue.issueDate).toISOString().split('T')[0]}.pdf`);
       
     } catch (error) {
       console.error('Error generating issue PDF:', error);
@@ -2803,23 +3189,9 @@ export default function StoreDCPage() {
         }))
       };
 
-      console.log('Creating bulk issue with payload:', issueData);
-      
-      // Calculate and validate total quantity
-      const totalQuantity = issueData.items.reduce((sum, item) => sum + item.quantity, 0);
-      console.log('Bulk issue total quantity:', totalQuantity);
+      console.log('Creating issue with payload:', issueData);
+      console.log('Total quantity calculation:', issueData.items.reduce((sum, item) => sum + item.quantity, 0));
       console.log('Number of items:', issueData.items.length);
-      
-      // Log individual item quantities for debugging
-      console.log('Individual bulk item quantities:', issueData.items.map((item, index) => 
-        `Item ${index + 1}: ${item.id} - Qty: ${item.quantity}`
-      ));
-      
-      // Validate quantity calculation for bulk issues
-      if (totalQuantity !== 18) {
-        console.warn(`Expected bulk issue total quantity: 18, but got: ${totalQuantity}`);
-        setToast(`Warning: Bulk issue total quantity is ${totalQuantity}, expected 18. Please verify the selected items.`);
-      }
 
       const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issue", {
         method: "POST",
@@ -2830,23 +3202,74 @@ export default function StoreDCPage() {
       });
 
       if (response.ok) {
-        const result = await response.json();
-        console.log('Bulk issue created successfully:', result);
+        const responseData = await response.json();
+        console.log('Bulk issue creation response:', responseData);
+        setToast("Bulk issue created successfully!");
         
-        // Validate the created issue quantities
-        if (result.success && result.issue?.items) {
-          const createdIssueTotalQuantity = result.issue.items.reduce((sum: number, item: { quantity?: number }) => sum + (item.quantity || 0), 0);
-          console.log('Created bulk issue total quantity:', createdIssueTotalQuantity);
+        // Check if the response contains the created issue ID
+        if (responseData.success && responseData.issueId) {
+          const issueId = responseData.issueId;
+          console.log('Created issue ID from response:', issueId);
           
-          if (createdIssueTotalQuantity !== 18) {
-            console.warn(`Created bulk issue total quantity: ${createdIssueTotalQuantity}, expected 18`);
-            setToast(`Warning: Created bulk issue has ${createdIssueTotalQuantity} items, expected 18. Please verify the issue data.`);
-          } else {
-            setToast("Bulk issue created successfully with correct quantity!");
+          // Automatically create DC for the newly created issue
+          try {
+            console.log('Auto-creating DC for newly created issue:', issueId);
+            
+            // Generate DC number (13 characters like DC1759738190393)
+            const generateDCNumber = () => {
+              const timestamp = Date.now();
+              return `DC${timestamp}`;
+            };
+            
+            const dcCreationData = {
+              dcNumber: generateDCNumber(),
+              customer: bulkIssueData.issueTo,
+              dcDate: bulkIssueData.issueDate,
+              address: selectedProject?.projectName || bulkIssueData.address,
+              remarks: "Generated from Bulk Issue",
+              department: bulkIssueData.department
+            };
+            
+            console.log('DC creation data:', dcCreationData);
+            
+            // Create DC directly using the API
+            const dcResponse = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/from-issue/${issueId}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(dcCreationData),
+            });
+            
+            if (dcResponse.ok) {
+              const dcResult = await dcResponse.json();
+              console.log('DC creation response:', dcResult);
+              if (dcResult.success) {
+                setToast("Bulk issue and DC created successfully!");
+              } else {
+                setToast("Bulk issue created, but DC creation failed. Please create DC manually.");
+              }
+            } else {
+              console.error('DC creation failed:', await dcResponse.text());
+              setToast("Bulk issue created, but DC creation failed. Please create DC manually.");
+            }
+          } catch (dcError) {
+            console.error('Error creating DC:', dcError);
+            setToast("Bulk issue created, but DC creation failed. Please create DC manually.");
           }
-        } else {
-          setToast("Bulk issue created successfully!");
         }
+        
+        // Refresh issues list
+        const fetchIssues = async () => {
+          try {
+            const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issue");
+            await response.json();
+            
+            // Issues updated successfully
+          } catch (err) {
+            console.error("Error refreshing issues:", err);
+          }
+        };
+        
+        await fetchIssues();
         
         setShowBulkIssue(false);
         setBulkIssueData({
@@ -2861,30 +3284,9 @@ export default function StoreDCPage() {
         setSelectedProject(null);
         setSelectedDesignations([]);
         setSelectedUniforms([]);
-        // Refresh issues list
-        const fetchIssues = async () => {
-          try {
-            const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issue");
-            const data = await response.json();
-            
-            let issues: Issue[] = [];
-            if (data && data.success && Array.isArray(data.data)) {
-              issues = data.data;
-            } else if (Array.isArray(data)) {
-              issues = data;
-            }
-            
-            const issuesWithDC = await fetchDCDetailsForIssues(issues);
-            setIssues(issuesWithDC);
-          } catch (err) {
-            console.error("Error refreshing issues:", err);
-          }
-        };
-        fetchIssues();
       } else {
         const errorData = await response.text();
-        console.error('Error creating issue:', response.status, response.statusText, errorData);
-        setToast(`Error creating issue: ${response.status} ${response.statusText}`);
+        setToast(`Error creating issue: ${errorData}`);
       }
     } catch (error) {
       console.error("Error creating issue:", error);
@@ -2927,6 +3329,7 @@ export default function StoreDCPage() {
   };
 
   // Function to handle DC creation/mapping button click
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleCreateDC = async (issue: Issue) => {
     setSelectedIssueForDC(issue);
     
@@ -2996,15 +3399,8 @@ export default function StoreDCPage() {
       }
     } else {
       // No DC exists, show DC creation modal
-      // Generate proper DC number format consistent with PDF generation
-      const generateDCNumber = () => {
-        const timestamp = Date.now();
-        const randomNum = Math.floor(Math.random() * 1000);
-        return `DC${timestamp.toString().slice(-6)}${randomNum.toString().padStart(3, '0')}`;
-      };
-      
       setDcCreationData({
-        dcNumber: generateDCNumber(),
+        dcNumber: `DC${Date.now()}`,
         dcDate: new Date().toISOString().split('T')[0],
         address: issue.department,
         remarks: `Generated from Issue ${issue._id}`
@@ -3020,87 +3416,30 @@ export default function StoreDCPage() {
     }
 
     if (!dcCreationData.dcNumber || !dcCreationData.address) {
-      setToast("Please fill in DC Number and Address");
+      setToast("Please fill in NRDC Number and Address");
       return;
     }
-
-    // Validate issue quantities before creating DC
-    const issueTotalQuantity = selectedIssueForDC.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
-    console.log('Issue total quantity:', issueTotalQuantity);
-    console.log('Issue items:', selectedIssueForDC.items?.map(item => 
-      `${item.name || 'Unknown'} - Qty: ${item.quantity || 0}`
-    ));
-    
-    if (issueTotalQuantity !== 18) {
-      console.warn(`Issue total quantity is ${issueTotalQuantity}, expected 18`);
-      setToast(`Warning: Issue total quantity is ${issueTotalQuantity}, expected 18. Please verify the issue data before creating DC.`);
-    }
-
-    // Generate proper DC number format: DC followed by a sequential number
-    const generateDCNumber = () => {
-      const timestamp = Date.now();
-      const randomNum = Math.floor(Math.random() * 1000);
-      return `DC${timestamp.toString().slice(-6)}${randomNum.toString().padStart(3, '0')}`;
-    };
-
-    const dcDataWithFormattedNumber = {
-      ...dcCreationData,
-      dcNumber: dcCreationData.dcNumber.startsWith('DC') ? dcCreationData.dcNumber : generateDCNumber()
-    };
-
-    // Debug: Log the DC data being sent to API
-    console.log('DC Data being sent to API:', dcDataWithFormattedNumber);
-    console.log('DC Number being sent:', dcDataWithFormattedNumber.dcNumber);
 
     setIsCreatingDC(true);
     try {
       const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/from-issue/${selectedIssueForDC._id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dcDataWithFormattedNumber),
+        body: JSON.stringify(dcCreationData),
       });
 
       if (response.ok) {
         const result = await response.json();
         console.log('DC Creation Response:', result);
-        console.log('DC Number returned by API:', result.dc?.dcNumber);
-        console.log('DC Number we sent:', dcDataWithFormattedNumber.dcNumber);
         console.log('DC Items count:', result.dc?.items?.length || 'No items array');
-        
-        // Calculate and log total quantity with detailed breakdown
-        const totalQuantity = result.dc?.items?.reduce((sum: number, item: { quantity?: number }) => sum + (item.quantity || 0), 0) || 0;
-        console.log('DC Total quantity:', totalQuantity);
-        
-        // Log individual item quantities for debugging
-        if (result.dc?.items) {
-          console.log('Individual item quantities:', result.dc.items.map((item: { name?: string; quantity?: number }, index: number) => 
-            `Item ${index + 1}: ${item.name || 'Unknown'} - Qty: ${item.quantity || 0}`
-          ));
-        }
-        
-        // Validate quantity calculation
-        if (totalQuantity !== 18) {
-          console.warn(`Expected total quantity: 18, but got: ${totalQuantity}`);
-          setToast(`Warning: Total quantity is ${totalQuantity}, expected 18. Please verify the issue data.`);
-        }
-        
-        // Check if API overrode our DC number
-        if (result.dc?.dcNumber !== dcDataWithFormattedNumber.dcNumber) {
-          console.warn(`API overrode DC number! Sent: ${dcDataWithFormattedNumber.dcNumber}, Got: ${result.dc?.dcNumber}`);
-          setToast(`Warning: API changed DC number from ${dcDataWithFormattedNumber.dcNumber} to ${result.dc?.dcNumber}`);
-        }
+        console.log('DC Total quantity:', result.dc?.items?.reduce((sum: number, item: { quantity?: number }) => sum + (item.quantity || 0), 0) || 'No quantity calculation');
         
         if (result.success) {
           // setCreatedDC(result.dc);
           
-          // Update the issue in the local state to include the DC
-          setIssues(prev => prev.map(issue => 
-            issue._id === selectedIssueForDC._id 
-              ? { ...issue, outwardDC: result.dc }
-              : issue
-          ));
+          // Issues updated successfully
           
-          setToast(`DC created successfully! DC Number: ${result.dc.dcNumber}`);
+          setToast(`NRDC created successfully! NRDC Number: ${result.dc.dcNumber}`);
           
           // Close DC creation modal and refresh DC data
           setShowDCCreationModal(false);
@@ -3123,29 +3462,12 @@ export default function StoreDCPage() {
   };
 
   // Helper function to check if all items in a DC are fully mapped
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const isDCFullyMapped = (issue: Issue): boolean => {
     if (!issue.outwardDC) return false;
     
     return issue.outwardDC.items.every(item => {
-      // For bulk issues, check if employee details are properly mapped
-      if (item.employeeId && item.employeeId.startsWith('BULK_')) {
-        // For bulk issues, we need to check if the employee mappings contain real employee IDs
-        if (item.employeeMappings && item.employeeMappings.length > 0) {
-          // Check if all mappings have real employee IDs (not bulk IDs)
-          const hasRealEmployeeMappings = item.employeeMappings.some(mapping => 
-            !mapping.employeeId.startsWith('BULK_') && mapping.employeeId.trim() !== ''
-          );
-          
-          // Also check if total mapped quantity matches total quantity
-          const totalMappedQuantity = item.employeeMappings.reduce((sum: number, mapping: { quantity: number }) => sum + mapping.quantity, 0);
-          const totalQuantity = item.totalQuantity || item.quantity || 1;
-          
-          return hasRealEmployeeMappings && totalMappedQuantity >= totalQuantity;
-        }
-        return false; // Bulk issue without proper employee mappings
-      }
-      
-      // For regular items, check if remainingQuantity is 0 (most reliable indicator)
+      // Check if remainingQuantity is 0 (most reliable indicator)
       if (item.remainingQuantity !== undefined) {
         return item.remainingQuantity === 0;
       }
@@ -3162,21 +3484,288 @@ export default function StoreDCPage() {
   const refreshIssues = async () => {
     try {
       const response = await fetch("https://inventory.zenapi.co.in/api/inventory/issue");
-      const data = await response.json();
+      await response.json();
       
-      let issues: Issue[] = [];
-      if (data && data.success && Array.isArray(data.data)) {
-        issues = data.data;
-      } else if (Array.isArray(data)) {
-        issues = data;
-      }
-      
-      const issuesWithDC = await fetchDCDetailsForIssues(issues);
-      
-      // Force re-render by creating a new array reference
-      setIssues([...issuesWithDC]);
+      // Issues refreshed successfully
     } catch (err) {
       console.error("Error refreshing issues:", err);
+    }
+  };
+
+  // RDC (Retrievable DC) API functions
+  const fetchRDCs = async () => {
+    setRdcLoading(true);
+    try {
+      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/retrievable/list?t=${Date.now()}`);
+      const data = await response.json();
+      
+      console.log("RDC API Response:", data);
+      
+      if (data && data.success && Array.isArray(data.retrievableDCs)) {
+        setRdcData(data.retrievableDCs);
+      } else if (Array.isArray(data)) {
+        setRdcData(data);
+      } else {
+        setRdcData([]);
+      }
+    } catch (error) {
+      console.error("Error fetching RDCs:", error);
+      setRdcData([]);
+    } finally {
+      setRdcLoading(false);
+    }
+  };
+
+  // Function to fetch bulk issue DCs
+  const fetchBulkIssueDCs = async () => {
+    setBulkIssueDCsLoading(true);
+    setBulkIssueDCsError(null);
+    try {
+      const response = await fetch("https://inventory.zenapi.co.in/api/inventory/outward-dc/bulk-issue/list");
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch bulk issue DCs: ${response.status} ${response.statusText}`);
+      }
+      
+      const data: BulkIssueDCResponse = await response.json();
+      console.log("Bulk Issue DCs API response:", data);
+      
+      if (data && data.success && Array.isArray(data.bulkIssueDCs)) {
+        setBulkIssueDCs(data.bulkIssueDCs);
+        console.log(`Loaded ${data.bulkIssueDCs.length} bulk issue DCs`);
+      } else {
+        console.warn("Unexpected bulk issue DCs data format:", data);
+        setBulkIssueDCs([]);
+      }
+    } catch (err) {
+      console.error("Error fetching bulk issue DCs:", err);
+      setBulkIssueDCsError("Failed to fetch bulk issue DCs");
+      setBulkIssueDCs([]);
+    } finally {
+      setBulkIssueDCsLoading(false);
+    }
+  };
+
+  // Function to convert BulkIssueDC to Issue format for actions
+  const convertBulkIssueDCToIssue = (bulkIssueDC: BulkIssueDC): Issue => {
+    const convertedItems: Issue['items'] = bulkIssueDC.items.map(item => {
+      const employeeId: string | undefined = item.employeeId ?? undefined;
+      return {
+        _id: item._id,
+        itemId: {
+          _id: item.itemId,
+          itemCode: "",
+          category: "",
+          subCategory: "",
+          name: item.uniformType
+        },
+        quantity: item.quantity,
+        size: item.size,
+        employeeId: employeeId,
+        name: item.uniformType,
+        itemCode: "",
+        price: "",
+        remarks: ""
+      };
+    });
+
+    const convertedOutwardDCItems: DCItemOriginal[] = bulkIssueDC.items.map(item => {
+      const employeeId: string = item.employeeId ?? "";
+      return {
+        _id: item._id,
+        itemId: item.itemId,
+        quantity: item.quantity,
+        size: item.size,
+        employeeId: employeeId,
+        uniformType: item.uniformType,
+        totalQuantity: item.totalQuantity,
+        remainingQuantity: item.remainingQuantity,
+        employeeMappings: item.employeeMappings,
+        itemCode: "",
+        name: item.uniformType,
+        price: "",
+        remarks: ""
+      };
+    });
+
+    return {
+      _id: bulkIssueDC._id,
+      issueTo: bulkIssueDC.customer,
+      department: bulkIssueDC.address, // Using address as department
+      purpose: bulkIssueDC.remarks || "Generated from Issue",
+      issueDate: bulkIssueDC.dcDate,
+      address: bulkIssueDC.address,
+      items: convertedItems,
+      createdAt: bulkIssueDC.createdAt,
+      updatedAt: bulkIssueDC.updatedAt,
+      __v: bulkIssueDC.__v,
+      outwardDC: {
+        _id: bulkIssueDC._id,
+        customer: bulkIssueDC.customer,
+        dcNumber: bulkIssueDC.dcNumber,
+        dcDate: bulkIssueDC.dcDate,
+        address: bulkIssueDC.address,
+        remarks: bulkIssueDC.remarks,
+        items: convertedOutwardDCItems,
+        createdAt: bulkIssueDC.createdAt,
+        updatedAt: bulkIssueDC.updatedAt
+      },
+      dcNumber: bulkIssueDC.dcNumber
+    };
+  };
+
+  // RDC Helper Functions (simplified - no designation mapping) - Updated
+  const handleRdcProjectChange = async (projectName: string) => {
+    const project = projects.find(p => p.projectName === projectName);
+    setSelectedRdcProject(project || null);
+    setRdcCreationData(prev => ({ 
+      ...prev, 
+      department: projectName,
+      address: project?.address || "" // Auto-fill address from project
+    }));
+    setSelectedRdcItems([]);
+    
+    // Fetch items for the selected project
+    if (project) {
+      await fetchItemsForProject(project._id);
+    }
+  };
+
+  const fetchItemsForProject = async (projectId: string) => {
+    setItemsLoading(true);
+    try {
+      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/items?projectId=${projectId}`);
+      const data = await response.json();
+      
+      if (data && data.success && Array.isArray(data.data)) {
+        setAvailableItems(data.data);
+      } else if (Array.isArray(data)) {
+        setAvailableItems(data);
+      } else {
+        setAvailableItems([]);
+      }
+    } catch (error) {
+      console.error("Error fetching items for project:", error);
+      setAvailableItems([]);
+    } finally {
+      setItemsLoading(false);
+    }
+  };
+
+  const handleRdcItemSelection = (itemId: string, itemName: string, quantity: number, size?: string) => {
+    setSelectedRdcItems(prev => {
+      const filtered = prev.filter(item => !(item.itemId === itemId && item.size === size));
+      if (quantity > 0) {
+        return [...filtered, { itemId, itemName, quantity, size }];
+      }
+      return filtered;
+    });
+  };
+
+  const createRDCFromIssue = async () => {
+    if (!rdcCreationData.issueTo || !rdcCreationData.department || !rdcCreationData.purpose) {
+      setToast("Please fill in all required fields");
+      return;
+    }
+
+    if (selectedRdcItems.length === 0) {
+      setToast("Please select at least one item");
+      return;
+    }
+
+    setIsCreatingRdc(true);
+    try {
+      // Step 1: Create Issue
+      const issueData = {
+        issueTo: rdcCreationData.issueTo,
+        department: rdcCreationData.department,
+        purpose: rdcCreationData.purpose,
+        address: rdcCreationData.address,
+        issueDate: rdcCreationData.issueDate,
+        items: selectedRdcItems.map(item => ({
+          id: item.itemId,
+          itemName: item.itemName,
+          quantity: item.quantity,
+          size: item.size || "",
+          uniformType: item.itemName
+        }))
+      };
+
+      const issueResponse = await fetch("https://inventory.zenapi.co.in/api/inventory/issue", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(issueData),
+      });
+
+      const issueResult = await issueResponse.json();
+      
+      if (!issueResult.success) {
+        setToast(issueResult.message || "Error creating issue");
+        return;
+      }
+
+      // Step 2: Create RDC from Issue
+      const rdcData = {
+        customer: rdcCreationData.issueTo,
+        dcNumber: `RDC${Date.now()}`,
+        dcDate: new Date().toISOString().split('T')[0],
+        address: rdcCreationData.address,
+        remarks: `Generated from Issue ${issueResult.issueId} - Retrievable DC`,
+        items: selectedRdcItems.map(item => ({
+          itemId: item.itemId,
+          quantity: item.quantity,
+          size: item.size || "",
+          uniformType: item.itemName,
+          retrievableQuantity: item.quantity,
+          retrievalStatus: 'available'
+        })),
+        attachments: [],
+        isRetrievable: true,
+        retrievalStatus: 'available',
+        retrievalDeadline: rdcCreationData.deadlineDate || null
+      };
+
+      console.log("RDC Payload:", rdcData);
+
+      const rdcResponse = await fetch("https://inventory.zenapi.co.in/api/inventory/outward-dc/retrievable", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(rdcData),
+      });
+
+      const rdcResult = await rdcResponse.json();
+      
+      console.log("RDC API Response:", rdcResult);
+      
+      if (rdcResult.success) {
+        setToast(`RDC created successfully! RDC Number: ${rdcResult.dcNumber || rdcResult.retrievableDCId}`);
+        setShowRdcModal(false);
+        setRdcCreationData({
+          issueTo: "",
+          department: "",
+          purpose: "",
+          address: "",
+          issueDate: new Date().toISOString().split('T')[0],
+          deadlineDate: "",
+          items: []
+        });
+        setSelectedRdcProject(null);
+        setSelectedRdcItems([]);
+        setAvailableItems([]);
+        await fetchRDCs();
+      } else {
+        console.error("RDC Creation Error:", rdcResult);
+        setToast(rdcResult.message || "Error creating RDC");
+      }
+    } catch (error) {
+      console.error("Error creating RDC:", error);
+      setToast("Error creating RDC. Please try again.");
+    } finally {
+      setIsCreatingRdc(false);
     }
   };
 
@@ -3220,17 +3809,38 @@ export default function StoreDCPage() {
                 <div className="flex items-center gap-2">
                   <input
                     type="radio"
-                    id="dc-view"
+                    id="nrdc-view"
                     name="view-toggle"
-                    value="dc"
-                    checked={activeView === 'dc'}
-                    onChange={(e) => setActiveView(e.target.value as 'dc' | 'bulk-issue')}
+                    value="nrdc"
+                    checked={activeView === 'nrdc'}
+                    onChange={(e) => setActiveView(e.target.value as 'nrdc' | 'bulk-issue' | 'rdc')}
                     className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
                   />
-                  <label htmlFor="dc-view" className={`text-sm font-medium cursor-pointer ${
+                  <label htmlFor="nrdc-view" className={`text-sm font-medium cursor-pointer ${
                     theme === "dark" ? "text-gray-300" : "text-gray-700"
                   }`}>
-                    DC
+                    NRDC
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  id="rdc-view"
+                  name="view-toggle"
+                  value="rdc"
+                  checked={activeView === 'rdc'}
+                  onChange={(e) => {
+                    setActiveView(e.target.value as 'nrdc' | 'bulk-issue' | 'rdc');
+                    if (e.target.value === 'rdc') {
+                      fetchRDCs();
+                    }
+                  }}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
+                />
+                  <label htmlFor="rdc-view" className={`text-sm font-medium cursor-pointer ${
+                    theme === "dark" ? "text-gray-300" : "text-gray-700"
+                  }`}>
+                    RDC
                   </label>
                 </div>
                 <div className="flex items-center gap-2">
@@ -3240,7 +3850,7 @@ export default function StoreDCPage() {
                     name="view-toggle"
                     value="bulk-issue"
                     checked={activeView === 'bulk-issue'}
-                    onChange={(e) => setActiveView(e.target.value as 'dc' | 'bulk-issue')}
+                    onChange={(e) => setActiveView(e.target.value as 'nrdc' | 'bulk-issue' | 'rdc')}
                     className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
                   />
                   <label htmlFor="bulk-issue-view" className={`text-sm font-medium cursor-pointer ${
@@ -3255,7 +3865,7 @@ export default function StoreDCPage() {
                 <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
                 <input
                   type="text"
-                  placeholder={activeView === 'dc' ? "Search DC number, project name, or customer..." : "Search issue date, project name, or customer..."}
+                  placeholder={activeView === 'nrdc' ? "Search NRDC number, project name, or customer..." : activeView === 'rdc' ? "Search RDC number, project name, or customer..." : "Search issue date, project name, or customer..."}
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
@@ -3266,18 +3876,27 @@ export default function StoreDCPage() {
                 />
               </div>
               <div className="ml-auto flex items-center gap-2">
-          <button
+                <button
                   className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800 border-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-200'}`}
-            onClick={() => setShowCreate(true)}
-          >
-            Create DC
-          </button>
-          <button
+                  onClick={() => {
+                    setDcType('nrdc');
+                    setShowCreate(true);
+                  }}
+                >
+                  Create NRDC
+                </button>
+            <button
+              className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800 border-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-200'}`}
+              onClick={() => setShowRdcModal(true)}
+            >
+              Create RDC
+            </button>
+                <button
                   className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-green-700 text-white hover:bg-green-800 border-green-900' : 'bg-green-600 text-white hover:bg-green-700 border-green-200'}`}
-            onClick={() => setShowBulkIssue(true)}
-          >
-            Bulk DC
-          </button>
+                  onClick={() => setShowBulkIssue(true)}
+                >
+                  Bulk Issue
+                </button>
               <button
                   className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-gray-800 border-blue-900 text-white' : 'bg-white border-blue-200 text-blue-700'}`}
                 onClick={handleDownloadAllDCs}
@@ -3289,12 +3908,12 @@ export default function StoreDCPage() {
             </div>
           </div>
 
-          {/* DC Table */}
-          {activeView === 'dc' && (
+          {/* NRDC Table */}
+          {activeView === 'nrdc' && (
             <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
               <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
                 {loading ? (
-                  <div className="py-12 text-center text-lg font-semibold">Loading DC records...</div>
+                  <div className="py-12 text-center text-lg font-semibold">Loading NRDC records...</div>
                 ) : error ? (
                   <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
                 ) : (
@@ -3303,7 +3922,7 @@ export default function StoreDCPage() {
                     <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                       <tr>
                         <th className={`px-2 py-0.5 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border w-12 ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
-                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>DC Number</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>NRDC Number</th>
                         <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date</th>
                         <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project Name</th>
                         <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-28 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Customer</th>
@@ -3377,12 +3996,140 @@ export default function StoreDCPage() {
                               }}
                               className={`px-2 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
                                 theme === "dark" 
-                                  ? "bg-white text-purple-600 border-purple-600 hover:bg-purple-50" 
-                                  : "bg-white text-purple-600 border-purple-600 hover:bg-purple-50"
+                                  ? "bg-white text-blue-600 border-blue-600 hover:bg-blue-50" 
+                                  : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
                               }`}
                             >
                               <FaUpload className="inline mr-1 text-xs" />
                               Files
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* RDC Table */}
+          {activeView === 'rdc' && (
+            <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
+              <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+                {rdcLoading ? (
+                  <div className="py-12 text-center text-lg font-semibold">Loading RDC records...</div>
+                ) : rdcData.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full ${theme === "dark" ? "bg-blue-800" : "bg-blue-100"}`}>
+                      <FaBoxOpen className={`w-8 h-8 ${theme === "dark" ? "text-blue-200" : "text-blue-600"}`} />
+                    </div>
+                    <h4 className={`mt-4 text-lg font-semibold ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                      No RDC Records Found
+                    </h4>
+                    <p className={`mt-2 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                      Create your first Returnable DC to get started.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                  <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                    <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+                      <tr>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border w-12 ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>RDC Number</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-28 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Customer</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Address</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Deadline</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Items</th>
+                        <th className={`px-2 py-0.5 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
+                      </tr>
+                    </thead>
+                  <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                    {rdcData.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No RDC records found</td>
+                      </tr>
+                    ) : rdcData.map((rdc, idx) => (
+                      <tr key={idx} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-0.5 sticky left-0 z-10 font-mono text-xs border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
+                        <td className={`px-2 py-0.5 font-semibold whitespace-nowrap border text-xs ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{rdc.dcNumber}</td>
+                        <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          <div className="whitespace-nowrap" title={rdc.dcDate ? rdc.dcDate.split('T')[0] : ''}>
+                            {rdc.dcDate ? rdc.dcDate.split('T')[0] : ''}
+                          </div>
+                        </td>
+                        <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}>
+                          <div className="truncate" title={rdc.customer}>{rdc.customer}</div>
+                        </td>
+                        <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          <div className="truncate max-w-xs" title={rdc.address || 'N/A'}>{rdc.address || 'N/A'}</div>
+                        </td>
+                        <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            rdc.retrievalStatus === 'available' 
+                              ? 'bg-green-100 text-green-800' 
+                              : rdc.retrievalStatus === 'retrieved'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {rdc.retrievalStatus || 'Available'}
+                          </span>
+                        </td>
+                        <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          <div className="whitespace-nowrap" title={rdc.retrievalDeadline ? rdc.retrievalDeadline.split('T')[0] : 'N/A'}>
+                            {rdc.retrievalDeadline ? rdc.retrievalDeadline.split('T')[0] : 'N/A'}
+                          </div>
+                        </td>
+                        <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          {rdc.items ? rdc.items.length : 0} items
+                        </td>
+                        <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => setSelectedDC(rdc)}
+                              className={`px-2 py-1 text-xs rounded transition-colors ${
+                                theme === 'dark' 
+                                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+                              }`}
+                              title="View Details"
+                            >
+                              <FaEye className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDownloadRDCPDF(rdc)}
+                              disabled={pdfLoading === rdc.dcNumber}
+                              className={`px-2 py-1 text-xs rounded transition-colors ${
+                                theme === 'dark' 
+                                  ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-400' 
+                                  : 'bg-green-500 hover:bg-green-600 text-white disabled:bg-green-300'
+                              }`}
+                              title="Download PDF"
+                            >
+                              {pdfLoading === rdc.dcNumber ? (
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                              ) : (
+                                <FaDownload className="w-3 h-3" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedDC(rdc);
+                                setShowUploadModal(true);
+                              }}
+                              className={`px-2 py-1 text-xs rounded transition-colors ${
+                                theme === 'dark' 
+                                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+                              }`}
+                              title="Upload Files"
+                            >
+                              <FaUpload className="w-3 h-3" />
                             </button>
                           </div>
                         </td>
@@ -3403,19 +4150,19 @@ export default function StoreDCPage() {
                 <div className={`p-4 border-b ${theme === "dark" ? "border-blue-900" : "border-blue-100"}`}>
                   <h3 className={`text-lg font-semibold ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
                     <FaBoxOpen className="inline mr-2" />
-                    Bulk Issues ({issues.length})
+                    Bulk Issues ({bulkIssueDCs.length})
                   </h3>
                   <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
                     Manage bulk issues and create DCs from them
                   </p>
                 </div>
               
-              {issuesLoading ? (
-                <div className="py-12 text-center text-lg font-semibold">Loading issues...</div>
-              ) : issuesError ? (
-                <div className="py-12 text-center text-red-500 font-semibold">{issuesError}</div>
-              ) : issues.length === 0 ? (
-                <div className="py-12 text-center text-gray-500 font-semibold">No bulk issues found</div>
+              {bulkIssueDCsLoading ? (
+                <div className="py-12 text-center text-lg font-semibold">Loading bulk issue DCs...</div>
+              ) : bulkIssueDCsError ? (
+                <div className="py-12 text-center text-red-500 font-semibold">{bulkIssueDCsError}</div>
+              ) : bulkIssueDCs.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 font-semibold">No bulk issue DCs found</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
@@ -3430,27 +4177,35 @@ export default function StoreDCPage() {
                       </tr>
                     </thead>
                     <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
-                      {issues.map((issue, idx) => (
-                        <tr key={`${issue._id}-${issue.outwardDC?._id || 'no-dc'}-${issue.outwardDC?.items?.[0]?.remainingQuantity || 'unknown'}`} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                      {bulkIssueDCs.map((bulkIssueDC, idx) => {
+                        const issue = convertBulkIssueDCToIssue(bulkIssueDC);
+                        const hasEmployeeMappings = bulkIssueDC.items.some(item => item.employeeMappings && item.employeeMappings.length > 0);
+                        const isFullyMapped = bulkIssueDC.items.every(item => 
+                          item.employeeMappings && item.employeeMappings.length > 0 && 
+                          item.employeeMappings.reduce((sum, mapping) => sum + mapping.quantity, 0) >= item.quantity
+                        );
+                        
+                        return (
+                        <tr key={`${bulkIssueDC._id}-${bulkIssueDC.dcNumber}-${bulkIssueDC.items?.[0]?.remainingQuantity || 'unknown'}`} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
                           <td className={`px-2 py-0.5 sticky left-0 z-10 font-mono text-xs border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
                           <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
-                            <div className="whitespace-nowrap" title={new Date(issue.issueDate).toISOString().split('T')[0]}>
-                              {new Date(issue.issueDate).toISOString().split('T')[0]}
+                            <div className="whitespace-nowrap" title={new Date(bulkIssueDC.dcDate).toISOString().split('T')[0]}>
+                              {new Date(bulkIssueDC.dcDate).toISOString().split('T')[0]}
                             </div>
                           </td>
                           <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}>
-                            <div className="truncate" title={issue.department}>{issue.department}</div>
+                            <div className="truncate" title={bulkIssueDC.address}>{bulkIssueDC.address}</div>
                           </td>
                           <td className={`px-2 py-0.5 border text-xs ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
-                            <div className="truncate max-w-[120px]" title={issue.issueTo}>{issue.issueTo}</div>
+                            <div className="truncate max-w-[120px]" title={bulkIssueDC.customer}>{bulkIssueDC.customer}</div>
                           </td>
                           <td className={`px-2 py-0.5 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                             <span className={`inline-block text-[10px] font-semibold px-1 py-0.5 rounded-full ${
-                              issue.outwardDC || issue.dcNumber
+                              bulkIssueDC.isRetrievable === false && bulkIssueDC.retrievalStatus === 'available'
                                 ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
                                 : theme === 'dark' ? 'bg-yellow-800 text-yellow-200' : 'bg-yellow-100 text-yellow-700'
                             }`}>
-                              {issue.outwardDC || issue.dcNumber ? 'Issued' : 'Pending'}
+                              {bulkIssueDC.isRetrievable === false && bulkIssueDC.retrievalStatus === 'available' ? 'Issued' : 'Pending'}
                             </span>
                           </td>
                           <td className={`px-2 py-0.5 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
@@ -3467,42 +4222,42 @@ export default function StoreDCPage() {
                               </button>
                               <button
                                 onClick={() => {
-                                  if (issue.outwardDC || issue.dcNumber) {
-                                    if (!isDCFullyMapped(issue)) {
-                                    handleMapEmployees(issue);
+                                  if (hasEmployeeMappings) {
+                                    if (!isFullyMapped) {
+                                      handleMapEmployees(issue);
                                     }
                                   } else {
-                                    handleCreateDC(issue);
+                                    handleMapEmployees(issue);
                                   }
                                 }}
-                                disabled={issue.outwardDC && isDCFullyMapped(issue)}
+                                disabled={hasEmployeeMappings && isFullyMapped}
                                 className={`px-2 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
-                                  issue.outwardDC || issue.dcNumber
-                                    ? isDCFullyMapped(issue)
-                                    ? theme === "dark" 
+                                  hasEmployeeMappings
+                                    ? isFullyMapped
+                                      ? theme === "dark" 
                                         ? "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed" 
                                         : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
                                       : theme === "dark" 
+                                        ? "bg-white text-blue-600 border-blue-600 hover:bg-blue-50" 
+                                        : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
+                                    : theme === "dark" 
                                       ? "bg-white text-blue-600 border-blue-600 hover:bg-blue-50" 
                                       : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
-                                    : theme === "dark" 
-                                      ? "bg-white text-green-600 border-green-600 hover:bg-green-50" 
-                                      : "bg-white text-green-600 border-green-600 hover:bg-green-50"
                                 }`}
                               >
-                                {issue.outwardDC || issue.dcNumber 
-                                  ? isDCFullyMapped(issue) 
+                                {hasEmployeeMappings 
+                                  ? isFullyMapped 
                                     ? "✓ Mapped" 
                                     : "Map Employees"
-                                  : "Create DC"
+                                  : "Map Employees"
                                 }
                               </button>
                               <button
                                 onClick={() => handleDownloadIssue(issue)}
                                 className={`px-2 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
                                   theme === "dark" 
-                                    ? "bg-white text-purple-600 border-purple-600 hover:bg-purple-50" 
-                                    : "bg-white text-purple-600 border-purple-600 hover:bg-purple-50"
+                                    ? "bg-white text-blue-600 border-blue-600 hover:bg-blue-50" 
+                                    : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
                                 }`}
                               >
                                 {pdfLoading === issue._id ? (
@@ -3517,14 +4272,15 @@ export default function StoreDCPage() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
-                )}
-              </div>
+              )}
             </div>
-          )}
+          </div>
+        )}
         </div>
         
         {/* Employee Mapping Modal */}
@@ -3923,7 +4679,7 @@ export default function StoreDCPage() {
               </div>
             </div>
           </div>
-        )}
+          )}
       </CoordinatorDashboardLayout>
       
       {/* Create DC Modal */}
@@ -3935,6 +4691,7 @@ export default function StoreDCPage() {
             setDcData={setDcData}
             dcData={dcData}
             refreshDCData={refreshDCData}
+            dcType={dcType}
           />
         </div>
       )}
@@ -4611,7 +5368,7 @@ export default function StoreDCPage() {
                   </label>
                   <input
                     type="text"
-                    placeholder="DC123456789 (will auto-generate if empty)"
+                    placeholder="Enter DC number"
                     value={dcCreationData.dcNumber}
                     onChange={(e) => setDcCreationData(prev => ({ ...prev, dcNumber: e.target.value }))}
                     className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
@@ -4620,9 +5377,6 @@ export default function StoreDCPage() {
                         : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
                     }`}
                   />
-                  <p className={`text-xs mt-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                    Format: DC followed by numbers (e.g., DC123456789)
-                  </p>
                 </div>
                 
                 <div>
@@ -4875,7 +5629,7 @@ export default function StoreDCPage() {
                     <div><strong>DC Number:</strong> {selectedIssueForView.outwardDC.dcNumber}</div>
                     <div><strong>DC Date:</strong> {new Date(selectedIssueForView.outwardDC.dcDate).toLocaleDateString()}</div>
                     <div><strong>Address:</strong> {selectedIssueForView.outwardDC.address}</div>
-                    <div><strong>Items:</strong> {selectedIssueForView.outwardDC.items.length}</div>
+                    <div><strong>Items:</strong> {selectedIssueForView.items.length} (Original Issue Items)</div>
                   </div>
                 </div>
               )}
@@ -4910,14 +5664,14 @@ export default function StoreDCPage() {
             <div 
               className={`border-2 border-dashed rounded-lg p-6 text-center mb-6 transition-colors ${
                 theme === 'dark' 
-                  ? 'border-purple-500 bg-gray-800 hover:bg-gray-700' 
-                  : 'border-purple-300 bg-purple-50 hover:bg-purple-100'
+                  ? 'border-blue-500 bg-gray-800 hover:bg-gray-700' 
+                  : 'border-blue-300 bg-blue-50 hover:bg-blue-100'
               }`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e)}
             >
               <FaUpload className={`mx-auto mb-3 text-3xl ${
-                theme === 'dark' ? 'text-purple-400' : 'text-purple-500'
+                theme === 'dark' ? 'text-blue-400' : 'text-blue-500'
               }`} />
               <p className={`text-base mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
                 Drag & drop files here or choose upload method
@@ -4948,8 +5702,8 @@ export default function StoreDCPage() {
                   onClick={() => fileInputRef.current?.click()}
                   className={`px-4 py-2 rounded-lg font-semibold border transition flex items-center gap-2 ${
                     theme === 'dark'
-                      ? 'bg-purple-700 text-white hover:bg-purple-800 border-purple-600'
-                      : 'bg-purple-600 text-white hover:bg-purple-700 border-purple-500'
+                      ? 'bg-blue-700 text-white hover:bg-blue-800 border-blue-600'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-500'
                   }`}
                 >
                   <FaUpload />
@@ -5531,6 +6285,330 @@ export default function StoreDCPage() {
             </div>
           </div>
         )}
+
+      {/* RDC Creation Modal */}
+      {showRdcModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className={`rounded-2xl shadow-2xl max-w-4xl w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
+            <button
+              className={`absolute top-4 right-4 transition-colors duration-200 ${theme === "dark" ? "text-gray-500 hover:text-blue-300" : "text-gray-400 hover:text-blue-600"}`}
+              onClick={() => {
+                setShowRdcModal(false);
+                setSelectedRdcProject(null);
+                setSelectedRdcItems([]);
+                setAvailableItems([]);
+                setSearchTerm("");
+                setRdcCreationData({
+                  issueTo: "",
+                  department: "",
+                  purpose: "",
+                  address: "",
+                  issueDate: new Date().toISOString().split('T')[0],
+                  deadlineDate: "",
+                  items: []
+                });
+              }}
+            >
+              <FaTimes className="w-6 h-6" />
+            </button>
+            
+            <h2 className={`text-2xl font-bold mb-6 flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-700"}`}>
+              <FaBoxOpen className="w-6 h-6" />
+              Create Returnable DC (RDC)
+            </h2>
+
+            <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Issue To <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={rdcCreationData.issueTo}
+                    onChange={e => setRdcCreationData(prev => ({ ...prev, issueTo: e.target.value }))}
+                    placeholder="Department or recipient name"
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  />
+                </div>
+                
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Project <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={rdcCreationData.department}
+                    onChange={e => handleRdcProjectChange(e.target.value)}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  >
+                    <option value="">Select Project</option>
+                    {projects.map(project => (
+                      <option key={project._id} value={project.projectName}>
+                        {project.projectName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Purpose <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={rdcCreationData.purpose}
+                    onChange={e => setRdcCreationData(prev => ({ ...prev, purpose: e.target.value }))}
+                    placeholder="Purpose of issue"
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  />
+                </div>
+                
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Issue Date
+                  </label>
+                  <input
+                    type="date"
+                    value={rdcCreationData.issueDate}
+                    onChange={e => setRdcCreationData(prev => ({ ...prev, issueDate: e.target.value }))}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  />
+                </div>
+                
+                <div>
+                  <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                    Retrieval Deadline
+                  </label>
+                  <input
+                    type="date"
+                    value={rdcCreationData.deadlineDate}
+                    onChange={e => setRdcCreationData(prev => ({ ...prev, deadlineDate: e.target.value }))}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      theme === "dark"
+                        ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                    }`}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className={`block mb-2 font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                  Address
+                </label>
+                <textarea
+                  value={rdcCreationData.address}
+                  onChange={e => setRdcCreationData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Delivery address"
+                  rows={3}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                    theme === "dark"
+                      ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                      : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                  }`}
+                />
+              </div>
+
+              {selectedRdcProject && (
+                <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-blue-950 border-blue-800" : "bg-blue-50 border-blue-200"}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className={`font-semibold flex items-center gap-2 ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
+                      <FaBoxOpen className="w-4 h-4" />
+                      Available Items for {selectedRdcProject.projectName}
+                    </h3>
+                    
+                    {/* Search Bar */}
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search items..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className={`w-64 px-3 py-2 pl-8 border rounded-lg text-sm focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                            theme === "dark"
+                              ? "bg-gray-800 border-gray-600 text-gray-100 focus:ring-blue-900"
+                              : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                          }`}
+                        />
+                        <FaSearch className={`absolute left-2.5 top-2.5 w-3 h-3 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`} />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {itemsLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className={`mt-2 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                        Loading items...
+                      </p>
+                    </div>
+                  ) : filteredItems.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className={`${theme === "dark" ? "bg-gray-700" : "bg-gray-50"}`}>
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className={`${theme === "dark" ? "bg-gray-800" : "bg-white"} divide-y divide-gray-200`}>
+                          {filteredItems.map((item: UniformItem) => 
+                            item.sizes.map((size: string) => {
+                              const availableQty = item.sizeInventory?.find((si: { size: string; quantity: number }) => si.size === size)?.quantity || 0;
+                              const selectedItem = selectedRdcItems.find(i => i.itemId === item._id && i.size === size);
+                              const currentQty = selectedItem?.quantity || 0;
+                              
+                              return (
+                                <tr key={`${item._id}-${size}`} className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}>
+                                  <td className="px-3 py-3 whitespace-nowrap">
+                                    <div>
+                                      <div className={`text-sm font-medium ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                        {item.name}
+                                      </div>
+                                      <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                        {item.itemCode}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-3 whitespace-nowrap">
+                                    <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                                      {item.category}
+                                    </div>
+                                    <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                      {item.subCategory}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-3 whitespace-nowrap">
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                      theme === "dark" ? "bg-blue-800 text-blue-200" : "bg-blue-100 text-blue-800"
+                                    }`}>
+                                      {size}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-3 whitespace-nowrap">
+                                    <span className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                                      {availableQty}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-3 whitespace-nowrap">
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max={availableQty}
+                                        value={currentQty}
+                                        onChange={(e) => handleRdcItemSelection(item._id, item.name, parseInt(e.target.value) || 0, size)}
+                                        className={`w-20 px-2 py-1 text-sm border rounded focus:ring-2 focus:border-transparent ${
+                                          theme === "dark"
+                                            ? "bg-gray-600 border-gray-500 text-gray-100 focus:ring-blue-900"
+                                            : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                                        }`}
+                                        placeholder="0"
+                                      />
+                                      <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                        / {availableQty}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-3 whitespace-nowrap text-sm font-medium">
+                                    {currentQty > 0 && (
+                                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                        theme === "dark" ? "bg-green-800 text-green-200" : "bg-green-100 text-green-800"
+                                      }`}>
+                                        Selected: {currentQty}
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className={`text-center py-8 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                      <FaBoxOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No items available for the selected project</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-4 pt-6">
+                <button
+                  onClick={() => {
+                    setShowRdcModal(false);
+                    setSelectedRdcProject(null);
+                    setSelectedRdcItems([]);
+                    setAvailableItems([]);
+                    setSearchTerm("");
+                    setRdcCreationData({
+                      issueTo: "",
+                      department: "",
+                      purpose: "",
+                      address: "",
+                      issueDate: new Date().toISOString().split('T')[0],
+                      deadlineDate: "",
+                      items: []
+                    });
+                  }}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
+                    theme === "dark" ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={createRDCFromIssue}
+                  disabled={isCreatingRdc || selectedRdcItems.length === 0}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
+                    theme === "dark" 
+                      ? "bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400" 
+                      : "bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-300"
+                  }`}
+                >
+                  {isCreatingRdc ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Creating RDC...
+                    </>
+                  ) : (
+                    <>
+                      <FaBoxOpen className="w-4 h-4" />
+                      Create RDC
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaStore, FaBoxOpen, FaSearch,FaPlus, FaTimes, FaExclamationTriangle, FaDownload, FaUsers, FaTshirt, FaCalendarAlt, FaFileAlt, FaUserPlus } from "react-icons/fa";
+import { FaStore, FaBoxOpen, FaSearch,FaPlus, FaTimes, FaExclamationTriangle, FaDownload, FaUsers, FaTshirt, FaCalendarAlt, FaFileAlt, FaUserPlus, FaEye } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { showToast } from "@/components/Toast";
 
@@ -97,6 +97,47 @@ interface EmployeeMapping {
   quantity: number;
   size: string;
   uniformType: string;
+}
+
+// TypeScript interface for Bulk Issue DC API response
+interface BulkIssueDC {
+  _id: string;
+  customer: string;
+  dcNumber: string;
+  dcDate: string;
+  address: string;
+  remarks: string;
+  items: Array<{
+    itemId: string;
+    totalQuantity: number;
+    size: string;
+    uniformType: string;
+    employeeMappings: Array<{
+      employeeId: string;
+      quantity: number;
+      mappedAt: string;
+      _id: string;
+    }>;
+    remainingQuantity: number;
+    employeeId: string | null;
+    quantity: number;
+    _id: string;
+  }>;
+  attachments: unknown[];
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+  isBulkIssue: boolean;
+  sourceType: string;
+  isRetrievable?: boolean;
+  retrievalStatus?: string;
+}
+
+interface BulkIssueDCResponse {
+  success: boolean;
+  bulkIssueDCs: BulkIssueDC[];
+  totalCount: number;
+  filters: Record<string, unknown>;
 }
 
 interface OutwardDC {
@@ -245,6 +286,11 @@ export default function BulkIssuePage() {
   const [availableEmployees, setAvailableEmployees] = useState<Employee[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(false);
 
+  // State for bulk issue DCs
+  const [bulkIssueDCs, setBulkIssueDCs] = useState<BulkIssueDC[]>([]);
+  const [bulkIssueDCsLoading, setBulkIssueDCsLoading] = useState(false);
+  const [bulkIssueDCsError, setBulkIssueDCsError] = useState<string | null>(null);
+
   // Fetch inventory items, employees, and projects on component mount
   useEffect(() => {
     const fetchData = async () => {
@@ -346,6 +392,11 @@ export default function BulkIssuePage() {
     fetchIssues();
   }, []);
 
+  // Fetch bulk issue DCs
+  useEffect(() => {
+    fetchBulkIssueDCs();
+  }, []);
+
 
 
   // Function to fetch DC data for issues
@@ -422,24 +473,6 @@ export default function BulkIssuePage() {
     return issues;
   };
 
-  // Refresh issues
-  const isDCFullyMapped = (issue: Issue): boolean => {
-    if (!issue.outwardDC) return false;
-    
-    return issue.outwardDC.items.every(item => {
-      // Check if remainingQuantity is 0 (most reliable indicator)
-      if (item.remainingQuantity !== undefined) {
-        return item.remainingQuantity === 0;
-      }
-      
-      // Fallback: Check if item has employeeMappings and all quantity is mapped
-      if (item.employeeMappings && item.employeeMappings.length > 0) {
-        const totalMappedQuantity = item.employeeMappings.reduce((sum: number, mapping: { quantity: number }) => sum + mapping.quantity, 0);
-        return totalMappedQuantity >= (item.totalQuantity || item.quantity || 1);
-      }
-      return false;
-    });
-  };
 
   const refreshIssues = async () => {
     setIssuesLoading(true);
@@ -475,13 +508,39 @@ export default function BulkIssuePage() {
     }
   };
 
-  // Handle viewing issue details
-  const handleViewIssue = (issue: Issue) => {
-    setSelectedIssueForView(issue);
-    setShowViewModal(true);
+  // Function to fetch bulk issue DCs
+  const fetchBulkIssueDCs = async () => {
+    setBulkIssueDCsLoading(true);
+    setBulkIssueDCsError(null);
+    try {
+      const response = await fetch("https://inventory.zenapi.co.in/api/inventory/outward-dc/bulk-issue/list");
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch bulk issue DCs: ${response.status} ${response.statusText}`);
+      }
+      
+      const data: BulkIssueDCResponse = await response.json();
+      console.log("Bulk Issue DCs API response:", data);
+      
+      if (data && data.success && Array.isArray(data.bulkIssueDCs)) {
+        setBulkIssueDCs(data.bulkIssueDCs);
+        console.log(`Loaded ${data.bulkIssueDCs.length} bulk issue DCs`);
+      } else {
+        console.warn("Unexpected bulk issue DCs data format:", data);
+        setBulkIssueDCs([]);
+      }
+    } catch (err) {
+      console.error("Error fetching bulk issue DCs:", err);
+      setBulkIssueDCsError("Failed to fetch bulk issue DCs");
+      setBulkIssueDCs([]);
+    } finally {
+      setBulkIssueDCsLoading(false);
+    }
   };
 
+
   // Handle downloading DC
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDownloadDC = async (issue: Issue) => {
     let dc = issue.outwardDC;
     
@@ -857,6 +916,7 @@ export default function BulkIssuePage() {
   };
 
   // Handle downloading issue (legacy function for issues without DC)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDownloadIssue = () => {
     showToast({ 
       message: `Issue download not available. Please create DC first.`, 
@@ -1097,8 +1157,8 @@ export default function BulkIssuePage() {
   // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentIssues = issues.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(issues.length / itemsPerPage);
+  const currentBulkIssueDCs = bulkIssueDCs.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(bulkIssueDCs.length / itemsPerPage);
 
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
@@ -1405,6 +1465,7 @@ export default function BulkIssuePage() {
   };
 
   // Function to handle DC creation/mapping button click
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleCreateDC = async (issue: Issue) => {
     setSelectedIssueForDC(issue);
     
@@ -1619,8 +1680,8 @@ export default function BulkIssuePage() {
             <FaStore className="w-10 h-10 text-white" />
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-white mb-1">Issue Management</h1>
-            <p className="text-white text-base opacity-90">View and manage inventory issues</p>
+            <h1 className="text-3xl font-bold text-white mb-1">Bulk Issues ({bulkIssueDCs.length})</h1>
+            <p className="text-white text-base opacity-90">Manage bulk issues and create DCs from them</p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -1740,77 +1801,103 @@ export default function BulkIssuePage() {
                         <thead className={`${theme === "dark" ? "bg-gray-800" : "bg-gray-50"}`}>
                           <tr>
                             <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
-                              Date
-                            </th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} style={{ width: '200px', maxWidth: '200px' }}>
-                              Issue To & Purpose
-                            </th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} style={{ width: '120px', maxWidth: '120px' }}>
-                              Project
-                            </th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} style={{ width: '150px', maxWidth: '150px' }}>
-                              Items & Pieces
+                              #
                             </th>
                             <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
-                              Actions
+                              DATE
+                            </th>
+                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} style={{ width: '200px', maxWidth: '200px' }}>
+                              PROJECT NAME
+                            </th>
+                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} style={{ width: '120px', maxWidth: '120px' }}>
+                              CUSTOMER
+                            </th>
+                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                              STATUS
+                            </th>
+                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                              ACTIONS
                             </th>
                           </tr>
                         </thead>
                         <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700 bg-gray-900" : "divide-gray-200 bg-white"}`}>
-                          {currentIssues.map((issue) => {
-                            console.log(`Rendering issue ${issue._id}:`, {
-                              issueTo: issue.issueTo,
-                              outwardDC: issue.outwardDC,
-                              dcNumber: issue.dcNumber || issue.outwardDC?.dcNumber,
-                              hasDC: !!(issue.outwardDC || issue.dcNumber)
+                          {bulkIssueDCsLoading ? (
+                            <tr>
+                              <td colSpan={6} className={`px-6 py-8 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                <div className="flex items-center justify-center">
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mr-2"></div>
+                                  Loading bulk issue DCs...
+                                </div>
+                              </td>
+                            </tr>
+                          ) : bulkIssueDCsError ? (
+                            <tr>
+                              <td colSpan={6} className={`px-6 py-8 text-center ${theme === "dark" ? "text-red-400" : "text-red-600"}`}>
+                                <div className="flex items-center justify-center">
+                                  <FaExclamationTriangle className="mr-2" />
+                                  {bulkIssueDCsError}
+                                </div>
+                              </td>
+                            </tr>
+                          ) : bulkIssueDCs.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className={`px-6 py-8 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                No bulk issue DCs found
+                              </td>
+                            </tr>
+                          ) : (
+                            currentBulkIssueDCs.map((bulkIssueDC) => {
+                              console.log(`Rendering bulk issue DC ${bulkIssueDC._id}:`, {
+                                customer: bulkIssueDC.customer,
+                                dcNumber: bulkIssueDC.dcNumber,
+                                address: bulkIssueDC.address
                             });
                             return (
-                            <tr key={issue._id} className={`${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-gray-50"} transition-all duration-200 group`}>
+                              <tr key={bulkIssueDC._id} className={`${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-gray-50"} transition-all duration-200 group`}>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>
+                                  <div className="text-center font-semibold">
+                                    {indexOfFirstItem + bulkIssueDCs.indexOf(bulkIssueDC) + 1}
+                                  </div>
+                                </td>
                               <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>
                                 <div className="text-center">
                                   <div className="font-semibold">
-                                    {new Date(issue.issueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                  </div>
-                                  <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                                    {new Date(issue.issueDate).getFullYear()}
+                                      {new Date(bulkIssueDC.dcDate).toLocaleDateString('en-US', { 
+                                        year: 'numeric', 
+                                        month: '2-digit', 
+                                        day: '2-digit' 
+                                      })}
                                   </div>
                                 </div>
                               </td>
                               <td className={`px-6 py-4 text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`} style={{ width: '200px', maxWidth: '200px' }}>
                                 <div className="min-w-0 flex-1">
-                                  <div className="font-semibold truncate" title={issue.issueTo}>
-                                    {issue.issueTo}
-                                  </div>
-                                  <div className={`text-xs mt-1 opacity-75 ${theme === "dark" ? "text-gray-400" : "text-gray-500"} truncate`}>
-                                    <span className="font-medium">Purpose:</span> {issue.purpose || 'No purpose specified'}
+                                    <div className="font-semibold truncate text-blue-600 hover:text-blue-800 cursor-pointer" title={bulkIssueDC.address}>
+                                      {bulkIssueDC.address}
                                   </div>
                                 </div>
                               </td>
                               <td className={`px-6 py-4 text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`} style={{ width: '120px', maxWidth: '120px' }}>
-                                <div className={`px-3 py-1 rounded-full text-xs font-medium truncate ${
-                                  theme === "dark" ? "bg-yellow-900 text-yellow-200" : "bg-yellow-100 text-yellow-800"
-                                }`} title={issue.department}>
-                                  {issue.department}
+                                  <div className="truncate" title={bulkIssueDC.customer}>
+                                    {bulkIssueDC.customer.length > 20 ? `${bulkIssueDC.customer.substring(0, 20)}...` : bulkIssueDC.customer}
                                 </div>
                               </td>
-                              <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`} style={{ width: '150px', maxWidth: '150px' }}>
-                                <div className="flex flex-col gap-2">
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>
                                   <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                                    theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-700"
+                                    bulkIssueDC.isRetrievable === false && bulkIssueDC.retrievalStatus === 'available'
+                                      ? theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-800"
+                                      : theme === "dark" ? "bg-yellow-900 text-yellow-200" : "bg-yellow-100 text-yellow-800"
                                   }`}>
-                                    {issue.items.length} {issue.items.length === 1 ? 'item' : 'items'}
-                                  </div>
-                                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                                    theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-700"
-                                  }`}>
-                                    {issue.items.reduce((sum, item) => sum + (item.quantity || 0), 0)} pieces
-                                  </div>
+                                    {bulkIssueDC.isRetrievable === false && bulkIssueDC.retrievalStatus === 'available' ? 'Issued' : 'Pending'}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={() => handleViewIssue(issue)}
+                                      onClick={() => {
+                                        // Handle view bulk issue DC
+                                        console.log('View bulk issue DC:', bulkIssueDC._id);
+                                      }}
                                     className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 transform hover:scale-105 ${
                                       theme === "dark" 
                                         ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-blue-500/25" 
@@ -1818,52 +1905,31 @@ export default function BulkIssuePage() {
                                     }`}
                                   >
                                     <div className="flex items-center gap-1">
-                                      <FaSearch className="w-3 h-3" />
+                                        <FaEye className="w-3 h-3" />
                                       View
                                     </div>
                                   </button>
                                   <button
                                     onClick={() => {
-                                      console.log('Button clicked for issue:', issue._id, 'outwardDC:', issue.outwardDC, 'dcNumber:', issue.dcNumber);
-                                      if (issue.outwardDC || issue.dcNumber) {
-                                        if (!isDCFullyMapped(issue)) {
-                                          handleCreateDC(issue);
-                                        }
-                                      } else {
-                                        handleCreateDC(issue);
-                                      }
-                                    }}
-                                    disabled={issue.outwardDC && isDCFullyMapped(issue)}
+                                        // Handle map employees for bulk issue DC
+                                        console.log('Map employees for bulk issue DC:', bulkIssueDC._id);
+                                      }}
                                     className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 transform hover:scale-105 ${
-                                      issue.outwardDC || issue.dcNumber
-                                        ? isDCFullyMapped(issue)
-                                          ? theme === "dark" 
-                                            ? "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed" 
-                                            : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
-                                          : theme === "dark" 
-                                            ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-blue-500/25" 
-                                            : "bg-blue-500 text-white hover:bg-blue-600 shadow-md hover:shadow-lg"
-                                        : theme === "dark" 
+                                        theme === "dark" 
                                           ? "bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-green-500/25" 
                                           : "bg-green-500 text-white hover:bg-green-600 shadow-md hover:shadow-lg"
                                     }`}
                                   >
                                     <div className="flex items-center gap-1">
-                                      {issue.outwardDC || issue.dcNumber ? (
-                                        <>
-                                          <FaUserPlus className="w-3 h-3" />
-                                          {isDCFullyMapped(issue) ? "✓ Mapped" : "Map Employees"}
-                                        </>
-                                      ) : (
-                                        <>
-                                          <FaFileAlt className="w-3 h-3" />
-                                          Create DC
-                                        </>
-                                      )}
+                                        <FaUsers className="w-3 h-3" />
+                                        Map Employees
                                     </div>
                                   </button>
                                   <button
-                                    onClick={() => (issue.outwardDC || issue.dcNumber) ? handleDownloadDC(issue) : handleDownloadIssue()}
+                                      onClick={() => {
+                                        // Handle download bulk issue DC
+                                        console.log('Download bulk issue DC:', bulkIssueDC._id);
+                                      }}
                                     className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 transform hover:scale-105 ${
                                       theme === "dark" 
                                         ? "bg-purple-600 text-white hover:bg-purple-700 shadow-lg hover:shadow-purple-500/25" 
@@ -1872,14 +1938,15 @@ export default function BulkIssuePage() {
                                   >
                                     <div className="flex items-center gap-1">
                                       <FaDownload className="w-3 h-3" />
-                                      Download
+                                        Download Issue
                                     </div>
                                   </button>
                                 </div>
                               </td>
                             </tr>
                             );
-                          })}
+                            })
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1889,7 +1956,7 @@ export default function BulkIssuePage() {
                 {/* Enhanced Pagination Controls */}
                 <div className={`flex items-center justify-between p-6 border-t ${theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"}`}>
                   <div className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
-                    <span className="font-semibold">Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, issues.length)}</span> of {issues.length} issues
+                    <span className="font-semibold">Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, bulkIssueDCs.length)}</span> of {bulkIssueDCs.length} bulk issue DCs
                   </div>
                   <div className="flex items-center gap-3">
                     <button

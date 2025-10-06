@@ -105,9 +105,10 @@ interface CreateDCModalProps {
   setDcData: React.Dispatch<React.SetStateAction<DC[]>>;
   dcData: DC[];
   refreshDCData: () => Promise<void>;
+  dcType?: 'nrdc' | 'rdc'; // Updated to support DC types
 }
 
-export default function CreateDCModal({ onClose, theme, setDcData, dcData, refreshDCData }: CreateDCModalProps) {
+export default function CreateDCModal({ onClose, theme, setDcData, dcData, refreshDCData, dcType = 'nrdc' }: CreateDCModalProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _refreshDCData = refreshDCData;
   // Prefilled for quick testing
@@ -767,9 +768,9 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
       <div className="rounded-full bg-green-100 p-6 mb-4">
         <FaCheckCircle className="w-16 h-16 text-green-600 animate-bounce" />
       </div>
-      <div className="text-2xl font-bold text-green-700 mb-2">DC Created!</div>
+      <div className="text-2xl font-bold text-green-700 mb-2">{dcType.toUpperCase()} Created!</div>
       <div className="text-gray-600 mb-6">
-        Your Delivery Challan has been successfully created.
+        Your {dcType.toUpperCase()} has been successfully created.
         {attachments.length > 0 && (
           <div className="text-sm mt-2 text-blue-600">
             📎 {attachments.length} file(s) attached successfully
@@ -809,7 +810,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
     if (!saveDCError) {
       setSuccess(true);
       showToast({ 
-        message: "Delivery Challan created successfully!", 
+        message: `${dcType.toUpperCase()} created successfully!`, 
         type: "success" 
       });
     } else {
@@ -834,7 +835,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
       className={`fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 bg-black/60 backdrop-blur-md transition-all duration-500 ${show ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       aria-modal="true"
       role="dialog"
-      aria-label="Create Delivery Challan Modal"
+      aria-label={`Create ${dcType.toUpperCase()} Modal`}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           handleRequestClose();
@@ -864,7 +865,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                 </div>
                 <div>
                   {/* Reduced font size */}
-                  <h2 className={`text-xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Generate Delivery Challan</h2>
+                  <h2 className={`text-xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Generate {dcType.toUpperCase()}</h2>
                   <p className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Create and manage delivery challans efficiently</p>
                 </div>
               </div>
