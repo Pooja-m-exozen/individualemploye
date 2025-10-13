@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 import { 
   FaCheckCircle, 
   FaExclamationCircle,
-  FaCalendarCheck,
   FaSync,
   FaCalendarAlt,
   FaClock,
   FaChartPie,
   FaChartBar,
-  FaInfoCircle
+  FaInfoCircle,
+  FaArrowLeft
 } from 'react-icons/fa';
 import { isAuthenticated, getEmployeeId } from '@/services/auth';
 import { useRouter } from 'next/navigation';
@@ -433,27 +433,44 @@ function LeaveViewContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
       {/* Header */}
-      <div className={`rounded-xl shadow-lg ${
-        theme === 'dark'
-          ? 'bg-gradient-to-r from-gray-800 to-gray-700'
-          : 'bg-gradient-to-r from-blue-600 to-blue-800'
-      } p-8`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-              <FaCalendarCheck className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white">Leave Balance</h1>
-              <p className="text-white mt-1">View your leave allocation and usage</p>
-            </div>
+      <div className={`flex items-center justify-between mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/leave-management/history')}
+            className={`p-2 rounded-lg border transition-colors ${
+              theme === 'dark' 
+                ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' 
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <FaArrowLeft className="w-4 h-4" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-semibold">Leave Balance</h1>
+            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>View your leave allocation and usage</p>
           </div>
+        </div>
+        <div className="flex items-center gap-2">
           <button
             onClick={fetchLeaveBalance}
-            className="p-2.5 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors rounded-lg"
+            className={`p-2 rounded-lg border transition-colors ${
+              theme === 'dark' 
+                ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' 
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
             title="Refresh"
           >
-            <FaSync className="w-5 h-5" />
+            <FaSync className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => router.push('/leave-management/history')}
+            className={`px-4 py-2 rounded-lg font-semibold border text-sm transition-colors ${
+              theme === 'dark' 
+                ? 'bg-white border-blue-200 text-blue-700 hover:bg-blue-50' 
+                : 'bg-white border-blue-200 text-blue-700 hover:bg-blue-50'
+            }`}
+          >
+            Close View Leave
           </button>
         </div>
       </div>
@@ -507,13 +524,19 @@ function LeaveViewContent() {
                     </button>
                   </div>
                   {viewType === 'chart' && (
-                    <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-2xl backdrop-blur-sm">
+                    <div className={`flex items-center gap-3 p-1.5 rounded-2xl backdrop-blur-sm ${
+                      theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
+                    }`}>
                       <button
                         onClick={() => setChartType('pie')}
                         className={`p-3 rounded-xl transition-all duration-300 ${
                           chartType === 'pie' 
-                            ? 'bg-white text-blue-600 shadow-md scale-105' 
-                            : 'text-gray-600 hover:text-blue-600 hover:bg-white/50'
+                            ? theme === 'dark' 
+                              ? 'bg-gray-600 text-blue-400 shadow-md scale-105' 
+                              : 'bg-white text-blue-600 shadow-md scale-105'
+                            : theme === 'dark'
+                              ? 'text-gray-300 hover:text-blue-400 hover:bg-gray-600'
+                              : 'text-gray-600 hover:text-blue-600 hover:bg-white/50'
                         }`}
                         title="Pie Chart View"
                       >
@@ -523,8 +546,12 @@ function LeaveViewContent() {
                         onClick={() => setChartType('bar')}
                         className={`p-3 rounded-xl transition-all duration-300 ${
                           chartType === 'bar' 
-                            ? 'bg-white text-blue-600 shadow-md scale-105' 
-                            : 'text-gray-600 hover:text-blue-600 hover:bg-white/50'
+                            ? theme === 'dark'
+                              ? 'bg-gray-600 text-blue-400 shadow-md scale-105' 
+                              : 'bg-white text-blue-600 shadow-md scale-105'
+                            : theme === 'dark'
+                              ? 'text-gray-300 hover:text-blue-400 hover:bg-gray-600'
+                              : 'text-gray-600 hover:text-blue-600 hover:bg-white/50'
                         }`}
                         title="Bar Chart View"
                       >
@@ -543,121 +570,119 @@ function LeaveViewContent() {
                   renderCharts()
                 ) : (
                   <div className="w-full overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
+                    <table className="w-full border-collapse border border-blue-400">
+                      <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                         <tr>
-                          <th className="px-6 py-4 bg-gradient-to-r from-blue-50 to-blue-50 text-left text-sm font-bold text-blue-900 uppercase tracking-wider rounded-tl-xl">
+                          <th className={`px-4 py-3 text-left font-bold whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`}>
                             <div className="flex items-center gap-2">
-                              <FaCalendarAlt className="w-4 h-4 text-blue-600" />
+                              <FaCalendarAlt className="w-4 h-4" />
                               Leave Type
                             </div>
                           </th>
-                          <th className="px-6 py-4 bg-gradient-to-r from-blue-50 to-blue-50 text-left text-sm font-bold text-blue-900 uppercase tracking-wider">
-                            <div className="flex items-center gap-2">
-                              <FaChartBar className="w-4 h-4 text-blue-600" />
+                          <th className={`px-4 py-3 text-center font-bold whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`}>
+                            <div className="flex items-center justify-center gap-2">
+                              <FaChartBar className="w-4 h-4" />
                               Allocated
                             </div>
                           </th>
-                          <th className="px-6 py-4 bg-gradient-to-r from-blue-50 to-blue-50 text-left text-sm font-bold text-blue-900 uppercase tracking-wider">
-                            <div className="flex items-center gap-2">
-                              <FaCheckCircle className="w-4 h-4 text-blue-600" />
+                          <th className={`px-4 py-3 text-center font-bold whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`}>
+                            <div className="flex items-center justify-center gap-2">
+                              <FaCheckCircle className="w-4 h-4" />
                               Used
                             </div>
                           </th>
-                          <th className="px-6 py-4 bg-gradient-to-r from-blue-50 to-blue-50 text-left text-sm font-bold text-blue-900 uppercase tracking-wider">
-                            <div className="flex items-center gap-2">
-                              <FaSync className="w-4 h-4 text-blue-600" />
+                          <th className={`px-4 py-3 text-center font-bold whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`}>
+                            <div className="flex items-center justify-center gap-2">
+                              <FaSync className="w-4 h-4" />
                               Remaining
                             </div>
                           </th>
-                          <th className="px-6 py-4 bg-gradient-to-r from-blue-50 to-blue-50 text-left text-sm font-bold text-blue-900 uppercase tracking-wider rounded-tr-xl">
-                            <div className="flex items-center gap-2">
-                              <FaClock className="w-4 h-4 text-blue-600" />
+                          <th className={`px-4 py-3 text-center font-bold whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`}>
+                            <div className="flex items-center justify-center gap-2">
+                              <FaClock className="w-4 h-4" />
                               Pending
                             </div>
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {Object.entries(leaveBalance?.balances || {}).map(([type, balance], index) => (
-                          <tr 
-                            key={type} 
-                            className={`
-                              transition-all duration-200 
-                              hover:bg-blue-50/30 
-                              ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
-                            `}
-                          >
-                            <td className="px-6 py-5">
-                              <div className="flex items-center gap-3">
-                                <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                                <div>
-                                  <div className="text-sm font-semibold text-gray-900">
-                                    {getLeaveTypeLabel(type)}
-                                  </div>
-                                  <div className="text-xs text-gray-500 mt-0.5">
-                                    {type === 'EL' && 'Earned Leave'}
-                                    {type === 'SL' && 'Sick Leave'}
-                                    {type === 'CL' && 'Casual Leave'}
-                                    {type === 'CompOff' && 'Compensatory Off'}
+                      <tbody>
+                        {Object.entries(leaveBalance?.balances || {}).map(([type, balance]) => {
+                          return (
+                            <tr 
+                              key={type} 
+                              className={`${theme === "dark" ? "bg-slate-800 hover:bg-slate-700" : "bg-white hover:bg-gray-50"} transition-colors duration-200`}
+                            >
+                              <td className={`px-4 py-3 text-left border border-blue-400 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                                  <div>
+                                    <div className="text-sm font-semibold">
+                                      {getLeaveTypeLabel(type)}
+                                    </div>
+                                    <div className={`text-xs mt-0.5 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                      {type === 'EL' && 'Earned Leave'}
+                                      {type === 'SL' && 'Sick Leave'}
+                                      {type === 'CL' && 'Casual Leave'}
+                                      {type === 'CompOff' && 'Compensatory Off'}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-5">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-blue-600">
-                                  {balance.allocated}
-                                </span>
-                                <div className="w-16 h-1 mt-2 rounded-full bg-blue-100">
-                                  <div 
-                                    className="h-full rounded-full bg-blue-600"
-                                    style={{ width: '100%' }}
-                                  ></div>
+                              </td>
+                              <td className={`px-4 py-3 text-center border border-blue-400 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                <div className="flex flex-col items-center">
+                                  <span className="text-sm font-semibold text-blue-600">
+                                    {balance.allocated}
+                                  </span>
+                                  <div className="w-16 h-1 mt-2 rounded-full bg-blue-100">
+                                    <div 
+                                      className="h-full rounded-full bg-blue-600"
+                                      style={{ width: '100%' }}
+                                    ></div>
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-5">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-rose-600">
-                                  {balance.used}
-                                </span>
-                                <div className="w-16 h-1 mt-2 rounded-full bg-rose-100">
-                                  <div 
-                                    className="h-full rounded-full bg-rose-600"
-                                    style={{ width: `${(balance.used / balance.allocated) * 100}%` }}
-                                  ></div>
+                              </td>
+                              <td className={`px-4 py-3 text-center border border-blue-400 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                <div className="flex flex-col items-center">
+                                  <span className="text-sm font-semibold text-rose-600">
+                                    {balance.used}
+                                  </span>
+                                  <div className="w-16 h-1 mt-2 rounded-full bg-rose-100">
+                                    <div 
+                                      className="h-full rounded-full bg-rose-600"
+                                      style={{ width: `${(balance.used / balance.allocated) * 100}%` }}
+                                    ></div>
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-5">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-emerald-600">
-                                  {balance.remaining}
-                                </span>
-                                <div className="w-16 h-1 mt-2 rounded-full bg-emerald-100">
-                                  <div 
-                                    className="h-full rounded-full bg-emerald-600"
-                                    style={{ width: `${(balance.remaining / balance.allocated) * 100}%` }}
-                                  ></div>
+                              </td>
+                              <td className={`px-4 py-3 text-center border border-blue-400 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                <div className="flex flex-col items-center">
+                                  <span className="text-sm font-semibold text-emerald-600">
+                                    {balance.remaining}
+                                  </span>
+                                  <div className="w-16 h-1 mt-2 rounded-full bg-emerald-100">
+                                    <div 
+                                      className="h-full rounded-full bg-emerald-600"
+                                      style={{ width: `${(balance.remaining / balance.allocated) * 100}%` }}
+                                    ></div>
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-5">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-amber-600">
-                                  {balance.pending}
-                                </span>
-                                <div className="w-16 h-1 mt-2 rounded-full bg-amber-100">
-                                  <div 
-                                    className="h-full rounded-full bg-amber-600"
-                                    style={{ width: `${(balance.pending / balance.allocated) * 100}%` }}
-                                  ></div>
+                              </td>
+                              <td className={`px-4 py-3 text-center border border-blue-400 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                <div className="flex flex-col items-center">
+                                  <span className="text-sm font-semibold text-amber-600">
+                                    {balance.pending}
+                                  </span>
+                                  <div className="w-16 h-1 mt-2 rounded-full bg-amber-100">
+                                    <div 
+                                      className="h-full rounded-full bg-amber-600"
+                                      style={{ width: `${(balance.pending / balance.allocated) * 100}%` }}
+                                    ></div>
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -673,12 +698,14 @@ function LeaveViewContent() {
                   : 'bg-white border-gray-200'
               }`}>
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-blue-50 rounded-xl">
-                    <FaCalendarAlt className="w-6 h-6 text-blue-600" />
+                  <div className={`p-3 rounded-xl ${
+                    theme === 'dark' ? 'bg-blue-900' : 'bg-blue-50'
+                  }`}>
+                    <FaCalendarAlt className={`w-6 h-6 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-600">Total Allocated</p>
-                    <p className="text-2xl font-bold text-blue-600">{leaveBalance?.totalAllocated}</p>
+                    <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Total Allocated</p>
+                    <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>{leaveBalance?.totalAllocated}</p>
                   </div>
                 </div>
               </div>
@@ -688,12 +715,14 @@ function LeaveViewContent() {
                   : 'bg-white border-gray-200'
               }`}>
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-green-50 rounded-xl">
-                    <FaCheckCircle className="w-6 h-6 text-green-600" />
+                  <div className={`p-3 rounded-xl ${
+                    theme === 'dark' ? 'bg-green-900' : 'bg-green-50'
+                  }`}>
+                    <FaCheckCircle className={`w-6 h-6 ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-600">Available Balance</p>
-                    <p className="text-2xl font-bold text-green-600">{leaveBalance?.totalRemaining}</p>
+                    <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Available Balance</p>
+                    <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>{leaveBalance?.totalRemaining}</p>
                   </div>
                 </div>
               </div>
