@@ -358,69 +358,115 @@ export default function DescriptiveView() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div
-          className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border cursor-pointer`}
+          className={`rounded-lg border p-4 cursor-pointer ${
+            theme === "dark"
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          }`}
           onClick={() => handleCardClick('new-joiners')}
         >
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Total Employees</p>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                {totalLoading ? '...' : (totalEmployees ?? '--')}
-              </p>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === "dark" ? "bg-blue-900" : "bg-blue-100"
+              }`}>
+                <FaUsers className="w-5 h-5" color={theme === "dark" ? "#fff" : "#2563eb"} />
+              </div>
+              <div>
+                <div className={`text-xl font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
+                  {totalLoading ? '...' : (totalEmployees ?? '--')}
+                </div>
+                <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>Total Employees</div>
+              </div>
             </div>
-            <FaUsers className="w-8 h-8 text-blue-500" />
           </div>
         </div>
         <div
-          className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border cursor-pointer`}
+          className={`rounded-lg border p-4 cursor-pointer ${
+            theme === "dark"
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          }`}
           onClick={() => handleCardClick('new-joiners')}
         >
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>New Joiners</p>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                {newJoinersLoading ? '...' : (newJoinersCount ?? '--')}
-              </p>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === "dark" ? "bg-green-900" : "bg-green-100"
+              }`}>
+                <FaUserCheck className="w-5 h-5" color={theme === "dark" ? "#fff" : "#16a34a"} />
+              </div>
+              <div>
+                <div className={`text-xl font-bold ${theme === "dark" ? "text-green-300" : "text-green-700"}`}>
+                  {newJoinersLoading ? '...' : (newJoinersCount ?? '--')}
+                </div>
+                <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>New Joiners</div>
+              </div>
             </div>
-            <FaUserCheck className="w-8 h-8 text-green-500" />
           </div>
         </div>
         <div
-          className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border cursor-pointer`}
+          className={`rounded-lg border p-4 cursor-pointer ${
+            theme === "dark"
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          }`}
           onClick={() => handleCardClick('attendance')}
         >
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Active Today</p>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                {activeTodayLoading ? '...' : (activeTodayCount ?? '--')}
-              </p>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === "dark" ? "bg-orange-900" : "bg-orange-100"
+              }`}>
+                <FaClipboardList className="w-5 h-5" color={theme === "dark" ? "#fff" : "#ea580c"} />
+              </div>
+              <div>
+                <div className={`text-xl font-bold ${theme === "dark" ? "text-orange-300" : "text-orange-700"}`}>
+                  {activeTodayLoading ? '...' : (activeTodayCount ?? '--')}
+                </div>
+                <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>Active Today</div>
+              </div>
             </div>
-            <FaClipboardList className="w-8 h-8 text-orange-500" />
           </div>
         </div>
         <div
-          className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border cursor-pointer`}
+          className={`rounded-lg border p-4 cursor-pointer ${
+            theme === "dark"
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          }`}
           onClick={() => handleCardClick('on-leave')}
         >
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>On Leave Today</p>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                {onLeaveTodayLoading ? '...' : (onLeaveTodayCount ?? '--')}
-              </p>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === "dark" ? "bg-purple-900" : "bg-purple-100"
+              }`}>
+                <FaIdBadge className="w-5 h-5" color={theme === "dark" ? "#fff" : "#7c3aed"} />
+              </div>
+              <div>
+                <div className={`text-xl font-bold ${theme === "dark" ? "text-purple-300" : "text-purple-700"}`}>
+                  {onLeaveTodayLoading ? '...' : (onLeaveTodayCount ?? '--')}
+                </div>
+                <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>On Leave Today</div>
+              </div>
             </div>
-            <FaIdBadge className="w-8 h-8 text-purple-500" />
           </div>
         </div>
       </div>
 
       {/* Data Table */}
-      <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl border`}>
+      <div className={`rounded-lg border ${
+        theme === "dark"
+          ? "bg-gray-800 border-gray-700"
+          : "bg-white border-gray-200"
+      }`}>
         {/* Table Header */}
-        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Employee Data</h3>
+            <h3 className={`text-lg font-semibold ${
+              theme === "dark" ? "text-white" : "text-gray-900"
+            }`}>Employee Data</h3>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative">
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -477,18 +523,32 @@ export default function DescriptiveView() {
           ) : employeeDataError ? (
             <div className="p-6 text-center text-red-500">{employeeDataError}</div>
           ) : (
-            <table className="w-full">
-              <thead className={theme === 'dark' ? 'bg-gray-700' : 'bg-white'}>
+            <table className="w-full text-sm">
+              <thead className={theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}>
                 <tr>
                   {employeeDataFilter === 'new-joiners' && (
                     <>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Photo</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Employee ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Project</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Designation</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Date of Joining</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Actions</th>
+                      <th className={`px-4 py-3 text-left font-semibold ${
+                        theme === "dark" ? "text-gray-200" : "text-gray-700"
+                      }`}>Photo</th>
+                      <th className={`px-4 py-3 text-left font-semibold ${
+                        theme === "dark" ? "text-gray-200" : "text-gray-700"
+                      }`}>Name</th>
+                      <th className={`px-4 py-3 text-left font-semibold ${
+                        theme === "dark" ? "text-gray-200" : "text-gray-700"
+                      }`}>Employee ID</th>
+                      <th className={`px-4 py-3 text-left font-semibold ${
+                        theme === "dark" ? "text-gray-200" : "text-gray-700"
+                      }`}>Project</th>
+                      <th className={`px-4 py-3 text-left font-semibold ${
+                        theme === "dark" ? "text-gray-200" : "text-gray-700"
+                      }`}>Designation</th>
+                      <th className={`px-4 py-3 text-left font-semibold ${
+                        theme === "dark" ? "text-gray-200" : "text-gray-700"
+                      }`}>Date of Joining</th>
+                      <th className={`px-4 py-3 text-left font-semibold ${
+                        theme === "dark" ? "text-gray-200" : "text-gray-700"
+                      }`}>Actions</th>
                     </>
                   )}
                   {employeeDataFilter === 'on-leave' && (

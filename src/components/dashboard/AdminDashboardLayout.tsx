@@ -1,23 +1,14 @@
 "use client";
 
-import React, { ReactNode, useState, useEffect } from "react";
+import React, { ReactNode, useState, useEffect, useMemo } from "react";
 import {
-  FaChevronLeft,
-  FaChevronRight,
-  FaTachometerAlt,
-  FaUsers,
   FaSun,
   FaMoon,
-  FaBars,
   FaSignOutAlt,
-  FaCalendarAlt,
-  FaPlaneDeparture,
-  FaTimes,
-  FaCog,
-  FaClipboardList,
-  FaChartBar,
 } from "react-icons/fa";
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { getEmployeeId, logout } from "@/services/auth";
 import { getAllEmployeesLeaveHistory } from "@/services/leave";
@@ -28,38 +19,26 @@ interface AdminLayoutProps {
 
 interface MenuItem {
   label: string;
-  icon: ReactNode;
   href?: string;
-  subItems?: MenuItem[];
+  subItems?: Array<{ label: string; href: string }>;
   badge?: string | number;
 }
 
 const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
-  const [isSidebarExpanded, setSidebarExpanded] = useState(true);
   const [currentDateTime, setCurrentDateTime] = useState<string>("");
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [userDetails, setUserDetails] = useState<{
     fullName: string;
     employeeImage: string;
     designation: string;
   } | null>(null);
   const { theme, toggleTheme } = useTheme();
-  const [expandedSubmenus, setExpandedSubmenus] = useState<{ [key: string]: boolean }>({});
-  const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [currentPath, setCurrentPath] = useState<string>("");
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("Dashboard");
   const [isClient, setIsClient] = useState(false);
   const [pendingLeaveCount, setPendingLeaveCount] = useState<number>(0);
+  const pathname = usePathname();
 
-  // Auto-close mobile sidebar when screen size changes
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setMobileSidebarOpen(false);
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -106,7 +85,6 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
 
   useEffect(() => {
     setIsClient(true);
-    setCurrentPath(window.location.pathname);
   }, []);
 
   // Fetch pending leave count
@@ -137,83 +115,72 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
     }
   }, [isClient]);
 
-  const toggleSidebar = () => {
-    setSidebarExpanded(!isSidebarExpanded);
-  };
-
   const handleLogout = () => {
     logout();
-    window.location.href = "/v1/employee/login"; // Use full path since window.location.href doesn't add basePath
+    window.location.href = "/v1/employee/login";
   };
 
-  const toggleSubmenu = (label: string) => {
-    setExpandedSubmenus((prev) => ({
-      ...prev,
-      [label]: !prev[label],
-    }));
-  };
-
-  const closeMobileSidebar = () => {
-    setMobileSidebarOpen(false);
-  };
-
-  const menuItems: MenuItem[] = [
+  const topNav: MenuItem[] = useMemo(() => [
     { 
       label: "Dashboard", 
-      icon: <FaTachometerAlt />, 
-      href: "/v1/employee/admin/dashboard" 
+      href: "/admin/dashboard" 
     },
     { 
       label: "Team Overview", 
-      icon: <FaUsers />, 
-      href: "/v1/employee/admin/team-overview",
+      href: "/admin/team-overview",
       badge: "New"
     },
     {
       label: "Attendance",
-      icon: <FaCalendarAlt />,
-      subItems: [
-        { label: "View Attendance", icon: <FaCalendarAlt />, href: "/v1/employee/admin/attendance-management" },
-        { label: "Regularization", icon: <FaCog />, href: "/v1/employee/admin/attendance-management/regularization" },
-        { label: "Hourly Based", icon: <FaCog />, href: "/v1/employee/admin/attendance-management/hourly-based" },
-      ],
+      href: "/admin/attendance-management",
     },
     { 
       label: "Leave Management", 
-      icon: <FaPlaneDeparture />, 
-      href: "/v1/employee/admin/leave-management",
+      href: "/admin/leave-management",
       badge: pendingLeaveCount > 0 ? pendingLeaveCount : undefined
     },
     {
       label: "Uniform Management",
-      icon: <FaChartBar />,
-      subItems: [
-        { label: "Requests", icon: <FaChartBar />, href: "/v1/employee/admin/uniform-management/requests" },
-        { label: "View", icon: <FaUsers />, href: "/v1/employee/admin/uniform-management/view" },
-      ],
+      href: "/admin/uniform-management/requests",
+    },
+    {
+      label: "Stores",
+      href: "/admin/reports/stock",
+    },
+    {
+      label: "DC",
+      href: "/admin/reports/dc",
     },
     {
       label: "Reports",
-      icon: <FaChartBar />,
-      subItems: [
-        { label: "Project Report", icon: <FaChartBar />, href: "/v1/employee/admin/reports/project" },
-        { label: "Employee Report", icon: <FaUsers />, href: "/v1/employee/admin/reports/employee" },
-        { label: "Attendance Report", icon: <FaCalendarAlt />, href: "/v1/employee/admin/reports/attendance" },
-        { label: "Stock Report", icon: <FaChartBar />, href: "/v1/employee/admin/reports/stock" },
-        { label: "DC", icon: <FaClipboardList />, href: "/v1/employee/admin/reports/dc" },
-      ],
+      href: "/admin/reports/project",
     },
-  ];
+  ], [pendingLeaveCount]);
 
-  const isActive = (href?: string) => {
-    if (!href || !isClient) return false;
-    return currentPath.startsWith(href);
-  };
-
-  const isSubmenuActive = (subItems?: MenuItem[]) => {
-    if (!subItems) return false;
-    return subItems.some(item => isActive(item.href));
-  };
+  // Update active tab based on current pathname
+  useEffect(() => {
+    const currentPath = pathname;
+    
+    // Find the matching navigation item
+    const findActiveTab = (items: typeof topNav): string => {
+      for (const item of items) {
+        if (item.href && currentPath === item.href) {
+          return item.label;
+        }
+        if (item.subItems) {
+          for (const subItem of item.subItems) {
+            if (currentPath === subItem.href) {
+              return item.label;
+            }
+          }
+        }
+      }
+      return "Dashboard"; // Default fallback
+    };
+    
+    const newActiveTab = findActiveTab(topNav);
+    setActiveTab(newActiveTab);
+  }, [pathname, topNav]);
 
   // Don't render until client-side hydration is complete
   if (!isClient) {
@@ -227,298 +194,162 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
   }
 
   return (
-    <div className={`min-h-screen ${theme === "dark" ? "bg-[#0f172a]" : "bg-gradient-to-br from-slate-50 via-white to-blue-50"} transition-colors duration-300`}>
-      {/* Mobile Sidebar Overlay */}
-      {isMobileSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden" 
-          onClick={closeMobileSidebar}
-        />
-      )}
-      
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 flex flex-col z-50
-          ${isSidebarExpanded ? "w-72" : "w-20"}
-          ${theme === "dark" ? "bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white" : "bg-white text-slate-700"}
-          transition-all duration-300 ease-in-out shadow-2xl border-r
-          ${theme === "dark" ? "border-slate-700" : "border-slate-200"}
-          ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
-          lg:translate-x-0 lg:z-30
-        `}
-      >
-        {/* Top: Logo and Toggle */}
-        <div className="flex flex-col h-full">
-          <div className={`flex items-center justify-between p-4 border-b ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`}>
-            <div className={`flex items-center ${isSidebarExpanded ? "justify-start" : "justify-center"} w-full`}>
-              <div className="relative">
-                <Image
-                  src="/v1/employee/logo-exo .png"
-                  alt="Exozen Logo"
-                  width={40}
-                  height={40}
-                  className="rounded-xl shadow-lg"
-                />
-                {!isSidebarExpanded && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                )}
-              </div>
-              {isSidebarExpanded && (
-                <div className="ml-3">
-                  <span className={`font-bold text-lg tracking-wide ${theme === "dark" ? "text-white" : "text-slate-800"}`}>
-                    Exozen
-                  </span>
-                  <div className={`text-xs font-medium ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
-                    Admin Panel
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Mobile close button */}
-              <button
-                onClick={closeMobileSidebar}
-                className={`p-2 rounded-lg lg:hidden transition-all duration-200 ${
-                  theme === "dark" 
-                    ? "text-slate-400 hover:bg-slate-700 hover:text-white" 
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-                title="Close sidebar"
-              >
-                <FaTimes className="w-4 h-4" />
-              </button>
-              {/* Desktop toggle button */}
-              <button
-                onClick={toggleSidebar}
-                className={`p-2 rounded-lg hidden lg:block transition-all duration-200 ${
-                  theme === "dark" 
-                    ? "text-slate-400 hover:bg-slate-700 hover:text-white" 
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-                title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
-              >
-                {isSidebarExpanded ? <FaChevronLeft className="w-4 h-4" /> : <FaChevronRight className="w-4 h-4" />}
-              </button>
-            </div>
+    <div className={`min-h-screen flex flex-col ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"} transition-colors duration-200 overflow-x-hidden`}>
+      <style jsx>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+      {/* Header (no sidebar) */}
+      <header className={`${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"} border-b shadow-lg sticky top-0 left-0 w-screen z-50 h-[64px] flex items-center px-4 transition-colors duration-200`}>
+        <div className="flex items-center justify-between w-full">
+          {/* Left: Brand & Title */}
+          <div className="flex items-center gap-3">
+            <Image src="/v1/employee/logo-exo .png" alt="Exozen Logo" width={32} height={32} className="rounded" />
+            <h1 className={`text-xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Admin</h1>
           </div>
-          
-          {/* Navigation */}
-          <nav className="flex-1 px-3 py-6">
-            <div className="space-y-2">
-              {menuItems.map((item) => {
-                const active = isActive(item.href) || isSubmenuActive(item.subItems);
-                const submenuExpanded = expandedSubmenus[item.label];
-                
-                return (
-                  <div key={item.label} className="space-y-1">
-                    {item.subItems ? (
-                      <button
-                        onClick={() => toggleSubmenu(item.label)}
-                        className={`group flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium gap-3 relative overflow-hidden ${
-                          active 
-                            ? theme === "dark"
-                              ? "bg-blue-600 text-white shadow-lg"
-                              : "bg-blue-50 text-blue-700 border border-blue-200"
-                            : theme === "dark"
-                              ? "text-slate-300 hover:bg-slate-700 hover:text-white"
-                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
-                        } ${isSidebarExpanded ? "justify-start" : "justify-center"}`}
-                        title={!isSidebarExpanded ? item.label : undefined}
-                      >
-                        {/* Active indicator */}
-                        {active && (
-                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${
-                            theme === "dark" ? "bg-white" : "bg-blue-600"
-                          }`}></div>
+          {/* Right: Top navigation like Excel tabs */}
+          <nav className="hidden md:flex items-end mr-4 overflow-x-auto scrollbar-hide">
+            <div className="flex items-end border-b-2 border-transparent">
+              {topNav.map((item) => (
+                <div
+                  key={item.label}
+                  className="relative group"
+                  onMouseEnter={() => item.subItems ? setOpenMenu(item.label) : setOpenMenu(null)}
+                  onMouseLeave={() => setOpenMenu(null)}
+                >
+                  {item.href ? (
+                    <Link
+                      href={item.href}
+                      onClick={() => setActiveTab(item.label)}
+                      className={`
+                        relative block px-4 py-2 text-sm font-medium whitespace-nowrap
+                        transition-all duration-200 ease-in-out
+                        ${activeTab === item.label 
+                          ? theme === "dark"
+                            ? "text-white bg-gray-700/30 border-b-2 border-blue-400"
+                            : "text-blue-700 bg-blue-50 border-b-2 border-blue-500"
+                          : theme === "dark" 
+                            ? "text-gray-300 hover:text-white hover:bg-gray-700/50" 
+                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                        }
+                        before:absolute before:inset-x-0 before:bottom-0 before:h-0.5 
+                        before:bg-blue-500 before:scale-x-0 before:transition-transform 
+                        before:duration-200 hover:before:scale-x-100
+                        after:absolute after:inset-x-0 after:bottom-0 after:h-0.5
+                        after:bg-gradient-to-r after:from-transparent after:via-blue-400 after:to-transparent
+                        after:opacity-0 after:transition-opacity after:duration-200 hover:after:opacity-100
+                        ${activeTab === item.label ? "before:scale-x-100 after:opacity-100" : ""}
+                      `}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{item.label}</span>
+                        {item.badge && (
+                          <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                            typeof item.badge === 'number' && item.badge > 0
+                              ? theme === "dark"
+                                ? "bg-red-500 text-white"
+                                : "bg-red-100 text-red-700"
+                              : theme === "dark"
+                                ? "bg-blue-500 text-white"
+                                : "bg-blue-100 text-blue-700"
+                          }`}>
+                            {item.badge}
+                          </span>
                         )}
-                        
-                        <span className={`text-lg transition-transform duration-200 ${
-                          submenuExpanded ? "rotate-90" : ""
-                        }`}>
-                          {item.icon}
-                        </span>
-                        
-                        {isSidebarExpanded && (
-                          <div className="flex items-center justify-between w-full">
-                            <span>{item.label}</span>
-                            <div className="flex items-center gap-2">
-                              {item.badge && (
-                                <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
-                                  typeof item.badge === 'number' && item.badge > 0
-                                    ? theme === "dark"
-                                      ? "bg-red-500 text-white"
-                                      : "bg-red-100 text-red-700"
-                                    : theme === "dark"
-                                      ? "bg-blue-500 text-white"
-                                      : "bg-blue-100 text-blue-700"
-                                }`}>
-                                  {item.badge}
-                                </span>
-                              )}
-                              <FaChevronRight className={`w-3 h-3 transition-transform duration-200 ${
-                                submenuExpanded ? "rotate-90" : ""
-                              }`} />
-                            </div>
-                          </div>
-                        )}
-                      </button>
-                    ) : (
-                      <a
-                        href={item.href}
-                        onClick={closeMobileSidebar}
-                        className={`group flex items-center px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium gap-3 relative overflow-hidden ${
-                          active 
-                            ? theme === "dark"
-                              ? "bg-blue-600 text-white shadow-lg"
-                              : "bg-blue-50 text-blue-700 border border-blue-200"
-                            : theme === "dark"
-                              ? "text-slate-300 hover:bg-slate-700 hover:text-white"
-                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
-                        } ${isSidebarExpanded ? "justify-start" : "justify-center"}`}
-                        title={!isSidebarExpanded ? item.label : undefined}
-                      >
-                        {/* Active indicator */}
-                        {active && (
-                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${
-                            theme === "dark" ? "bg-white" : "bg-blue-600"
-                          }`}></div>
-                        )}
-                        
-                        <span className="text-lg">{item.icon}</span>
-                        
-                        {isSidebarExpanded && (
-                          <div className="flex items-center justify-between w-full">
-                            <span>{item.label}</span>
-                            {item.badge && (
-                              <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
-                                typeof item.badge === 'number' && item.badge > 0
-                                  ? theme === "dark"
-                                    ? "bg-red-500 text-white"
-                                    : "bg-red-100 text-red-700"
-                                  : theme === "dark"
-                                    ? "bg-blue-500 text-white"
-                                    : "bg-blue-100 text-blue-700"
-                              }`}>
-                                {item.badge}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </a>
-                    )}
-                    
-                    {/* Submenu */}
-                    {item.subItems && submenuExpanded && isSidebarExpanded && (
-                      <div className="ml-6 space-y-1 mt-2">
-                        {item.subItems.map((subItem) => {
-                          const subActive = isActive(subItem.href);
-                          return (
-                            <a
-                              key={subItem.label}
-                              href={subItem.href}
-                              onClick={closeMobileSidebar}
-                              className={`flex items-center px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium gap-3 relative ${
-                                subActive
-                                  ? theme === "dark"
-                                    ? "bg-slate-700 text-white"
-                                    : "bg-slate-100 text-slate-800"
-                                  : theme === "dark"
-                                    ? "text-slate-400 hover:bg-slate-700 hover:text-white"
-                                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
-                              }`}
-                            >
-                              {subActive && (
-                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${
-                                  theme === "dark" ? "bg-blue-400" : "bg-blue-500"
-                                }`}></div>
-                              )}
-                              <span className="text-sm">{subItem.icon}</span>
-                              <span>{subItem.label}</span>
-                            </a>
-                          );
-                        })}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    </Link>
+                  ) : (
+                    <span
+                      className={`
+                        relative block px-4 py-2 text-sm font-medium whitespace-nowrap cursor-default select-none
+                        transition-all duration-200 ease-in-out
+                        ${activeTab === item.label 
+                          ? theme === "dark"
+                            ? "text-white bg-gray-700/30 border-b-2 border-blue-400"
+                            : "text-blue-700 bg-blue-50 border-b-2 border-blue-500"
+                          : theme === "dark" 
+                            ? "text-gray-300 hover:text-white hover:bg-gray-700/50" 
+                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                        }
+                        before:absolute before:inset-x-0 before:bottom-0 before:h-0.5 
+                        before:bg-blue-500 before:scale-x-0 before:transition-transform 
+                        before:duration-200 hover:before:scale-x-100
+                        after:absolute after:inset-x-0 after:bottom-0 after:h-0.5
+                        after:bg-gradient-to-r after:from-transparent after:via-blue-400 after:to-transparent
+                        after:opacity-0 after:transition-opacity after:duration-200 hover:after:opacity-100
+                        ${activeTab === item.label ? "before:scale-x-100 after:opacity-100" : ""}
+                      `}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{item.label}</span>
+                        {item.badge && (
+                          <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                            typeof item.badge === 'number' && item.badge > 0
+                              ? theme === "dark"
+                                ? "bg-red-500 text-white"
+                                : "bg-red-100 text-red-700"
+                              : theme === "dark"
+                                ? "bg-blue-500 text-white"
+                                : "bg-blue-100 text-blue-700"
+                          }`}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                    </span>
+                  )}
+                  
+                  {/* Excel-style dropdown arrow */}
+                  {item.subItems && (
+                    <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-400 group-hover:border-t-blue-500 transition-colors duration-200"></span>
+                  )}
+                  
+                  {item.subItems && openMenu === item.label && (
+                    <div className={`
+                      absolute top-full left-0 mt-1 min-w-[240px] rounded-lg shadow-xl border z-50
+                      ${theme === "dark" 
+                        ? "bg-gray-800 border-gray-600 shadow-2xl" 
+                        : "bg-white border-gray-200 shadow-lg"
+                      }
+                      before:absolute before:-top-1 before:left-4 before:w-2 before:h-2 
+                      before:bg-inherit before:border-l before:border-t before:border-gray-300 
+                      before:transform before:rotate-45 before:z-10
+                    `}>
+                      <ul className="py-2">
+                        {item.subItems.map((sub) => (
+                          <li key={sub.label}>
+                            <Link
+                              href={sub.href}
+                              className={`
+                                block px-4 py-2.5 text-sm transition-all duration-150 ease-in-out
+                                ${theme === "dark" 
+                                  ? "text-gray-200 hover:bg-gray-700 hover:text-white" 
+                                  : "text-gray-700 hover:bg-blue-50 hover:text-blue-900"
+                                }
+                                hover:pl-6 hover:shadow-sm
+                              `}
+                            >
+                              <span className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
+                                {sub.label}
+                              </span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </nav>
-        </div>
-        
-        {/* Sidebar Profile/Footer Section */}
-        <div className={`p-4 border-t ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`}>
-          {userDetails && (
-            <div className={`flex items-center gap-3 mb-4 p-3 rounded-xl ${
-              theme === "dark" ? "bg-slate-800" : "bg-slate-50"
-            }`}>
-              <div className="relative">
-                <Image
-                  src={userDetails.employeeImage || "/placeholder-user.jpg"}
-                  alt={userDetails.fullName || "Admin User"}
-                  width={40}
-                  height={40}
-                  className="rounded-full border-2 border-blue-200 dark:border-blue-600 shadow-lg"
-                />
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-              </div>
-              {isSidebarExpanded && (
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm truncate">
-                    {userDetails.fullName || "Admin User"}
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {userDetails.designation || "Administrator"}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          
-          <button
-            onClick={handleLogout}
-            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm gap-3 ${
-              theme === "dark"
-                ? "text-red-400 hover:bg-red-900/20 hover:text-red-300"
-                : "text-red-600 hover:bg-red-50 hover:text-red-700"
-            }`}
-          >
-            <FaSignOutAlt className="w-4 h-4" />
-            {isSidebarExpanded && <span>Sign Out</span>}
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className={`flex flex-col min-w-0 transition-all duration-300 ease-in-out ${isSidebarExpanded ? "lg:ml-72" : "lg:ml-20"}`}>
-        {/* Header */}
-        <header className={`sticky top-0 z-20 h-16 lg:h-20 flex items-center px-4 lg:px-8 shadow-lg border-b ${
-          theme === "dark" 
-            ? "bg-slate-900/80 backdrop-blur-xl border-slate-700" 
-            : "bg-white/80 backdrop-blur-xl border-slate-200"
-        } transition-colors duration-200`}>
-          {/* Left: Hamburger for mobile */}
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => setMobileSidebarOpen((open) => !open)}
-              className={`p-2 rounded-lg lg:hidden transition-all duration-200 ${
-                theme === "dark" 
-                  ? "text-slate-400 hover:text-white hover:bg-slate-700" 
-                  : "text-slate-600 hover:text-slate-800 hover:bg-slate-100"
-              }`}
-              title="Open sidebar"
-            >
-              <FaBars className="w-5 h-5" />
-            </button>
-            <span className={`text-lg lg:text-xl font-bold tracking-tight ${
-              theme === "dark" ? "text-white" : "text-slate-800"
-            } truncate`}>
-              Admin Dashboard
-            </span>
-          </div>
-          
-          {/* Right: Actions */}
-          <div className="flex items-center gap-2 lg:gap-4 ml-auto">
+          {/* Right: Date/Time, Theme Toggle, Profile */}
+          <div className="flex items-center gap-4">
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
@@ -531,41 +362,34 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
             >
               {theme === "dark" ? <FaSun className="w-5 h-5" /> : <FaMoon className="w-5 h-5" />}
             </button>
-            
-            {/* Date/Time */}
-            <div className={`font-medium text-sm px-4 py-2 rounded-lg border ${
-              theme === "dark" 
-                ? "bg-slate-800 text-slate-300 border-slate-600" 
-                : "bg-slate-50 text-slate-700 border-slate-200"
-            } hidden sm:block`}>
-              {currentDateTime}
+            {/* Date and Time */}
+            <div className={`font-medium text-sm px-4 py-1.5 rounded-full border ${theme === "dark" ? "bg-gray-700 text-gray-200 border-gray-600" : "bg-blue-50 text-blue-700 border-blue-100"}`}>{currentDateTime}</div>
+            {/* User Profile */}
+            <div className="flex items-center relative">
+              <div className="relative cursor-pointer" onClick={() => setShowProfileDropdown(!showProfileDropdown)}>
+                <Image src={userDetails?.employeeImage || "/placeholder-user.jpg"} alt={userDetails?.fullName || "User"} width={40} height={40} className="relative w-10 h-10 rounded-full object-cover border-2 border-white shadow" />
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+              </div>
+              {showProfileDropdown && (
+                <div className={`${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"} absolute right-0 top-full mt-2 w-56 rounded-xl shadow-xl border py-2 z-50`}>
+                  <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-600">
+                    <div className="font-semibold text-sm">{userDetails?.fullName || "Admin User"}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{userDetails?.designation || "Administrator"}</div>
+                  </div>
+                  <button onClick={handleLogout} className={`w-full text-left px-4 py-2 ${theme === "dark" ? "hover:bg-gray-700 text-gray-200" : "hover:bg-red-50 text-gray-700"} flex items-center gap-2 rounded-lg text-base`}>
+                    <FaSignOutAlt className="text-red-500 w-5 h-5" /> Logout
+                  </button>
+                </div>
+              )}
             </div>
-            
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-                theme === "dark" 
-                  ? "bg-red-900/20 hover:bg-red-900/30 text-red-400" 
-                  : "bg-red-50 hover:bg-red-100 text-red-600"
-              }`}
-              title="Logout"
-            >
-              <FaSignOutAlt className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
           </div>
-        </header>
-        
-        {/* Main Content */}
-        <main className={`flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-8 ${
-          theme === "dark" 
-            ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" 
-            : "bg-gradient-to-br from-slate-50 via-white to-blue-50"
-        }`}>
-          {children}
-        </main>
-      </div>
+        </div>
+      </header>
+
+      {/* Full-width Content Container (edge-to-edge) */}
+      <main className={`flex-1 min-h-screen p-0 ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"}`}>
+        {children}
+      </main>
     </div>
   );
 };
