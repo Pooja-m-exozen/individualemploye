@@ -1,13 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { FaSpinner,  FaEye, FaTimes,  FaFileAlt, FaUser, FaPhone, FaIdCard,  FaTimesCircle, FaExclamationCircle, FaCheckCircle,  FaUserCircle, FaBuilding, FaAddressCard, FaQuestionCircle,  FaLightbulb,} from 'react-icons/fa';
+import { FaSpinner, FaEye, FaTimesCircle, FaSearch } from 'react-icons/fa';
 import { isAuthenticated,  getEmployeeId } from '@/services/auth';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Tooltip } from 'react-tooltip';
-import Image from 'next/image';
 import { useTheme } from '@/context/ThemeContext';
+import EditKYCModal from '@/components/dashboard/EditKYCModal';
 
 // import classNames from 'classnames';
 
@@ -82,10 +80,6 @@ interface KYCResponse {
   };
 }
 
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
-}
-
 export default function ViewKYC() {
   const { theme } = useTheme();
   const router = useRouter();
@@ -93,20 +87,30 @@ export default function ViewKYC() {
   const [kycResponse, setKYCResponse] = useState<KYCResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTab, setSelectedTab] = useState(0);
-  const [showInstructions, setShowInstructions] = useState(true);
-  const [completionStatus, setCompletionStatus] = useState({
-    personal: false,
-    address: false,
-    bank: false,
-    emergency: false,
-    documents: false
-  });
+  const [showColsMenu, setShowColsMenu] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
 
-  // Add state for designation count validation
-  const [designationCount, setDesignationCount] = useState<number>(0);
-  const [currentKycCount, setCurrentKycCount] = useState<number>(0);
-  const [isDesignationFull, setIsDesignationFull] = useState(false);
+  // Column visibility state
+  type VisibleCols = {
+    rownum: boolean;
+    personalDetails: boolean;
+    permanentAddress: boolean;
+    currentAddress: boolean;
+    bankDetails: boolean;
+    emergencyContact: boolean;
+    documents: boolean;
+  };
+  
+  const [visibleCols, setVisibleCols] = useState<VisibleCols>({
+    rownum: true,
+    personalDetails: true,
+    permanentAddress: true,
+    currentAddress: true,
+    bankDetails: true,
+    emergencyContact: true,
+    documents: true,
+  });
 
   const fetchKYCData = useCallback(async () => {
     try {
@@ -134,203 +138,11 @@ export default function ViewKYC() {
     fetchKYCData();
   }, [router, fetchKYCData]);
 
-  // Check designation availability
-  const checkDesignationAvailability = useCallback(async (projectName: string, designation: string) => {
-    if (!projectName || !designation) {
-      setDesignationCount(0);
-      setCurrentKycCount(0);
-      setIsDesignationFull(false);
-      return;
-    }
-
-    try {
-      // Fetch both KYC forms and project data
-      const [kycRes, projectRes] = await Promise.all([
-        fetch("https://cafm.zenapi.co.in/api/kyc"),
-        fetch("https://cafm.zenapi.co.in/api/project/projects")
-      ]);
-      
-      const [kycData, projectData] = await Promise.all([
-        kycRes.json(),
-        projectRes.json()
-      ]);
-      
-      const kycForms = kycData.kycForms || [];
-      const projects = Array.isArray(projectData) ? projectData : [];
-      
-      // Get the allowed count for this designation from project
-      const project = projects.find((p: Record<string, unknown>) => p.projectName === projectName);
-      const designationWiseCount = project?.designationWiseCount as Record<string, unknown> || {};
-      
-      // Find the count by doing flexible matching (trim and case-insensitive)
-      let allowedCount = 0;
-      const selectedDesignation = designation.trim().toLowerCase();
-      
-      for (const [projectDesignation, count] of Object.entries(designationWiseCount)) {
-        const normalizedProjectDesignation = projectDesignation.trim().toLowerCase();
-        if (normalizedProjectDesignation === selectedDesignation) {
-          allowedCount = Number(count) || 0;
-          break;
-        }
-      }
-      
-      // Count existing KYC forms for this project and designation
-      const existingKycForms = kycForms.filter((k: Record<string, unknown>) => {
-        const personalDetails = k.personalDetails as Record<string, unknown>;
-        const kycDesignation = (personalDetails?.designation as string)?.trim().toLowerCase();
-        const selectedDesignation = designation.trim().toLowerCase();
-        
-        return personalDetails?.projectName === projectName && 
-               kycDesignation === selectedDesignation &&
-               !personalDetails?.exitDate; // Only count active employees
-      });
-      
-      const currentCount = existingKycForms.length;
-      
-      setDesignationCount(allowedCount);
-      setCurrentKycCount(currentCount);
-      setIsDesignationFull(currentCount >= allowedCount);
-    } catch (err) {
-      console.error('Failed to check designation availability:', err);
-      setDesignationCount(0);
-      setCurrentKycCount(0);
-      setIsDesignationFull(false);
-    }
-  }, []);
-
-
-
-  // Calculate completion percentage
-  const calculateCompletion = () => {
-    const sections = Object.values(completionStatus);
-    const completed = sections.filter(Boolean).length;
-    return Math.round((completed / sections.length) * 100);
+  // Column toggle function
+  const toggleColumn = (key: keyof VisibleCols) => {
+    setVisibleCols((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Check section completion
-  useEffect(() => {
-    if (kycResponse?.kycData) {
-      const { personalDetails, addressDetails, bankDetails, emergencyContact, documents } = kycResponse.kycData;
-      
-      setCompletionStatus({
-        personal: Object.values(personalDetails).every(val => val !== ''),
-        address: Object.values(addressDetails.permanentAddress).every(val => val !== '') && 
-                Object.values(addressDetails.currentAddress).every(val => val !== ''),
-        bank: Object.values(bankDetails).every(val => val !== ''),
-        emergency: Object.values(emergencyContact).every(val => val !== ''),
-        documents: documents.length > 0
-      });
-
-      // Check designation availability when KYC data is loaded
-      if (personalDetails.projectName && personalDetails.designation) {
-        checkDesignationAvailability(personalDetails.projectName, personalDetails.designation);
-      }
-    }
-  }, [kycResponse, checkDesignationAvailability]);
-
-  // Instructions component
-  const Instructions = () => (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className={`rounded-2xl p-6 mb-8 relative border ${
-        theme === 'dark'
-          ? 'bg-gray-800 border-gray-700'
-          : 'bg-white border-gray-200'
-      }`}
-    >
-      <button
-        onClick={() => setShowInstructions(false)}
-        className={`absolute top-4 right-4 ${
-          theme === 'dark' ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'
-        }`}
-      >
-        <FaTimes className="w-5 h-5" />
-      </button>
-      <div className="flex items-start gap-4">
-        <div className={`p-3 rounded-xl ${
-          theme === 'dark' ? 'bg-blue-900/50' : 'bg-blue-100'
-        }`}>
-          <FaLightbulb className={`w-6 h-6 ${
-            theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-          }`} />
-        </div>
-        <div>
-          <h3 className={`text-lg font-semibold mb-2 ${
-            theme === 'dark' ? 'text-white' : 'text-gray-900'
-          }`}>KYC Instructions</h3>
-          <ul className={`space-y-2 ${
-            theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-          }`}>
-            <li className="flex items-center gap-2">
-              <FaCheckCircle className="w-4 h-4 text-green-500" />
-              Complete all sections for full verification
-            </li>
-            <li className="flex items-center gap-2">
-              <FaCheckCircle className="w-4 h-4 text-green-500" />
-              Ensure all documents are clear and legible
-            </li>
-            <li className="flex items-center gap-2">
-              <FaCheckCircle className="w-4 h-4 text-green-500" />
-              Keep your information up to date
-            </li>
-          </ul>
-        </div>
-      </div>
-    </motion.div>
-  );
-
-  // Progress Bar component
-  const ProgressBar = () => (
-    <div className={`rounded-2xl p-6 mb-8 shadow-sm border ${
-      theme === 'dark'
-        ? 'bg-gray-800 border-gray-700'
-        : 'bg-white border-gray-200'
-    }`}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className={`text-lg font-semibold ${
-          theme === 'dark' ? 'text-white' : 'text-gray-900'
-        }`}>KYC Completion Status</h3>
-        <span className={`text-sm font-medium ${
-          theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-        }`}>{calculateCompletion()}% Complete</span>
-      </div>
-      <div className={`w-full rounded-full h-2.5 ${
-        theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
-      }`}>
-        <div
-          className={`h-2.5 rounded-full transition-all duration-500 ${
-            theme === 'dark' ? 'bg-blue-500' : 'bg-blue-600'
-          }`}
-          style={{ width: `${calculateCompletion()}%` }}
-        />
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
-        {Object.entries(completionStatus).map(([section, isComplete]) => (
-          <div
-            key={section}
-            className="flex items-center gap-2"
-            data-tooltip-id={`section-${section}`}
-          >
-            {isComplete ? (
-              <FaCheckCircle className="w-4 h-4 text-green-500" />
-            ) : (
-              <FaExclamationCircle className="w-4 h-4 text-yellow-500" />
-            )}
-            <span className={`text-sm font-medium capitalize ${
-              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-            }`}>
-              {section}
-            </span>
-            <Tooltip id={`section-${section}`}>
-              {isComplete ? 'Section completed' : 'Section pending completion'}
-            </Tooltip>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 
 
   if (loading) {
@@ -358,7 +170,7 @@ export default function ViewKYC() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-yellow-50 text-yellow-600 p-6 rounded-2xl flex items-center gap-3 max-w-lg w-full shadow-lg">
-          <FaExclamationCircle className="w-6 h-6 flex-shrink-0" />
+          <FaTimesCircle className="w-6 h-6 flex-shrink-0" />
           <p className="text-lg font-medium">No KYC data available</p>
         </div>
       </div>
@@ -367,17 +179,6 @@ export default function ViewKYC() {
 
   const { kycData } = kycResponse;
   
-  // Fix the TypeScript error by creating a mapping type
-  type CompletionStatusKey = 'personal' | 'address' | 'bank' | 'emergency' | 'documents';
-  
-  // Map navigation items to section keys
-  const navigationItems = [
-    { icon: FaUserCircle, label: 'Personal Info', id: 0, key: 'personal' as CompletionStatusKey },
-    { icon: FaAddressCard, label: 'Address', id: 1, key: 'address' as CompletionStatusKey },
-    { icon: FaBuilding, label: 'Bank Details', id: 2, key: 'bank' as CompletionStatusKey },
-    { icon: FaPhone, label: 'Emergency Contact', id: 3, key: 'emergency' as CompletionStatusKey },
-    { icon: FaFileAlt, label: 'Documents', id: 4, key: 'documents' as CompletionStatusKey },
-  ];
 
 
 
@@ -392,419 +193,219 @@ export default function ViewKYC() {
   return (
     <div className={`min-h-screen font-sans ${
       theme === 'dark' 
-        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
-        : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'
+        ? 'bg-gray-900' 
+        : 'bg-gray-50'
     }`}>
-      <div className="flex">
-        {/* Desktop Navigation Sidebar */}
-        <div className={`hidden lg:block w-64 h-screen sticky top-0 border-r ${
-          theme === 'dark' 
-            ? 'bg-gray-800 border-gray-700' 
-            : 'bg-white border-gray-200'
-        }`}>
-          <div className="p-6">
-            <h2 className={`text-lg font-semibold mb-6 ${
-              theme === 'dark' ? 'text-white' : 'text-gray-900'
-            }`}>
-              KYC Sections
-            </h2>
-            <nav className="space-y-2">
-              {navigationItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setSelectedTab(item.id)}
-                  className={classNames(
-                    'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all',
-                    selectedTab === item.id
-                      ? theme === 'dark'
-                        ? 'bg-gray-700 text-blue-400'
-                        : 'bg-indigo-50 text-indigo-600'
-                      : theme === 'dark'
-                        ? 'text-gray-300 hover:bg-gray-700'
-                        : 'text-gray-600 hover:bg-gray-50'
-                  )}
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
-                  {completionStatus[item.key] && (
-                    <FaCheckCircle className="w-4 h-4 text-green-500 ml-auto" />
-                  )}
-                </button>
-              ))}
-            </nav>
-          </div>
-        </div>
-
-        {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto" style={{height: 'calc(100vh - 64px)'}}>
-          {/* Mobile Header */}
-          <div className={`lg:hidden border-b ${
-            theme === 'dark' 
-              ? 'bg-gray-800 border-gray-700' 
-              : 'bg-white border-gray-200'
-          }`}>
-            <div className="px-4 py-2 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {kycData.personalDetails.employeeImage ? (
-                  <div className="relative">
-                    <Image
-                      src={kycData.personalDetails.employeeImage}
-                      alt="Employee"
-                      width={56}
-                      height={56}
-                      className="rounded-xl object-cover ring-2 ring-blue-100"
-                    />
-                    <div className="absolute -bottom-1 -right-1">
-                      <div className={classNames(
-                        'w-4 h-4 rounded-full border-2 border-white',
-                        kycData.status.toLowerCase() === 'approved' ? 'bg-green-500' :
-                        kycData.status.toLowerCase() === 'pending' ? 'bg-yellow-500' :
-                        'bg-red-500'
-                      )}/>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-14 h-14 rounded-xl bg-blue-100 flex items-center justify-center">
-                    <FaUser className="w-7 h-7 text-blue-500" />
-                  </div>
-                )}
-                <div className="flex flex-col">
-                  <h2 className="text-base font-semibold text-gray-900">
-                    {kycData.personalDetails.fullName}
-                  </h2>
-                  <p className="text-xs font-medium text-gray-600">
-                    {kycData.personalDetails.employeeId}
-                  </p>
+      <div className="p-4 lg:p-6">
+        {/* Toolbar Section */}
+        <div className="sticky top-[64px] z-30 backdrop-blur-sm px-4 py-2 mb-3 md:mb-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+              <input
+                type="text"
+                placeholder="Search employee name, ID, designation..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+                  theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "bg-white border-gray-200 text-black"
+                }`}
+              />
                 </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowEditModal(true)}
+                className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "bg-white border-blue-200 text-blue-700"}`}
+              >
+                Edit KYC
+              </button>
+              <button
+                onClick={() => router.push('/kyc/upload')}
+                className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "bg-white border-blue-200 text-blue-700"}`}
+              >
+                Upload Document
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowColsMenu((p) => !p)}
+                  className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "bg-white border-blue-200 text-blue-700"}`}
+                >
+                  Columns
+                </button>
+                {showColsMenu && (
+                  <div className={`absolute right-0 mt-2 w-56 rounded-lg shadow-lg p-3 border z-40 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "bg-white border-blue-200 text-black"}`}>
+                    {(Object.keys(visibleCols) as Array<keyof VisibleCols>).map((key) => (
+                      <label key={key} className="flex items-center gap-2 py-1 cursor-pointer text-sm">
+                        <input type="checkbox" checked={visibleCols[key]} onChange={() => toggleColumn(key)} />
+                        <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      </label>
+                    ))}
+              </div>
+            )}
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Main Content */}
-          <div className="p-4 lg:p-6">
-            {/* Modern KYC Header */}
-            <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${
-              theme === 'dark'
-                ? 'bg-gradient-to-r from-gray-800 to-gray-700'
-                : 'bg-gradient-to-r from-blue-500 to-blue-800'
-            }`}>
-              <div className={`${
-                theme === 'dark' 
-                  ? 'bg-gray-700 bg-opacity-50' 
-                  : 'bg-blue-600 bg-opacity-30'
-              } rounded-xl p-4 flex items-center justify-center`}>
-                <FaIdCard className="w-10 h-10 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-white mb-1">View KYC</h1>
-                <p className="text-white text-base opacity-90">View and manage your KYC verification details</p>
-              </div>
-            </div>
 
-            {/* Instructions and Progress Bar */}
-            {showInstructions && <Instructions />}
-            <ProgressBar />
-            
-            {/* Content sections */}
-            <div className="space-y-6 mt-6">
-              <AnimatePresence mode="wait">
-                {/* Wrap each section's content with dark theme classes */}
-                {selectedTab === 0 && (
-                  <motion.div
-                    key="personal"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className={`rounded-2xl shadow-sm p-6 border ${
-                      theme === 'dark'
-                        ? 'bg-gray-800 border-gray-700'
-                        : 'bg-white border-gray-200'
-                    }`}
-                  >
-                    <h2 className={`text-xl font-bold mb-6 ${
-                      theme === 'dark' ? 'text-white' : 'text-gray-900'
-                    }`}>Personal Information</h2>
-                    
-                    {/* Designation Status Display */}
-                    {kycData.personalDetails.designation && (
-                      <div className={`mb-6 p-4 rounded-xl border ${
-                        isDesignationFull 
-                          ? theme === 'dark' ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'
-                          : theme === 'dark' ? 'bg-green-900/20 border-green-700' : 'bg-green-50 border-green-200'
-                      }`}>
-                        <div className="flex items-center gap-3">
-                          {isDesignationFull ? (
-                            <>
-                              <FaTimesCircle className="text-red-500 w-5 h-5" />
-                              <div>
-                                <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-red-300' : 'text-red-700'}`}>
-                                  Designation Status: Full Capacity
-                                </h3>
-                                <p className={`text-sm ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>
-                                  Your designation &quot;{kycData.personalDetails.designation}&quot; is at full capacity ({currentKycCount}/{designationCount})
-                                </p>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <FaCheckCircle className="text-green-500 w-5 h-5" />
-                              <div>
-                                <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-green-300' : 'text-green-700'}`}>
-                                  Designation Status: Available
-                                </h3>
-                                <p className={`text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
-                                  Your designation &quot;{kycData.personalDetails.designation}&quot; has available positions ({currentKycCount}/{designationCount})
-                                </p>
-                              </div>
-                            </>
-                          )}
-                        </div>
+        {/* KYC Data Table - Consistent Style */}
+        <div className="overflow-x-auto w-full">
+          <table className="min-w-[1400px] text-sm table-auto border-collapse border border-blue-400">
+            <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+              <tr>
+                {visibleCols.rownum && (
+                  <th className={`px-4 py-3 text-left font-bold sticky left-0 z-20 whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`} style={{ width: 60 }}>#</th>
+                )}
+                
+                  {/* Personal Information Headers */}
+                {visibleCols.personalDetails && Object.entries(kycData.personalDetails).map(([key]) => 
+                    key !== 'employeeImage' && (
+                    <th key={`personal-header-${key}`} className={`px-4 py-3 text-left font-bold whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`}>
+                        {key.replace(/([A-Z])/g, ' $1').trim()}
+                      </th>
+                    )
+                  )}
+                  
+                  {/* Permanent Address Headers */}
+                {visibleCols.permanentAddress && Object.entries(kycData.addressDetails.permanentAddress).map(([key]) => (
+                  <th key={`permanent-header-${key}`} className={`px-4 py-3 text-left font-bold whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`}>
+                      Permanent {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </th>
+                  ))}
+                  
+                  {/* Current Address Headers */}
+                {visibleCols.currentAddress && Object.entries(kycData.addressDetails.currentAddress).map(([key]) => (
+                  <th key={`current-header-${key}`} className={`px-4 py-3 text-left font-bold whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`}>
+                      Current {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </th>
+                  ))}
+                  
+                  {/* Bank Details Headers */}
+                {visibleCols.bankDetails && Object.entries(kycData.bankDetails).map(([key]) => (
+                  <th key={`bank-header-${key}`} className={`px-4 py-3 text-left font-bold whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`}>
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </th>
+                  ))}
+                  
+                  {/* Emergency Contact Headers */}
+                {visibleCols.emergencyContact && Object.entries(kycData.emergencyContact).map(([key]) => (
+                  <th key={`emergency-header-${key}`} className={`px-4 py-3 text-left font-bold whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`}>
+                      Emergency {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </th>
+                  ))}
+                  
+                  {/* Documents Headers */}
+                {visibleCols.documents && kycData.documents.map((doc) => (
+                  <th key={`doc-header-${doc._id}`} className={`px-4 py-3 text-left font-bold whitespace-nowrap border border-blue-400 ${theme === "dark" ? "text-white bg-blue-900" : "text-blue-800 bg-blue-50"}`}>
+                      {doc.type}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+              <tr className={`${theme === "dark" ? "bg-slate-800 hover:bg-slate-700" : "bg-white hover:bg-gray-50"} transition-colors duration-200`}>
+                {visibleCols.rownum && (
+                  <td className={`px-4 py-3 text-left font-mono text-sm border border-blue-400 ${theme === "dark" ? "bg-slate-800 text-gray-300" : "bg-white text-gray-600"}`} style={{ width: 60 }}>
+                    1
+                  </td>
+                )}
+                
+                  {/* Personal Information Values */}
+                {visibleCols.personalDetails && Object.entries(kycData.personalDetails).map(([key, value]) => 
+                    key !== 'employeeImage' && (
+                    <td key={`personal-value-${key}`} className={`px-4 py-3 text-left border border-blue-400 ${theme === "dark" ? "text-gray-100" : "text-gray-900"} ${key === 'email' || key === 'workType' ? "break-all" : ""} ${key === 'monthlySalary' ? 'font-mono' : ''}`}>
+                        {key === 'monthlySalary' && value ? 
+                          `₹${Number(value).toLocaleString('en-IN')}` : 
+                          Array.isArray(value) ? value.join(', ') : 
+                          key === 'designation' ? (value?.toString() || '-').trim() :
+                          value?.toString() || '-'
+                        }
+                      </td>
+                    )
+                  )}
+                  
+                  {/* Permanent Address Values */}
+                {visibleCols.permanentAddress && Object.entries(kycData.addressDetails.permanentAddress).map(([key, value]) => (
+                  <td key={`permanent-value-${key}`} className={`px-4 py-3 text-left border border-blue-400 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                    <span className="block whitespace-pre-wrap break-words leading-5" title={value}>{value}</span>
+                  </td>
+                  ))}
+                  
+                  {/* Current Address Values */}
+                {visibleCols.currentAddress && Object.entries(kycData.addressDetails.currentAddress).map(([key, value]) => (
+                  <td key={`current-value-${key}`} className={`px-4 py-3 text-left border border-blue-400 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                    <span className="block whitespace-pre-wrap break-words leading-5" title={value}>{value}</span>
+                  </td>
+                  ))}
+                  
+                  {/* Bank Details Values */}
+                {visibleCols.bankDetails && Object.entries(kycData.bankDetails).map(([key, value]) => (
+                  <td key={`bank-value-${key}`} className={`px-4 py-3 text-left border border-blue-400 font-mono ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                    <span className="block whitespace-pre-wrap break-words leading-5" title={value}>{value}</span>
+                  </td>
+                  ))}
+                  
+                  {/* Emergency Contact Values */}
+                {visibleCols.emergencyContact && Object.entries(kycData.emergencyContact).map(([key, value]) => (
+                  <td key={`emergency-value-${key}`} className={`px-4 py-3 text-left border border-blue-400 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                    <span className="block whitespace-pre-wrap break-words leading-5" title={value}>{value}</span>
+                  </td>
+                  ))}
+                  
+                  {/* Documents Values */}
+                {visibleCols.documents && kycData.documents.map((doc) => (
+                  <td key={`doc-value-${doc._id}`} className={`px-4 py-3 text-left border border-blue-400 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                      <div className="flex items-center gap-3">
+                      <span className="text-xs">
+                          {new Date(doc.uploadedAt).toLocaleDateString()}
+                        </span>
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-1 text-xs transition-colors ${
+                          theme === "dark" 
+                            ? "text-blue-300 hover:text-blue-200" 
+                            : "text-blue-600 hover:text-blue-700"
+                        }`}
+                        >
+                          <FaEye className="w-3 h-3" />
+                          View
+                        </a>
                       </div>
-                    )}
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {Object.entries(kycData.personalDetails).map(([key, value]) => 
-                        key !== 'employeeImage' && (
-                          <div key={key} className="space-y-2">
-                            <label className={`text-sm font-medium capitalize ${
-                              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                            }`}>
-                              {key.replace(/([A-Z])/g, ' $1').trim()}
-                            </label>
-                            <p className={`text-base font-medium ${
-                              theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
-                            } ${key === 'email' || key === 'workType' ? "break-all" : ""} ${
-                              key === 'monthlySalary' ? 'font-mono' : ''
-                            }`}>
-                              {key === 'monthlySalary' && value ? 
-                                `₹${Number(value).toLocaleString('en-IN')}` : 
-                                Array.isArray(value) ? value.join(', ') : 
-                                key === 'designation' ? (value?.toString() || '-').trim() :
-                                value?.toString() || '-'
-                              }
-                            </p>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-
-                {selectedTab === 1 && (
-                  <motion.div
-                    key="address"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
-                  >
-                    {/* Permanent Address */}
-                    <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Permanent Address
-                      </h3>
-                      <div className="space-y-4">
-                        {Object.entries(kycData.addressDetails.permanentAddress).map(([key, value]) => (
-                          <div key={key}>
-                            <label className="text-sm font-medium text-gray-500 capitalize">
-                              {key.replace(/([A-Z])/g, ' $1').trim()}
-                            </label>
-                            <p className="text-base font-medium text-gray-900 mt-1">{value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {/* Current Address */}
-                    <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Current Address
-                      </h3>
-                      <div className="space-y-4">
-                        {Object.entries(kycData.addressDetails.currentAddress).map(([key, value]) => (
-                          <div key={key}>
-                            <label className="text-sm font-medium text-gray-500 capitalize">
-                              {key.replace(/([A-Z])/g, ' $1').trim()}
-                            </label>
-                            <p className="text-base font-medium text-gray-900 mt-1">{value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {selectedTab === 2 && (
-                  <motion.div
-                    key="bank"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200"
-                  >
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">Bank Details</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {Object.entries(kycData.bankDetails).map(([key, value]) => (
-                        <div key={key}>
-                          <label className="text-sm font-medium text-gray-500 capitalize">
-                            {key.replace(/([A-Z])/g, ' $1').trim()}
-                          </label>
-                          <p className="text-base font-medium text-gray-900 mt-1 font-mono">{value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-
-                {selectedTab === 3 && (
-                  <motion.div
-                    key="emergency"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200"
-                  >
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">Emergency Contact</h2>
-                    <div className="flex flex-col space-y-4">
-                      <div className="p-4 bg-gray-50 rounded-xl">
-                        <div className="flex flex-wrap items-center gap-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                              <FaUser className="w-5 h-5 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Name</p>
-                              <p className="font-medium text-gray-900">
-                                {kycData.emergencyContact.name}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                              <FaPhone className="w-5 h-5 text-green-600" />
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Phone</p>
-                              <p className="font-medium text-gray-900">
-                                {kycData.emergencyContact.phone}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                              <FaUserCircle className="w-5 h-5 text-purple-600" />
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Relationship</p>
-                              <p className="font-medium text-gray-900">
-                                {kycData.emergencyContact.relationship}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-                              <FaIdCard className="w-5 h-5 text-orange-600" />
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Aadhar</p>
-                              <p className="font-medium text-gray-900">
-                                {kycData.emergencyContact.aadhar}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {selectedTab === 4 && (
-                  <motion.div
-                    key="documents"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200"
-                  >
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">Documents</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      {kycData.documents.map((doc) => (
-                        <div key={doc._id} className={`flex items-start p-4 ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} rounded-xl transition-colors`}>
-                          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-4">
-                            <FaFileAlt className="w-5 h-5 text-blue-500" />
-                          </div>
-                          <div>
-                            <h4 className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{doc.type}</h4>
-                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} mt-1`}>
-                              Uploaded on {new Date(doc.uploadedAt).toLocaleDateString()}
-                            </p>
-                            <a
-                              href={doc.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-blue-600 hover:text-blue-700 mt-2 inline-flex items-center"
-                            >
-                              <FaEye className="w-4 h-4 mr-1" />
-                              View Document
-                            </a>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
 
-      {/* Mobile Navigation */}
-      <div className={`lg:hidden fixed bottom-0 left-0 right-0 border-t py-2 ${
-        theme === 'dark' 
-          ? 'bg-gray-800 border-gray-700' 
-          : 'bg-white border-gray-200'
-      }`}>
-        <div className="flex justify-around max-w-md mx-auto">
-          {navigationItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setSelectedTab(item.id)}
-              className="flex flex-col items-center p-2"
-            >
-              <item.icon className={classNames(
-                'w-5 h-5',
-                selectedTab === item.id 
-                  ? 'text-indigo-600' 
-                  : 'text-gray-400'
-              )} />
-              <span className={classNames(
-                'text-xs mt-1',
-                selectedTab === item.id 
-                  ? 'text-indigo-600 font-medium'
-                  : 'text-gray-500'
-              )}>
-                {item.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Help Button */}
-      <button
-        onClick={() => setShowInstructions(true)}
-        className={`fixed bottom-20 right-4 lg:bottom-8 lg:right-8 p-3 rounded-full shadow-lg transition-all z-50 ${
-          theme === 'dark'
-            ? 'bg-blue-600 hover:bg-blue-700'
-            : 'bg-indigo-600 hover:bg-indigo-700'
-        } text-white`}
-      >
-        <FaQuestionCircle className="w-6 h-6" />
-      </button>
+      {/* Edit KYC Modal */}
+      {kycResponse?.kycData && (
+        <EditKYCModal
+          open={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          kycData={kycResponse.kycData}
+          onSave={(updatedData) => {
+            setKYCResponse(prev => prev ? { 
+              ...prev, 
+              kycData: {
+                ...updatedData,
+                personalDetails: {
+                  ...updatedData.personalDetails,
+                  monthlySalary: prev.kycData.personalDetails.monthlySalary
+                },
+                createdAt: prev.kycData.createdAt,
+                updatedAt: prev.kycData.updatedAt,
+                status: prev.kycData.status,
+                _id: prev.kycData._id
+              }
+            } : null);
+            setShowEditModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

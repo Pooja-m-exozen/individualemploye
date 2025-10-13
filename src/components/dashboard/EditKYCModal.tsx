@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaUser, FaMapMarkerAlt, FaIdCard, FaSpinner, FaSave, FaExclamationCircle, FaCheckCircle, FaMoneyCheckAlt, FaPhoneVolume, FaInfoCircle, FaTimes, FaUpload } from "react-icons/fa";
+import { FaUser, FaMapMarkerAlt, FaIdCard, FaSpinner, FaSave, FaExclamationCircle, FaCheckCircle, FaMoneyCheckAlt, FaPhoneVolume, FaTimes, FaUpload } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
@@ -275,29 +275,29 @@ const EditKYCModal: React.FC<EditKYCModalProps> = ({ open, onClose, kycData, onS
   const themeStyles = theme === 'dark'
     ? {
         modalOverlay: 'bg-black bg-opacity-80',
-        modalBg: 'bg-gray-900',
-        headerBg: 'bg-gradient-to-r from-gray-800 to-gray-700',
-        iconBg: 'bg-gray-700 bg-opacity-30',
-        headerText: 'text-xl font-bold text-white',
-        panelBg: 'px-6 py-4 bg-gray-800 border-b border-gray-700',
-        sideNavBg: 'w-64 bg-gray-800 border-r border-gray-700 p-4',
-        sectionTitle: 'text-lg font-semibold text-white',
-        sectionDesc: 'text-sm text-gray-300',
-        label: 'block text-sm font-medium text-gray-200 mb-2',
-        inputBg: 'bg-gray-800 text-white',
+        modalBg: 'bg-white',
+        headerBg: 'bg-white',
+        iconBg: 'bg-gray-100',
+        headerText: 'text-xl font-bold text-gray-900',
+        panelBg: 'px-6 py-4 bg-white border-b border-gray-200',
+        sideNavBg: 'w-40 bg-white border-r border-gray-200 p-4',
+        sectionTitle: 'text-lg font-semibold text-gray-900',
+        sectionDesc: 'text-sm text-gray-600',
+        label: 'block text-sm font-medium text-gray-700 mb-2',
+        inputBg: 'bg-white text-gray-900',
       }
     : {
         modalOverlay: 'bg-black bg-opacity-40',
         modalBg: 'bg-white',
-        headerBg: 'bg-gradient-to-r from-blue-600 to-blue-500',
-        iconBg: 'bg-blue-500 bg-opacity-30',
-        headerText: 'text-xl font-bold text-black',
-        panelBg: 'px-6 py-4 bg-blue-50 border-b border-blue-100',
-        sideNavBg: 'w-64 bg-gray-50 border-r border-gray-200 p-4',
-        sectionTitle: 'text-lg font-semibold text-black',
-        sectionDesc: 'text-sm text-black',
-        label: 'block text-sm font-medium text-black mb-2',
-        inputBg: 'bg-gray-50',
+        headerBg: 'bg-white',
+        iconBg: 'bg-gray-100',
+        headerText: 'text-xl font-bold text-gray-900',
+        panelBg: 'px-6 py-4 bg-white border-b border-gray-200',
+        sideNavBg: 'w-40 bg-white border-r border-gray-200 p-4',
+        sectionTitle: 'text-lg font-semibold text-gray-900',
+        sectionDesc: 'text-sm text-gray-600',
+        label: 'block text-sm font-medium text-gray-700 mb-2',
+        inputBg: 'bg-white',
       };
 
   return (
@@ -305,54 +305,29 @@ const EditKYCModal: React.FC<EditKYCModalProps> = ({ open, onClose, kycData, onS
       className={`fixed inset-0 z-50 flex items-center justify-center ${themeStyles.modalOverlay}`}
     >
       <div
-        className={`${themeStyles.modalBg} rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden`}
+        className={`${themeStyles.modalBg} rounded-2xl shadow-2xl max-w-3xl w-full max-h-[80vh] overflow-hidden`}
       >
         {/* Header */}
         <div className={`${themeStyles.headerBg} px-6 py-4 rounded-t-2xl`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className={`${themeStyles.iconBg} rounded-xl p-3`}>
-                <FaIdCard className="w-6 h-6 text-white" />
+                <FaIdCard className="w-6 h-6 text-gray-600" />
               </div>
               <div>
                 <h2 className={`${themeStyles.headerText}`}>Edit KYC</h2>
-                <p className="text-blue-100 text-sm">Update employee information</p>
+                <p className="text-gray-500 text-sm">Update employee information</p>
               </div>
             </div>
-            <button onClick={onClose} className="text-white hover:text-gray-200 text-xl font-bold focus:outline-none">
+            <button onClick={onClose} className="text-gray-600 hover:text-gray-800 text-xl font-bold focus:outline-none">
               <FaTimes />
             </button>
           </div>
         </div>
 
-        {/* Instructions Panel */}
-        <div className={`${themeStyles.panelBg}`}>
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-blue-100">
-              <FaInfoCircle className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-blue-800">KYC Information Guidelines</h3>
-              <ul className="mt-1 space-y-1 text-xs text-blue-700">
-                <li className="flex items-center gap-2">
-                  <span className="w-1 h-1 rounded-full bg-blue-600"></span>
-                  <span>Fill in all required fields marked with an asterisk (*).</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1 h-1 rounded-full bg-blue-600"></span>
-                  <span>Ensure all documents are clear and legible before uploading.</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1 h-1 rounded-full bg-blue-600"></span>
-                  <span>Double-check your bank details to avoid payment issues.</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
 
         {/* Content */}
-        <div className="flex h-[calc(90vh-200px)]">
+        <div className="flex h-[calc(80vh-160px)]">
           {/* Side Navigation */}
           <div className={`${themeStyles.sideNavBg}`}> 
             <nav className="space-y-1">

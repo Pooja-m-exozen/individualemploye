@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { FaCamera, FaSpinner, FaCheckCircle, FaExclamationCircle, FaMapMarkerAlt, FaUserCheck, FaClock, FaCalendarAlt, FaInfoCircle, FaStopCircle, FaTimes } from 'react-icons/fa';
+import { FaCamera, FaSpinner, FaCheckCircle, FaExclamationCircle, FaMapMarkerAlt, FaUserCheck, FaInfoCircle, FaStopCircle, FaTimes, FaArrowLeft } from 'react-icons/fa';
 import { isAuthenticated, getEmployeeId } from '@/services/auth';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -197,26 +197,22 @@ const CameraModal = ({ isOpen, onClose, onCapture }: { isOpen: boolean; onClose:
   );
 };
 
-// Enhanced feedback messages with animation
+// Simplified feedback messages
 const FeedbackMessage = ({ message, type }: { message: string; type: 'success' | 'error' }) => (
   <div 
-    className={`flex items-center gap-3 p-4 rounded-xl animate-slideIn ${
+    className={`flex items-center gap-2 p-3 rounded-lg border ${
       type === 'success' 
-        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100' 
-        : 'bg-gradient-to-r from-red-50 to-rose-50 border border-red-100'
+        ? 'bg-green-50 border-green-200 dark:bg-green-900 dark:border-green-700' 
+        : 'bg-red-50 border-red-200 dark:bg-red-900 dark:border-red-700'
     }`}
   >
-    <div className={`p-2 rounded-full ${
-      type === 'success' ? 'bg-green-100' : 'bg-red-100'
-    }`}>
-      {type === 'success' ? (
-        <FaCheckCircle className="w-5 h-5 text-green-600" />
-      ) : (
-        <FaExclamationCircle className="w-5 h-5 text-red-600" />
-      )}
-    </div>
-    <p className={`text-sm font-medium ${
-      type === 'success' ? 'text-green-800' : 'text-red-800'
+    {type === 'success' ? (
+      <FaCheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+    ) : (
+      <FaExclamationCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+    )}
+    <p className={`text-sm ${
+      type === 'success' ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'
     }`}>
       {message}
     </p>
@@ -230,8 +226,6 @@ function MarkAttendanceContent() {
   const [markAttendanceError, setMarkAttendanceError] = useState<string | null>(null);
   const [markAttendanceSuccess, setMarkAttendanceSuccess] = useState<string | null>(null);
   const [showCameraModal, setShowCameraModal] = useState(false);
-  const [currentTime, setCurrentTime] = useState<string>('');
-  const [currentDate, setCurrentDate] = useState<string>('');
   const { theme } = useTheme();
   const [locationError, setLocationError] = useState<string | null>(null);
 
@@ -240,25 +234,8 @@ function MarkAttendanceContent() {
       router.push('/login');
       return;
     }
-    updateDateTime();
-    const timer = setInterval(updateDateTime, 1000);
-    return () => clearInterval(timer);
   }, [router]);
 
-  const updateDateTime = () => {
-    const now = new Date();
-    setCurrentTime(now.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    }));
-    setCurrentDate(now.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    }));
-  };
 
   const handlePhotoCapture = (photoData: string) => {
     // Validate that the photo is in correct format
@@ -382,60 +359,64 @@ function MarkAttendanceContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header Section */}
-      <div className={`rounded-2xl shadow-xl p-8 mb-8 ${
+      <div className={`p-6 mb-6 border rounded-lg ${
         theme === 'dark'
-          ? 'bg-gradient-to-r from-gray-800 to-gray-700'
-          : 'bg-gradient-to-r from-blue-600 to-blue-800'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-white border-gray-200'
       }`}>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl">
-              <FaUserCheck className="text-3xl text-white" />
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/attendance/view')}
+              className={`p-2 rounded-lg transition-colors ${
+                theme === 'dark' 
+                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+              }`}
+              title="Back to View Attendance"
+            >
+              <FaArrowLeft className="text-lg" />
+            </button>
+            <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900">
+              <FaUserCheck className="text-xl text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-white">Mark Attendance</h2>
-              <p className="text-white mt-1">Welcome to the official attendance management system</p>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Mark Attendance</h2>
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Mark your daily attendance</p>
             </div>
           </div>
-          <div className="flex items-center gap-6 bg-white/10 backdrop-blur-md px-6 py-4 rounded-xl">
-            <div className="flex items-center gap-3">
-              <FaClock className="text-2xl text-white" />
-              <div>
-                <p className="text-2xl font-bold text-white">{currentTime}</p>
-                <p className="text-sm text-white">Current Time</p>
-              </div>
-            </div>
-            <div className="w-px h-12 bg-white/20"></div>
-            <div className="flex items-center gap-3">
-              <FaCalendarAlt className="text-2xl text-white" />
-              <div>
-                <p className="font-medium text-white">{currentDate}</p>
-                <p className="text-sm text-white">Today&apos;s Date</p>
-              </div>
-            </div>
-          </div>
+          <button
+            onClick={() => router.push('/attendance/view')}
+            className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+              theme === 'dark' 
+                ? 'bg-blue-700 hover:bg-blue-600 text-blue-200' 
+                : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
+            }`}
+          >
+            Close Mark Attendance
+          </button>
         </div>
       </div>
 
       {/* Main Content Grid */}
       <div className="grid md:grid-cols-2 gap-8">
         {/* Photo Section */}
-        <div className={`rounded-xl shadow-lg p-8 ${
+        <div className={`p-6 border rounded-lg ${
           theme === 'dark'
             ? 'bg-gray-800 border-gray-700'
             : 'bg-white border-gray-200'
-        } border`}>
-          <h3 className={`text-xl font-bold mb-6 flex items-center gap-2 ${
-            theme === 'dark' ? 'text-white' : 'text-gray-800'
+        }`}>
+          <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
-            <FaCamera className="text-blue-500" />
+            <FaCamera className="text-blue-600 dark:text-blue-400" />
             Photo Verification
           </h3>
-          <div className={`rounded-xl p-8 border-2 border-dashed ${
+          <div className={`p-6 border-2 border-dashed rounded-lg ${
             theme === 'dark'
-              ? 'bg-gray-800 border-gray-600'
-              : 'bg-white border-blue-200'
-          } shadow-md`}>
+              ? 'bg-gray-700 border-gray-600'
+              : 'bg-gray-50 border-gray-300'
+          }`}>
             <div className="flex flex-col items-center justify-center">
               {photoPreview ? (
                 <div className="relative group">
@@ -458,33 +439,32 @@ function MarkAttendanceContent() {
                 </div>
               ) : (
                 <div className="text-center">
-                  <div className="relative mb-6">
-                    <div className="absolute inset-0 bg-blue-200 rounded-full blur-xl opacity-20"></div>
-                    <div className={`relative rounded-full p-8 inline-block shadow-xl ${
+                  <div className="mb-4">
+                    <div className={`rounded-full p-6 inline-block ${
                       theme === 'dark'
-                        ? 'bg-gradient-to-br from-blue-600 to-blue-700'
-                        : 'bg-gradient-to-br from-blue-500 to-blue-600'
+                        ? 'bg-blue-900'
+                        : 'bg-blue-100'
                     }`}>
-                      <FaCamera className="h-16 w-16 text-white" />
+                      <FaCamera className="h-12 w-12 text-blue-600 dark:text-blue-400" />
                     </div>
                   </div>
-                  <h3 className={`text-xl font-bold mb-3 ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-800'
+                  <h3 className={`text-lg font-semibold mb-2 ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
                   }`}>Ready to Capture</h3>
-                  <p className={`mb-8 ${
+                  <p className={`mb-6 text-sm ${
                     theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                   }`}>
                     Please ensure you&apos;re in a well-lit area and facing the camera directly
                   </p>
                   <button
                     onClick={() => setShowCameraModal(true)}
-                    className={`inline-flex items-center gap-2 px-8 py-4 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 ${
+                    className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
                       theme === 'dark'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700'
-                        : 'bg-gradient-to-r from-blue-600 to-blue-700'
-                    } text-white`}
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
                   >
-                    <FaCamera className="w-5 h-5" />
+                    <FaCamera className="w-4 h-4" />
                     <span>Start Camera</span>
                   </button>
                 </div>
@@ -494,29 +474,29 @@ function MarkAttendanceContent() {
         </div>
 
         {/* Status and Action Section */}
-        <div className={`rounded-xl shadow-lg p-8 ${
+        <div className={`p-6 border rounded-lg ${
           theme === 'dark'
             ? 'bg-gray-800 border-gray-700'
             : 'bg-white border-gray-200'
-        } border`}>
-          <h3 className={`text-xl font-bold mb-6 flex items-center gap-2 ${
-            theme === 'dark' ? 'text-white' : 'text-gray-800'
+        }`}>
+          <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
-            <FaMapMarkerAlt className="text-blue-500" />
+            <FaMapMarkerAlt className="text-blue-600 dark:text-blue-400" />
             Location Verification
           </h3>
           
           <div className="space-y-6">
-            <div className={`p-4 rounded-xl border ${
+            <div className={`p-3 rounded-lg border ${
               theme === 'dark'
                 ? 'bg-gray-700 border-gray-600'
-                : 'bg-gray-50 border-gray-100'
+                : 'bg-gray-50 border-gray-200'
             }`}>
-              <p className={`mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
-                <FaInfoCircle className="inline mr-2 text-blue-500" />
+              <p className={`text-sm mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                <FaInfoCircle className="inline mr-2 text-blue-600 dark:text-blue-400" />
                 Your device&apos;s location will be verified against your registered office location
               </p>
-              <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+              <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                 Please ensure your device&apos;s location services are enabled
               </p>
             </div>
@@ -526,7 +506,20 @@ function MarkAttendanceContent() {
                 <FeedbackMessage message={markAttendanceError} type="error" />
               )}
               {markAttendanceSuccess && (
-                <FeedbackMessage message={markAttendanceSuccess} type="success" />
+                <div className="space-y-3">
+                  <FeedbackMessage message={markAttendanceSuccess} type="success" />
+                  <button
+                    onClick={() => router.push('/attendance/view')}
+                    className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      theme === 'dark'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                  >
+                    <FaArrowLeft className="w-4 h-4" />
+                    <span>Back to View Attendance</span>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -538,14 +531,14 @@ function MarkAttendanceContent() {
             <button
               onClick={handleMarkAttendance}
               disabled={markingAttendance || !photoPreview}
-              className={`w-full flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-medium transition-all duration-200 shadow-lg ${
+              className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 markingAttendance || !photoPreview
                   ? theme === 'dark'
                     ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : theme === 'dark'
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-xl transform hover:scale-105'
-                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-xl transform hover:scale-105'
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
             >
               {markingAttendance ? (
