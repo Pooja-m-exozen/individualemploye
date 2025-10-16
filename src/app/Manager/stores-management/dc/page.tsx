@@ -43,6 +43,9 @@ interface DCItemAPI {
   isRetrievable?: boolean;
   retrievalStatus?: string;
   retrievalDeadline?: string;
+  // Bulk issue properties
+  isBulkIssue?: boolean;
+  sourceType?: string;
 }
 
 interface InventoryItem {
@@ -182,6 +185,8 @@ interface DC {
   retrievalStatus?: string; // Add retrieval status for RDC
   isRetrievable?: boolean; // Add retrievable flag for RDC
   retrievalDeadline?: string; // Add retrieval deadline for RDC - Updated
+  isBulkIssue?: boolean; // Add bulk issue flag
+  sourceType?: string; // Add source type for bulk issues
 }
 
 interface ApiResponse {
@@ -1731,11 +1736,30 @@ export default function StoreDCPage() {
 
   const filteredDC = mappedDC.filter(dc => {
     // Filter out bulk DCs - exclude DCs that were created from bulk issues
-    // Bulk DCs have remarks containing "Generated from Issue"
-    const isBulkDC = dc.remarks && dc.remarks.includes('Generated from Issue');
+    // Check multiple criteria to identify bulk issue DCs
+    const isBulkDC = dc.remarks && (
+      dc.remarks.includes('Generated from Issue') ||
+      dc.remarks.includes('Generated from Bulk Issue') ||
+      dc.remarks.includes('Bulk Issue')
+    );
     
-    // Only show individual DCs (exclude bulk DCs)
-    if (isBulkDC) {
+    // Also check if DC has bulk issue properties
+    const hasBulkIssueFlag = dc.isBulkIssue === true;
+    const hasBulkIssueSourceType = dc.sourceType && (
+      dc.sourceType.toLowerCase().includes('bulk') ||
+      dc.sourceType.toLowerCase().includes('issue')
+    );
+    
+    // Exclude if any of these conditions are true
+    if (isBulkDC || hasBulkIssueFlag || hasBulkIssueSourceType) {
+      console.log('Excluding bulk issue DC:', dc.dcNumber, {
+        isBulkDC,
+        hasBulkIssueFlag,
+        hasBulkIssueSourceType,
+        remarks: dc.remarks,
+        isBulkIssue: dc.isBulkIssue,
+        sourceType: dc.sourceType
+      });
       return false;
     }
     
