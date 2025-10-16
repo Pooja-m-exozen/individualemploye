@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import CoordinatorDashboardLayout  from "@/components/dashboard/CoordinatorDashboardLayout";
+import ManagerDashboardLayout  from "@/components/dashboard/ManagerDashboardLayout";
 import CreateDCModal from "@/components/dashboard/CreateDCmodal";
 import { FaSearch, FaUpload, FaFileImage, FaFilePdf, FaFileWord, FaFileExcel, FaTimes, FaDownload, FaEye, FaBoxOpen, FaUsers, FaTshirt, FaFileAlt, FaUserPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -43,6 +43,9 @@ interface DCItemAPI {
   isRetrievable?: boolean;
   retrievalStatus?: string;
   retrievalDeadline?: string;
+  // Bulk issue properties
+  isBulkIssue?: boolean;
+  sourceType?: string;
 }
 
 interface InventoryItem {
@@ -182,6 +185,8 @@ interface DC {
   retrievalStatus?: string; // Add retrieval status for RDC
   isRetrievable?: boolean; // Add retrievable flag for RDC
   retrievalDeadline?: string; // Add retrieval deadline for RDC - Updated
+  isBulkIssue?: boolean; // Add bulk issue flag
+  sourceType?: string; // Add source type for bulk issues
 }
 
 interface ApiResponse {
@@ -497,13 +502,13 @@ export default function StoreDCPage() {
   });
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedIssueForView, setSelectedIssueForView] = useState<Issue | null>(null);
-  const [selectedIssueForDC, setSelectedIssueForDC] = useState<Issue | null>(null);
   const [dcCreationData, setDcCreationData] = useState({
     dcNumber: "",
     dcDate: new Date().toISOString().split('T')[0],
     address: "",
     remarks: ""
   });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isCreatingDC, setIsCreatingDC] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDC, setSelectedDC] = useState<DC | null>(null);
@@ -1212,43 +1217,6 @@ export default function StoreDCPage() {
 
 
 
-  // Function to fetch DC details
-  const fetchDCDetails = async (dcId: string): Promise<OutwardDC | null> => {
-    try {
-      console.log('Fetching DC details for ID:', dcId);
-      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/${dcId}`);
-      
-      if (!response.ok) {
-        console.error('DC API response not ok:', response.status, response.statusText);
-        throw new Error(`API request failed with status ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('DC API response:', result);
-      
-      if (result.success && result.dc) {
-        const dcData = result.dc;
-        return {
-          _id: dcData._id,
-          customer: dcData.customer || '',
-          dcNumber: dcData.dcNumber,
-          dcDate: dcData.dcDate,
-          address: dcData.address,
-          remarks: dcData.remarks,
-          items: dcData.items || [],
-          createdAt: dcData.createdAt,
-          updatedAt: dcData.updatedAt
-        };
-      } else {
-        console.error('DC API returned unsuccessful response:', result);
-        throw new Error(result.message || "Failed to fetch DC details");
-      }
-    } catch (error) {
-      console.error("Error fetching DC details:", error);
-      setToast(`Error fetching DC details: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      return null;
-    }
-  };
 
   // Function to fetch employees for specific project and designation
   const fetchEmployeesForMapping = async (projectName: string, designation?: string) => {
@@ -1768,11 +1736,30 @@ export default function StoreDCPage() {
 
   const filteredDC = mappedDC.filter(dc => {
     // Filter out bulk DCs - exclude DCs that were created from bulk issues
-    // Bulk DCs have remarks containing "Generated from Issue"
-    const isBulkDC = dc.remarks && dc.remarks.includes('Generated from Issue');
+    // Check multiple criteria to identify bulk issue DCs
+    const isBulkDC = dc.remarks && (
+      dc.remarks.includes('Generated from Issue') ||
+      dc.remarks.includes('Generated from Bulk Issue') ||
+      dc.remarks.includes('Bulk Issue')
+    );
     
-    // Only show individual DCs (exclude bulk DCs)
-    if (isBulkDC) {
+    // Also check if DC has bulk issue properties
+    const hasBulkIssueFlag = dc.isBulkIssue === true;
+    const hasBulkIssueSourceType = dc.sourceType && (
+      dc.sourceType.toLowerCase().includes('bulk') ||
+      dc.sourceType.toLowerCase().includes('issue')
+    );
+    
+    // Exclude if any of these conditions are true
+    if (isBulkDC || hasBulkIssueFlag || hasBulkIssueSourceType) {
+      console.log('Excluding bulk issue DC:', dc.dcNumber, {
+        isBulkDC,
+        hasBulkIssueFlag,
+        hasBulkIssueSourceType,
+        remarks: dc.remarks,
+        isBulkIssue: dc.isBulkIssue,
+        sourceType: dc.sourceType
+      });
       return false;
     }
     
@@ -3328,158 +3315,8 @@ export default function StoreDCPage() {
     }
   };
 
-  // Function to handle DC creation/mapping button click
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleCreateDC = async (issue: Issue) => {
-    setSelectedIssueForDC(issue);
-    
-    // Check if DC already exists for this issue (either outwardDC object or dcNumber)
-    if (issue.outwardDC || issue.dcNumber) {
-      // DC already exists, try to fetch latest DC details
-      console.log('DC exists for issue, fetching details...');
-      const dcId = issue.outwardDC?._id;
-      if (dcId) {
-        const dcDetails = await fetchDCDetails(dcId);
-      
-        if (dcDetails) {
-          // Successfully fetched latest DC details
-          // setCreatedDC(dcDetails);
-          // Fetch employees for this project/designation
-          await fetchEmployeesForMapping(issue.department);
-          setShowEmployeeMappingModal(true);
-        } else {
-          // Fallback: use existing DC data from issue
-          console.log('Using fallback DC data from issue');
-          if (issue.outwardDC) {
-            // setCreatedDC(issue.outwardDC!);
-          } else {
-            setToast("DC exists but details are not available. Please contact support.");
-            return;
-          }
-          // Fetch employees for this project/designation
-          await fetchEmployeesForMapping(issue.department);
-          setShowEmployeeMappingModal(true);
-          setToast("Using cached DC data. Some details might not be up-to-date.");
-        }
-      } else if (issue.dcNumber) {
-        // DC exists but we don't have the full DC object, fetch it by DC number
-        console.log('DC number exists, fetching DC details by DC number:', issue.dcNumber);
-        try {
-          // Fetch all DCs and find the one with matching DC number
-          const response = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc');
-          if (response.ok) {
-            const result = await response.json();
-            let allDCs = [];
-            if (result.success && Array.isArray(result.data)) {
-              allDCs = result.data;
-            } else if (Array.isArray(result)) {
-              allDCs = result;
-            } else if (result.dcs && Array.isArray(result.dcs)) {
-              allDCs = result.dcs;
-            }
-            
-            // Find DC with matching DC number
-            const matchingDC = allDCs.find((dc: DCItemAPI) => dc.dcNumber === issue.dcNumber);
-            
-            if (matchingDC) {
-              console.log('Found DC by number:', matchingDC);
-              // setCreatedDC(matchingDC);
-              await fetchEmployeesForMapping(issue.department);
-              setShowEmployeeMappingModal(true);
-            } else {
-              setToast(`DC ${issue.dcNumber} exists but could not find details in system. Please contact support.`);
-            }
-          } else {
-            setToast(`Failed to fetch DC details. Please try again.`);
-          }
-        } catch (error) {
-          console.error('Error fetching DC by number:', error);
-          setToast(`Error fetching DC details. Please try again.`);
-        }
-      }
-    } else {
-      // No DC exists, show DC creation modal
-      setDcCreationData({
-        dcNumber: `DC${Date.now()}`,
-        dcDate: new Date().toISOString().split('T')[0],
-        address: issue.department,
-        remarks: `Generated from Issue ${issue._id}`
-      });
-      setShowDCCreationModal(true);
-    }
-  };
 
-  const createDCFromIssue = async () => {
-    if (!selectedIssueForDC) {
-      setToast("No issue selected for DC creation");
-      return;
-    }
 
-    if (!dcCreationData.dcNumber || !dcCreationData.address) {
-      setToast("Please fill in NRDC Number and Address");
-      return;
-    }
-
-    setIsCreatingDC(true);
-    try {
-      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/from-issue/${selectedIssueForDC._id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dcCreationData),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('DC Creation Response:', result);
-        console.log('DC Items count:', result.dc?.items?.length || 'No items array');
-        console.log('DC Total quantity:', result.dc?.items?.reduce((sum: number, item: { quantity?: number }) => sum + (item.quantity || 0), 0) || 'No quantity calculation');
-        
-        if (result.success) {
-          // setCreatedDC(result.dc);
-          
-          // Issues updated successfully
-          
-          setToast(`NRDC created successfully! NRDC Number: ${result.dc.dcNumber}`);
-          
-          // Close DC creation modal and refresh DC data
-          setShowDCCreationModal(false);
-          await refreshDCData();
-          
-        } else {
-          setToast(result.message || "Failed to create DC");
-        }
-      } else {
-        const errorData = await response.json();
-        console.error('DC Creation Error:', errorData);
-        setToast(errorData.message || "Failed to create DC");
-      }
-    } catch (error) {
-      console.error("Error creating DC:", error);
-      setToast("Error creating DC. Please try again.");
-    } finally {
-      setIsCreatingDC(false);
-    }
-  };
-
-  // Helper function to check if all items in a DC are fully mapped
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const isDCFullyMapped = (issue: Issue): boolean => {
-    if (!issue.outwardDC) return false;
-    
-    return issue.outwardDC.items.every(item => {
-      // Check if remainingQuantity is 0 (most reliable indicator)
-      if (item.remainingQuantity !== undefined) {
-        return item.remainingQuantity === 0;
-      }
-      
-      // Fallback: Check if item has employeeMappings and all quantity is mapped
-      if ('employeeMappings' in item && item.employeeMappings && item.employeeMappings.length > 0) {
-        const totalMappedQuantity = item.employeeMappings.reduce((sum: number, mapping: { quantity: number }) => sum + mapping.quantity, 0);
-        return totalMappedQuantity >= (item.totalQuantity || item.quantity || 1);
-      }
-      return false;
-    });
-  };
 
   const refreshIssues = async () => {
     try {
@@ -3778,7 +3615,7 @@ export default function StoreDCPage() {
           <button onClick={() => setToast(null)} className="ml-2 text-lg font-bold">&times;</button>
         </div>
       )}
-      <CoordinatorDashboardLayout>
+      <ManagerDashboardLayout>
         <div className={`min-h-screen font-sans transition-colors duration-300 flex flex-col ${
           theme === "dark"
             ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
@@ -4680,7 +4517,7 @@ export default function StoreDCPage() {
             </div>
           </div>
           )}
-      </CoordinatorDashboardLayout>
+      </ManagerDashboardLayout>
       
       {/* Create DC Modal */}
       {showCreate && (
@@ -5331,7 +5168,7 @@ export default function StoreDCPage() {
       )}
 
       {/* DC Creation Modal */}
-      {showDCCreationModal && selectedIssueForDC && (
+      {false && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
           <div className={`rounded-2xl shadow-2xl max-w-2xl w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
             <button
@@ -5353,10 +5190,10 @@ export default function StoreDCPage() {
                   Issue Details
                 </h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>Issue To:</strong> {selectedIssueForDC.issueTo}</div>
-                  <div><strong>Project:</strong> {selectedIssueForDC.department}</div>
-                  <div><strong>Purpose:</strong> {selectedIssueForDC.purpose}</div>
-                  <div><strong>Items:</strong> {selectedIssueForDC.items.length}</div>
+                  <div><strong>Issue To:</strong> </div>
+                  <div><strong>Project:</strong> </div>
+                  <div><strong>Purpose:</strong> </div>
+                  <div><strong>Items:</strong> </div>
                 </div>
               </div>
 
@@ -5441,7 +5278,7 @@ export default function StoreDCPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={createDCFromIssue}
+                  onClick={() => {}}
                   disabled={isCreatingDC || !dcCreationData.dcNumber || !dcCreationData.address}
                   className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
                     theme === "dark"
