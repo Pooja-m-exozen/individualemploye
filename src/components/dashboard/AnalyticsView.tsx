@@ -359,66 +359,110 @@ export default function AnalyticsView() {
     <div className="space-y-6 h-full">
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border`}>
+        <div className={"rounded-lg border p-4 " + (theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200")}>
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Total Projects</p>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{totalProjects}</p>
-              <div className="flex items-center gap-1 mt-2">
-                <FaArrowUp className="w-3 h-3 text-green-500" />
-                <span className="text-xs text-green-500">+12%</span>
-                <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>from last month</span>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === "dark" ? "bg-blue-900" : "bg-blue-100"
+              }`}>
+                <FaProjectDiagram className="w-5 h-5" color={theme === "dark" ? "#fff" : "#2563eb"} />
+              </div>
+              <div>
+                <div className={`text-xl font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
+                  {totalProjects}
+                </div>
+                <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>Total Projects</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <FaArrowUp className="w-3 h-3 text-green-500" />
+                  <span className="text-xs text-green-500">+12%</span>
+                  <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>from last month</span>
+                </div>
               </div>
             </div>
-            <FaProjectDiagram className="w-8 h-8 text-blue-500" />
           </div>
         </div>
 
-        <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border`}>
+        <div className={`rounded-lg border p-4 ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        }`}>
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Total Manpower</p>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{manpowerLoading ? <span className="animate-pulse">...</span> : totalManpower ?? '--'}</p>
-              <div className="flex items-center gap-1 mt-2">
-                <FaArrowUp className="w-3 h-3 text-green-500" />
-                <span className="text-xs text-green-500">+8%</span>
-                <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>from last month</span>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === "dark" ? "bg-green-900" : "bg-green-100"
+              }`}>
+                <FaUserCheck className="w-5 h-5" color={theme === "dark" ? "#fff" : "#16a34a"} />
+              </div>
+              <div>
+                <div className={`text-xl font-bold ${theme === "dark" ? "text-green-300" : "text-green-700"}`}>
+                  {manpowerLoading ? <span className="animate-pulse">...</span> : totalManpower ?? '--'}
+                </div>
+                <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>Total Manpower</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <FaArrowUp className="w-3 h-3 text-green-500" />
+                  <span className="text-xs text-green-500">+8%</span>
+                  <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>from last month</span>
+                </div>
               </div>
             </div>
-            <FaUserCheck className="w-8 h-8 text-green-500" />
           </div>
         </div>
 
-        <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border`}>
+        <div className={`rounded-lg border p-4 ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        }`}>
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>On Leave</p>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{onLeaveLoading ? <span className="animate-pulse">...</span> : onLeaveCount ?? '--'}</p>
-              <div className="flex items-center gap-1 mt-2">
-                <FaArrowDown className="w-3 h-3 text-red-500" />
-                <span className="text-xs text-red-500">-5%</span>
-                <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>from last month</span>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === "dark" ? "bg-orange-900" : "bg-orange-100"
+              }`}>
+                <FaCalendarAlt className="w-5 h-5" color={theme === "dark" ? "#fff" : "#ea580c"} />
+              </div>
+              <div>
+                <div className={`text-xl font-bold ${theme === "dark" ? "text-orange-300" : "text-orange-700"}`}>
+                  {onLeaveLoading ? <span className="animate-pulse">...</span> : onLeaveCount ?? '--'}
+                </div>
+                <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>On Leave</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <FaArrowDown className="w-3 h-3 text-red-500" />
+                  <span className="text-xs text-red-500">-5%</span>
+                  <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>from last month</span>
+                </div>
               </div>
             </div>
-            <FaCalendarAlt className="w-8 h-8 text-orange-500" />
           </div>
         </div>
 
-        <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border`}>
+        <div className={`rounded-lg border p-4 ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        }`}>
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Present(Yesterday)</p>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{presentLoading ? <span className="animate-pulse">...</span> : presentCount ?? '--'}</p>
-              {presentDate && (
-                <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Date: {presentDate}</p>
-              )}
-              <div className="flex items-center gap-1 mt-2">
-                <FaArrowUp className="w-3 h-3 text-green-500" />
-                <span className="text-xs text-green-500">+15%</span>
-                <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>from last month</span>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === "dark" ? "bg-purple-900" : "bg-purple-100"
+              }`}>
+                <FaUsers className="w-5 h-5" color={theme === "dark" ? "#fff" : "#7c3aed"} />
+              </div>
+              <div>
+                <div className={`text-xl font-bold ${theme === "dark" ? "text-purple-300" : "text-purple-700"}`}>
+                  {presentLoading ? <span className="animate-pulse">...</span> : presentCount ?? '--'}
+                </div>
+                <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>Present(Yesterday)</div>
+                {presentDate && (
+                  <div className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Date: {presentDate}</div>
+                )}
+                <div className="flex items-center gap-1 mt-1">
+                  <FaArrowUp className="w-3 h-3 text-green-500" />
+                  <span className="text-xs text-green-500">+15%</span>
+                  <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>from last month</span>
+                </div>
               </div>
             </div>
-            <FaUsers className="w-8 h-8 text-purple-500" />
           </div>
         </div>
       </div>
@@ -426,19 +470,30 @@ export default function AnalyticsView() {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Project Distribution Chart */}
-        <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border`}>
-          <div className="flex items-center justify-between mb-4 w-full">
-            <div className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Project Distribution</div>
-            <button
-              className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600 transition-colors"
-              onClick={() => setShowProjectLegend((prev) => !prev)}
-            >
-              <FaEye className="w-4 h-4" />
-              View Details
-            </button>
+        <div className={`rounded-lg border ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        }`}>
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <h3 className={`text-lg font-semibold ${
+                theme === "dark" ? "text-white" : "text-gray-900"
+              }`}>
+                Project Distribution
+              </h3>
+              <button
+                className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600 transition-colors"
+                onClick={() => setShowProjectLegend((prev) => !prev)}
+              >
+                <FaEye className="w-4 h-4" />
+                View Details
+              </button>
+            </div>
           </div>
-          {typeof totalManpower === 'number' && totalManpower > 0 ? (
-            <div className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-white'} rounded-lg p-4 flex items-center justify-center`}>
+          <div className="p-4">
+            {typeof totalManpower === 'number' && totalManpower > 0 ? (
+              <div className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-white'} rounded-lg p-4 flex items-center justify-center`}>
               {(() => {
                 const tm = totalManpower;
                 const r = 90;
@@ -468,33 +523,43 @@ export default function AnalyticsView() {
                 );
               })()}
             </div>
-          ) : (
-            <div className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-white'} rounded-lg p-4 flex items-center justify-center text-center text-gray-400 mb-4`}>No data</div>
-          )}
-          {showProjectLegend && (
-            <div className="flex flex-wrap gap-2 justify-center">
-              {projects.map((p, i) => (
-                <span key={p._id} className="flex items-center gap-2 text-xs font-medium">
-                  <span className="w-3 h-3 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}></span>
-                  <span className={theme === "dark" ? "text-blue-200" : "text-blue-900"} title={p.projectName} style={{maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block'}}>
-                    {p.projectName}
+            ) : (
+              <div className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-white'} rounded-lg p-4 flex items-center justify-center text-center text-gray-400 mb-4`}>No data</div>
+            )}
+            {showProjectLegend && (
+              <div className="flex flex-wrap gap-2 justify-center">
+                {projects.map((p, i) => (
+                  <span key={p._id} className="flex items-center gap-2 text-xs font-medium">
+                    <span className="w-3 h-3 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}></span>
+                    <span className={theme === "dark" ? "text-blue-200" : "text-blue-900"} title={p.projectName} style={{maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block'}}>
+                      {p.projectName}
+                    </span>
+                    <span className={theme === "dark" ? "text-blue-300 font-semibold" : "text-blue-700 font-semibold"}>{totalManpower !== null ? p.totalManpower : '--'}</span>
                   </span>
-                  <span className={theme === "dark" ? "text-blue-300 font-semibold" : "text-blue-700 font-semibold"}>{totalManpower !== null ? p.totalManpower : '--'}</span>
-                </span>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         {/* Designation Distribution Chart (moved here) */}
-        <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border`}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Designation Distribution</h3>
-            <button className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600 transition-colors" onClick={() => setShowDesignationModal(true)}>
-              <FaEye className="w-4 h-4" />
-              View Details
-            </button>
+        <div className={`rounded-lg border ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        }`}>
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <h3 className={`text-lg font-semibold ${
+                theme === "dark" ? "text-white" : "text-gray-900"
+              }`}>Designation Distribution</h3>
+              <button className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600 transition-colors" onClick={() => setShowDesignationModal(true)}>
+                <FaEye className="w-4 h-4" />
+                View Details
+              </button>
+            </div>
           </div>
-          <div className={`h-64 ${theme === 'dark' ? 'bg-gray-700' : 'bg-white'} rounded-lg p-4 overflow-y-auto`}>
+          <div className="p-4">
+            <div className={`h-64 ${theme === 'dark' ? 'bg-gray-700' : 'bg-white'} rounded-lg p-4 overflow-y-auto`}>
             {kycLoading ? (
               <div className="text-center text-gray-400">Loading...</div>
             ) : (
@@ -527,6 +592,7 @@ export default function AnalyticsView() {
                   })}
               </div>
             )}
+            </div>
           </div>
           {/* Designation Details Modal */}
           {showDesignationModal && (
@@ -573,16 +639,24 @@ export default function AnalyticsView() {
       {/* Additional Charts Section (remove Designation Distribution from here) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* KYC Status Chart */}
-        <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border`}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>KYC Daily Trends</h3>
-            <button className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600 transition-colors" onClick={() => setShowKYCDailyModal(true)}>
-              <FaEye className="w-4 h-4" />
-              View
-            </button>
+        <div className={`rounded-lg border ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        }`}>
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <h3 className={`text-lg font-semibold ${
+                theme === "dark" ? "text-white" : "text-gray-900"
+              }`}>KYC Daily Trends</h3>
+              <button className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600 transition-colors" onClick={() => setShowKYCDailyModal(true)}>
+                <FaEye className="w-4 h-4" />
+                View
+              </button>
+            </div>
           </div>
-          
-          {kycDailyLoading ? (
+          <div className="p-4">
+            {kycDailyLoading ? (
             <div className={`h-48 ${theme === 'dark' ? 'bg-gray-700' : 'bg-white'} rounded-lg flex items-center justify-center`}>
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
@@ -951,15 +1025,24 @@ export default function AnalyticsView() {
           )}
         </div>
         {/* Requests Analysis */}
-        <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border`}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Requests Analysis</h3>
-            <button className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600 transition-colors" onClick={() => setShowRequestsModal(true)}>
-              <FaEye className="w-4 h-4" />
-              View
-            </button>
+        <div className={`rounded-lg border ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        }`}>
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <h3 className={`text-lg font-semibold ${
+                theme === "dark" ? "text-white" : "text-gray-900"
+              }`}>Requests Analysis</h3>
+              <button className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600 transition-colors" onClick={() => setShowRequestsModal(true)}>
+                <FaEye className="w-4 h-4" />
+                View
+              </button>
+            </div>
           </div>
-          <div className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-white'} rounded-lg p-4 w-full`}>
+          <div className="p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-white'} rounded-lg p-4 w-full`}>
             <div className={`h-64 flex flex-col items-center justify-center relative`}>
               {requestsLoading ? (
                 <div className="text-center">
@@ -1171,6 +1254,8 @@ export default function AnalyticsView() {
             </div>
           )}
         </div>
+      </div>
+      </div>
       </div>
     </div>
   );

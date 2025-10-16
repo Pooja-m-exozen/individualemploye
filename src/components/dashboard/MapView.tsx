@@ -158,6 +158,101 @@ function formatTimeUTC(dateString: string | null) {
   });
 }
 
+// Hook to get Leaflet library
+function useLeafletLib(): typeof import('leaflet') | null {
+  const leafletRef = useRef<typeof import('leaflet') | null>(null);
+  useEffect(() => {
+    if (!leafletRef.current && typeof window !== 'undefined') {
+      import('leaflet').then(mod => {
+        leafletRef.current = mod;
+      });
+    }
+  }, []);
+  return leafletRef.current;
+}
+
+// Helper component for employee photo in modal
+function EmployeePhotoCell({ employeeId, punchInPhoto }: { employeeId: string, punchInPhoto?: string }) {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(punchInPhoto || null);
+  React.useEffect(() => {
+    if (photoUrl || !employeeId) return;
+    async function fetchKycPhoto() {
+      try {
+        const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${employeeId}`);
+        const data = await res.json();
+        if (data.kycData && data.kycData.personalDetails && data.kycData.personalDetails.employeeImage) {
+          setPhotoUrl(data.kycData.personalDetails.employeeImage);
+        }
+      } catch {
+        setPhotoUrl(null);
+      }
+    }
+    fetchKycPhoto();
+  }, [employeeId, photoUrl]);
+  return photoUrl ? (
+    <Image src={photoUrl} alt="Employee" width={32} height={32} className="w-8 h-8 rounded-full object-cover border" />
+  ) : (
+    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-500">N/A</div>
+  );
+}
+
+// Employee Image Marker Component
+interface EmployeeImageMarkerProps {
+  position: [number, number];
+  imageUrl: string;
+  children: React.ReactNode;
+  leafletLib: typeof import('leaflet') | null;
+}
+function EmployeeImageMarker({ position, imageUrl, children, leafletLib }: EmployeeImageMarkerProps) {
+  const [icon, setIcon] = useState<L.DivIcon | null>(null);
+  useEffect(() => {
+    if (!leafletLib) return;
+    const divIcon = leafletLib.divIcon({
+      html: `<div style='position: relative; text-align: center;'>
+                <img src="${imageUrl}" alt='Employee' style='width: 36px; height: 36px; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); border: 2px solid #3b82f6;' />
+              </div>`,
+      className: "custom-employee-icon",
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+    });
+    setIcon(divIcon);
+  }, [imageUrl, leafletLib]);
+  if (!icon) return null;
+  return <Marker position={position} icon={icon}>{children}</Marker>;
+}
+
+// FitBounds component
+function FitBounds({ bounds }: { bounds: [number, number][] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (
+      map &&
+      Array.isArray(bounds) &&
+      bounds.length > 0 &&
+      map.getContainer() // Defensive: only if the map container exists
+    ) {
+      try {
+        map.fitBounds(bounds);
+      } catch {
+        // Optionally log or ignore
+        // console.warn('fitBounds error');
+      }
+    }
+  }, [bounds, map]);
+  return null;
+}
+
+// Helper: FitBounds component for modal
+function FitBoundsModal({ points }: { points: [number, number][] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (map && points.length > 1) {
+      map.fitBounds(points);
+    }
+  }, [map, points]);
+  return null;
+}
+
 export default function MapView() {
   const { theme } = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -444,20 +539,48 @@ export default function MapView() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Active Employee Card */}
-        <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border flex items-center justify-between min-h-[110px]`}>
-          <div>
-            <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Active Employee</p>
-            <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{activeCount}</p>
+        <div className={`rounded-lg border p-4 ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === "dark" ? "bg-blue-900" : "bg-blue-100"
+              }`}>
+                <FaUsers className="w-5 h-5" color={theme === "dark" ? "#fff" : "#2563eb"} />
+              </div>
+              <div>
+                <div className={`text-xl font-bold ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
+                  {activeCount}
+                </div>
+                <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>Active Employee</div>
+              </div>
+            </div>
           </div>
-          <FaUsers className="w-8 h-8 text-blue-500" />
         </div>
         {/* Total Locations Card */}
-        <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border flex items-center justify-between min-h-[110px]`}>
-          <div>
-            <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Total Locations</p>
-            <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{totalLocations}</p>
+        <div className={`rounded-lg border p-4 ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === "dark" ? "bg-green-900" : "bg-green-100"
+              }`}>
+                <FaMapMarkerAlt className="w-5 h-5" color={theme === "dark" ? "#fff" : "#16a34a"} />
+              </div>
+              <div>
+                <div className={`text-xl font-bold ${theme === "dark" ? "text-green-300" : "text-green-700"}`}>
+                  {totalLocations}
+                </div>
+                <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>Total Locations</div>
+              </div>
+            </div>
           </div>
-          <FaUsers className="w-8 h-8 text-blue-500" />
         </div>
         {/* Max Employee Location Card */}
         {locationClusters.length > 0 && (() => {
@@ -465,16 +588,27 @@ export default function MapView() {
           const key = `${maxCluster.center.lat},${maxCluster.center.lon}`;
           const address = addressMap[key] || 'Loading...';
           return (
-            <div className={`lg:col-span-2 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border flex items-center justify-between min-h-[110px]`}>
-              <div>
-                <p className={`text-sm font-medium flex items-center gap-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  <FaMapMarkerAlt className="text-red-500 w-5 h-5" />
-                  Max Employee Location
-                </p>
-                <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`} style={{ maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{address}</p>
-                <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{maxCluster.count}</p>
+            <div className={`lg:col-span-2 rounded-lg border p-4 ${
+              theme === "dark"
+                ? "bg-gray-800 border-gray-700"
+                : "bg-white border-gray-200"
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${
+                    theme === "dark" ? "bg-red-900" : "bg-red-100"
+                  }`}>
+                    <FaMapMarkerAlt className="w-5 h-5" color={theme === "dark" ? "#fff" : "#dc2626"} />
+                  </div>
+                  <div>
+                    <div className={`text-xl font-bold ${theme === "dark" ? "text-red-300" : "text-red-700"}`}>
+                      {maxCluster.count}
+                    </div>
+                    <div className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>Max Employee Location</div>
+                    <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`} style={{ maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{address}</div>
+                  </div>
+                </div>
               </div>
-              <FaUsers className="w-8 h-8 text-blue-500" />
             </div>
           );
         })()}
@@ -633,25 +767,44 @@ export default function MapView() {
           </div>
         </div>
         {/* Location Clusters Table Card */}
-        <div className={`${theme === 'dark' ? 'bg-[#232e3c] border-gray-700' : 'bg-white border-gray-200'} rounded-2xl border p-6 shadow-md overflow-x-auto mt-4`}> 
-          <h4 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-[#e5e7eb]' : 'text-gray-800'}`}>Today&apos;s Location Clusters</h4>
-          <table className="min-w-full text-sm rounded-lg overflow-hidden">
-            <thead>
-              <tr className={theme === 'dark' ? 'bg-[#1b2430]' : 'bg-blue-50'}>
-                <th className="px-4 py-2 text-left font-semibold tracking-wide ${theme === 'dark' ? 'text-[#e5e7eb]' : 'text-gray-700'}">Sl. No</th>
-                <th className="px-4 py-2 text-left font-semibold tracking-wide ${theme === 'dark' ? 'text-[#e5e7eb]' : 'text-gray-700'}">Location (Address)</th>
-                <th className="px-4 py-2 text-left font-semibold tracking-wide ${theme === 'dark' ? 'text-[#e5e7eb]' : 'text-gray-700'}">Total Employees</th>
-              </tr>
-            </thead>
+        <div className={`rounded-lg border ${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        }`}> 
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <h4 className={`text-lg font-semibold ${
+              theme === "dark" ? "text-white" : "text-gray-900"
+            }`}>Today&apos;s Location Clusters</h4>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className={theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}>
+                <tr>
+                  <th className={`px-4 py-3 text-left font-semibold ${
+                    theme === "dark" ? "text-gray-200" : "text-gray-700"
+                  }`}>Sl. No</th>
+                  <th className={`px-4 py-3 text-left font-semibold ${
+                    theme === "dark" ? "text-gray-200" : "text-gray-700"
+                  }`}>Location (Address)</th>
+                  <th className={`px-4 py-3 text-left font-semibold ${
+                    theme === "dark" ? "text-gray-200" : "text-gray-700"
+                  }`}>Total Employees</th>
+                </tr>
+              </thead>
             <tbody>
               {paginatedClusters.map((cluster, idx) => {
                 const key = `${cluster.center.lat},${cluster.center.lon}`;
                 const address = addressMap[key] || 'Loading...';
                 const isLong = address.length > 60 || address.split(',').length > 2;
                 return (
-                  <tr key={key} className={`transition-colors ${idx % 2 === 0 ? (theme === 'dark' ? 'bg-[#232e3c]' : 'bg-white') : (theme === 'dark' ? 'bg-[#1b2430]' : 'bg-gray-50')} hover:bg-blue-100 dark:hover:bg-blue-900`}>
-                    <td className="px-4 py-2 font-medium">{(currentPage - 1) * recordsPerPage + idx + 1}</td>
-                    <td className="px-4 py-2">
+                  <tr key={key} className={`transition-colors ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
+                    <td className={`px-4 py-3 font-medium ${
+                      theme === "dark" ? "text-gray-200" : "text-gray-900"
+                    }`}>{(currentPage - 1) * recordsPerPage + idx + 1}</td>
+                    <td className={`px-4 py-3 ${
+                      theme === "dark" ? "text-gray-200" : "text-gray-900"
+                    }`}>
                       {isLong ? (
                         <>
                           <span style={{
@@ -680,7 +833,9 @@ export default function MapView() {
                         <span>{address}</span>
                       )}
                     </td>
-                    <td className="px-4 py-2">{cluster.count}</td>
+                    <td className={`px-4 py-3 font-semibold ${
+                      theme === "dark" ? "text-gray-200" : "text-gray-900"
+                    }`}>{cluster.count}</td>
                   </tr>
                 );
               })}
@@ -692,6 +847,7 @@ export default function MapView() {
             <span className="px-3 py-1 text-sm bg-blue-500 text-white rounded">{currentPage}</span>
             <button className="px-3 py-1 text-sm transition-colors rounded disabled:opacity-50 bg-gray-200 dark:bg-gray-700" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
           </div>
+        </div>
         </div>
       </div>
       {/* Modal for full address and cluster details */}
@@ -813,96 +969,4 @@ export default function MapView() {
       )}
     </div>
   );
-}
-
-// Helper component for employee photo in modal
-function EmployeePhotoCell({ employeeId, punchInPhoto }: { employeeId: string, punchInPhoto?: string }) {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(punchInPhoto || null);
-  React.useEffect(() => {
-    if (photoUrl || !employeeId) return;
-    async function fetchKycPhoto() {
-      try {
-        const res = await fetch(`https://cafm.zenapi.co.in/api/kyc/${employeeId}`);
-        const data = await res.json();
-        if (data.kycData && data.kycData.personalDetails && data.kycData.personalDetails.employeeImage) {
-          setPhotoUrl(data.kycData.personalDetails.employeeImage);
-        }
-      } catch {
-        setPhotoUrl(null);
-      }
-    }
-    fetchKycPhoto();
-  }, [employeeId, photoUrl]);
-  return photoUrl ? (
-    <Image src={photoUrl} alt="Employee" width={32} height={32} className="w-8 h-8 rounded-full object-cover border" />
-  ) : (
-    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-500">N/A</div>
-  );
-}
-
-interface EmployeeImageMarkerProps {
-  position: [number, number];
-  imageUrl: string;
-  children: React.ReactNode;
-  leafletLib: typeof import('leaflet') | null;
-}
-function EmployeeImageMarker({ position, imageUrl, children, leafletLib }: EmployeeImageMarkerProps) {
-  const [icon, setIcon] = useState<L.DivIcon | null>(null);
-  useEffect(() => {
-    if (!leafletLib) return;
-    const divIcon = leafletLib.divIcon({
-      html: `<div style='position: relative; text-align: center;'>
-                <img src="${imageUrl}" alt='Employee' style='width: 36px; height: 36px; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); border: 2px solid #3b82f6;' />
-              </div>`,
-      className: "custom-employee-icon",
-      iconSize: [36, 36],
-      iconAnchor: [18, 18],
-    });
-    setIcon(divIcon);
-  }, [imageUrl, leafletLib]);
-  if (!icon) return null;
-  return <Marker position={position} icon={icon}>{children}</Marker>;
-}
-
-function FitBounds({ bounds }: { bounds: [number, number][] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (
-      map &&
-      Array.isArray(bounds) &&
-      bounds.length > 0 &&
-      map.getContainer() // Defensive: only if the map container exists
-    ) {
-      try {
-        map.fitBounds(bounds);
-      } catch {
-        // Optionally log or ignore
-        // console.warn('fitBounds error');
-      }
-    }
-  }, [bounds, map]);
-  return null;
-}
-
-// Helper: FitBounds component for modal
-function FitBoundsModal({ points }: { points: [number, number][] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (map && points.length > 1) {
-      map.fitBounds(points);
-    }
-  }, [map, points]);
-  return null;
-}
-
-function useLeafletLib(): typeof import('leaflet') | null {
-  const leafletRef = useRef<typeof import('leaflet') | null>(null);
-  useEffect(() => {
-    if (!leafletRef.current && typeof window !== 'undefined') {
-      import('leaflet').then(mod => {
-        leafletRef.current = mod;
-      });
-    }
-  }, []);
-  return leafletRef.current;
 }

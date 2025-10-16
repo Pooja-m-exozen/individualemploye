@@ -13,69 +13,66 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminDashboardLayout>
-      <div className={`flex flex-col gap-6 p-4 lg:p-6 max-w-7xl mx-auto w-full font-sans ${
+      <div className={`min-h-screen w-full font-sans ${
         theme === 'dark'
           ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950 text-white'
           : 'bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-900'
       }`}>
-        {/* Clean Tab Navigation */}
-        <div className={`flex border-b rounded-t-xl ${theme === 'dark' ? 'bg-[#23272f]' : ''}`} style={theme === 'dark' ? {} : { background: '#1769ff' }}>
-          <button
-            onClick={() => setActiveTab("analytics")}
-            className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 rounded-t-xl ${
-              activeTab === "analytics"
-                ? theme === 'dark'
-                  ? 'text-white bg-[#384152] border-b-4 border-white shadow-md'
-                  : 'text-white bg-[#1769ff] border-b-4 border-white shadow-md'
-                : theme === 'dark'
-                  ? 'text-blue-100 hover:text-white hover:bg-[#384152]'
-                  : 'text-blue-100 hover:text-white hover:bg-blue-600/30'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <FaChartBar className="w-4 h-4" />
-              Analytics View
+        {/* Radio Button Navigation */}
+        <div className="sticky top-[64px] z-30 backdrop-blur-sm px-4 py-2 mb-3 md:mb-4">
+          <div className="flex flex-row flex-wrap gap-4 items-center w-full">
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="viewType"
+                  value="analytics"
+                  checked={activeTab === "analytics"}
+                  onChange={() => setActiveTab("analytics")}
+                  className="accent-blue-600"
+                />
+                <span className={`font-semibold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
+                  <FaChartBar className="inline mr-2" />
+                  Analytics View
+                </span>
+              </label>
+              
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="viewType"
+                  value="descriptive"
+                  checked={activeTab === "descriptive"}
+                  onChange={() => setActiveTab("descriptive")}
+                  className="accent-blue-600"
+                />
+                <span className={`font-semibold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
+                  <FaTable className="inline mr-2" />
+                  Descriptive View
+                </span>
+              </label>
+              
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="viewType"
+                  value="map"
+                  checked={activeTab === "map"}
+                  onChange={() => setActiveTab("map")}
+                  className="accent-blue-600"
+                />
+                <span className={`font-semibold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>
+                  <FaMapMarkerAlt className="inline mr-2" />
+                  Map View
+                </span>
+              </label>
             </div>
-          </button>
-          <button
-            onClick={() => setActiveTab("descriptive")}
-            className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 rounded-t-xl ${
-              activeTab === "descriptive"
-                ? theme === 'dark'
-                  ? 'text-white bg-[#384152] border-b-4 border-white shadow-md'
-                  : 'text-white bg-[#1769ff] border-b-4 border-white shadow-md'
-                : theme === 'dark'
-                  ? 'text-blue-100 hover:text-white hover:bg-[#384152]'
-                  : 'text-blue-100 hover:text-white hover:bg-blue-600/30'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <FaTable className="w-4 h-4" />
-              Descriptive View
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab("map")}
-            className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 rounded-t-xl ${
-              activeTab === "map"
-                ? theme === 'dark'
-                  ? 'text-white bg-[#384152] border-b-4 border-white shadow-md'
-                  : 'text-white bg-[#1769ff] border-b-4 border-white shadow-md'
-                : theme === 'dark'
-                  ? 'text-blue-100 hover:text-white hover:bg-[#384152]'
-                  : 'text-blue-100 hover:text-white hover:bg-blue-600/30'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <FaMapMarkerAlt className="w-4 h-4" />
-              Map View
-            </div>
-          </button>
+          </div>
         </div>
 
-        {/* Tab Content */}
-        <div className={`${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-100'} rounded-b-xl shadow-md border border-t-0`}>
-          <div className="p-6">
+        {/* Tab Content - Full Screen */}
+        <div className="min-h-[calc(100vh-120px)]">
+          <div className="h-full">
             {activeTab === "analytics" ? (
               // Analytics Content - Using the imported component
               <AnalyticsView />

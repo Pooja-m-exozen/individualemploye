@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { FaTshirt, FaSearch, FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaUser, FaTable, FaThLarge, FaDownload, FaEye, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaTshirt, FaSearch, FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaDownload, FaEye, FaTimes } from 'react-icons/fa';
 import AdminDashboardLayout from '@/components/dashboard/AdminDashboardLayout';
 import { useTheme } from "@/context/ThemeContext";
 
@@ -47,14 +47,11 @@ const exportToCSV = (data: UniformRequest[]) => {
 
 const UniformViewPage = () => {
 	const [search, setSearch] = useState('');
-	const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
 	const [statusFilter, setStatusFilter] = useState('All');
 	const { theme } = useTheme();
 	const [uniformRequests, setUniformRequests] = useState<UniformRequest[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [currentPage, setCurrentPage] = useState(1);
-	const rowsPerPage = 12;
 	const [viewModal, setViewModal] = useState<{ open: boolean, request: UniformRequest | null }>({ open: false, request: null });
 	const [projectFilter, setProjectFilter] = useState('All Projects');
 	const [designationFilter, setDesignationFilter] = useState('All Designations');
@@ -91,12 +88,20 @@ const UniformViewPage = () => {
 			req.employeeId?.toLowerCase().includes(search.toLowerCase()))
 	);
 
-	const totalPages = Math.ceil(filteredRequests.length / rowsPerPage);
-	const paginatedRequests = filteredRequests.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
-
-	const handlePageChange = (page: number) => {
-		if (page >= 1 && page <= totalPages) setCurrentPage(page);
-	};
+	// Sort filteredRequests by approval status and name
+	const sortedRequests = [...filteredRequests].sort((a, b) => {
+		// First sort by status (Pending first, then Approved, then Rejected)
+		const statusOrder = { 'Pending': 0, 'Approved': 1, 'Rejected': 2 };
+		const statusA = statusOrder[a.approvalStatus as keyof typeof statusOrder] ?? 3;
+		const statusB = statusOrder[b.approvalStatus as keyof typeof statusOrder] ?? 3;
+		
+		if (statusA !== statusB) {
+			return statusA - statusB;
+		}
+		
+		// Then sort by name alphabetically
+		return a.fullName.localeCompare(b.fullName);
+	});
 
 	useEffect(() => {
 		if (viewModal.open && viewModal.request) {
@@ -106,283 +111,166 @@ const UniformViewPage = () => {
 
 	return (
 		<AdminDashboardLayout>
-			<div className={`${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900'}`}>
-				<div className="max-w-7xl mx-auto w-full px-4">
-					{/* Header */}
-					<div className={`mb-6 rounded-2xl p-6 flex items-center gap-6 shadow-lg bg-gradient-to-r ${
-						theme === "dark"
-							? "from-gray-900 to-gray-800"
-							: "from-blue-600 to-blue-500"
-					}`}>
-						<div className={`flex items-center justify-center w-16 h-16 rounded-xl ${
-							theme === "dark" ? "bg-gray-800 bg-opacity-60" : "bg-blue-500 bg-opacity-30"
-						}`}>
-							<FaTshirt className="w-8 h-8 text-white" />
+			<div className={`flex flex-col gap-4 p-2 lg:p-4 w-full font-sans h-screen overflow-y-auto ${
+				theme === 'dark'
+					? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950 text-white'
+					: 'bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-900'
+			}`}>
+				{/* Filters */}
+				<div className="flex flex-col lg:flex-row gap-4 mb-4">
+					{/* Search and Filters */}
+					<div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-center flex-1">
+						{/* Search Bar */}
+						<div className="relative w-full sm:w-64">
+							<FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${
+								theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+							}`} />
+							<input
+								type="text"
+								value={search}
+								onChange={e => setSearch(e.target.value)}
+								placeholder="Search by name or ID..."
+								className={`pl-10 pr-4 py-2 rounded-lg border-none shadow-sm focus:outline-none focus:ring-2 w-full ${theme === 'dark' ? 'bg-gray-800 text-gray-100 placeholder-gray-400 focus:ring-blue-300' : 'bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500'}`}
+							/>
 						</div>
-						<div className="flex-1 flex items-center gap-3">
-							<h1 className="text-3xl font-bold text-white">Uniform Requests - View</h1>
-							{/* Pending badge */}
-							{uniformRequests.filter(r => r.approvalStatus === 'Pending').length > 0 && (
-								<span className="inline-block bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-									{uniformRequests.filter(r => r.approvalStatus === 'Pending').length} Pending
-								</span>
-							)}
-						</div>
-						{/* You can add an export or create button here if needed */}
+						{/* Project Filter */}
+						<select 
+							value={projectFilter} 
+							onChange={e => setProjectFilter(e.target.value)} 
+							className={`px-4 py-2 rounded-lg border-none shadow-sm focus:outline-none focus:ring-2 w-full sm:w-auto ${theme === 'dark' ? 'bg-gray-800 text-gray-100 focus:ring-blue-300' : 'bg-white text-gray-900 focus:ring-blue-500'}`}
+						>
+							<option value="All Projects">All Projects</option>
+							{projectOptions.map(project => (
+								<option key={project} value={project}>{project}</option>
+							))}
+						</select>
+						{/* Designation Filter */}
+						<select 
+							value={designationFilter} 
+							onChange={e => setDesignationFilter(e.target.value)} 
+							className={`px-4 py-2 rounded-lg border-none shadow-sm focus:outline-none focus:ring-2 w-full sm:w-auto ${theme === 'dark' ? 'bg-gray-800 text-gray-100 focus:ring-blue-300' : 'bg-white text-gray-900 focus:ring-blue-500'}`}
+						>
+							<option value="All Designations">All Designations</option>
+							{designationOptions.map(designation => (
+								<option key={designation} value={designation}>{designation}</option>
+							))}
+						</select>
+						{/* Status Filter */}
+						<select 
+							value={statusFilter} 
+							onChange={e => setStatusFilter(e.target.value)} 
+							className={`px-4 py-2 rounded-lg border-none shadow-sm focus:outline-none focus:ring-2 w-full sm:w-auto ${theme === 'dark' ? 'bg-gray-800 text-gray-100 focus:ring-blue-300' : 'bg-white text-gray-900 focus:ring-blue-500'}`}
+						>
+							<option value="All">All Statuses</option>
+							<option value="Approved">Approved</option>
+							<option value="Pending">Pending</option>
+							<option value="Rejected">Rejected</option>
+						</select>
+						{/* Export Button */}
+						<button 
+							onClick={() => exportToCSV(filteredRequests)} 
+							className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${theme === 'dark' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-green-600 text-white hover:bg-green-700'}`}
+						>
+							<FaDownload /> Export CSV
+						</button>
 					</div>
 				</div>
 
-				{/* Content Area */}
-				<div className="max-w-7xl mx-auto pb-8 px-4">
-					{/* Controls: View Toggle, Status Filter, Export, Search */}
-					<div className={`w-full flex flex-wrap items-center gap-3 justify-between px-4 py-4 rounded-2xl shadow ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-						<div className="flex flex-wrap gap-2 items-center">
-							<button onClick={() => setViewMode('card')} className={`px-4 py-2 rounded-l-xl font-semibold border ${viewMode === 'card'
-								? theme === 'dark'
-									? 'bg-blue-800 text-white border-blue-800'
-									: 'bg-blue-600 text-white border-blue-600'
-								: theme === 'dark'
-									? 'bg-gray-900 text-blue-200 border-gray-700'
-									: 'bg-white text-blue-700 border-blue-200'} transition flex items-center gap-2`}> <FaThLarge /> Card View</button>
-							<button onClick={() => setViewMode('table')} className={`px-4 py-2 rounded-r-xl font-semibold border-l-0 border ${viewMode === 'table'
-								? theme === 'dark'
-									? 'bg-blue-800 text-white border-blue-800'
-									: 'bg-blue-600 text-white border-blue-600'
-								: theme === 'dark'
-									? 'bg-gray-900 text-blue-200 border-gray-700'
-									: 'bg-white text-blue-700 border-blue-200'} transition flex items-center gap-2`}> <FaTable /> Table View</button>
-							<select value={projectFilter} onChange={e => { setProjectFilter(e.target.value); setCurrentPage(1); }} className={`ml-2 w-40 appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "bg-white border-gray-200 text-black"}`}> <option value="All Projects">All Projects</option> {projectOptions.map(project => (<option key={project} value={project}>{project}</option>))} </select>
-							<select value={designationFilter} onChange={e => { setDesignationFilter(e.target.value); setCurrentPage(1); }} className={`w-40 appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "bg-white border-gray-200 text-black"}`}> <option value="All Designations">All Designations</option> {designationOptions.map(designation => (<option key={designation} value={designation}>{designation}</option>))} </select>
-							<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`w-36 border rounded-xl px-3 py-2 font-semibold focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-900 text-blue-200 border-gray-700 focus:ring-blue-800' : 'bg-white text-blue-700 border-blue-200 focus:ring-blue-400'}`}> <option value="All">All Statuses</option> <option value="Approved">Approved</option> <option value="Pending">Pending</option> <option value="Rejected">Rejected</option> </select>
-							<button onClick={() => exportToCSV(filteredRequests)} className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold shadow transition focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gradient-to-r from-green-700 to-green-800 text-white hover:from-green-800 hover:to-green-900 focus:ring-green-900' : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 focus:ring-green-400'}`}> <FaDownload /> Export CSV</button>
-						</div>
-						<div className="flex items-center rounded-xl px-4 py-2 shadow w-full md:w-80 mt-2 md:mt-0">
-							<FaSearch className={theme === 'dark' ? 'text-blue-300 mr-2' : 'text-blue-400 mr-2'} />
-							<input type="text" placeholder="Search by name or ID..." value={search} onChange={e => setSearch(e.target.value)} className={`flex-1 bg-transparent outline-none ${theme === 'dark' ? 'text-blue-100 placeholder-blue-400' : 'text-blue-900 placeholder-blue-300'}`} />
-						</div>
-					</div>
-				</div>
-			</div>
-
-			{/* Content Area */}
-			<div className="max-w-7xl mx-auto pb-8">
+				{/* Excel-style Table */}
+				<div className="w-full">
+					<div className="overflow-x-auto w-full custom-scrollbar">
+						<div className="min-w-full inline-block align-middle">
+							<div className="overflow-hidden">
+								<table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+									<thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+										<tr>
+											<th className={`px-2 py-3 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border w-12 ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+											<th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee</th>
+											<th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Designation</th>
+											<th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project</th>
+											<th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-40 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Requested Items</th>
+											<th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+											<th className={`px-2 py-3 text-center font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
+										</tr>
+									</thead>
+									<tbody>
 				{loading ? (
-					<div className={`text-center py-16 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-						<div className="inline-flex items-center gap-3">
-							<div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-							<span className="text-lg font-medium">Loading uniform requests...</span>
+											<tr>
+												<td colSpan={7} className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+													<div className="flex justify-center items-center">
+														<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+														<span className="ml-2">Loading...</span>
 						</div>
-					</div>
+												</td>
+											</tr>
 				) : error ? (
-					<div className={`rounded-2xl p-8 text-center max-w-lg mx-auto ${theme === 'dark' ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'}`}>
-						<FaTimesCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-						<h3 className="text-xl font-semibold text-red-700 dark:text-red-400 mb-2">{error}</h3>
-						<p className="text-red-600 dark:text-red-300">Please try refreshing the page.</p>
-					</div>
-				) : filteredRequests.length === 0 ? (
-					<div className={`rounded-2xl p-8 text-center max-w-lg mx-auto ${theme === 'dark' ? 'bg-slate-800/50 border border-slate-700' : 'bg-white border border-slate-200'}`}>
-						<FaUser className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-						<h3 className="text-xl font-semibold text-slate-600 dark:text-slate-400 mb-2">No uniform requests found</h3>
-						<p className="text-slate-500 dark:text-slate-500">Try adjusting your filters or search criteria.</p>
-					</div>
-				) : viewMode === 'card' ? (
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-						{paginatedRequests.map((req) => (
-							<div
-								key={req._id}
-								className={`group relative rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden ${
-									theme === 'dark' 
-										? 'bg-slate-800/80 border border-slate-700 hover:border-slate-600' 
-										: 'bg-white border border-slate-200 hover:border-slate-300'
-								}`}
-							>
-								{/* Status Indicator */}
-								<div className={`absolute top-0 right-0 w-0 h-0 border-l-[60px] border-l-transparent border-t-[60px] ${
-									req.approvalStatus === 'Approved' ? 'border-t-emerald-500' :
-									req.approvalStatus === 'Rejected' ? 'border-t-red-500' : 'border-t-amber-500'
-								}`}></div>
-								
-								<div className="p-5">
-									{/* Header */}
-									<div className="flex items-start justify-between mb-3">
-										<div className="flex-1">
-											<h3 className={`text-lg font-bold mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-												{req.fullName}
-											</h3>
-											<p className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-												{req.designation}
-											</p>
-										</div>
-										<button
-											onClick={() => {
-												console.log('Eye icon clicked', req);
-												setViewModal({ open: true, request: req });
-											}}
-											className={`relative z-10 p-2 rounded-lg transition-colors ${
-												theme === 'dark' 
-													? 'text-slate-400 hover:text-blue-400 hover:bg-slate-700' 
-													: 'text-slate-500 hover:text-blue-600 hover:bg-slate-100'
-											}`}
-										>
-											<FaEye className="w-4 h-4" />
-										</button>
-									</div>
-
-									{/* Details */}
-									<div className="space-y-2">
+											<tr>
+												<td colSpan={7} className={`text-center py-8 ${theme === 'dark' ? 'text-red-400' : 'text-red-500'}`}>
+													{error}
+												</td>
+											</tr>
+										) : sortedRequests.length === 0 ? (
+											<tr>
+												<td colSpan={7} className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+													No records found.
+												</td>
+											</tr>
+										) : (
+											sortedRequests.map((req, index) => (
+												<tr key={req._id} className={`${
+													index % 2 === 0 
+														? (theme === 'dark' ? 'bg-gray-800' : 'bg-white') 
+														: (theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50')
+												} hover:${theme === 'dark' ? 'bg-gray-600' : 'bg-blue-50'} transition-colors`}>
+													<td className={`px-2 py-2 text-center font-medium border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
+														{index + 1}
+													</td>
+													<td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
 										<div className="flex items-center gap-2">
-											<span className={`text-xs font-medium px-2 py-1 rounded-full ${
-												theme === 'dark' ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-700'
-											}`}>
-												{req.employeeId}
+															<div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+																<span className="text-xs font-bold text-blue-600">
+																	{req.fullName?.charAt(0) || 'U'}
 											</span>
 										</div>
-										
 										<div>
-											<p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-												<span className="font-medium">Project:</span> {req.projectName}
-											</p>
-										</div>
-
-										<div>
-											<p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-												<span className="font-medium">Items:</span> {Array.isArray(req.uniformType) ? req.uniformType.join(", ") : ''}
-											</p>
-										</div>
-
-										{/* Status Badge */}
-										<div className="pt-2">
-											{statusBadge(req.approvalStatus)}
+																<div className="font-semibold">{req.fullName}</div>
+																<div className="text-xs text-gray-500">{req.employeeId}</div>
 										</div>
 									</div>
-								</div>
-							</div>
-						))}
-					</div>
-				) : (
-					<div className={`rounded-2xl shadow-xl overflow-hidden ${theme === 'dark' ? 'bg-slate-800/80 border border-slate-700' : 'bg-white border border-slate-200'}`}>
-						<div className="overflow-x-auto">
-							<table className="w-full">
-								<thead className={`${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'}`}>
-									<tr>
-										<th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Employee</th>
-										<th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Project</th>
-										<th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Requested Items</th>
-										<th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Status</th>
-										<th className={`px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Actions</th>
-									</tr>
-								</thead>
-								<tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200'}`}>
-									{paginatedRequests.map((req) => (
-										<tr
-											key={req._id}
-											className={`transition-colors duration-200 ${
-												theme === 'dark' 
-													? 'hover:bg-slate-700/50' 
-													: 'hover:bg-slate-50'
-											}`}
-										>
-											<td className="px-6 py-4">
-												<div>
-													<div className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-														{req.fullName}
-													</div>
-													<div className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+													</td>
+													<td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
 														{req.designation}
-													</div>
-													<div className={`text-xs font-mono ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>
-														{req.employeeId}
-													</div>
-												</div>
 											</td>
-											<td className="px-6 py-4">
-												<span className={`text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+													<td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
 													{req.projectName}
-												</span>
 											</td>
-											<td className="px-6 py-4">
-												<div className={`text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+													<td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
 													{Array.isArray(req.uniformType) ? req.uniformType.join(", ") : ''}
-												</div>
 											</td>
-											<td className="px-6 py-4">
+													<td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
 												{statusBadge(req.approvalStatus)}
 											</td>
-											<td className="px-6 py-4 text-center">
+													<td className={`px-2 py-2 text-center border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
 												<button
-													onClick={() => {
-														console.log('Eye icon clicked', req);
-														setViewModal({ open: true, request: req });
-													}}
-													className={`p-2 rounded-lg transition-colors ${
+															onClick={() => setViewModal({ open: true, request: req })}
+															className={`p-1 rounded transition-colors ${
 														theme === 'dark' 
-															? 'text-slate-400 hover:text-blue-400 hover:bg-slate-700' 
-															: 'text-slate-500 hover:text-blue-600 hover:bg-slate-100'
+																	? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
+																	: 'bg-blue-50 text-blue-600 hover:bg-blue-100'
 													}`}
+															title="View Details"
 												>
-													<FaEye className="w-4 h-4" />
+															<FaEye className="h-3 w-3" />
 												</button>
 											</td>
 										</tr>
-									))}
+											))
+										)}
 								</tbody>
 							</table>
 						</div>
-					</div>
-				)}
-
-				{/* Enhanced Pagination */}
-				{totalPages > 1 && (
-					<div className="mt-6 flex items-center justify-between">
-						<div className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-							Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, filteredRequests.length)} of {filteredRequests.length} results
-						</div>
-						<div className="flex items-center gap-2">
-							<button
-								disabled={currentPage === 1}
-								onClick={() => handlePageChange(currentPage - 1)}
-								className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-									theme === 'dark' 
-										? 'text-slate-400 hover:text-white hover:bg-slate-700' 
-										: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-								}`}
-							>
-								<FaChevronLeft className="w-4 h-4" />
-							</button>
-							
-							{Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-								const page = i + 1;
-								return (
-									<button
-										key={page}
-										onClick={() => handlePageChange(page)}
-										className={`px-3 py-2 rounded-lg font-medium transition-colors ${
-											currentPage === page
-												? 'bg-blue-600 text-white'
-												: theme === 'dark'
-													? 'text-slate-400 hover:text-white hover:bg-slate-700'
-													: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-										}`}
-									>
-										{page}
-									</button>
-								);
-							})}
-							
-							<button
-								disabled={currentPage === totalPages}
-								onClick={() => handlePageChange(currentPage + 1)}
-								className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-									theme === 'dark' 
-										? 'text-slate-400 hover:text-white hover:bg-slate-700' 
-										: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-								}`}
-							>
-								<FaChevronRight className="w-4 h-4" />
-							</button>
 						</div>
 					</div>
-				)}
 			</div>
 
 			{/* Enhanced Modal */}
@@ -462,6 +350,7 @@ const UniformViewPage = () => {
 					</div>
 				</div>
 			)}
+			</div>
 		</AdminDashboardLayout>
 	);
 };

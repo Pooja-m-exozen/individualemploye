@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useTheme } from "@/context/ThemeContext";
-import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle, FaTimesCircle } from "react-icons/fa";
+import { FaUser, FaMapMarkerAlt, FaMoneyCheckAlt, FaIdCard, FaPhoneVolume, FaChevronRight, FaCheckCircle, FaSpinner, FaInfoCircle, FaTimesCircle, FaUpload, FaExclamationCircle } from "react-icons/fa";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 
@@ -97,6 +97,20 @@ function StandaloneKYCPageContent() {
   const [multiDocError, setMultiDocError] = useState<string | null>(null);
   const [multiDocCustomTypes, setMultiDocCustomTypes] = useState<string[]>([""]);
   
+  // State for document uploads during KYC creation (similar to EditKYCModal)
+  const [docUploads, setDocUploads] = useState<Record<string, {
+    file: File | null;
+    preview: string | null;
+    uploading: boolean;
+    error: string | null;
+    success: boolean;
+  }>>({
+    aadhar: { file: null, preview: null, uploading: false, error: null, success: false },
+    pan: { file: null, preview: null, uploading: false, error: null, success: false },
+    passport: { file: null, preview: null, uploading: false, error: null, success: false },
+    photo: { file: null, preview: null, uploading: false, error: null, success: false },
+  });
+  
   // Document type options for dropdown
   const documentTypeOptions = [
     "aadhar",
@@ -106,6 +120,51 @@ function StandaloneKYCPageContent() {
     "drivingLicense",
     "other"
   ];
+
+  // Document upload handlers (similar to EditKYCModal)
+  const handleDocFileChange = (type: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setDocUploads(prev => ({
+      ...prev,
+      [type]: { ...prev[type], file, preview: URL.createObjectURL(file), error: null, success: false }
+    }));
+  };
+
+  const uploadDocument = async (type: string) => {
+    const doc = docUploads[type];
+    if (!doc.file) return;
+    const employeeId = personalDetails.employeeId;
+    if (!employeeId) {
+      setDocUploads(prev => ({
+        ...prev,
+        [type]: { ...prev[type], error: "Employee ID is required. Please fill in personal details first." }
+      }));
+      return;
+    }
+    setDocUploads(prev => ({ ...prev, [type]: { ...prev[type], uploading: true, error: null } }));
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("document", doc.file);
+      formDataUpload.append("documentType", type);
+      const response = await fetch(
+        `https://cafm.zenapi.co.in/api/kyc/${employeeId}/upload-document`,
+        { method: "POST", body: formDataUpload }
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Failed to upload document");
+      setDocUploads(prev => ({ ...prev, [type]: { ...prev[type], success: true, uploading: false } }));
+    } catch (error) {
+      setDocUploads(prev => ({
+        ...prev,
+        [type]: {
+          ...prev[type],
+          error: error instanceof Error ? error.message : "Failed to upload document",
+          uploading: false,
+        },
+      }));
+    }
+  };
   
   // Language options for checkbox selection
   const languageOptions = [
@@ -557,6 +616,13 @@ function StandaloneKYCPageContent() {
         setMultiDocStatus(null);
         setMultiDocError(null);
         setMultiDocCustomTypes([""]);
+        // Reset new document upload states
+        setDocUploads({
+          aadhar: { file: null, preview: null, uploading: false, error: null, success: false },
+          pan: { file: null, preview: null, uploading: false, error: null, success: false },
+          passport: { file: null, preview: null, uploading: false, error: null, success: false },
+          photo: { file: null, preview: null, uploading: false, error: null, success: false },
+        });
         // Reset replacement-related states
         setDesignationCount(0);
         setCurrentKycCount(0);
@@ -1238,146 +1304,98 @@ function StandaloneKYCPageContent() {
     </div>
   );
 
-  const renderImageUpload = () => (
-    <div className="space-y-6">
-      <div>
-        <label className="block text-sm font-medium mb-2">Employee Photo</label>
-        <div className="flex items-center space-x-4">
-          <div className="flex-shrink-0">
-            {employeeImage ? (
-              <Image
-                src={URL.createObjectURL(employeeImage)}
-                alt="Employee"
-                width={100}
-                height={100}
-                className="w-24 h-24 rounded-full object-cover border-2 border-gray-300"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center">
-                <FaUser className="w-8 h-8 text-gray-400" />
-              </div>
-            )}
-          </div>
-          <div>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setEmployeeImage(e.target.files?.[0] || null)}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-          </div>
-        </div>
-      </div>
+  const renderImageUpload = () => {
+    const documentTypes = [
+      { type: "aadhar", label: "Aadhar Card", required: true },
+      { type: "pan", label: "PAN Card", required: true },
+      { type: "passport", label: "Passport", required: false },
+      { type: "photo", label: "Profile Photo", required: true },
+    ];
 
-      {/* Single Document Upload */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Single Document Upload</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Document Type</label>
-            <select
-              value={singleDocType}
-              onChange={(e) => setSingleDocType(e.target.value)}
-              className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-            >
-              <option value="">Select Document Type</option>
-              {documentTypeOptions.map(option => (
-                <option key={option} value={option}>
-                  {option.charAt(0).toUpperCase() + option.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Upload File</label>
-            <input
-              type="file"
-              accept="*"
-              onChange={(e) => setSingleDocFile(e.target.files?.[0] || null)}
-              className={`w-full rounded-lg px-4 py-2 border ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
-            />
-          </div>
-          {singleDocError && (
-            <div className="text-red-600 text-sm">{singleDocError}</div>
-          )}
-          {singleDocStatus && (
-            <div className="text-green-600 text-sm">{singleDocStatus}</div>
-          )}
-        </div>
-      </div>
-
-      {/* Multiple Document Upload */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Multiple Document Upload</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Upload Files</label>
-            <input
-              type="file"
-              accept="*"
-              multiple
-              onChange={(e) => {
-                setMultiDocFiles(e.target.files);
-                setMultiDocTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
-                setMultiDocCustomTypes(e.target.files ? Array(e.target.files.length).fill("") : [""]);
-              }}
-              className={`w-full rounded-lg px-4 py-2 border ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
-            />
-          </div>
-          {multiDocFiles && multiDocFiles.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-              {Array.from(multiDocFiles).map((file, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <span className="truncate flex-1">{file.name}</span>
-                  <select
-                    value={multiDocTypes[idx] === undefined ? "" : (documentTypeOptions.includes(multiDocTypes[idx]) ? multiDocTypes[idx] : "other")}
-                    onChange={(e) => {
-                      const newTypes = [...multiDocTypes];
-                      if (e.target.value === "other") {
-                        newTypes[idx] = multiDocCustomTypes[idx] || "";
-                      } else {
-                        newTypes[idx] = e.target.value;
-                      }
-                      setMultiDocTypes(newTypes);
-                    }}
-                    className={`rounded-lg px-2 py-1 border ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
-                  >
-                    <option value="">Select Type</option>
-                    {documentTypeOptions.map(opt => (
-                      <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
-                    ))}
-                    <option value="other">Other</option>
-                  </select>
-                  {((multiDocTypes[idx] && !documentTypeOptions.includes(multiDocTypes[idx])) || (multiDocTypes[idx] === "" && multiDocCustomTypes[idx])) && (
-                    <input
-                      type="text"
-                      placeholder="Custom Type"
-                      value={multiDocCustomTypes[idx] || ""}
-                      onChange={(e) => {
-                        const newCustomTypes = [...multiDocCustomTypes];
-                        newCustomTypes[idx] = e.target.value;
-                        setMultiDocCustomTypes(newCustomTypes);
-                        const newTypes = [...multiDocTypes];
-                        newTypes[idx] = e.target.value;
-                        setMultiDocTypes(newTypes);
-                      }}
-                      className={`rounded-lg px-2 py-1 border ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
-                    />
-                  )}
+    return (
+      <div className="space-y-6">
+        <div>
+          <label className="block text-sm font-medium mb-2">Employee Photo</label>
+          <div className="flex items-center space-x-4">
+            <div className="flex-shrink-0">
+              {employeeImage ? (
+                <Image
+                  src={URL.createObjectURL(employeeImage)}
+                  alt="Employee"
+                  width={100}
+                  height={100}
+                  className="w-24 h-24 rounded-full object-cover border-2 border-gray-300"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center">
+                  <FaUser className="w-8 h-8 text-gray-400" />
                 </div>
-              ))}
+              )}
             </div>
-          )}
-          {multiDocError && (
-            <div className="text-red-600 text-sm">{multiDocError}</div>
-          )}
-          {multiDocStatus && (
-            <div className="text-green-600 text-sm">{multiDocStatus}</div>
-          )}
+            <div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setEmployeeImage(e.target.files?.[0] || null)}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Document Upload Section (similar to EditKYCModal) */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Document Uploads</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {documentTypes.map(docType => {
+              const doc = docUploads[docType.type];
+              return (
+                <div key={docType.type} className={`rounded-xl border p-4 ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50'} relative`}>
+                  <div className={`font-semibold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                    {docType.label} {docType.required && <span className="text-red-500">*</span>}
+                    {doc.success && <FaCheckCircle className="text-green-500 ml-2" />}
+                  </div>
+                  {doc.preview ? (
+                    <div className="mb-2 relative group">
+                      <Image src={doc.preview} alt={docType.label} width={120} height={80} className="rounded object-cover h-20 w-32" />
+                      <button
+                        type="button"
+                        className="absolute top-1 right-1 bg-white/80 hover:bg-red-500 hover:text-white text-red-500 rounded-full p-1 transition-all opacity-80 group-hover:opacity-100"
+                        onClick={() => setDocUploads(prev => ({ ...prev, [docType.type]: { ...prev[docType.type], file: null, preview: null, error: null, success: false } }))}
+                        disabled={doc.uploading}
+                      >
+                        <FaTimesCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : null}
+                  <input 
+                    type="file" 
+                    accept=".pdf,.jpg,.jpeg,.png" 
+                    onChange={handleDocFileChange(docType.type)} 
+                    disabled={doc.uploading}
+                    className={`w-full rounded-lg px-4 py-2 border ${theme === 'dark' ? 'bg-gray-900 text-white border-gray-700' : 'border-gray-300 text-black'}`}
+                  />
+                  {doc.file && !doc.success && (
+                    <button
+                      type="button"
+                      className={`mt-2 px-4 py-2 rounded w-full flex items-center justify-center gap-2 ${doc.uploading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white disabled:opacity-50`}
+                      disabled={!doc.file || doc.uploading}
+                      onClick={() => uploadDocument(docType.type)}
+                    >
+                      {doc.uploading ? <FaSpinner className="animate-spin" /> : <FaUpload />}
+                      {doc.uploading ? 'Uploading...' : 'Upload'}
+                    </button>
+                  )}
+                  {doc.error && <div className="text-red-500 text-xs mt-1 flex items-center gap-1"><FaExclamationCircle />{doc.error}</div>}
+                  {doc.success && <div className="text-green-600 text-xs mt-1 flex items-center gap-1"><FaCheckCircle />Uploaded successfully</div>}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderSectionContent = () => {
     switch (activeSection) {
