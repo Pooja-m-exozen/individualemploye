@@ -2455,7 +2455,7 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                               {filteredEditDesignations.length === 0 ? (
                                 <tr>
                                   <td colSpan={2} className={`px-3 py-8 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                    No designations found matching "{editDesignationSearch}"
+                                    No designations found matching &quot;{editDesignationSearch}&quot;
                                   </td>
                                 </tr>
                               ) : (

@@ -1189,36 +1189,6 @@ export default function BulkIssuePage() {
     return uniforms;
   };
 
-  // Helper function to get designations that have a specific uniform
-  const getUniformDesignations = (uniformName: string): string[] => {
-    const designations: string[] = [];
-    
-    selectedDesignations.forEach(designation => {
-      // Use same logic as above for consistency
-      let mappings = uniformMappings.filter(m => 
-        m.project === selectedProject?.projectName && 
-        m.designations.includes(designation)
-      );
-      
-      if (mappings.length === 0 && selectedProject) {
-        mappings = uniformMappings.filter(m => 
-          (m.project.toLowerCase().includes(selectedProject.projectName.toLowerCase()) ||
-           selectedProject.projectName.toLowerCase().includes(m.project.toLowerCase())) &&
-          m.designations.includes(designation)
-        );
-      }
-      
-      const hasUniform = mappings.some(mapping => 
-        mapping.uniformTypes.includes(uniformName)
-      );
-      
-      if (hasUniform) {
-        designations.push(designation);
-      }
-    });
-    
-    return designations;
-  };
 
   // Debug effect to monitor designation changes
   useEffect(() => {

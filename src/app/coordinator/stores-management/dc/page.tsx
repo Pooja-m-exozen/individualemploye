@@ -2800,19 +2800,6 @@ export default function StoreDCPage() {
     return designations;
   };
 
-  const getAvailableUniforms = (): InventoryItem[] => {
-    if (!selectedProject || selectedDesignations.length === 0) return [];
-    const mapping = uniformMappings.find(m => 
-      m.project === selectedProject.projectName && 
-      selectedDesignations.some(d => m.designations.includes(d))
-    );
-    if (!mapping) return [];
-    
-    // Return actual inventory items instead of just uniform type names
-    return inventoryItems.filter(item => 
-      mapping.uniformTypes.includes(item.name || '')
-    );
-  };
 
   // Helper function to get uniforms for a specific designation
   const getUniformsForDesignation = (designation: string): InventoryItem[] => {
