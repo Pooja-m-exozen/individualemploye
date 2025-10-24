@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { ReactNode, useState, useEffect, useMemo } from 'react';
 import type { JSX } from 'react';
 import Image from 'next/image';
 import { FaSignOutAlt, FaPlus, FaUser, FaTasks, FaTimes, FaSun, FaMoon, FaEye, FaEyeSlash, FaUserPlus } from 'react-icons/fa';
