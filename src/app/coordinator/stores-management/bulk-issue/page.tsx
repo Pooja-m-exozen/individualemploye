@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import CoordinatorDashboardLayout from "@/components/dashboard/CoordinatorDashboardLayout";
 import { FaStore, FaBoxOpen, FaSearch,FaPlus, FaTimes, FaExclamationTriangle, FaDownload, FaUsers, FaTshirt, FaCalendarAlt, FaFileAlt, FaUserPlus, FaEye } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -308,7 +308,11 @@ export default function BulkIssuePage() {
         const mappingsData = await mappingsRes.json();
         
         if (inventoryData && Array.isArray(inventoryData)) {
+          console.log('📦 Loaded inventory items:', inventoryData.length, 'items');
+          console.log('📦 Sample inventory items:', inventoryData.slice(0, 3).map(item => ({ name: item.name, category: item.category })));
           setInventoryItems(inventoryData);
+        } else {
+          console.log('❌ No inventory data:', inventoryData);
         }
         
         if (employeesData && employeesData.kycData) {
@@ -342,7 +346,11 @@ export default function BulkIssuePage() {
         }
 
         if (mappingsData && mappingsData.success) {
-          setUniformMappings(mappingsData.data.filter((m: UniformMapping) => m.isActive !== false));
+          const activeMappings = mappingsData.data.filter((m: UniformMapping) => m.isActive !== false);
+          console.log('📋 Loaded uniform mappings:', activeMappings);
+          setUniformMappings(activeMappings);
+        } else {
+          console.log('❌ No uniform mappings data:', mappingsData);
         }
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -952,16 +960,17 @@ export default function BulkIssuePage() {
   // Handle project selection
   const handleProjectChange = (projectName: string) => {
     const project = projects.find(p => p.projectName === projectName);
-    console.log('Project selected:', projectName, 'Project object:', project);
+    console.log('🏢 Project selected:', projectName, 'Project object:', project);
+    console.log('🏢 Available projects:', projects.map(p => p.projectName));
     
     if (!project) {
-      console.error('No project found for name:', projectName);
+      console.error('❌ No project found for name:', projectName);
       showToast({ message: "Project not found. Please try selecting again.", type: "error" });
       return;
     }
     
     if (!project.projectName || project.projectName.trim() === "") {
-      console.error('Project has no name:', project);
+      console.error('❌ Project has no name:', project);
       showToast({ message: "Selected project has no name. Please select a different project.", type: "error" });
       return;
     }
@@ -975,17 +984,29 @@ export default function BulkIssuePage() {
       address: project?.address || ""
     }));
     
-    console.log('Project set successfully:', project);
+    console.log('✅ Project set successfully:', project);
+    console.log('🏢 Project designations:', project.designationWiseCount ? Object.keys(project.designationWiseCount) : 'None');
   };
 
   // Handle designation selection
   const handleDesignationChange = (designation: string, checked: boolean) => {
+    console.log(`🎯 Designation change: ${designation} - ${checked ? 'checked' : 'unchecked'}`);
+    
     if (checked) {
-      setSelectedDesignations(prev => [...prev, designation]);
+      setSelectedDesignations(prev => {
+        const newDesignations = [...prev, designation];
+        console.log(`✅ Added designation. New list:`, newDesignations);
+        return newDesignations;
+      });
     } else {
-      setSelectedDesignations(prev => prev.filter(d => d !== designation));
+      setSelectedDesignations(prev => {
+        const newDesignations = prev.filter(d => d !== designation);
+        console.log(`❌ Removed designation. New list:`, newDesignations);
+        return newDesignations;
+      });
+      // Only clear uniforms when removing a designation, not when adding
+      setSelectedUniforms([]);
     }
-    setSelectedUniforms([]);
   };
 
   // Get available designations for selected project
@@ -994,32 +1015,223 @@ export default function BulkIssuePage() {
     return selectedProject.designationWiseCount ? Object.keys(selectedProject.designationWiseCount) : [];
   };
 
-  // Get available uniforms for selected project and designations
-  const getAvailableUniforms = () => {
+  // Get available uniforms for selected project and designations using useMemo for performance
+  const availableUniforms = useMemo(() => {
     if (!selectedProject || selectedDesignations.length === 0) return [];
     
-    const availableUniforms: InventoryItem[] = [];
+    console.log('🔍 Getting uniforms for:', {
+      project: selectedProject.projectName,
+      designations: selectedDesignations,
+      totalMappings: uniformMappings.length,
+      totalInventoryItems: inventoryItems.length
+    });
     
+    // Debug: Show ALL uniform mappings first
+    console.log('📋 ALL UNIFORM MAPPINGS:', uniformMappings);
+    
+    const uniforms: InventoryItem[] = [];
+    const addedUniformIds = new Set<string>(); // Track added uniforms to avoid duplicates
+    
+    // Process each selected designation
     selectedDesignations.forEach(designation => {
-      const mapping = uniformMappings.find(m => 
+      console.log(`📋 Processing designation: ${designation}`);
+      
+      // Debug: Show all mappings for this project
+      const projectMappings = uniformMappings.filter(m => m.project === selectedProject.projectName);
+      console.log(`🏢 All mappings for project "${selectedProject.projectName}":`, projectMappings);
+      
+      // Debug: Show all mappings that contain this designation (regardless of project)
+      const designationMappings = uniformMappings.filter(m => m.designations.includes(designation));
+      console.log(`🎯 All mappings containing "${designation}" (any project):`, designationMappings);
+      
+      // Find ALL mappings that contain this designation for this project
+      // Try exact match first
+      let mappings = uniformMappings.filter(m => 
         m.project === selectedProject.projectName && 
         m.designations.includes(designation)
       );
       
-      if (mapping) {
+      // If no exact match, try partial matching
+      if (mappings.length === 0) {
+        console.log(`🔍 No exact project match, trying partial matching...`);
+        mappings = uniformMappings.filter(m => 
+          (m.project.toLowerCase().includes(selectedProject.projectName.toLowerCase()) ||
+           selectedProject.projectName.toLowerCase().includes(m.project.toLowerCase())) &&
+          m.designations.includes(designation)
+        );
+        console.log(`🔍 Found ${mappings.length} mapping(s) with partial project match:`, mappings);
+      }
+      
+      console.log(`🔍 Found ${mappings.length} mapping(s) for ${designation} in project "${selectedProject.projectName}":`, mappings);
+      
+      // Process each mapping found for this designation
+      mappings.forEach((mapping, mappingIndex) => {
+        console.log(`👕 Processing mapping ${mappingIndex + 1} for ${designation}:`, {
+          mappingId: mapping._id,
+          project: mapping.project,
+          designations: mapping.designations,
+          uniformTypes: mapping.uniformTypes
+        });
+        
         mapping.uniformTypes.forEach(uniformType => {
           const inventoryItem = inventoryItems.find(item => item.name === uniformType);
-          if (inventoryItem && !availableUniforms.find(u => u._id === inventoryItem._id)) {
-            availableUniforms.push(inventoryItem);
+          console.log(`🔍 Looking for uniform "${uniformType}":`, inventoryItem ? 'Found' : 'Not found');
+          
+          // Debug: Show all inventory items with similar names
+          const similarItems = inventoryItems.filter(item => 
+            item.name.toLowerCase().includes(uniformType.toLowerCase()) || 
+            uniformType.toLowerCase().includes(item.name.toLowerCase())
+          );
+          if (similarItems.length > 0) {
+            console.log(`🔍 Similar items found for "${uniformType}":`, similarItems.map(item => item.name));
+          }
+          
+          if (inventoryItem && !addedUniformIds.has(inventoryItem._id)) {
+            uniforms.push(inventoryItem);
+            addedUniformIds.add(inventoryItem._id);
+            console.log(`✅ Added uniform: ${inventoryItem.name} from designation: ${designation}`);
+          } else if (inventoryItem) {
+            console.log(`⚠️ Uniform already added: ${inventoryItem.name}`);
           }
         });
+      });
+      
+      if (mappings.length === 0) {
+        console.log(`❌ No mapping found for designation: ${designation} in project: ${selectedProject.projectName}`);
+        
+        // Debug: Check if there are mappings for this designation in other projects
+        const otherProjectMappings = uniformMappings.filter(m => 
+          m.project !== selectedProject.projectName && 
+          m.designations.includes(designation)
+        );
+        if (otherProjectMappings.length > 0) {
+          console.log(`🔍 Found mappings for "${designation}" in other projects:`, otherProjectMappings.map(m => m.project));
+        }
       }
     });
     
-    return availableUniforms;
+    console.log(`📊 Final result: ${uniforms.length} uniforms found:`, uniforms.map(u => u.name));
+    
+    // Debug: Show which designations contributed which uniforms
+    console.log('📋 Summary by designation:');
+    selectedDesignations.forEach(designation => {
+      // Use same logic as above for consistency
+      let mappings = uniformMappings.filter(m => 
+        m.project === selectedProject.projectName && 
+        m.designations.includes(designation)
+      );
+      
+      if (mappings.length === 0) {
+        mappings = uniformMappings.filter(m => 
+          (m.project.toLowerCase().includes(selectedProject.projectName.toLowerCase()) ||
+           selectedProject.projectName.toLowerCase().includes(m.project.toLowerCase())) &&
+          m.designations.includes(designation)
+        );
+      }
+      
+      const designationUniforms = mappings.flatMap(m => m.uniformTypes);
+      console.log(`  ${designation}: ${designationUniforms.length} uniform types -`, designationUniforms);
+    });
+    
+    return uniforms;
+  }, [selectedProject, selectedDesignations, uniformMappings, inventoryItems]);
+
+  // Helper function to get uniforms for a specific designation
+  const getUniformsForDesignation = (designation: string): InventoryItem[] => {
+    if (!selectedProject) {
+      console.log(`❌ No project selected for designation: ${designation}`);
+      return [];
+    }
+    
+    console.log(`🔍 Getting uniforms for designation: ${designation} in project: ${selectedProject.projectName}`);
+    console.log(`📋 Total mappings available: ${uniformMappings.length}`);
+    console.log(`📦 Total inventory items available: ${inventoryItems.length}`);
+    
+    // Use same logic as above for consistency
+    let mappings = uniformMappings.filter(m => 
+      m.project === selectedProject.projectName && 
+      m.designations.includes(designation)
+    );
+    
+    console.log(`🔍 Exact project match found ${mappings.length} mapping(s) for ${designation}`);
+    
+    if (mappings.length === 0) {
+      console.log(`🔍 No exact match, trying partial matching...`);
+      mappings = uniformMappings.filter(m => 
+        (m.project.toLowerCase().includes(selectedProject.projectName.toLowerCase()) ||
+         selectedProject.projectName.toLowerCase().includes(m.project.toLowerCase())) &&
+        m.designations.includes(designation)
+      );
+      console.log(`🔍 Partial match found ${mappings.length} mapping(s) for ${designation}`);
+    }
+    
+    console.log(`🔍 Final mappings for ${designation}:`, mappings);
+    
+    const uniforms: InventoryItem[] = [];
+    const addedUniformIds = new Set<string>();
+    
+    mappings.forEach(mapping => {
+      console.log(`👕 Processing mapping for ${designation}:`, mapping.uniformTypes);
+      mapping.uniformTypes.forEach(uniformType => {
+        const inventoryItem = inventoryItems.find(item => item.name === uniformType);
+        console.log(`🔍 Looking for "${uniformType}" in inventory:`, inventoryItem ? 'Found' : 'Not found');
+        if (inventoryItem && !addedUniformIds.has(inventoryItem._id)) {
+          uniforms.push(inventoryItem);
+          addedUniformIds.add(inventoryItem._id);
+          console.log(`✅ Added uniform: ${inventoryItem.name} for designation: ${designation}`);
+        } else if (inventoryItem) {
+          console.log(`⚠️ Uniform already added: ${inventoryItem.name}`);
+        }
+      });
+    });
+    
+    console.log(`📊 Final result for ${designation}: ${uniforms.length} uniforms found:`, uniforms.map(u => u.name));
+    return uniforms;
   };
 
+  // Helper function to get designations that have a specific uniform
+  const getUniformDesignations = (uniformName: string): string[] => {
+    const designations: string[] = [];
+    
+    selectedDesignations.forEach(designation => {
+      // Use same logic as above for consistency
+      let mappings = uniformMappings.filter(m => 
+        m.project === selectedProject?.projectName && 
+        m.designations.includes(designation)
+      );
+      
+      if (mappings.length === 0 && selectedProject) {
+        mappings = uniformMappings.filter(m => 
+          (m.project.toLowerCase().includes(selectedProject.projectName.toLowerCase()) ||
+           selectedProject.projectName.toLowerCase().includes(m.project.toLowerCase())) &&
+          m.designations.includes(designation)
+        );
+      }
+      
+      const hasUniform = mappings.some(mapping => 
+        mapping.uniformTypes.includes(uniformName)
+      );
+      
+      if (hasUniform) {
+        designations.push(designation);
+      }
+    });
+    
+    return designations;
+  };
 
+  // Debug effect to monitor designation changes
+  useEffect(() => {
+    console.log('🔄 Selected designations changed:', selectedDesignations);
+    if (selectedProject) {
+      console.log('🔍 Available uniforms will be:', availableUniforms.map(u => u.name));
+    }
+  }, [selectedDesignations, selectedProject, availableUniforms]);
+
+  // Debug effect to monitor uniform selection changes
+  useEffect(() => {
+    console.log('👕 Selected uniforms changed:', selectedUniforms);
+  }, [selectedUniforms]);
 
   // Handle uniform selection and quantity
   const handleUniformSelection = (uniformName: string, size: string, quantity: number) => {
@@ -2283,97 +2495,130 @@ export default function BulkIssuePage() {
                 )}
 
                 {selectedProject && selectedDesignations.length > 0 && (
-                  <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
-                    <h3 className={`font-semibold mb-3 flex items-center gap-2 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>
-                      <FaTshirt className="w-4 h-4" />
-                      Available Uniforms for {selectedDesignations.join(', ')}
-                    </h3>
-                    
-                    {getAvailableUniforms().length > 0 ? (
-                      <div className="space-y-4">
-                        {getAvailableUniforms().map((uniform) => (
-                          <div key={uniform._id} className={`p-3 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                            <div className="flex items-center justify-between mb-2">
-                              <div>
-                                <h4 className={`font-medium ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
-                                  {uniform.name}
-                                </h4>
-                                <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                                  {uniform.category} • {uniform.subCategory}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <span className={`text-xs px-2 py-1 rounded-full ${
-                                  theme === "dark" ? "bg-blue-800 text-blue-200" : "bg-blue-100 text-blue-800"
-                                }`}>
-                                  {uniform.sizes.length} sizes available
-                                </span>
-                              </div>
+                  <div className="space-y-6">
+
+                    {/* Separate sections for each designation */}
+                    {selectedDesignations.map((designation, index) => {
+                      const designationUniforms = getUniformsForDesignation(designation);
+                      
+                      console.log(`🎯 Rendering section for ${designation}:`, {
+                        designation,
+                        uniformsCount: designationUniforms.length,
+                        uniforms: designationUniforms.map(u => u.name)
+                      });
+                      
+                      return (
+                        <div key={designation} className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className={`font-semibold flex items-center gap-2 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>
+                              <FaTshirt className="w-4 h-4" />
+                              Section {index + 1}: Available Uniforms for {designation}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                theme === "dark" ? "bg-blue-800 text-blue-200" : "bg-blue-100 text-blue-800"
+                              }`}>
+                                {designationUniforms.length} uniforms
+                              </span>
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                designationUniforms.length > 0 
+                                  ? (theme === "dark" ? "bg-green-800 text-green-200" : "bg-green-100 text-green-800")
+                                  : (theme === "dark" ? "bg-red-800 text-red-200" : "bg-red-100 text-red-800")
+                              }`}>
+                                {designationUniforms.length > 0 ? "HAS UNIFORMS" : "NO UNIFORMS"}
+                              </span>
                             </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              {uniform.sizes.map((size) => {
-                                const availableQty = uniform.sizeInventory?.find(si => si.size === size)?.quantity || 0;
-                                const selectedUniform = selectedUniforms.find(u => u.name === uniform.name && u.size === size);
-                                const currentQty = selectedUniform?.quantity || 0;
-                                
-                                return (
-                                  <div key={size} className={`p-2 rounded-lg border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className={`font-medium text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
-                                        Size: {size}
-                                      </span>
-                                      <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                                        Stock: {availableQty}
-                                      </span>
+                          </div>
+                          
+                          
+                          {designationUniforms.length > 0 ? (
+                            <div className="space-y-4">
+                              {designationUniforms.map((uniform) => (
+                                <div key={uniform._id} className={`p-3 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div>
+                                      <h4 className={`font-medium ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                                        {uniform.name}
+                                      </h4>
+                                      <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                        {uniform.category} • {uniform.subCategory}
+                                      </p>
                                     </div>
-                                    
-                                    <div className="flex items-center gap-2">
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        max={availableQty}
-                                        value={currentQty}
-                                        onChange={(e) => handleUniformSelection(uniform.name, size, parseInt(e.target.value) || 0)}
-                                        className={`w-20 px-2 py-1 text-sm border rounded focus:ring-2 focus:border-transparent ${
-                                          theme === "dark"
-                                            ? "bg-gray-600 border-gray-500 text-gray-100 focus:ring-blue-900"
-                                            : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
-                                        }`}
-                                        placeholder="Qty"
-                                      />
-                                      <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                                        / {availableQty}
+                                    <div className="text-right">
+                                      <span className={`text-xs px-2 py-1 rounded-full ${
+                                        theme === "dark" ? "bg-blue-800 text-blue-200" : "bg-blue-100 text-blue-800"
+                                      }`}>
+                                        {uniform.sizes.length} sizes available
                                       </span>
                                     </div>
                                   </div>
-                                );
-                              })}
+                                  
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {uniform.sizes.map((size) => {
+                                      const availableQty = uniform.sizeInventory?.find(si => si.size === size)?.quantity || 0;
+                                      const selectedUniform = selectedUniforms.find(u => u.name === uniform.name && u.size === size);
+                                      const currentQty = selectedUniform?.quantity || 0;
+                                      
+                                      return (
+                                        <div key={size} className={`p-2 rounded-lg border ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
+                                          <div className="flex items-center justify-between mb-2">
+                                            <span className={`font-medium text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                                              Size: {size}
+                                            </span>
+                                            <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                              Stock: {availableQty}
+                                            </span>
+                                          </div>
+                                          
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              max={availableQty}
+                                              value={currentQty}
+                                              onChange={(e) => handleUniformSelection(uniform.name, size, parseInt(e.target.value) || 0)}
+                                              className={`w-20 px-2 py-1 text-sm border rounded focus:ring-2 focus:border-transparent ${
+                                                theme === "dark"
+                                                  ? "bg-gray-600 border-gray-500 text-gray-100 focus:ring-blue-900"
+                                                  : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                                              }`}
+                                              placeholder="Qty"
+                                            />
+                                            <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                              / {availableQty}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          </div>
-                        ))}
-                        
-                        <div className="flex justify-end pt-2">
-                          <button
-                            type="button"
-                            onClick={showDCPopupForUniforms}
-                            disabled={selectedUniforms.length === 0}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
-                              selectedUniforms.length > 0
-                                ? theme === "dark"
-                                  ? "bg-green-600 text-white hover:bg-green-700"
-                                  : "bg-green-600 text-white hover:bg-green-700"
-                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            }`}
-                          >
-                            <FaBoxOpen className="w-4 h-4" />
-                            Add to Bulk Issue ({selectedUniforms.length})
-                          </button>
+                          ) : (
+                            <div className={`text-center py-4 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                              No uniforms mapped for {designation} in {selectedProject.projectName}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ) : (
-                      <div className={`text-center py-4 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                        No uniforms mapped for {selectedDesignations.join(', ')} in {selectedProject.projectName}
+                      );
+                    })}
+
+                    {/* Add to Bulk Issue Button */}
+                    {selectedUniforms.length > 0 && (
+                      <div className="flex justify-end pt-4">
+                        <button
+                          type="button"
+                          onClick={showDCPopupForUniforms}
+                          className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
+                            theme === "dark"
+                              ? "bg-green-600 text-white hover:bg-green-700"
+                              : "bg-green-600 text-white hover:bg-green-700"
+                          }`}
+                        >
+                          <FaBoxOpen className="w-4 h-4" />
+                          Add to Bulk Issue ({selectedUniforms.length})
+                        </button>
                       </div>
                     )}
                   </div>
