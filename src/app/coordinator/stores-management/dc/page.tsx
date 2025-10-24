@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import ManagerDashboardLayout  from "@/components/dashboard/ManagerDashboardLayout";
+import CoordinatorDashboardLayout from "@/components/dashboard/CoordinatorDashboardLayout";
 import CreateDCModal from "@/components/dashboard/CreateDCmodal";
 import { FaSearch, FaUpload, FaFileImage, FaFilePdf, FaFileWord, FaFileExcel, FaTimes, FaDownload, FaEye, FaBoxOpen, FaUsers, FaTshirt, FaFileAlt, FaUserPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -3655,7 +3655,7 @@ export default function StoreDCPage() {
           <button onClick={() => setToast(null)} className="ml-2 text-lg font-bold">&times;</button>
         </div>
       )}
-      <ManagerDashboardLayout>
+      <CoordinatorDashboardLayout>
         <div className={`min-h-screen font-sans transition-colors duration-300 flex flex-col ${
           theme === "dark"
             ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
@@ -4557,7 +4557,7 @@ export default function StoreDCPage() {
             </div>
           </div>
           )}
-      </ManagerDashboardLayout>
+      </CoordinatorDashboardLayout>
       
       {/* Create DC Modal */}
       {showCreate && (
