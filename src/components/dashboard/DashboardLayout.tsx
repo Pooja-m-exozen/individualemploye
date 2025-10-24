@@ -61,6 +61,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const [generatedLink, setGeneratedLink] = useState<string>("");
   const [linkCopied, setLinkCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("Dashboard");
+  
+  // Authentication states for protective routes
+  const [isManagerAuthenticated, setIsManagerAuthenticated] = useState(false);
+  const [isCoordinatorAuthenticated, setIsCoordinatorAuthenticated] = useState(false);
+  const [isHRAuthenticated, setIsHRAuthenticated] = useState(false);
+  const [isOpsAuthenticated, setIsOpsAuthenticated] = useState(false);
+  const [isTaskAuthenticated, setIsTaskAuthenticated] = useState(false);
+  
   const { theme, toggleTheme } = useTheme();
 
   // Top navigation configuration
@@ -92,9 +100,64 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
     checkAuth();
   }, [router]);
 
-  // Update active tab based on current pathname
+  // Protective route function
+  const checkRouteAccess = (targetPath: string | null): boolean => {
+    if (!targetPath) return true;
+    
+    const userRole = getUserRole();
+    
+    // Check if trying to access protected routes
+    if (targetPath.startsWith('/Manager/') && !isManagerAuthenticated) {
+      return false;
+    }
+    if (targetPath.startsWith('/coordinator/') && !isCoordinatorAuthenticated) {
+      return false;
+    }
+    if (targetPath.startsWith('/hrd/') && !isHRAuthenticated) {
+      return false;
+    }
+    if (targetPath.startsWith('/Manager-Ops/') && !isOpsAuthenticated) {
+      return false;
+    }
+    if (targetPath.startsWith('/task/') && !isTaskAuthenticated) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Intercept navigation attempts
+  const handleNavigation = (href: string) => {
+    if (!checkRouteAccess(href)) {
+      // Show appropriate password modal based on the route
+      if (href.startsWith('/Manager/')) {
+        setShowManagerPasswordModal(true);
+      } else if (href.startsWith('/coordinator/')) {
+        setShowCoordinatorPasswordModal(true);
+      } else if (href.startsWith('/hrd/')) {
+        setShowHRPasswordModal(true);
+      } else if (href.startsWith('/Manager-Ops/')) {
+        setShowPasswordModal(true);
+      } else if (href.startsWith('/task/')) {
+        setShowUserTaskPasswordModal(true);
+      }
+      return;
+    }
+    
+    // If access is granted, navigate
+    router.push(href);
+  };
+
+  // Update active tab based on current pathname and check route access
   useEffect(() => {
     const currentPath = pathname;
+    
+    // Check if current path requires authentication
+    if (currentPath && !checkRouteAccess(currentPath)) {
+      // Redirect to dashboard if trying to access protected route without authentication
+      router.replace('/dashboard');
+      return;
+    }
     
     // Find the matching navigation item
     const findActiveTab = (items: typeof topNav): string => {
@@ -115,7 +178,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
     
     const newActiveTab = findActiveTab(topNav);
     setActiveTab(newActiveTab);
-  }, [pathname, topNav]);
+  }, [pathname, topNav, router]);
 
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -165,6 +228,20 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   }, []);
 
 const handleLogout = () => {
+  // Clear all authentication states
+  setIsManagerAuthenticated(false);
+  setIsCoordinatorAuthenticated(false);
+  setIsHRAuthenticated(false);
+  setIsOpsAuthenticated(false);
+  setIsTaskAuthenticated(false);
+  
+  // Clear sessionStorage authentication flags
+  sessionStorage.removeItem('isManagerAuthenticated');
+  sessionStorage.removeItem('isCoordinatorAuthenticated');
+  sessionStorage.removeItem('isHRAuthenticated');
+  sessionStorage.removeItem('isOpsAuthenticated');
+  sessionStorage.removeItem('isTaskAuthenticated');
+  
   logout(); // your logout function (e.g., clearing tokens or session)
   router.replace('/login'); // navigate to login screen
 };
@@ -220,7 +297,10 @@ const handleLogout = () => {
   const handlePasswordSubmit = () => {
     if (password === 'Opsexo2025!') {
       setPasswordError(false);
+      setIsOpsAuthenticated(true);
+      sessionStorage.setItem('isOpsAuthenticated', 'true');
       setShowPasswordModal(false);
+      setPassword('');
       router.push('/Manager-Ops/dashboard');
     } else {
       setPasswordError(true);
@@ -235,6 +315,8 @@ const handleLogout = () => {
   const handleManagerPasswordSubmit = () => {
     if (ManagerPassword === 'Manager@2025exo!') {
       setManagerPasswordError(false);
+      setIsManagerAuthenticated(true);
+      sessionStorage.setItem('isManagerAuthenticated', 'true');
       setShowManagerPasswordModal(false);
       setManagerPassword('');
       router.push('/Manager/dashboard');
@@ -246,6 +328,8 @@ const handleLogout = () => {
   const handleHRPasswordSubmit = () => {
     if (HRPassword === 'Hrd@exozen2025!') {
       setHRPasswordError(false);
+      setIsHRAuthenticated(true);
+      sessionStorage.setItem('isHRAuthenticated', 'true');
       setShowHRPasswordModal(false);
       setHRPassword('');
       router.push('/hrd/dashboard');
@@ -262,6 +346,8 @@ const handleLogout = () => {
   const handleCoordinatorPasswordSubmit = () => {
     if (coordinatorPassword === 'coordinator@exozen2025!') {
       setCoordinatorPasswordError(false);
+      setIsCoordinatorAuthenticated(true);
+      sessionStorage.setItem('isCoordinatorAuthenticated', 'true');
       setShowCoordinatorPasswordModal(false);
       setCoordinatorPassword("");
       router.push('/coordinator/dashboard');
@@ -357,7 +443,7 @@ const handleLogout = () => {
                         onClick={(e) => {
                           e.preventDefault();
                           setActiveTab(item.label);
-                          router.push(item.href!);
+                          handleNavigation(item.href!);
                         }}
                         className={`
                           relative block px-4 py-2 text-sm font-medium whitespace-nowrap
@@ -439,7 +525,13 @@ const handleLogout = () => {
                         {/* Add Ops-Manager View option if the role is Manager-Ops */}
                         {getUserRole() === 'Manager-Ops' && (
                           <button
-                            onClick={handleOpsManagerView}
+                            onClick={() => {
+                              if (isOpsAuthenticated) {
+                                router.push('/Manager-Ops/dashboard');
+                              } else {
+                                handleOpsManagerView();
+                              }
+                            }}
                             className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
                           >
                             <FaTasks className="text-blue-500 w-5 h-5" /> Ops-Manager View
@@ -448,7 +540,13 @@ const handleLogout = () => {
                         {/* Add Manager option if the role is Manager */}
                         {getUserRole() === 'Manager' && (
                           <button
-                            onClick={handleManagerView}
+                            onClick={() => {
+                              if (isManagerAuthenticated) {
+                                router.push('/Manager/dashboard');
+                              } else {
+                                handleManagerView();
+                              }
+                            }}
                             className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-green-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
                           >
                             <FaTasks className="text-green-500 w-5 h-5" /> Manager
@@ -457,7 +555,14 @@ const handleLogout = () => {
                         {/* Add HR View option if the role is HR */}
                         {getUserRole() === 'HR' && (
                           <button
-                            onClick={() => { setShowProfileDropdown(false); setShowHRPasswordModal(true); }}
+                            onClick={() => {
+                              if (isHRAuthenticated) {
+                                router.push('/hrd/dashboard');
+                              } else {
+                                setShowProfileDropdown(false);
+                                setShowHRPasswordModal(true);
+                              }
+                            }}
                             className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-purple-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
                           >
                             <FaTasks className="text-purple-500 w-5 h-5" /> HR View
@@ -466,7 +571,13 @@ const handleLogout = () => {
                         {/* Add Coordinator View option if the role is coordinator */}
                         {getUserRole() === 'Coordinator' && (
                           <button
-                            onClick={handleCoordinatorView}
+                            onClick={() => {
+                              if (isCoordinatorAuthenticated) {
+                                router.push('/coordinator/dashboard');
+                              } else {
+                                handleCoordinatorView();
+                              }
+                            }}
                             className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-orange-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
                           >
                             <FaUser className="text-orange-500 w-5 h-5" /> Coordinator View
@@ -475,7 +586,14 @@ const handleLogout = () => {
                         {/* Add + Task option if the role is user */}
                         {getUserRole() === 'User' && (
                           <button
-                            onClick={() => { setShowProfileDropdown(false); setShowUserTaskPasswordModal(true); }}
+                            onClick={() => {
+                              if (isTaskAuthenticated) {
+                                router.push('/task/dashboard');
+                              } else {
+                                setShowProfileDropdown(false);
+                                setShowUserTaskPasswordModal(true);
+                              }
+                            }}
                             className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
                           >
                             <FaPlus className="text-blue-500 w-5 h-5" /> + Task
@@ -763,6 +881,8 @@ const handleLogout = () => {
                   onClick={() => {
                     if (userTaskPassword === 'Taskexozen@2025!') {
                       setUserTaskPasswordError(false);
+                      setIsTaskAuthenticated(true);
+                      sessionStorage.setItem('isTaskAuthenticated', 'true');
                       setShowUserTaskPasswordModal(false);
                       setUserTaskPassword("");
                       router.push('/task/dashboard');

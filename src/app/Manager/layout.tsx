@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
 import ProtectiveRoute from "@/components/ProtectiveRoute";
 
-export default function ManagerDashboardRootLayout({
+export default function ManagerRootLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -15,7 +14,7 @@ export default function ManagerDashboardRootLayout({
       password="Manager@2025exo!"
       redirectPath="/dashboard"
     >
-      <ManagerDashboardLayout>{children}</ManagerDashboardLayout>
+      {children}
     </ProtectiveRoute>
   );
-} 
+}
