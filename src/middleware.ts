@@ -14,7 +14,7 @@ export function middleware(request: NextRequest) {
   };
 
   // Check if the current path matches any protected route
-  for (const [route, role] of Object.entries(protectedRoutes)) {
+  for (const [route,] of Object.entries(protectedRoutes)) {
     if (pathname.startsWith(route)) {
       // For now, we'll let the client-side protection handle this
       // The ProtectiveRoute component will check sessionStorage

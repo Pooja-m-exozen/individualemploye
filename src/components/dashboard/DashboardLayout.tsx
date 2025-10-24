@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState, useEffect, useMemo } from 'react';
+import React, { ReactNode, useState, useEffect, useMemo, useCallback } from 'react';
 import type { JSX } from 'react';
 import Image from 'next/image';
 import { FaSignOutAlt, FaPlus, FaUser, FaTasks, FaTimes, FaSun, FaMoon, FaEye, FaEyeSlash, FaUserPlus } from 'react-icons/fa';
@@ -103,8 +103,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   // Protective route function
   const checkRouteAccess = (targetPath: string | null): boolean => {
     if (!targetPath) return true;
-    
-    const userRole = getUserRole();
     
     // Check if trying to access protected routes
     if (targetPath.startsWith('/Manager/') && !isManagerAuthenticated) {
