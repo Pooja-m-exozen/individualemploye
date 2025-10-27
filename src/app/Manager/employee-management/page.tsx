@@ -946,7 +946,7 @@ export default function EmployeeManagementPage() {
           open={editKycModal.open}
           onClose={() => setEditKycModal({ open: false, kycData: null })}
           kycData={editKycModal.kycData}
-          onSave={async (_updatedData) => {
+          onSave={async () => {
             setEditKycModal({ open: false, kycData: null });
             // Refresh the employee list to show updated data
             await fetchEmployees();
