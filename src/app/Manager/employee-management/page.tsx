@@ -4,12 +4,14 @@ import { FaSearch, FaCheckCircle, FaEye } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 import ViewKYCModal from '@/components/dashboard/ViewKYCModal';
+import EditKYCModal from '@/components/dashboard/EditKYCModal';
 import IDCardModal, { IDCardData } from '@/components/dashboard/IDCardModal';
 import UniformModal from '@/components/dashboard/UniformModal';
 import AttendanceModal from '@/components/dashboard/AttendanceModal';
 
 // Define KYCData interface locally
 interface KYCData {
+  _id: string;
   personalDetails: {
     employeeId: string;
     projectName: string;
@@ -84,6 +86,7 @@ interface Employee {
 
 // Extend KycForm and Employee types to include projectName and employeeImage
 interface KycForm {
+  _id?: string;
   personalDetails?: {
     employeeId?: string;
     empId?: string;
@@ -210,6 +213,7 @@ export default function EmployeeManagementPage() {
   const [idCardModal, setIdCardModal] = useState<{ open: boolean, cardData: IDCardData | null }>({ open: false, cardData: null });
   const [uniformModal, setUniformModal] = useState<{ open: boolean, employeeId: string | null }>({ open: false, employeeId: null });
   const [attendanceModal, setAttendanceModal] = useState<{ open: boolean, employeeId: string | null, employeeName: string | null }>({ open: false, employeeId: null, employeeName: null });
+  const [editKycModal, setEditKycModal] = useState<{ open: boolean, kycData: KYCData | null }>({ open: false, kycData: null });
 
   const placeholderSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>
     <defs>
@@ -230,71 +234,78 @@ export default function EmployeeManagementPage() {
   };
   
 
-  useEffect(() => {
+  // Extract fetch logic into a reusable function
+  const fetchEmployees = async () => {
     setLoading(true);
     setError(null);
-    fetch("https://cafm.zenapi.co.in/api/kyc")
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to fetch employees");
-        const data = await res.json();
-        const kycForms: KycForm[] = Array.isArray(data.kycForms) ? data.kycForms : [];
-        // Collect unique project names
-        const projects = Array.from(new Set(kycForms.map(f => f.personalDetails?.projectName).filter((p): p is string => Boolean(p))));
-        setProjectOptions(["All Projects", ...projects]);
-        // Prepare employee base info
-        const baseEmployees: BaseEmployee[] = kycForms.map((form: KycForm) => {
-          const pd = form.personalDetails || {};
+    try {
+      const res = await fetch("https://cafm.zenapi.co.in/api/kyc");
+      if (!res.ok) throw new Error("Failed to fetch employees");
+      const data = await res.json();
+      const kycForms: KycForm[] = Array.isArray(data.kycForms) ? data.kycForms : [];
+      // Collect unique project names
+      const projects = Array.from(new Set(kycForms.map(f => f.personalDetails?.projectName).filter((p): p is string => Boolean(p))));
+      setProjectOptions(["All Projects", ...projects]);
+      // Prepare employee base info
+      const baseEmployees: BaseEmployee[] = kycForms.map((form: KycForm) => {
+        const pd = form.personalDetails || {};
+        return {
+          employeeId: pd.employeeId || pd.empId || "",
+          fullName: pd.fullName || pd.name || "",
+          designation: pd.designation || "",
+          projectName: pd.projectName || "",
+          personalDetails: pd, // for image
+          kycForm: { ...form, _id: form._id || form.personalDetails?.employeeId || form.personalDetails?.empId || '' }, // store the full KYC form with _id
+        };
+      }).filter((emp: { employeeId: string }) => emp.employeeId);
+      // Fetch summary for each employee
+      const summaryPromises = baseEmployees.map(async (emp: BaseEmployee) => {
+        try {
+          const summaryRes = await fetch(`https://cafm.zenapi.co.in/api/employees/${emp.employeeId}/summary`);
+          if (!summaryRes.ok) throw new Error();
+          const summary: EmployeeSummary = await summaryRes.json();
           return {
-            employeeId: pd.employeeId || pd.empId || "",
-            fullName: pd.fullName || pd.name || "",
-            designation: pd.designation || "",
-            projectName: pd.projectName || "",
-            personalDetails: pd, // for image
-            kycForm: form, // store the full KYC form
-          };
-        }).filter((emp: { employeeId: string }) => emp.employeeId);
-        // Fetch summary for each employee
-        const summaryPromises = baseEmployees.map(async (emp: BaseEmployee) => {
-          try {
-            const summaryRes = await fetch(`https://cafm.zenapi.co.in/api/employees/${emp.employeeId}/summary`);
-            if (!summaryRes.ok) throw new Error();
-            const summary: EmployeeSummary = await summaryRes.json();
-            return {
-              ...emp,
-              workflow: {
-                kyc: summary.kyc && summary.kyc.status === "Approved",
-                idCard: summary.idCard && summary.idCard.status === "Issued",
-                uniform: summary.uniform && Array.isArray(summary.uniform.items) && summary.uniform.items.length > 0,
-                attendance: summary.attendance && Array.isArray(summary.attendance.recent) && summary.attendance.recent.length > 0,
-                leave: summary.leave && Array.isArray(summary.leave.recent) && summary.leave.recent.length > 0,
-                payslip: summary.payroll && Array.isArray(summary.payroll) && summary.payroll.length > 0,
-              },
-              summary,
-              personalDetails: emp.personalDetails,
-              projectName: emp.projectName,
-            } as EmployeeWithSummary;
-          } catch {
-            return {
-              ...emp,
-              workflow: {
-                kyc: false,
-                idCard: false,
-                uniform: false,
-                attendance: false,
-                leave: false,
-                payslip: false,
-              },
-              summary: null,
-              personalDetails: emp.personalDetails,
-              projectName: emp.projectName,
-            } as EmployeeWithSummary;
-          }
-        });
-        const employeesWithWorkflow: EmployeeWithSummary[] = await Promise.all(summaryPromises);
-        setEmployees(employeesWithWorkflow);
-      })
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false));
+            ...emp,
+            workflow: {
+              kyc: summary.kyc && summary.kyc.status === "Approved",
+              idCard: summary.idCard && summary.idCard.status === "Issued",
+              uniform: summary.uniform && Array.isArray(summary.uniform.items) && summary.uniform.items.length > 0,
+              attendance: summary.attendance && Array.isArray(summary.attendance.recent) && summary.attendance.recent.length > 0,
+              leave: summary.leave && Array.isArray(summary.leave.recent) && summary.leave.recent.length > 0,
+              payslip: summary.payroll && Array.isArray(summary.payroll) && summary.payroll.length > 0,
+            },
+            summary,
+            personalDetails: emp.personalDetails,
+            projectName: emp.projectName,
+          } as EmployeeWithSummary;
+        } catch {
+          return {
+            ...emp,
+            workflow: {
+              kyc: false,
+              idCard: false,
+              uniform: false,
+              attendance: false,
+              leave: false,
+              payslip: false,
+            },
+            summary: null,
+            personalDetails: emp.personalDetails,
+            projectName: emp.projectName,
+          } as EmployeeWithSummary;
+        }
+      });
+      const employeesWithWorkflow: EmployeeWithSummary[] = await Promise.all(summaryPromises);
+      setEmployees(employeesWithWorkflow);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployees();
   }, []);
 
   // Get unique designations for dropdowns
@@ -786,7 +797,12 @@ export default function EmployeeManagementPage() {
                     )}
                     {visibleCols.kyc && (
                       <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => setKycModal({ open: true, kycData: emp.kycForm ? (emp.kycForm as unknown as KYCData) : null })}>
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
+                          if (emp.kycForm) {
+                            const kycData = emp.kycForm as unknown as KYCData;
+                            setKycModal({ open: true, kycData });
+                          }
+                        }}>
                           <FaEye />
                         </button>
                       </td>
@@ -914,7 +930,28 @@ export default function EmployeeManagementPage() {
       </div>
       {/* KYC Full Details Modal */}
       {kycModal.open && kycModal.kycData && (
-        <ViewKYCModal open={kycModal.open} onClose={() => setKycModal({ open: false, kycData: null })} kycData={kycModal.kycData} />
+        <ViewKYCModal 
+          open={kycModal.open} 
+          onClose={() => setKycModal({ open: false, kycData: null })} 
+          kycData={kycModal.kycData}
+          onEdit={() => {
+            setKycModal({ open: false, kycData: null });
+            setEditKycModal({ open: true, kycData: kycModal.kycData });
+          }}
+        />
+      )}
+      {/* Edit KYC Modal */}
+      {editKycModal.open && editKycModal.kycData && (
+        <EditKYCModal
+          open={editKycModal.open}
+          onClose={() => setEditKycModal({ open: false, kycData: null })}
+          kycData={editKycModal.kycData}
+          onSave={async (updatedData) => {
+            setEditKycModal({ open: false, kycData: null });
+            // Refresh the employee list to show updated data
+            await fetchEmployees();
+          }}
+        />
       )}
       {/* ID Card Modal */}
       {idCardModal.open && idCardModal.cardData && (
@@ -949,4 +986,5 @@ type BaseEmployee = {
     projectName?: string;
     // ...other fields
   };
+  kycForm?: KycForm;
 };

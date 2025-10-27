@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaUser, FaMapMarkerAlt, FaIdCard,  FaTimes, FaFileAlt, FaPhone, FaUserCircle, FaBuilding, FaAddressCard, FaCheckCircle, FaExclamationCircle, FaDownload, FaSpinner } from "react-icons/fa";
+import { FaUser, FaMapMarkerAlt, FaIdCard,  FaTimes, FaFileAlt, FaPhone, FaUserCircle, FaBuilding, FaAddressCard, FaCheckCircle, FaExclamationCircle, FaDownload, FaSpinner, FaEdit } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
@@ -74,9 +74,10 @@ interface ViewKYCModalProps {
   open: boolean;
   onClose: () => void;
   kycData: KYCData;
+  onEdit?: () => void;
 }
 
-const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) => {
+const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData, onEdit }) => {
   const { theme } = useTheme();
   const [selectedTab, setSelectedTab] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -405,6 +406,15 @@ const ViewKYCModal: React.FC<ViewKYCModalProps> = ({ open, onClose, kycData }) =
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-4 mt-2 sm:mt-0">
+              {onEdit && (
+                <button 
+                  onClick={onEdit}
+                  className="text-white hover:text-gray-200 text-xl font-bold focus:outline-none p-2 rounded-full hover:bg-black/20"
+                  title="Edit KYC Details"
+                >
+                  <FaEdit />
+                </button>
+              )}
               <button 
                 onClick={handleDownload}
                 disabled={isDownloading}
