@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import CoordinatorDashboardLayout  from "@/components/dashboard/CoordinatorDashboardLayout";
+import CoordinatorDashboardLayout from "@/components/dashboard/CoordinatorDashboardLayout";
 import CreateDCModal from "@/components/dashboard/CreateDCmodal";
 import { FaSearch, FaUpload, FaFileImage, FaFilePdf, FaFileWord, FaFileExcel, FaTimes, FaDownload, FaEye, FaBoxOpen, FaUsers, FaTshirt, FaFileAlt, FaUserPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -43,6 +43,9 @@ interface DCItemAPI {
   isRetrievable?: boolean;
   retrievalStatus?: string;
   retrievalDeadline?: string;
+  // Bulk issue properties
+  isBulkIssue?: boolean;
+  sourceType?: string;
 }
 
 interface InventoryItem {
@@ -182,6 +185,8 @@ interface DC {
   retrievalStatus?: string; // Add retrieval status for RDC
   isRetrievable?: boolean; // Add retrievable flag for RDC
   retrievalDeadline?: string; // Add retrieval deadline for RDC - Updated
+  isBulkIssue?: boolean; // Add bulk issue flag
+  sourceType?: string; // Add source type for bulk issues
 }
 
 interface ApiResponse {
@@ -497,13 +502,13 @@ export default function StoreDCPage() {
   });
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedIssueForView, setSelectedIssueForView] = useState<Issue | null>(null);
-  const [selectedIssueForDC, setSelectedIssueForDC] = useState<Issue | null>(null);
   const [dcCreationData, setDcCreationData] = useState({
     dcNumber: "",
     dcDate: new Date().toISOString().split('T')[0],
     address: "",
     remarks: ""
   });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isCreatingDC, setIsCreatingDC] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDC, setSelectedDC] = useState<DC | null>(null);
@@ -1212,43 +1217,6 @@ export default function StoreDCPage() {
 
 
 
-  // Function to fetch DC details
-  const fetchDCDetails = async (dcId: string): Promise<OutwardDC | null> => {
-    try {
-      console.log('Fetching DC details for ID:', dcId);
-      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/${dcId}`);
-      
-      if (!response.ok) {
-        console.error('DC API response not ok:', response.status, response.statusText);
-        throw new Error(`API request failed with status ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('DC API response:', result);
-      
-      if (result.success && result.dc) {
-        const dcData = result.dc;
-        return {
-          _id: dcData._id,
-          customer: dcData.customer || '',
-          dcNumber: dcData.dcNumber,
-          dcDate: dcData.dcDate,
-          address: dcData.address,
-          remarks: dcData.remarks,
-          items: dcData.items || [],
-          createdAt: dcData.createdAt,
-          updatedAt: dcData.updatedAt
-        };
-      } else {
-        console.error('DC API returned unsuccessful response:', result);
-        throw new Error(result.message || "Failed to fetch DC details");
-      }
-    } catch (error) {
-      console.error("Error fetching DC details:", error);
-      setToast(`Error fetching DC details: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      return null;
-    }
-  };
 
   // Function to fetch employees for specific project and designation
   const fetchEmployeesForMapping = async (projectName: string, designation?: string) => {
@@ -1768,11 +1736,30 @@ export default function StoreDCPage() {
 
   const filteredDC = mappedDC.filter(dc => {
     // Filter out bulk DCs - exclude DCs that were created from bulk issues
-    // Bulk DCs have remarks containing "Generated from Issue"
-    const isBulkDC = dc.remarks && dc.remarks.includes('Generated from Issue');
+    // Check multiple criteria to identify bulk issue DCs
+    const isBulkDC = dc.remarks && (
+      dc.remarks.includes('Generated from Issue') ||
+      dc.remarks.includes('Generated from Bulk Issue') ||
+      dc.remarks.includes('Bulk Issue')
+    );
     
-    // Only show individual DCs (exclude bulk DCs)
-    if (isBulkDC) {
+    // Also check if DC has bulk issue properties
+    const hasBulkIssueFlag = dc.isBulkIssue === true;
+    const hasBulkIssueSourceType = dc.sourceType && (
+      dc.sourceType.toLowerCase().includes('bulk') ||
+      dc.sourceType.toLowerCase().includes('issue')
+    );
+    
+    // Exclude if any of these conditions are true
+    if (isBulkDC || hasBulkIssueFlag || hasBulkIssueSourceType) {
+      console.log('Excluding bulk issue DC:', dc.dcNumber, {
+        isBulkDC,
+        hasBulkIssueFlag,
+        hasBulkIssueSourceType,
+        remarks: dc.remarks,
+        isBulkIssue: dc.isBulkIssue,
+        sourceType: dc.sourceType
+      });
       return false;
     }
     
@@ -2813,18 +2800,58 @@ export default function StoreDCPage() {
     return designations;
   };
 
-  const getAvailableUniforms = (): InventoryItem[] => {
-    if (!selectedProject || selectedDesignations.length === 0) return [];
-    const mapping = uniformMappings.find(m => 
-      m.project === selectedProject.projectName && 
-      selectedDesignations.some(d => m.designations.includes(d))
-    );
-    if (!mapping) return [];
+
+  // Helper function to get uniforms for a specific designation
+  const getUniformsForDesignation = (designation: string): InventoryItem[] => {
+    if (!selectedProject) {
+      console.log(`❌ No project selected for designation: ${designation}`);
+      return [];
+    }
     
-    // Return actual inventory items instead of just uniform type names
-    return inventoryItems.filter(item => 
-      mapping.uniformTypes.includes(item.name || '')
+    console.log(`🔍 Getting uniforms for designation: ${designation} in project: ${selectedProject.projectName}`);
+    console.log(`📋 Total mappings available: ${uniformMappings.length}`);
+    console.log(`📦 Total inventory items available: ${inventoryItems.length}`);
+    
+    // Use same logic as above for consistency
+    let mappings = uniformMappings.filter(m => 
+      m.project === selectedProject.projectName && 
+      m.designations.includes(designation)
     );
+    
+    console.log(`🔍 Exact project match found ${mappings.length} mapping(s) for ${designation}`);
+    
+    if (mappings.length === 0) {
+      console.log(`🔍 No exact match, trying partial matching...`);
+      mappings = uniformMappings.filter(m => 
+        (m.project.toLowerCase().includes(selectedProject.projectName.toLowerCase()) ||
+         selectedProject.projectName.toLowerCase().includes(m.project.toLowerCase())) &&
+        m.designations.includes(designation)
+      );
+      console.log(`🔍 Partial match found ${mappings.length} mapping(s) for ${designation}`);
+    }
+    
+    console.log(`🔍 Final mappings for ${designation}:`, mappings);
+    
+    const uniforms: InventoryItem[] = [];
+    const addedUniformIds = new Set<string>();
+    
+    mappings.forEach(mapping => {
+      console.log(`👕 Processing mapping for ${designation}:`, mapping.uniformTypes);
+      mapping.uniformTypes.forEach(uniformType => {
+        const inventoryItem = inventoryItems.find(item => item.name === uniformType);
+        console.log(`🔍 Looking for "${uniformType}" in inventory:`, inventoryItem ? 'Found' : 'Not found');
+        if (inventoryItem && inventoryItem._id && !addedUniformIds.has(inventoryItem._id)) {
+          uniforms.push(inventoryItem);
+          addedUniformIds.add(inventoryItem._id);
+          console.log(`✅ Added uniform: ${inventoryItem.name || 'Unknown'} for designation: ${designation}`);
+        } else if (inventoryItem) {
+          console.log(`⚠️ Uniform already added: ${inventoryItem.name}`);
+        }
+      });
+    });
+    
+    console.log(`📊 Final result for ${designation}: ${uniforms.length} uniforms found:`, uniforms.map(u => u.name));
+    return uniforms;
   };
 
   const handleUniformSelection = (uniformName: string, size: string, quantity: number) => {
@@ -3328,158 +3355,8 @@ export default function StoreDCPage() {
     }
   };
 
-  // Function to handle DC creation/mapping button click
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleCreateDC = async (issue: Issue) => {
-    setSelectedIssueForDC(issue);
-    
-    // Check if DC already exists for this issue (either outwardDC object or dcNumber)
-    if (issue.outwardDC || issue.dcNumber) {
-      // DC already exists, try to fetch latest DC details
-      console.log('DC exists for issue, fetching details...');
-      const dcId = issue.outwardDC?._id;
-      if (dcId) {
-        const dcDetails = await fetchDCDetails(dcId);
-      
-        if (dcDetails) {
-          // Successfully fetched latest DC details
-          // setCreatedDC(dcDetails);
-          // Fetch employees for this project/designation
-          await fetchEmployeesForMapping(issue.department);
-          setShowEmployeeMappingModal(true);
-        } else {
-          // Fallback: use existing DC data from issue
-          console.log('Using fallback DC data from issue');
-          if (issue.outwardDC) {
-            // setCreatedDC(issue.outwardDC!);
-          } else {
-            setToast("DC exists but details are not available. Please contact support.");
-            return;
-          }
-          // Fetch employees for this project/designation
-          await fetchEmployeesForMapping(issue.department);
-          setShowEmployeeMappingModal(true);
-          setToast("Using cached DC data. Some details might not be up-to-date.");
-        }
-      } else if (issue.dcNumber) {
-        // DC exists but we don't have the full DC object, fetch it by DC number
-        console.log('DC number exists, fetching DC details by DC number:', issue.dcNumber);
-        try {
-          // Fetch all DCs and find the one with matching DC number
-          const response = await fetch('https://inventory.zenapi.co.in/api/inventory/outward-dc');
-          if (response.ok) {
-            const result = await response.json();
-            let allDCs = [];
-            if (result.success && Array.isArray(result.data)) {
-              allDCs = result.data;
-            } else if (Array.isArray(result)) {
-              allDCs = result;
-            } else if (result.dcs && Array.isArray(result.dcs)) {
-              allDCs = result.dcs;
-            }
-            
-            // Find DC with matching DC number
-            const matchingDC = allDCs.find((dc: DCItemAPI) => dc.dcNumber === issue.dcNumber);
-            
-            if (matchingDC) {
-              console.log('Found DC by number:', matchingDC);
-              // setCreatedDC(matchingDC);
-              await fetchEmployeesForMapping(issue.department);
-              setShowEmployeeMappingModal(true);
-            } else {
-              setToast(`DC ${issue.dcNumber} exists but could not find details in system. Please contact support.`);
-            }
-          } else {
-            setToast(`Failed to fetch DC details. Please try again.`);
-          }
-        } catch (error) {
-          console.error('Error fetching DC by number:', error);
-          setToast(`Error fetching DC details. Please try again.`);
-        }
-      }
-    } else {
-      // No DC exists, show DC creation modal
-      setDcCreationData({
-        dcNumber: `DC${Date.now()}`,
-        dcDate: new Date().toISOString().split('T')[0],
-        address: issue.department,
-        remarks: `Generated from Issue ${issue._id}`
-      });
-      setShowDCCreationModal(true);
-    }
-  };
 
-  const createDCFromIssue = async () => {
-    if (!selectedIssueForDC) {
-      setToast("No issue selected for DC creation");
-      return;
-    }
 
-    if (!dcCreationData.dcNumber || !dcCreationData.address) {
-      setToast("Please fill in NRDC Number and Address");
-      return;
-    }
-
-    setIsCreatingDC(true);
-    try {
-      const response = await fetch(`https://inventory.zenapi.co.in/api/inventory/outward-dc/from-issue/${selectedIssueForDC._id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dcCreationData),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('DC Creation Response:', result);
-        console.log('DC Items count:', result.dc?.items?.length || 'No items array');
-        console.log('DC Total quantity:', result.dc?.items?.reduce((sum: number, item: { quantity?: number }) => sum + (item.quantity || 0), 0) || 'No quantity calculation');
-        
-        if (result.success) {
-          // setCreatedDC(result.dc);
-          
-          // Issues updated successfully
-          
-          setToast(`NRDC created successfully! NRDC Number: ${result.dc.dcNumber}`);
-          
-          // Close DC creation modal and refresh DC data
-          setShowDCCreationModal(false);
-          await refreshDCData();
-          
-        } else {
-          setToast(result.message || "Failed to create DC");
-        }
-      } else {
-        const errorData = await response.json();
-        console.error('DC Creation Error:', errorData);
-        setToast(errorData.message || "Failed to create DC");
-      }
-    } catch (error) {
-      console.error("Error creating DC:", error);
-      setToast("Error creating DC. Please try again.");
-    } finally {
-      setIsCreatingDC(false);
-    }
-  };
-
-  // Helper function to check if all items in a DC are fully mapped
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const isDCFullyMapped = (issue: Issue): boolean => {
-    if (!issue.outwardDC) return false;
-    
-    return issue.outwardDC.items.every(item => {
-      // Check if remainingQuantity is 0 (most reliable indicator)
-      if (item.remainingQuantity !== undefined) {
-        return item.remainingQuantity === 0;
-      }
-      
-      // Fallback: Check if item has employeeMappings and all quantity is mapped
-      if ('employeeMappings' in item && item.employeeMappings && item.employeeMappings.length > 0) {
-        const totalMappedQuantity = item.employeeMappings.reduce((sum: number, mapping: { quantity: number }) => sum + mapping.quantity, 0);
-        return totalMappedQuantity >= (item.totalQuantity || item.quantity || 1);
-      }
-      return false;
-    });
-  };
 
   const refreshIssues = async () => {
     try {
@@ -4920,138 +4797,171 @@ export default function StoreDCPage() {
               )}
 
               {selectedProject && selectedDesignations.length > 0 && (
-                <div className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
-                  <h3 className={`font-semibold mb-3 flex items-center gap-2 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>
-                    <FaTshirt className="w-4 h-4" />
-                    Available Uniforms for {selectedDesignations.join(', ')}
-                  </h3>
-                  
-                  {getAvailableUniforms().length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className={`min-w-full border-collapse ${theme === "dark" ? "border-gray-600" : "border-gray-300"}`}>
-                        <thead>
-                          <tr className={`${theme === "dark" ? "bg-gray-800" : "bg-gray-100"}`}>
-                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
-                              Item Name
-                            </th>
-                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
-                              Category
-                            </th>
-                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
-                              Size
-                            </th>
-                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
-                              Stock
-                            </th>
-                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
-                              Quantity
-                            </th>
-                            <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
-                              Action
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className={theme === "dark" ? "divide-y divide-gray-600" : "divide-y divide-gray-200"}>
-                          {getAvailableUniforms().map((uniform) => 
-                            uniform.sizes?.map((size: string, sizeIndex: number) => {
-                              const availableQty = uniform.sizeInventory?.find((si: { size: string; quantity: number }) => si.size === size)?.quantity || 0;
-                              const selectedUniform = selectedUniforms.find(u => u.name === uniform.name && u.size === size);
-                              const currentQty = selectedUniform?.quantity || 0;
-                              
-                              return (
-                                <tr key={`${uniform._id}-${size}`} className={`${theme === "dark" ? "hover:bg-gray-700 transition even:bg-gray-800" : "hover:bg-gray-50 transition even:bg-gray-25"}`}>
-                                  {sizeIndex === 0 && (
-                                    <td 
-                                      rowSpan={uniform.sizes?.length || 1}
-                                      className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'} align-top`}
-                                    >
-                                      <div>
-                                        <div className="font-semibold">{uniform.name}</div>
-                                        <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                          {uniform.subCategory}
-                                        </div>
-                                      </div>
-                                    </td>
-                                  )}
-                                  {sizeIndex === 0 && (
-                                    <td 
-                                      rowSpan={uniform.sizes?.length || 1}
-                                      className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'} align-top`}
-                                    >
-                                      {uniform.category}
-                                    </td>
-                                  )}
-                                  <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
-                                    <div className="text-center font-medium">{size}</div>
-                                  </td>
-                                  <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
-                                    <div className="text-center">
-                                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                                        theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-700"
-                                      }`}>
-                                        {availableQty}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
-                                    <div className="flex items-center gap-2">
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        max={availableQty}
-                                        value={currentQty}
-                                        onChange={(e) => handleUniformSelection(uniform.name || '', size, parseInt(e.target.value) || 0)}
-                                        className={`w-16 px-2 py-1 text-xs border rounded focus:ring-2 focus:border-transparent ${
-                                          theme === "dark"
-                                            ? "bg-gray-600 border-gray-500 text-gray-100 focus:ring-green-900"
-                                            : "bg-white border-gray-300 text-gray-900 focus:ring-green-500"
-                                        }`}
-                                        placeholder="0"
-                                      />
-                                      <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                                        /{availableQty}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
-                                    <div className="text-center">
-                                      {currentQty > 0 && (
-                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                                          theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-700"
-                                        }`}>
-                                          Selected
-                                        </span>
-                                      )}
-                                    </div>
-                                  </td>
+                <div className="space-y-6">
+
+                  {/* Separate sections for each designation */}
+                  {selectedDesignations.map((designation, index) => {
+                    const designationUniforms = getUniformsForDesignation(designation);
+                    
+                    console.log(`🎯 Rendering section for ${designation}:`, {
+                      designation,
+                      uniformsCount: designationUniforms.length,
+                      uniforms: designationUniforms.map(u => u.name)
+                    });
+                    
+                    return (
+                      <div key={designation} className={`p-4 rounded-lg border ${theme === "dark" ? "bg-green-950 border-green-800" : "bg-green-50 border-green-200"}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className={`font-semibold flex items-center gap-2 ${theme === "dark" ? "text-green-200" : "text-green-800"}`}>
+                            <FaTshirt className="w-4 h-4" />
+                            Section {index + 1}: Available Uniforms for {designation}
+                          </h3>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              theme === "dark" ? "bg-blue-800 text-blue-200" : "bg-blue-100 text-blue-800"
+                            }`}>
+                              {designationUniforms.length} uniforms
+                            </span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              designationUniforms.length > 0 
+                                ? (theme === "dark" ? "bg-green-800 text-green-200" : "bg-green-100 text-green-800")
+                                : (theme === "dark" ? "bg-red-800 text-red-200" : "bg-red-100 text-red-800")
+                            }`}>
+                              {designationUniforms.length > 0 ? "HAS UNIFORMS" : "NO UNIFORMS"}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        
+                        {designationUniforms.length > 0 ? (
+                          <div className="overflow-x-auto">
+                            <table className={`min-w-full border-collapse ${theme === "dark" ? "border-gray-600" : "border-gray-300"}`}>
+                              <thead>
+                                <tr className={`${theme === "dark" ? "bg-gray-800" : "bg-gray-100"}`}>
+                                  <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                                    Item Name
+                                  </th>
+                                  <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                                    Category
+                                  </th>
+                                  <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                                    Size
+                                  </th>
+                                  <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                                    Stock
+                                  </th>
+                                  <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                                    Quantity
+                                  </th>
+                                  <th className={`px-3 py-2 text-left font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-green-200 border-gray-600" : "text-green-700 border-gray-300"}`}>
+                                    Action
+                                  </th>
                                 </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
-                      </table>
-                      
-                      <div className="flex justify-end pt-4">
-                        <button
-                          type="button"
-                          onClick={showDCPopupForUniforms}
-                          disabled={selectedUniforms.length === 0}
-                          className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
-                            selectedUniforms.length > 0
-                              ? theme === "dark"
-                                ? "bg-green-600 text-white hover:bg-green-700"
-                                : "bg-green-600 text-white hover:bg-green-700"
-                              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          }`}
-                        >
-                          <FaBoxOpen className="w-4 h-4" />
-                          Add to Bulk Issue ({selectedUniforms.length})
-                        </button>
+                              </thead>
+                              <tbody className={theme === "dark" ? "divide-y divide-gray-600" : "divide-y divide-gray-200"}>
+                                {designationUniforms.map((uniform) => 
+                                  uniform.sizes?.map((size: string, sizeIndex: number) => {
+                                    const availableQty = uniform.sizeInventory?.find((si: { size: string; quantity: number }) => si.size === size)?.quantity || 0;
+                                    const selectedUniform = selectedUniforms.find(u => u.name === uniform.name && u.size === size);
+                                    const currentQty = selectedUniform?.quantity || 0;
+                                    
+                                    return (
+                                      <tr key={`${uniform._id}-${size}`} className={`${theme === "dark" ? "hover:bg-gray-700 transition even:bg-gray-800" : "hover:bg-gray-50 transition even:bg-gray-25"}`}>
+                                        {sizeIndex === 0 && (
+                                          <td 
+                                            rowSpan={uniform.sizes?.length || 1}
+                                            className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'} align-top`}
+                                          >
+                                            <div>
+                                              <div className="font-semibold">{uniform.name}</div>
+                                              <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                {uniform.subCategory}
+                                              </div>
+                                            </div>
+                                          </td>
+                                        )}
+                                        {sizeIndex === 0 && (
+                                          <td 
+                                            rowSpan={uniform.sizes?.length || 1}
+                                            className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'} align-top`}
+                                          >
+                                            {uniform.category}
+                                          </td>
+                                        )}
+                                        <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                                          <div className="text-center font-medium">{size}</div>
+                                        </td>
+                                        <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                                          <div className="text-center">
+                                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                              theme === "dark" ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-700"
+                                            }`}>
+                                              {availableQty}
+                                            </span>
+                                          </div>
+                                        </td>
+                                        <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              max={availableQty}
+                                              value={currentQty}
+                                              onChange={(e) => handleUniformSelection(uniform.name || '', size, parseInt(e.target.value) || 0)}
+                                              className={`w-16 px-2 py-1 text-xs border rounded focus:ring-2 focus:border-transparent ${
+                                                theme === "dark"
+                                                  ? "bg-gray-600 border-gray-500 text-gray-100 focus:ring-green-900"
+                                                  : "bg-white border-gray-300 text-gray-900 focus:ring-green-500"
+                                              }`}
+                                              placeholder="0"
+                                            />
+                                            <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                              /{availableQty}
+                                            </span>
+                                          </div>
+                                        </td>
+                                        <td className={`px-3 py-2 border text-xs ${theme === 'dark' ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>
+                                          <div className="text-center">
+                                            {currentQty > 0 && (
+                                              <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                                theme === "dark" ? "bg-green-900 text-green-200" : "bg-green-100 text-green-700"
+                                              }`}>
+                                                Selected
+                                              </span>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className={`text-center py-4 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                            No uniforms mapped for {designation} in {selectedProject.projectName}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ) : (
-                    <div className={`text-center py-4 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                      No uniforms mapped for {selectedDesignations.join(', ')} in {selectedProject.projectName}
+                    );
+                  })}
+
+                  {/* Add to Bulk Issue Button */}
+                  {selectedUniforms.length > 0 && (
+                    <div className="flex justify-end pt-4">
+                      <button
+                        type="button"
+                        onClick={showDCPopupForUniforms}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
+                          theme === "dark"
+                            ? "bg-green-600 text-white hover:bg-green-700"
+                            : "bg-green-600 text-white hover:bg-green-700"
+                        }`}
+                      >
+                        <FaBoxOpen className="w-4 h-4" />
+                        Add to Bulk Issue ({selectedUniforms.length})
+                      </button>
                     </div>
                   )}
                 </div>
@@ -5331,7 +5241,7 @@ export default function StoreDCPage() {
       )}
 
       {/* DC Creation Modal */}
-      {showDCCreationModal && selectedIssueForDC && (
+      {false && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
           <div className={`rounded-2xl shadow-2xl max-w-2xl w-full p-8 relative transition-colors duration-300 ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}>
             <button
@@ -5353,10 +5263,10 @@ export default function StoreDCPage() {
                   Issue Details
                 </h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>Issue To:</strong> {selectedIssueForDC.issueTo}</div>
-                  <div><strong>Project:</strong> {selectedIssueForDC.department}</div>
-                  <div><strong>Purpose:</strong> {selectedIssueForDC.purpose}</div>
-                  <div><strong>Items:</strong> {selectedIssueForDC.items.length}</div>
+                  <div><strong>Issue To:</strong> </div>
+                  <div><strong>Project:</strong> </div>
+                  <div><strong>Purpose:</strong> </div>
+                  <div><strong>Items:</strong> </div>
                 </div>
               </div>
 
@@ -5441,7 +5351,7 @@ export default function StoreDCPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={createDCFromIssue}
+                  onClick={() => {}}
                   disabled={isCreatingDC || !dcCreationData.dcNumber || !dcCreationData.address}
                   className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${
                     theme === "dark"

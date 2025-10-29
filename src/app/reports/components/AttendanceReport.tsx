@@ -177,6 +177,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         '2025-08-27': 'Ganesha Chaturthi',
         '2025-10-01': 'Vijaya Dashami',
         '2025-10-02': 'Gandhi Jayanti',
+        '2025-10-20': 'Deepavali',
+        '2025-10-22': 'Deepavali',
         '2025-11-03': 'Diwali',
         '2025-12-25': 'Christmas',
        
