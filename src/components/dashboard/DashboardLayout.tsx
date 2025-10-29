@@ -176,7 +176,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
     
     const newActiveTab = findActiveTab(topNav);
     setActiveTab(newActiveTab);
-  }, [pathname, topNav, router]);
+  }, [pathname, topNav, router, checkRouteAccess]);
 
   useEffect(() => {
     const fetchUserDetails = async () => {

@@ -1230,24 +1230,32 @@ export default function StoreDCPage() {
         return new Set();
       }
       
+      interface UniformRequestItem {
+        employeeId?: string;
+      }
+      
+      interface EmployeeGroup {
+        employeeId?: string;
+      }
+      
       const data = await response.json();
       const employeeIdsWithRequests = new Set<string>();
       
       // Handle different API response structures
       if (data.success && data.uniforms) {
-        data.uniforms.forEach((request: any) => {
+        data.uniforms.forEach((request: UniformRequestItem) => {
           if (request.employeeId) {
             employeeIdsWithRequests.add(request.employeeId);
           }
         });
       } else if (data.success && data.employeeGroups) {
-        data.employeeGroups.forEach((group: any) => {
+        data.employeeGroups.forEach((group: EmployeeGroup) => {
           if (group.employeeId) {
             employeeIdsWithRequests.add(group.employeeId);
           }
         });
       } else if (Array.isArray(data)) {
-        data.forEach((request: any) => {
+        data.forEach((request: UniformRequestItem) => {
           if (request.employeeId) {
             employeeIdsWithRequests.add(request.employeeId);
           }

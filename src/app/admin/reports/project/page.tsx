@@ -191,7 +191,7 @@ export default function ProjectManagementPage() {
     }
   }, [activeTab]);
 
-  const getAttendanceStatus = (date: Date, leaves: LeaveRecord[], projectName?: string, status?: string, punchInTime?: string, punchOutTime?: string): string => {
+  const getAttendanceStatus = useCallback((date: Date, leaves: LeaveRecord[], projectName?: string, status?: string, punchInTime?: string, punchOutTime?: string): string => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const checkDate = new Date(date);
@@ -227,7 +227,7 @@ export default function ProjectManagementPage() {
 
     const isToday = checkDate.getTime() === today.getTime();
     return (status === 'Present' && punchInTime && (punchOutTime || isToday)) ? 'P' : 'A';
-  };
+  }, []);
 
   const fetchAttendanceData = useCallback(async () => {
     if (attendanceEmployees.length === 0) return;
