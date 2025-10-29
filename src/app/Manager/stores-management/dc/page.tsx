@@ -441,6 +441,9 @@ export default function StoreDCPage() {
   const [dcData, setDcData] = useState<DC[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // State to track employee IDs that already have requests generated
+  const [employeesWithRequests, setEmployeesWithRequests] = useState<Set<string>>(new Set());
+  
   // Bulk issue state variables
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -1213,6 +1216,47 @@ export default function StoreDCPage() {
 
 
 
+  // Function to fetch employee IDs that already have requests generated
+  const fetchEmployeesWithExistingRequests = async (): Promise<Set<string>> => {
+    try {
+      const response = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+      if (!response.ok) {
+        console.error('Failed to fetch uniform requests');
+        return new Set();
+      }
+      
+      const data = await response.json();
+      const employeeIdsWithRequests = new Set<string>();
+      
+      // Handle different API response structures
+      if (data.success && data.uniforms) {
+        data.uniforms.forEach((request: any) => {
+          if (request.employeeId) {
+            employeeIdsWithRequests.add(request.employeeId);
+          }
+        });
+      } else if (data.success && data.employeeGroups) {
+        data.employeeGroups.forEach((group: any) => {
+          if (group.employeeId) {
+            employeeIdsWithRequests.add(group.employeeId);
+          }
+        });
+      } else if (Array.isArray(data)) {
+        data.forEach((request: any) => {
+          if (request.employeeId) {
+            employeeIdsWithRequests.add(request.employeeId);
+          }
+        });
+      }
+      
+      console.log('Found employees with existing requests:', employeeIdsWithRequests.size);
+      return employeeIdsWithRequests;
+    } catch (error) {
+      console.error('Error fetching employees with existing requests:', error);
+      return new Set();
+    }
+  };
+
   // Function to fetch employees for specific project and designation
   const fetchEmployeesForMapping = async (projectName: string, designation?: string) => {
       // setEmployeesLoading(true);
@@ -1220,6 +1264,10 @@ export default function StoreDCPage() {
       console.log('Fetching employees for project:', projectName, 'designation:', designation);
       console.log('Total employees available:', employees.length);
       console.log('Sample employee data:', employees.slice(0, 3));
+      
+      // Fetch employees with existing requests
+      const employeesWithExistingRequests = await fetchEmployeesWithExistingRequests();
+      setEmployeesWithRequests(employeesWithExistingRequests);
       
       let employeesToFilter = employees;
       
@@ -1288,9 +1336,12 @@ export default function StoreDCPage() {
                            normalizedProjectName.includes(normalizedEmpProject);
         const designationMatch = !designation || emp.designation === designation;
         
-        console.log(`Employee ${emp.employeeId}: projectName="${emp.projectName}" (normalized: "${normalizedEmpProject}"), searchProject="${projectName}" (normalized: "${normalizedProjectName}"), matches=${projectMatch}, designation="${emp.designation}", designationMatch=${designationMatch}`);
+        // Exclude employees who already have requests generated
+        const hasExistingRequest = employeesWithExistingRequests.has(emp.employeeId);
         
-        return projectMatch && designationMatch;
+        console.log(`Employee ${emp.employeeId}: projectName="${emp.projectName}" (normalized: "${normalizedEmpProject}"), searchProject="${projectName}" (normalized: "${normalizedProjectName}"), matches=${projectMatch}, designation="${emp.designation}", designationMatch=${designationMatch}, hasExistingRequest=${hasExistingRequest}`);
+        
+        return projectMatch && designationMatch && !hasExistingRequest;
       });
       
       console.log('Filtered employees:', filteredEmployees);
@@ -4178,6 +4229,11 @@ export default function StoreDCPage() {
                           <h5 className={`text-sm font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
                             Select Employees:
                           </h5>
+                              {employeesWithRequests.size > 0 && (
+                                <p className={`text-xs mt-1 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`}>
+                                  {employeesWithRequests.size} employee(s) with existing requests filtered out
+                                </p>
+                              )}
                               {employeeSearchTerm && (
                                 <p className={`text-xs mt-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
                                   {availableEmployees.filter(employee => {
@@ -4194,7 +4250,7 @@ export default function StoreDCPage() {
                             <div className="relative">
                               <input
                                 type="text"
-                                placeholder="Search employees..."
+                                placeholder="Search by Employee ID, Name, or Designation..."
                                 value={employeeSearchTerm}
                                 onChange={(e) => setEmployeeSearchTerm(e.target.value)}
                                 className={`w-64 px-3 py-1.5 text-sm rounded-md border ${

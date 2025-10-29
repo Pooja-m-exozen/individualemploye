@@ -21,6 +21,7 @@ interface UniformRequest {
   verificationStatus?: string;
   requestedItems: string[];
   qty?: number;
+  setCount?: number;
   remarks?: string;
   sizes?: { [key: string]: string };
   requestDate?: string;
@@ -62,6 +63,7 @@ interface UniformApiResponse {
   verificationStatus?: string;
   uniformType: string[];
   qty?: number;
+  setCount?: number;
   remarks?: string;
   size?: { [key: string]: string };
   requestDate?: string;
@@ -211,7 +213,7 @@ export default function UniformRequestsPage() {
         return;
       }
       // Map API data to your UniformRequest interface
-      const mapped = data.uniforms.map((item: UniformApiResponse) => ({
+      const mapped: UniformRequest[] = data.uniforms.map((item: UniformApiResponse) => ({
         _id: item._id,
         employee: {
           employeeId: item.employeeId,
@@ -225,6 +227,7 @@ export default function UniformRequestsPage() {
         verificationStatus: item.verificationStatus,
         requestedItems: item.uniformType,
         qty: item.qty,
+        setCount: item.setCount,
         remarks: item.remarks,
         sizes: item.size,
         requestDate: item.requestDate,
@@ -1066,7 +1069,7 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                     <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '6%' }}>Status</th>
                     <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '8%' }}>Request Date</th>
                     <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '20%' }}>Uniform Types</th>
-                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '4%' }}>Qty</th>
+                    <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '4%' }}>Set Count</th>
                     <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '8%' }}>Remarks</th>
                     <th className={`px-1 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '11%' }}>Actions</th>
                   </tr>
@@ -1179,7 +1182,7 @@ const handleCreateRequest = async (e: React.FormEvent) => {
                           ))}
                         </div>
                       </td>
-                      <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{request.qty || ''}</td>
+                      <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{request.setCount || request.qty || ''}</td>
                       <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={request.remarks || ''}>{request.remarks || ''}</div></td>
                       <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         <div className="flex gap-1 justify-center">

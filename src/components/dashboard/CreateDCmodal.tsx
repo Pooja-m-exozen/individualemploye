@@ -18,6 +18,7 @@ interface DCItem {
   uniformType?: string | string[];
   projectName?: string;
   approvalStatus?: string;
+  issuedStatus?: string;
   requestDate?: string;
   individualEmployeeData?: {
     employeeId: string;
@@ -67,6 +68,7 @@ interface UniformApiResponse {
     uniformType: string | string[];
     size: Record<string, string>;
     qty: number;
+    setCount: number;
     uniformRequested: boolean;
     approvalStatus: string;
     issuedStatus: string;
@@ -278,51 +280,90 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
       try {
         const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
         const data: UniformApiResponse = await res.json();
-        if (data.success) {
-          // Only show projects that are NOT generic
-          const filteredRequests = data.uniforms.filter(
-            req => req.projectName === selectedProject && 
+        
+        // Debug: Log the entire API response structure
+        console.log('=== RAW API RESPONSE ===');
+        console.log('API Success:', data.success);
+        console.log('Full API response:', JSON.stringify(data, null, 2));
+        
+        if (data.success && data.uniforms) {
+          console.log('Total uniforms in response:', data.uniforms.length);
+          console.log('Sample uniform request (first item):', data.uniforms[0]);
+          
+          // Check what fields are actually present
+          if (data.uniforms.length > 0) {
+            console.log('Available fields in uniform request:', Object.keys(data.uniforms[0]));
+          }
+          
+          // Only show projects that are NOT generic and not already issued
+          // Also filter out employees who already have their uniforms in an existing DC
+          const filteredRequests = data.uniforms.filter(req => {
+            // Basic filters
+            const basicFilters = req.projectName === selectedProject && 
                    req.approvalStatus === 'Approved' &&
+                   req.issuedStatus !== 'Issued' &&
                    req.projectName !== "General" &&
                    req.projectName !== "N/A" &&
-                   !req.projectName.toLowerCase().includes("general")
-          );
+                   !req.projectName.toLowerCase().includes("general");
+            
+            if (!basicFilters) return false;
+            
+            // Check if this employee's uniform is already in an existing DC
+            const isInExistingDC = dcData.some(dc => 
+              dc.items.some(item => item.employeeId === req.employeeId)
+            );
+            
+            return !isInExistingDC;
+          });
 
           // Debug logging to understand the data structure
-          console.log('=== DEBUGGING FILTERING ISSUE ===');
+          console.log('=== FILTERING UNIFORM REQUESTS ===');
           console.log('Selected project:', selectedProject);
-          console.log('All uniform requests for project:', data.uniforms.filter(req => req.projectName === selectedProject));
-          console.log('Existing DC data:', dcData);
-          console.log('Number of existing DCs:', dcData.length);
           
-          // Check if we have any DC data at all
-          if (dcData.length === 0) {
-            console.log('No existing DCs found - showing all requests');
-          } else {
-            console.log('DC items breakdown:');
-            dcData.forEach((dc, dcIndex) => {
-              console.log(`DC ${dcIndex + 1}:`, {
-                customer: dc.customer,
-                projectName: dc.projectName,
-                items: dc.items.map(item => ({
-                  employeeId: item.employeeId,
-                  name: item.name,
-                  quantity: item.quantity,
-                  _id: item._id
-                }))
-              });
+          const allProjectRequests = data.uniforms.filter(req => req.projectName === selectedProject);
+          console.log('All requests for project:', allProjectRequests.length);
+          
+          // Check which employees are in existing DCs
+          const employeesInExistingDCs = new Set<string>();
+          dcData.forEach(dc => {
+            dc.items.forEach(item => {
+              if (item.employeeId) {
+                employeesInExistingDCs.add(item.employeeId);
+              }
             });
-          }
-
-          // For now, let's temporarily disable filtering to see all requests
-          // TODO: Re-enable filtering once we understand the data structure
-          console.log('TEMPORARILY DISABLED FILTERING - showing all requests');
-          console.log('Final requests (no filtering applied):', filteredRequests.map(req => ({ 
+          });
+          console.log('Employees already in existing DCs:', Array.from(employeesInExistingDCs));
+          
+          const issuedRequests = allProjectRequests.filter(req => req.issuedStatus === 'Issued');
+          console.log('Already issued requests (filtered out):', issuedRequests.length);
+          console.log('Issued request details:', issuedRequests.map(req => ({ 
+            name: req.fullName,
+            employeeId: req.employeeId,
+            issuedStatus: req.issuedStatus,
+            approvalStatus: req.approvalStatus
+          })));
+          
+          const filteredByDC = allProjectRequests.filter(req => 
+            req.projectName === selectedProject && 
+            req.approvalStatus === 'Approved' &&
+            req.issuedStatus !== 'Issued' &&
+            !employeesInExistingDCs.has(req.employeeId)
+          );
+          console.log('Filtered by existing DC check:', filteredByDC.length);
+          console.log('Employees filtered by DC:', allProjectRequests
+            .filter(req => employeesInExistingDCs.has(req.employeeId))
+            .map(req => ({ name: req.fullName, employeeId: req.employeeId })));
+          
+          console.log('Final available requests:', filteredRequests.length);
+          console.log('Filtered requests details:', filteredRequests.map(req => ({ 
             name: req.fullName, 
             employeeId: req.employeeId, 
             requestId: req._id,
             uniformTypes: req.uniformType,
-            qty: req.qty
+            qty: req.qty,
+            setCount: req.setCount,
+            issuedStatus: req.issuedStatus,
+            approvalStatus: req.approvalStatus
           })));
 
           setUniformRequests(filteredRequests);
@@ -1055,7 +1096,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                             <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-green-200 border-green-800" : "text-green-700 border-green-200"}`}>Name</th>
                             <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border w-28 ${theme === "dark" ? "text-green-200 border-green-800" : "text-green-700 border-green-200"}`}>Designation</th>
                             <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border w-40 ${theme === "dark" ? "text-green-200 border-green-800" : "text-green-700 border-green-200"}`}>Uniform Type</th>
-                            <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border w-16 ${theme === "dark" ? "text-green-200 border-green-800" : "text-green-700 border-green-200"}`}>Qty</th>
+                            <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border w-16 ${theme === "dark" ? "text-green-200 border-green-800" : "text-green-700 border-green-200"}`}>Set Count</th>
                             <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-green-200 border-green-800" : "text-green-700 border-green-200"}`}>Project</th>
                           </tr>
                         </thead>
@@ -1090,7 +1131,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                                 <span className={`inline-block text-[10px] font-semibold px-1 py-0.5 rounded-full ${
                                   theme === 'dark' ? 'bg-blue-800 text-blue-200' : 'bg-blue-100 text-blue-700'
                                 }`}>
-                                  {request.qty}
+                                  {request.setCount || request.qty}
                                 </span>
                               </td>
                               <td className={`px-2 py-1 border text-xs ${theme === 'dark' ? 'text-gray-300 border-green-800' : 'text-gray-700 border-green-200'}`}><div className="truncate" title={request.projectName}>{request.projectName}</div></td>
