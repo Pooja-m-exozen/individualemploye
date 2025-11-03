@@ -88,6 +88,7 @@ export default function ProjectManagementPage() {
   const [attendanceEmployees, setAttendanceEmployees] = useState<AttendanceEmployee[]>([]);
   const [attendanceData, setAttendanceData] = useState<Record<string, AttendanceRecord[]>>({});
   const [leaveData, setLeaveData] = useState<Record<string, LeaveRecord[]>>({});
+  const [monthlySummaryData, setMonthlySummaryData] = useState<Record<string, { holidays: number; weekOffs: number }>>({});
   const [attendanceLoading, setAttendanceLoading] = useState<boolean>(false);
   const [attendanceMonth, setAttendanceMonth] = useState<number>(new Date().getMonth() + 1);
   const [attendanceYear, setAttendanceYear] = useState<number>(new Date().getFullYear());
@@ -273,6 +274,38 @@ export default function ProjectManagementPage() {
       const data = await response.json();
       
       const attendanceMap: Record<string, AttendanceRecord[]> = {};
+      const summaryMap: Record<string, { holidays: number; weekOffs: number }> = {};
+      
+      // Fetch monthly summary for all employees in parallel
+      const summaryPromises = attendanceEmployees.map(async (employee) => {
+        try {
+          const monthStr = String(attendanceMonth).padStart(2, '0');
+          const summaryResponse = await fetch(`https://cafm.zenapi.co.in/api/attendance/${employee.employeeId}/monthly-summary?month=${monthStr}&year=${attendanceYear}`);
+          const summaryData = await summaryResponse.json();
+          if (summaryData.success && summaryData.data?.summary) {
+            return {
+              employeeId: employee.employeeId,
+              holidays: summaryData.data.summary.holidays || 0,
+              weekOffs: summaryData.data.summary.weekOffs || 0
+            };
+          }
+        } catch (error) {
+          console.error(`Error fetching monthly summary for ${employee.employeeId}:`, error);
+        }
+        return {
+          employeeId: employee.employeeId,
+          holidays: 0,
+          weekOffs: 0
+        };
+      });
+      
+      const summaryResults = await Promise.all(summaryPromises);
+      summaryResults.forEach(result => {
+        summaryMap[result.employeeId] = {
+          holidays: result.holidays,
+          weekOffs: result.weekOffs
+        };
+      });
       
       attendanceEmployees.forEach((employee) => {
         const employeeAttendance = data.attendance.filter((record: { employeeId: string }) => 
@@ -306,6 +339,7 @@ export default function ProjectManagementPage() {
       });
 
       setAttendanceData(attendanceMap);
+      setMonthlySummaryData(summaryMap);
     } catch (error) {
       console.error("Error fetching attendance:", error);
     } finally {
@@ -974,7 +1008,9 @@ export default function ProjectManagementPage() {
                           // Calculate individual counts
                           const presentCount = getCount('P');
                           const absentCount = getCount('A');
-                          const holidayCount = getCount('H');
+                          // Use holidays + weekOffs from monthly summary API instead of counting 'H' days
+                          const monthlySummary = monthlySummaryData[employee.employeeId] || { holidays: 0, weekOffs: 0 };
+                          const holidayCount = monthlySummary.holidays + monthlySummary.weekOffs;
                           const cfCount = getCount('CF');
                           const cflCount = getCount('CFL');
                           const elCount = getCount('EL');
