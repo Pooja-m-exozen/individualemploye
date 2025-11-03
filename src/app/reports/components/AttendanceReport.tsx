@@ -1059,20 +1059,22 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           doc.setTextColor(0, 0, 0);
           doc.setFont('helvetica', 'normal');
          
-          const totalPayableDays = Math.ceil(
+          // Calculate Total Payable Days: presentDays + halfDays + (weekOffs - weekOffsWorked) + holidays + el + cl + sl + compOffLeave
+          // Note: 
+          // - weekOffsWorked is already included in presentDays, so subtract it from weekOffs to avoid double counting
+          // - compOffEarned should not be included in payable days
+          // - partiallyAbsentDays should not be included as they are not fully payable
+          // - regularizedPresentDays should not be included
+          const netWeekOffs = monthlySummary.weekOffs - (monthlySummary.weekOffsWorked || 0);
+          const totalPayableDays = 
             monthlySummary.presentDays +
-            // regularizedPresentDays should NOT be added to payable days
-            monthlySummary.halfDays + // Half days should be added as full days, not divided by 2
-            monthlySummary.partiallyAbsentDays +
-            monthlySummary.weekOffs + // Week offs (Sundays/weekends)
-            monthlySummary.weekOffsWorked +
-            monthlySummary.holidays + // Holidays shown separately, add them
-            monthlySummary.el +
-            monthlySummary.cl +
-            monthlySummary.sl +
-            monthlySummary.compOffEarned + // Use API value for Comp Off Earned
-            monthlySummary.compOff // Use API value for Comp Off Leave
-          );
+            monthlySummary.halfDays + // Half days count as 0.5
+            (netWeekOffs > 0 ? netWeekOffs : 0) + // Net week offs (excluding worked ones)
+            monthlySummary.holidays + // Holidays
+            monthlySummary.el + // Earned Leave
+            monthlySummary.cl + // Casual Leave
+            monthlySummary.sl + // Sick Leave
+            monthlySummary.compOff; // Comp Off Leave (CFL)
          
           console.log('=== TOTAL PAYABLE DAYS CALCULATION (API DATA) ===');
           console.log('Present Days:', monthlySummary.presentDays);

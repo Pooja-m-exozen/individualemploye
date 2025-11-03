@@ -226,7 +226,7 @@ export default function ProjectManagementPage() {
     if (day === 0) return true;
     if (isSecondOrFourthSaturday(date)) return true;
     return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
-  }, []);
+  }, [GOVERNMENT_HOLIDAYS]);
 
   const getAttendanceStatus = useCallback((date: Date, leaves: LeaveRecord[], projectName?: string, status?: string, punchInTime?: string, punchOutTime?: string): string => {
     const today = new Date();
@@ -411,16 +411,6 @@ export default function ProjectManagementPage() {
     }
   };
 
-  const getPayableDays = (attendance: AttendanceRecord[]): number => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return attendance.filter(a => {
-      const attendanceDate = new Date(a.date);
-      attendanceDate.setHours(0, 0, 0, 0);
-      if (attendanceDate > today) return false;
-      return ['P', 'H', 'CF', 'CFL', 'EL', 'SL', 'CL'].includes(a.status);
-    }).length;
-  };
 
   // Attendance functions
   const fetchAttendanceEmployees = async () => {
