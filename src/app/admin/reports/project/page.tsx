@@ -1016,7 +1016,8 @@ export default function ProjectManagementPage() {
                           const elCount = getCount('EL');
                           const slCount = getCount('SL');
                           const clCount = getCount('CL');
-                          const payableDays = getPayableDays(empAttendance);
+                          // Calculate payable days as: Present + Holidays (including weekoffs) + SL + CL + CF + CFL + EL
+                          const payableDays = presentCount + holidayCount + slCount + clCount + cfCount + cflCount + elCount;
                           
                           // Debug logging
                           if (employee.employeeId === filteredAttendanceEmployees[0]?.employeeId) {
