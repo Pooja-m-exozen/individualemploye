@@ -191,6 +191,42 @@ export default function ProjectManagementPage() {
     }
   }, [activeTab]);
 
+  // Government holidays
+  const GOVERNMENT_HOLIDAYS = [
+    { date: '2025-01-14', description: 'Makar Sankranti' },
+    { date: '2025-01-26', description: 'Republic Day' },
+    { date: '2025-02-26', description: 'Maha Shivratri' },
+    { date: '2025-03-30', description: 'Ugadi' },
+    { date: '2025-03-31', description: 'Eid al Fitr' },
+    { date: '2025-04-10', description: 'Mahavira Janma Kalyanaka' },
+    { date: '2025-04-14', description: 'Ambedkar Jayanti' },
+    { date: '2025-05-01', description: 'Labour Day' },
+    { date: '2025-08-08', description: 'Varamahalakshmi' },
+    { date: '2025-08-15', description: 'Independence Day' },
+    { date: '2025-08-27', description: 'Ganesh Chaturthi' },
+    { date: '2025-10-02', description: 'Gandhi Jayanti' },
+  ];
+
+  const isSecondOrFourthSaturday = (date: Date): boolean => {
+    if (date.getDay() !== 6) return false;
+    const saturday = Math.floor((date.getDate() - 1) / 7) + 1;
+    return saturday === 2 || saturday === 4;
+  };
+
+  const isHoliday = useCallback((date: Date, projectName?: string): boolean => {
+    const day = date.getDay();
+    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    
+    if (projectName === "Exozen - Ops") {
+      if (day === 0) return true;
+      return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
+    }
+    
+    if (day === 0) return true;
+    if (isSecondOrFourthSaturday(date)) return true;
+    return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
+  }, []);
+
   const getAttendanceStatus = useCallback((date: Date, leaves: LeaveRecord[], projectName?: string, status?: string, punchInTime?: string, punchOutTime?: string): string => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -227,7 +263,7 @@ export default function ProjectManagementPage() {
 
     const isToday = checkDate.getTime() === today.getTime();
     return (status === 'Present' && punchInTime && (punchOutTime || isToday)) ? 'P' : 'A';
-  }, []);
+  }, [isHoliday]);
 
   const fetchAttendanceData = useCallback(async () => {
     if (attendanceEmployees.length === 0) return;
@@ -339,42 +375,6 @@ export default function ProjectManagementPage() {
       console.error('Error fetching project distribution:', error);
       setProjectDistribution([]);
     }
-  };
-
-  // Government holidays
-  const GOVERNMENT_HOLIDAYS = [
-    { date: '2025-01-14', description: 'Makar Sankranti' },
-    { date: '2025-01-26', description: 'Republic Day' },
-    { date: '2025-02-26', description: 'Maha Shivratri' },
-    { date: '2025-03-30', description: 'Ugadi' },
-    { date: '2025-03-31', description: 'Eid al Fitr' },
-    { date: '2025-04-10', description: 'Mahavira Janma Kalyanaka' },
-    { date: '2025-04-14', description: 'Ambedkar Jayanti' },
-    { date: '2025-05-01', description: 'Labour Day' },
-    { date: '2025-08-08', description: 'Varamahalakshmi' },
-    { date: '2025-08-15', description: 'Independence Day' },
-    { date: '2025-08-27', description: 'Ganesh Chaturthi' },
-    { date: '2025-10-02', description: 'Gandhi Jayanti' },
-  ];
-
-  const isSecondOrFourthSaturday = (date: Date): boolean => {
-    if (date.getDay() !== 6) return false;
-    const saturday = Math.floor((date.getDate() - 1) / 7) + 1;
-    return saturday === 2 || saturday === 4;
-  };
-
-  const isHoliday = (date: Date, projectName?: string): boolean => {
-    const day = date.getDay();
-    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    
-    if (projectName === "Exozen - Ops") {
-      if (day === 0) return true;
-      return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
-    }
-    
-    if (day === 0) return true;
-    if (isSecondOrFourthSaturday(date)) return true;
-    return GOVERNMENT_HOLIDAYS.some(holiday => holiday.date === dateString);
   };
 
   const getPayableDays = (attendance: AttendanceRecord[]): number => {

@@ -917,16 +917,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             // Generate summary from filtered records
             let presentDays = 0;
             let halfDays = 0;
-            let partiallyAbsentDays = 0;
             let weekOffs = 0;
             let holidays = 0;
             let el = 0;
             let sl = 0;
             let cl = 0;
             let compOffGained = 0;
-            let compOffLeave = 0;
             let lop = 0;
-            let regularizedPresent = 0;
             
             filteredRecords.forEach((record: ExtendedRawAttendanceRecord) => {
                 const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
@@ -940,6 +937,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 else if (status.includes('SL')) sl++;
                 else if (status.includes('CL')) cl++;
                 else if (status === 'Comp Off') compOffGained++;
+                // Count LOP as Absent days on working days
+                else if (status === 'Absent' && dayType === 'Working Day') lop++;
             });
             
             // Create summary table for date range
