@@ -42,7 +42,7 @@ const getBase64FromUrl = async (url: string, retries = 3): Promise<string> => {
 };
 
 // Helper function to add logo to PDF
-const addLogoToPDF = async (doc: any, x: number, y: number, width: number, height: number): Promise<void> => {
+const addLogoToPDF = async (doc: { addImage: (img: string, format: string, x: number, y: number, w: number, h: number) => void; setFontSize: (size: number) => void; setTextColor: (r: number, g: number, b: number) => void; text: (text: string, x: number, y: number) => void }, x: number, y: number, width: number, height: number): Promise<void> => {
   try {
     const logoBase64 = await getBase64FromUrl("/v1/employee/exozen_logo1.png");
     doc.addImage(logoBase64, 'PNG', x, y, width, height);
@@ -788,7 +788,7 @@ export default function ProjectManagementPage() {
           payableDays = getCount('P') + getCount('H') + getCount('CF') + getCount('CFL') + getCount('EL') + getCount('SL') + getCount('CL');
         }
 
-        const row: Record<string, any> = {
+        const row: Record<string, string | number> = {
           'Employee Name': employee.fullName,
           'Employee ID': employee.employeeId,
           'Project': employee.projectName,
@@ -835,7 +835,6 @@ export default function ProjectManagementPage() {
       
       const doc = new jsPDF('landscape');
       const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
       let yPosition = 15;
       
       // Add logo
@@ -947,7 +946,7 @@ export default function ProjectManagementPage() {
       const dateColumnsWidth = availableWidth - fixedWidth;
       const dateColumnWidth = dateColumnsWidth / daysInMonth;
       
-      const columnStyles: Record<string | number, any> = {
+      const columnStyles: Record<string | number, { cellWidth?: number; fontSize?: number; halign?: 'left' | 'center' | 'right' }> = {
         0: { cellWidth: employeeNameWidth, fontSize: 6 }, // Employee Name
         1: { cellWidth: employeeIdWidth, fontSize: 6 }, // Employee ID
       };
@@ -956,22 +955,22 @@ export default function ProjectManagementPage() {
       for (let i = 2; i < 2 + daysInMonth; i++) {
         columnStyles[i] = { 
           cellWidth: dateColumnWidth, 
-          halign: 'center', 
+          halign: 'center' as const, 
           fontSize: 5 
         };
       }
       
       // Set styles for summary columns (compact width)
       const summaryStartIndex = 2 + daysInMonth;
-      columnStyles[summaryStartIndex] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // P
-      columnStyles[summaryStartIndex + 1] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // A
-      columnStyles[summaryStartIndex + 2] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // H
-      columnStyles[summaryStartIndex + 3] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // CF
-      columnStyles[summaryStartIndex + 4] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // CFL
-      columnStyles[summaryStartIndex + 5] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // EL
-      columnStyles[summaryStartIndex + 6] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // SL
-      columnStyles[summaryStartIndex + 7] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // CL
-      columnStyles[summaryStartIndex + 8] = { cellWidth: 7, halign: 'center', fontSize: 5 }; // Payable
+      columnStyles[summaryStartIndex] = { cellWidth: 6, halign: 'center' as const, fontSize: 5 }; // P
+      columnStyles[summaryStartIndex + 1] = { cellWidth: 6, halign: 'center' as const, fontSize: 5 }; // A
+      columnStyles[summaryStartIndex + 2] = { cellWidth: 6, halign: 'center' as const, fontSize: 5 }; // H
+      columnStyles[summaryStartIndex + 3] = { cellWidth: 6, halign: 'center' as const, fontSize: 5 }; // CF
+      columnStyles[summaryStartIndex + 4] = { cellWidth: 6, halign: 'center' as const, fontSize: 5 }; // CFL
+      columnStyles[summaryStartIndex + 5] = { cellWidth: 6, halign: 'center' as const, fontSize: 5 }; // EL
+      columnStyles[summaryStartIndex + 6] = { cellWidth: 6, halign: 'center' as const, fontSize: 5 }; // SL
+      columnStyles[summaryStartIndex + 7] = { cellWidth: 6, halign: 'center' as const, fontSize: 5 }; // CL
+      columnStyles[summaryStartIndex + 8] = { cellWidth: 7, halign: 'center' as const, fontSize: 5 }; // Payable
       
       autoTable.default(doc, {
         head: [headerRow],
