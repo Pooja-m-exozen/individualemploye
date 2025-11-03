@@ -1126,7 +1126,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           let presentDays = 0;
           let halfDays = 0;
           let partiallyAbsentDays = 0;
-          let weekOffs = 0;
           let holidays = 0;
           let el = 0;
           let sl = 0;

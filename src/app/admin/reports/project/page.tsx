@@ -192,8 +192,8 @@ export default function ProjectManagementPage() {
     }
   }, [activeTab]);
 
-  // Government holidays
-  const GOVERNMENT_HOLIDAYS = [
+  // Government holidays - memoized to prevent recreation on every render
+  const GOVERNMENT_HOLIDAYS = useMemo(() => [
     { date: '2025-01-14', description: 'Makar Sankranti' },
     { date: '2025-01-26', description: 'Republic Day' },
     { date: '2025-02-26', description: 'Maha Shivratri' },
@@ -206,7 +206,7 @@ export default function ProjectManagementPage() {
     { date: '2025-08-15', description: 'Independence Day' },
     { date: '2025-08-27', description: 'Ganesh Chaturthi' },
     { date: '2025-10-02', description: 'Gandhi Jayanti' },
-  ];
+  ], []);
 
   const isSecondOrFourthSaturday = (date: Date): boolean => {
     if (date.getDay() !== 6) return false;
