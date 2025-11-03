@@ -1030,14 +1030,14 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             monthlySummary.regularizedPresentDays +
             monthlySummary.halfDays + // Half days should be added as full days, not divided by 2
             monthlySummary.partiallyAbsentDays +
-            monthlySummary.weekOffs + // weekOffs from API already includes holidays
+            monthlySummary.weekOffs + // Week offs (Sundays/weekends)
             monthlySummary.weekOffsWorked +
+            monthlySummary.holidays + // Holidays shown separately, add them
             monthlySummary.el +
             monthlySummary.cl +
             monthlySummary.sl +
             monthlySummary.compOffEarned + // Use API value for Comp Off Earned
             monthlySummary.compOff // Use API value for Comp Off Leave
-            // Note: holidays not added here as they're already included in weekOffs from API
           );
          
           console.log('=== TOTAL PAYABLE DAYS CALCULATION (API DATA) ===');
@@ -1045,18 +1045,18 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           console.log('Regularized Present:', monthlySummary.regularizedPresentDays);
           console.log('Half Days:', monthlySummary.halfDays);
           console.log('Partially Absent:', monthlySummary.partiallyAbsentDays);
-          console.log('Week Offs (includes holidays):', monthlySummary.weekOffs);
+          console.log('Week Offs:', monthlySummary.weekOffs);
           console.log('Week Offs Worked:', monthlySummary.weekOffsWorked);
+          console.log('Holidays:', monthlySummary.holidays);
           console.log('EL:', monthlySummary.el);
           console.log('CL:', monthlySummary.cl);
           console.log('SL:', monthlySummary.sl);
           console.log('Comp Off Earned (API):', monthlySummary.compOffEarned);
           console.log('Comp Off Leave (API):', monthlySummary.compOff);
-          console.log('Holidays (separate from weekOffs):', monthlySummary.holidays);
           console.log('TOTAL PAYABLE DAYS:', totalPayableDays);
          
-          // Cap totalPayableDays to not exceed totalDays
-          const cappedPayableDays = Math.min(totalPayableDays, monthlySummary.totalDays);
+          // Total Payable Days should equal the sum of all payable days
+          const cappedPayableDays = totalPayableDays;
           const attendancePercentage = monthlySummary.totalDays > 0 ? Math.min(((cappedPayableDays / monthlySummary.totalDays) * 100), 100).toFixed(2) : '0.00';
          
           // Add summary lines with minimal spacing
