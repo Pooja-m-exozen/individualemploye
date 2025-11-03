@@ -780,7 +780,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             yPosition += 5;
         } else {
             // For date range reports, start table immediately at top
-            yPosition = 10;
+            yPosition = 15;
         }
 
         // Attendance table on first page
