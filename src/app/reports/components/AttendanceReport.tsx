@@ -1059,32 +1059,22 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           doc.setTextColor(0, 0, 0);
           doc.setFont('helvetica', 'normal');
          
-          // Calculate Total Payable Days: All days that are payable (excluding LOP and partially absent)
-          // Formula: Total Days = Payable Days + LOP + Partially Absent
-          // So: Payable = Total Days - LOP - Partially Absent
-          // But we can also calculate as: Present + Half Days + Weekoffs + Holidays + Leaves + Comp Off
+          // Calculate Total Payable Days: Present + Half Days + (Weekoffs - Weekoffs Worked) + Holidays + Leaves + Comp Off Leave
           // Note: 
-          // - weekOffsWorked days are in presentDays, but weekoffs are still payable days
-          // - We use netWeekOffs (weekOffs - weekOffsWorked) to avoid double counting in present
-          // - However, holidays might overlap with weekoffs, so we need to ensure all days are accounted
+          // - weekOffsWorked days are already included in presentDays, so we subtract them from weekOffs to avoid double counting
           // - compOffEarned should not be included in payable days (it's earned, not taken as leave)
           // - partiallyAbsentDays should not be included as they are not fully payable
           // - regularizedPresentDays should not be included
           const netWeekOffs = monthlySummary.weekOffs - (monthlySummary.weekOffsWorked || 0);
-          // Calculate payable days from components
-          const calculatedPayable = 
+          const totalPayableDays = 
             monthlySummary.presentDays +
             monthlySummary.halfDays +
-            netWeekOffs +
+            (netWeekOffs > 0 ? netWeekOffs : 0) +
             monthlySummary.holidays +
             monthlySummary.el +
             monthlySummary.cl +
             monthlySummary.sl +
             monthlySummary.compOff;
-          // Also calculate from total days minus LOP and partially absent (this should match)
-          const derivedPayable = monthlySummary.totalDays - (monthlySummary.lop || 0) - (monthlySummary.partiallyAbsentDays || 0);
-          // Use the derived value to ensure all days are accounted for
-          const totalPayableDays = Math.max(calculatedPayable, derivedPayable);
          
           console.log('=== TOTAL PAYABLE DAYS CALCULATION (API DATA) ===');
           console.log('Present Days:', monthlySummary.presentDays);
