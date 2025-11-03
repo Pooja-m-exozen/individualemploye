@@ -765,18 +765,23 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             });
         }
 
-        // First page - Header and Attendance Table
-        doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 15, yPosition, 25, 8);
-        doc.setFontSize(11);
-        doc.setTextColor(41, 128, 185);
-        doc.text(reportTitle, 45, yPosition + 4);
-        doc.setFontSize(9);
-        doc.text(`Employee ID: ${employeeId}`, 45, yPosition + 8);
+        // First page - Header and Attendance Table (skip header for date range reports)
+        if (!singlePage) {
+            doc.addImage("/v1/employee/exozen_logo1.png", 'PNG', 15, yPosition, 25, 8);
+            doc.setFontSize(11);
+            doc.setTextColor(41, 128, 185);
+            doc.text(reportTitle, 45, yPosition + 4);
+            doc.setFontSize(9);
+            doc.text(`Employee ID: ${employeeId}`, 45, yPosition + 8);
 
-        yPosition += 12;
-        doc.setDrawColor(200, 200, 200);
-        doc.line(15, yPosition, 195, yPosition);
-        yPosition += 5;
+            yPosition += 12;
+            doc.setDrawColor(200, 200, 200);
+            doc.line(15, yPosition, 195, yPosition);
+            yPosition += 5;
+        } else {
+            // For date range reports, start table immediately at top
+            yPosition = 10;
+        }
 
         // Attendance table on first page
         const tableColumn = ["Date", "Check In", "Check Out", "Hours Worked", "Shortage Hours", "Day Type", "Status"];
@@ -881,7 +886,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 6: { cellWidth: 25, halign: 'center' }  // Status
             },
             pageBreak: singlePage ? 'avoid' : 'auto',
-            margin: { top: 20, right: 10, bottom: 20, left: 10 },
+            margin: { top: singlePage ? 10 : 20, right: 10, bottom: 20, left: 10 },
             tableWidth: 'auto',
             showHead: 'everyPage',
             didDrawPage: (data) => {
