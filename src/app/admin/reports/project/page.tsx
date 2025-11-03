@@ -18,6 +18,48 @@ function Toast({ message, onClose }: { message: string; onClose: () => void }) {
   );
 }
 
+// Helper function to get logo as base64
+const getBase64FromUrl = async (url: string, retries = 3): Promise<string> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to convert image to base64'));
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`Retrying image fetch, ${retries} attempts remaining`);
+      return getBase64FromUrl(url, retries - 1);
+    }
+    throw error;
+  }
+};
+
+// Helper function to add logo to PDF
+const addLogoToPDF = async (doc: any, x: number, y: number, width: number, height: number): Promise<void> => {
+  try {
+    const logoBase64 = await getBase64FromUrl("/v1/employee/exozen_logo1.png");
+    doc.addImage(logoBase64, 'PNG', x, y, width, height);
+  } catch {
+    console.warn('Failed to load primary logo, trying fallback logo');
+    try {
+      const fallbackLogoBase64 = await getBase64FromUrl('/exozen_logo.png');
+      doc.addImage(fallbackLogoBase64, 'PNG', x, y, width, height);
+    } catch (fallbackError) {
+      console.error('Failed to load both logos:', fallbackError);
+      doc.setFontSize(12);
+      doc.setTextColor(150, 150, 150);
+      doc.text('EXOZEN', x, y + height / 2);
+    }
+  }
+};
+
 interface Project {
   _id?: string;
   projectName: string;
@@ -88,7 +130,21 @@ export default function ProjectManagementPage() {
   const [attendanceEmployees, setAttendanceEmployees] = useState<AttendanceEmployee[]>([]);
   const [attendanceData, setAttendanceData] = useState<Record<string, AttendanceRecord[]>>({});
   const [leaveData, setLeaveData] = useState<Record<string, LeaveRecord[]>>({});
-  const [monthlySummaryData, setMonthlySummaryData] = useState<Record<string, { holidays: number; weekOffs: number }>>({});
+  const [monthlySummaryData, setMonthlySummaryData] = useState<Record<string, { 
+    holidays: number; 
+    weekOffs: number; 
+    weekOffsWorked?: number;
+    halfDays?: number;
+    presentDays?: number;
+    el?: number;
+    sl?: number;
+    cl?: number;
+    compOff?: number;
+    totalDays?: number;
+    lop?: number;
+    partiallyAbsentDays?: number;
+    regularizedPresentDays?: number;
+  }>>({});
   const [attendanceLoading, setAttendanceLoading] = useState<boolean>(false);
   const [attendanceMonth, setAttendanceMonth] = useState<number>(new Date().getMonth() + 1);
   const [attendanceYear, setAttendanceYear] = useState<number>(new Date().getFullYear());
@@ -96,6 +152,7 @@ export default function ProjectManagementPage() {
   const [selectedDesignation, setSelectedDesignation] = useState<string>("");
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [showAttendanceDownloadDropdown, setShowAttendanceDownloadDropdown] = useState(false);
 
   const handleFormChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -277,7 +334,20 @@ export default function ProjectManagementPage() {
       const data = await response.json();
       
       const attendanceMap: Record<string, AttendanceRecord[]> = {};
-      const summaryMap: Record<string, { holidays: number; weekOffs: number }> = {};
+      const summaryMap: Record<string, { 
+        holidays: number; 
+        weekOffs: number; 
+        weekOffsWorked?: number;
+        halfDays?: number;
+        presentDays?: number;
+        el?: number;
+        sl?: number;
+        cl?: number;
+        compOff?: number;
+        totalDays?: number;
+        lop?: number;
+        partiallyAbsentDays?: number;
+      }> = {};
       
       // Fetch monthly summary for all employees in parallel
       const summaryPromises = attendanceEmployees.map(async (employee) => {
@@ -286,10 +356,21 @@ export default function ProjectManagementPage() {
           const summaryResponse = await fetch(`https://cafm.zenapi.co.in/api/attendance/${employee.employeeId}/monthly-summary?month=${monthStr}&year=${attendanceYear}`);
           const summaryData = await summaryResponse.json();
           if (summaryData.success && summaryData.data?.summary) {
+            const summary = summaryData.data.summary;
             return {
               employeeId: employee.employeeId,
-              holidays: summaryData.data.summary.holidays || 0,
-              weekOffs: summaryData.data.summary.weekOffs || 0
+              holidays: summary.holidays || 0,
+              weekOffs: summary.weekOffs || 0,
+              weekOffsWorked: summary.weekOffsWorked || 0,
+              halfDays: summary.halfDays || 0,
+              presentDays: summary.presentDays || 0,
+              el: summary.el || 0,
+              sl: summary.sl || 0,
+              cl: summary.cl || 0,
+              compOff: summary.compOff || 0,
+              totalDays: summary.totalDays || 0,
+              lop: summary.lop || 0,
+              partiallyAbsentDays: summary.partiallyAbsentDays || 0
             };
           }
         } catch (error) {
@@ -298,7 +379,17 @@ export default function ProjectManagementPage() {
         return {
           employeeId: employee.employeeId,
           holidays: 0,
-          weekOffs: 0
+          weekOffs: 0,
+          weekOffsWorked: 0,
+          halfDays: 0,
+          presentDays: 0,
+          el: 0,
+          sl: 0,
+          cl: 0,
+          compOff: 0,
+          totalDays: 0,
+          lop: 0,
+          partiallyAbsentDays: 0
         };
       });
       
@@ -306,7 +397,17 @@ export default function ProjectManagementPage() {
       summaryResults.forEach(result => {
         summaryMap[result.employeeId] = {
           holidays: result.holidays,
-          weekOffs: result.weekOffs
+          weekOffs: result.weekOffs,
+          weekOffsWorked: result.weekOffsWorked,
+          halfDays: result.halfDays,
+          presentDays: result.presentDays,
+          el: result.el,
+          sl: result.sl,
+          cl: result.cl,
+          compOff: result.compOff,
+          totalDays: result.totalDays,
+          lop: result.lop,
+          partiallyAbsentDays: result.partiallyAbsentDays
         };
       });
       
@@ -650,6 +751,262 @@ export default function ProjectManagementPage() {
     }
   };
 
+  // Export Attendance to Excel
+  const handleExportAttendanceToExcel = async () => {
+    try {
+      const xlsx = await import('xlsx');
+      
+      const worksheetData = filteredAttendanceEmployees.map(employee => {
+        const empAttendance = attendanceData[employee.employeeId] || [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const getCount = (status: string) => {
+          return empAttendance.filter(a => {
+            const d = new Date(a.date);
+            d.setHours(0, 0, 0, 0);
+            return a.status === status && d <= today;
+          }).length;
+        };
+
+        const monthlySummary = monthlySummaryData[employee.employeeId];
+        const hasMonthlySummary = monthlySummary !== undefined;
+        
+        let payableDays: number;
+        if (hasMonthlySummary && monthlySummary.totalDays && monthlySummary.totalDays > 0) {
+          const totalPayableDays = (monthlySummary.presentDays ?? 0) + 
+                                (monthlySummary.halfDays ?? 0) + 
+                                (monthlySummary.weekOffs ?? 0) +
+                                (monthlySummary.holidays ?? 0) + 
+                                (monthlySummary.el ?? 0) + 
+                                (monthlySummary.cl ?? 0) +
+                                (monthlySummary.sl ?? 0) + 
+                                (monthlySummary.compOff ?? 0) +
+                                (monthlySummary.weekOffsWorked ?? 0);
+          payableDays = Math.min(totalPayableDays, monthlySummary.totalDays);
+        } else {
+          payableDays = getCount('P') + getCount('H') + getCount('CF') + getCount('CFL') + getCount('EL') + getCount('SL') + getCount('CL');
+        }
+
+        const row: Record<string, any> = {
+          'Employee Name': employee.fullName,
+          'Employee ID': employee.employeeId,
+          'Project': employee.projectName,
+          'Present': getCount('P'),
+          'Absent': getCount('A'),
+          'Holidays': monthlySummary?.holidays || 0,
+          'CF': getCount('CF'),
+          'CFL': getCount('CFL'),
+          'EL': getCount('EL'),
+          'SL': getCount('SL'),
+          'CL': getCount('CL'),
+          'Payable Days': payableDays % 1 === 0 ? payableDays : payableDays.toFixed(1)
+        };
+
+        // Add date columns for the month
+        const daysInMonth = new Date(attendanceYear, attendanceMonth, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateObj = new Date(attendanceYear, attendanceMonth - 1, day);
+          const date = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+          const record = empAttendance.find(r => r.date === date);
+          row[`${day}`] = record?.status || '-';
+        }
+
+        return row;
+      });
+
+      const worksheet = xlsx.utils.json_to_sheet(worksheetData);
+      const workbook = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(workbook, worksheet, "Attendance");
+      xlsx.writeFile(workbook, `Attendance_Report_${attendanceMonth}_${attendanceYear}.xlsx`);
+      
+      setToast('Attendance report exported to Excel successfully!');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      setToast('Failed to export to Excel');
+    }
+  };
+
+  // Export Attendance to PDF
+  const handleExportAttendanceToPDF = async () => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const autoTable = await import('jspdf-autotable');
+      
+      const doc = new jsPDF('landscape');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let yPosition = 15;
+      
+      // Add logo
+      await addLogoToPDF(doc, (pageWidth / 2) - 30, yPosition, 60, 25);
+      
+      // Add title
+      yPosition += 30;
+      doc.setFontSize(18);
+      doc.setTextColor(41, 128, 185);
+      doc.text('Attendance Report', pageWidth / 2, yPosition, { align: 'center' });
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`${new Date(0, attendanceMonth - 1).toLocaleString("default", { month: "long" })} ${attendanceYear}`, pageWidth / 2, yPosition + 6, { align: 'center' });
+      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPosition + 12, { align: 'center' });
+      
+      yPosition += 20;
+      
+      // Get days in month
+      const daysInMonth = new Date(attendanceYear, attendanceMonth, 0).getDate();
+      
+      // Prepare header row with dates and summary columns
+      const headerRow: string[] = ['Employee', 'ID'];
+      
+      // Add date columns
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateObj = new Date(attendanceYear, attendanceMonth - 1, day);
+        const dateStr = dateObj.toLocaleDateString("en-US", { day: "2-digit", month: "short" });
+        headerRow.push(dateStr);
+      }
+      
+      // Add summary columns
+      headerRow.push('P', 'A', 'H', 'CF', 'CFL', 'EL', 'SL', 'CL', 'Payable');
+      
+      // Prepare table data with all columns
+      const tableData = filteredAttendanceEmployees.map(employee => {
+        const empAttendance = attendanceData[employee.employeeId] || [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const getCount = (status: string) => {
+          return empAttendance.filter(a => {
+            const d = new Date(a.date);
+            d.setHours(0, 0, 0, 0);
+            return a.status === status && d <= today;
+          }).length;
+        };
+
+        const monthlySummary = monthlySummaryData[employee.employeeId];
+        const hasMonthlySummary = monthlySummary !== undefined;
+        
+        let payableDays: number;
+        if (hasMonthlySummary && monthlySummary.totalDays && monthlySummary.totalDays > 0) {
+          const totalPayableDays = (monthlySummary.presentDays ?? 0) + 
+                                (monthlySummary.halfDays ?? 0) + 
+                                (monthlySummary.weekOffs ?? 0) +
+                                (monthlySummary.holidays ?? 0) + 
+                                (monthlySummary.el ?? 0) + 
+                                (monthlySummary.cl ?? 0) +
+                                (monthlySummary.sl ?? 0) + 
+                                (monthlySummary.compOff ?? 0) +
+                                (monthlySummary.weekOffsWorked ?? 0);
+          payableDays = Math.min(totalPayableDays, monthlySummary.totalDays);
+        } else {
+          payableDays = getCount('P') + getCount('H') + getCount('CF') + getCount('CFL') + getCount('EL') + getCount('SL') + getCount('CL');
+        }
+
+        const row: string[] = [
+          employee.fullName,
+          employee.employeeId
+        ];
+        
+        // Add daily status columns
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateObj = new Date(attendanceYear, attendanceMonth - 1, day);
+          const date = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+          const record = empAttendance.find(r => r.date === date);
+          row.push(record?.status || '-');
+        }
+        
+        // Add summary columns
+        row.push(
+          getCount('P').toString(),
+          getCount('A').toString(),
+          (monthlySummary?.holidays || 0).toString(),
+          getCount('CF').toString(),
+          getCount('CFL').toString(),
+          getCount('EL').toString(),
+          getCount('SL').toString(),
+          getCount('CL').toString(),
+          (payableDays % 1 === 0 ? payableDays : payableDays.toFixed(1)).toString()
+        );
+        
+        return row;
+      });
+      
+      // Build column styles dynamically
+      // Landscape page width in mm: ~279.4mm (A4 landscape)
+      // Margins: 5mm left + 5mm right = 10mm
+      // Available width: ~269.4mm
+      const availableWidth = pageWidth - 10; // Subtract margins
+      
+      // Fixed column widths
+      const employeeNameWidth = 25; // Employee Name
+      const employeeIdWidth = 15; // Employee ID
+      const summaryColumnsWidth = 9 * 6; // 9 summary columns @ 6mm each = 54mm
+      const fixedWidth = employeeNameWidth + employeeIdWidth + summaryColumnsWidth; // ~94mm
+      
+      // Calculate width for date columns (remaining space divided by number of days)
+      const dateColumnsWidth = availableWidth - fixedWidth;
+      const dateColumnWidth = dateColumnsWidth / daysInMonth;
+      
+      const columnStyles: Record<string | number, any> = {
+        0: { cellWidth: employeeNameWidth, fontSize: 6 }, // Employee Name
+        1: { cellWidth: employeeIdWidth, fontSize: 6 }, // Employee ID
+      };
+      
+      // Set styles for date columns (dynamically sized to fit)
+      for (let i = 2; i < 2 + daysInMonth; i++) {
+        columnStyles[i] = { 
+          cellWidth: dateColumnWidth, 
+          halign: 'center', 
+          fontSize: 5 
+        };
+      }
+      
+      // Set styles for summary columns (compact width)
+      const summaryStartIndex = 2 + daysInMonth;
+      columnStyles[summaryStartIndex] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // P
+      columnStyles[summaryStartIndex + 1] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // A
+      columnStyles[summaryStartIndex + 2] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // H
+      columnStyles[summaryStartIndex + 3] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // CF
+      columnStyles[summaryStartIndex + 4] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // CFL
+      columnStyles[summaryStartIndex + 5] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // EL
+      columnStyles[summaryStartIndex + 6] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // SL
+      columnStyles[summaryStartIndex + 7] = { cellWidth: 6, halign: 'center', fontSize: 5 }; // CL
+      columnStyles[summaryStartIndex + 8] = { cellWidth: 7, halign: 'center', fontSize: 5 }; // Payable
+      
+      autoTable.default(doc, {
+        head: [headerRow],
+        body: tableData,
+        startY: yPosition,
+        styles: {
+          fontSize: 5,
+          cellPadding: 0.5,
+          overflow: 'linebreak',
+          lineWidth: 0.1,
+        },
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 5,
+          cellPadding: 1,
+        },
+        columnStyles: columnStyles,
+        alternateRowStyles: {
+          fillColor: [245, 245, 245],
+        },
+        margin: { left: 5, right: 5 },
+        tableWidth: 'wrap',
+      });
+      
+      doc.save(`Attendance_Report_${attendanceMonth}_${attendanceYear}.pdf`);
+      setToast('Attendance report exported to PDF successfully!');
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      setToast('Failed to export to PDF');
+    }
+  };
+
   return (
     <>
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
@@ -896,6 +1253,41 @@ export default function ProjectManagementPage() {
                 >
                   <FaFilter className="w-5 h-5" />
                             </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    aria-label="Download attendance options"
+                    className={`p-2 rounded-lg font-semibold flex items-center gap-2 shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-gray-100 focus:ring-blue-300' : 'bg-blue-600 text-white focus:ring-blue-300'}`}
+                    onClick={() => setShowAttendanceDownloadDropdown(v => !v)}
+                  >
+                    <FaDownload className="w-5 h-5" />
+                  </button>
+                  {showAttendanceDownloadDropdown && (
+                    <div className={`absolute right-0 mt-2 w-56 rounded-xl shadow-2xl z-10 py-2 ${theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}`}>
+                      <div className="flex justify-end px-2 pb-1">
+                        <button
+                          aria-label="Close download menu"
+                          className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/20"
+                          onClick={() => setShowAttendanceDownloadDropdown(false)}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                      <button
+                        className="w-full flex items-center gap-3 px-5 py-3 text-base hover:bg-blue-100 dark:hover:bg-blue-900/20 transition rounded-t-xl"
+                        onClick={() => { setShowAttendanceDownloadDropdown(false); handleExportAttendanceToExcel(); }}
+                      >
+                        <FaDownload className="w-4 h-4" /> Export to Excel
+                      </button>
+                      <button
+                        className="w-full flex items-center gap-3 px-5 py-3 text-base hover:bg-blue-100 dark:hover:bg-blue-900/20 transition rounded-b-xl"
+                        onClick={() => { setShowAttendanceDownloadDropdown(false); handleExportAttendanceToPDF(); }}
+                      >
+                        <FaFilePdf className="w-4 h-4" /> Export to PDF
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -998,19 +1390,87 @@ export default function ProjectManagementPage() {
                             }).length;
                           };
 
-                          // Calculate individual counts
+                          // Calculate individual counts from attendance records
                           const presentCount = getCount('P');
                           const absentCount = getCount('A');
-                          // Use holidays + weekOffs from monthly summary API instead of counting 'H' days
-                          const monthlySummary = monthlySummaryData[employee.employeeId] || { holidays: 0, weekOffs: 0 };
-                          const holidayCount = monthlySummary.holidays + monthlySummary.weekOffs;
                           const cfCount = getCount('CF');
                           const cflCount = getCount('CFL');
                           const elCount = getCount('EL');
                           const slCount = getCount('SL');
                           const clCount = getCount('CL');
-                          // Calculate payable days as: Present + Holidays (including weekoffs) + SL + CL + CF + CFL + EL
-                          const payableDays = presentCount + holidayCount + slCount + clCount + cfCount + cflCount + elCount;
+                          
+                          // Use monthly summary data if available, otherwise fallback to attendance record counts
+                          const hasMonthlySummary = monthlySummaryData[employee.employeeId] !== undefined;
+                          const monthlySummary: typeof monthlySummaryData[string] = monthlySummaryData[employee.employeeId] ?? { 
+                            holidays: 0, 
+                            weekOffs: 0, 
+                            weekOffsWorked: 0,
+                            halfDays: 0,
+                            presentDays: 0,
+                            el: 0,
+                            sl: 0,
+                            cl: 0,
+                            compOff: 0,
+                            totalDays: 0,
+                            lop: 0,
+                            partiallyAbsentDays: 0,
+                            regularizedPresentDays: 0
+                          };
+                          
+                          // Calculate payable days using component-based calculation
+                          // Based on API response analysis: weekOffs are all payable (they represent paid week offs)
+                          // weekOffsWorked are also payable (employee worked on week offs, earning those days)
+                          let payableDays: number;
+                          if (hasMonthlySummary && monthlySummary.totalDays && monthlySummary.totalDays > 0) {
+                            // Calculate total payable days:
+                            // Present + Half Days + Week Offs + Holidays + EL + CL + SL + Comp Off + Week Offs Worked
+                            // All weekOffs are payable (paid week offs), weekOffsWorked are additional payable days
+                            // Note: halfDays from API is already in decimal format (0.5, not count)
+                            const totalPayableDays = (monthlySummary.presentDays ?? 0) + 
+                                                  (monthlySummary.halfDays ?? 0) + 
+                                                  (monthlySummary.weekOffs ?? 0) +
+                                                  (monthlySummary.holidays ?? 0) + 
+                                                  (monthlySummary.el ?? 0) + 
+                                                  (monthlySummary.cl ?? 0) +
+                                                  (monthlySummary.sl ?? 0) + 
+                                                  (monthlySummary.compOff ?? 0) +
+                                                  (monthlySummary.weekOffsWorked ?? 0);
+                            
+                            // Cap payable days to not exceed total days
+                            payableDays = Math.min(totalPayableDays, monthlySummary.totalDays);
+                            
+                            // Debug logging for troubleshooting
+                            if (employee.employeeId === 'EFMS3309') {
+                              console.log('=== PAYABLE DAYS CALCULATION DEBUG ===');
+                              console.log('Employee:', employee.fullName);
+                              console.log('Present Days:', monthlySummary.presentDays);
+                              console.log('Half Days:', monthlySummary.halfDays);
+                              console.log('Week Offs:', monthlySummary.weekOffs);
+                              console.log('Week Offs Worked:', monthlySummary.weekOffsWorked);
+                              console.log('Holidays:', monthlySummary.holidays);
+                              console.log('EL:', monthlySummary.el);
+                              console.log('SL:', monthlySummary.sl);
+                              console.log('CL:', monthlySummary.cl);
+                              console.log('Comp Off:', monthlySummary.compOff);
+                              console.log('Total Payable Days:', totalPayableDays);
+                              console.log('Capped Payable Days:', payableDays);
+                            }
+                          } else {
+                            // Fallback to component-based calculation if monthly summary not available
+                            const netWeekOffs = (monthlySummary.weekOffs ?? 0) - (monthlySummary.weekOffsWorked ?? 0);
+                            payableDays = 
+                              (hasMonthlySummary ? (monthlySummary.presentDays ?? 0) : presentCount) +
+                              (hasMonthlySummary ? ((monthlySummary.halfDays ?? 0) / 2) : 0) +
+                              (hasMonthlySummary ? (netWeekOffs > 0 ? netWeekOffs : 0) : 0) +
+                              (hasMonthlySummary ? (monthlySummary.holidays ?? 0) : 0) +
+                              (hasMonthlySummary ? (monthlySummary.el ?? 0) : elCount) +
+                              (hasMonthlySummary ? (monthlySummary.cl ?? 0) : clCount) +
+                              (hasMonthlySummary ? (monthlySummary.sl ?? 0) : slCount) +
+                              (hasMonthlySummary ? (monthlySummary.compOff ?? 0) : cflCount);
+                          }
+                          
+                          // Use holidays + weekOffs for display in H column
+                          const holidayCount = monthlySummary.holidays + monthlySummary.weekOffs;
                           
                           // Debug logging
                           if (employee.employeeId === filteredAttendanceEmployees[0]?.employeeId) {
@@ -1059,7 +1519,9 @@ export default function ProjectManagementPage() {
                               <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{elCount}</td>
                               <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{slCount}</td>
                               <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-100'}`}>{clCount}</td>
-                              <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>{payableDays}</td>
+                              <td className={`p-3 text-center font-bold ${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100'}`}>
+                                {payableDays % 1 === 0 ? payableDays : payableDays.toFixed(1)}
+                              </td>
                       </tr>
                           );
                         })}
