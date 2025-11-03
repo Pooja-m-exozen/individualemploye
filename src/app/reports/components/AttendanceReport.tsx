@@ -1059,22 +1059,32 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           doc.setTextColor(0, 0, 0);
           doc.setFont('helvetica', 'normal');
          
-          // Calculate Total Payable Days: presentDays + halfDays + (weekOffs - weekOffsWorked) + holidays + el + cl + sl + compOffLeave
+          // Calculate Total Payable Days: All days that are payable (excluding LOP and partially absent)
+          // Formula: Total Days = Payable Days + LOP + Partially Absent
+          // So: Payable = Total Days - LOP - Partially Absent
+          // But we can also calculate as: Present + Half Days + Weekoffs + Holidays + Leaves + Comp Off
           // Note: 
-          // - weekOffsWorked is already included in presentDays, so subtract it from weekOffs to avoid double counting
-          // - compOffEarned should not be included in payable days
+          // - weekOffsWorked days are in presentDays, but weekoffs are still payable days
+          // - We use netWeekOffs (weekOffs - weekOffsWorked) to avoid double counting in present
+          // - However, holidays might overlap with weekoffs, so we need to ensure all days are accounted
+          // - compOffEarned should not be included in payable days (it's earned, not taken as leave)
           // - partiallyAbsentDays should not be included as they are not fully payable
           // - regularizedPresentDays should not be included
           const netWeekOffs = monthlySummary.weekOffs - (monthlySummary.weekOffsWorked || 0);
-          const totalPayableDays = 
+          // Calculate payable days from components
+          const calculatedPayable = 
             monthlySummary.presentDays +
-            monthlySummary.halfDays + // Half days count as 0.5
-            (netWeekOffs > 0 ? netWeekOffs : 0) + // Net week offs (excluding worked ones)
-            monthlySummary.holidays + // Holidays
-            monthlySummary.el + // Earned Leave
-            monthlySummary.cl + // Casual Leave
-            monthlySummary.sl + // Sick Leave
-            monthlySummary.compOff; // Comp Off Leave (CFL)
+            monthlySummary.halfDays +
+            netWeekOffs +
+            monthlySummary.holidays +
+            monthlySummary.el +
+            monthlySummary.cl +
+            monthlySummary.sl +
+            monthlySummary.compOff;
+          // Also calculate from total days minus LOP and partially absent (this should match)
+          const derivedPayable = monthlySummary.totalDays - (monthlySummary.lop || 0) - (monthlySummary.partiallyAbsentDays || 0);
+          // Use the derived value to ensure all days are accounted for
+          const totalPayableDays = Math.max(calculatedPayable, derivedPayable);
          
           console.log('=== TOTAL PAYABLE DAYS CALCULATION (API DATA) ===');
           console.log('Present Days:', monthlySummary.presentDays);
@@ -1221,16 +1231,17 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           });
 
           // Weekoff: only those week off dates where employee did NOT work
-          weekOffs = Array.from(weekOffDates).filter(date => !workedWeekOffDates.has(date)).length;
+          const weekOffsWithoutHolidays = Array.from(weekOffDates).filter(date => !workedWeekOffDates.has(date)).length;
+          const weekOffsWorked = workedWeekOffDates.size;
            
-           // Add holidays to weekoff count (including 2nd and 4th Saturdays for Exozen-IT/FMS)
-           weekOffs += holidays;
+           // Separate holidays count (holidays are already counted in holidays variable)
            
            console.log('=== WEEKOFF CALCULATION ===');
            console.log('All weekoff dates in month:', Array.from(weekOffDates));
            console.log('Worked weekoff dates:', Array.from(workedWeekOffDates));
+           console.log('Weekoffs (without holidays):', weekOffsWithoutHolidays);
+           console.log('Weekoffs Worked:', weekOffsWorked);
            console.log('Holidays count:', holidays);
-           console.log('Final weekoff count (including holidays):', weekOffs);
 
           // Count EL, SL, CL, Comp Off Leave from leaveHistory for the selected month
           leaveHistory.forEach((leave) => {
@@ -1245,10 +1256,23 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           // LOP: add Partially Absent as LOP if required
           lop += partiallyAbsentDays;
 
-          // Calculate Total Payable Days: presentDays + halfDays + totalWeekoff + el + cl + sl + compOffGained + compOffLeave + partialDays
-          let totalPayableDays = Math.ceil(
-            presentDays + halfDays + weekOffs + el + cl + sl + compOffGained + compOffLeave + partiallyAbsentDays
-          );
+          // Calculate Total Payable Days: presentDays + halfDays + (weekOffs - weekOffsWorked) + holidays + el + cl + sl + compOffLeave
+          // Note: 
+          // - weekOffsWorked is already included in presentDays, so subtract it from weekOffs to avoid double counting
+          // - compOffGained should not be included in payable days
+          // - partiallyAbsentDays should not be included as they are not fully payable
+          const netWeekOffs = weekOffsWithoutHolidays - weekOffsWorked;
+          let totalPayableDays = 
+            presentDays +
+            halfDays + // Half days count as 0.5
+            (netWeekOffs > 0 ? netWeekOffs : 0) + // Net week offs (excluding worked ones)
+            holidays + // Holidays
+            el + // Earned Leave
+            cl + // Casual Leave
+            sl + // Sick Leave
+            compOffLeave; // Comp Off Leave (CFL)
+          // Do NOT add compOffGained or partiallyAbsentDays
+          
           if (totalPayableDays < 0) totalPayableDays = 0;
 
           autoTable(doc, {
@@ -1270,7 +1294,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
               presentDays,
               halfDays,
               partiallyAbsentDays,
-              weekOffs,
+              weekOffsWithoutHolidays, // Total weekoffs (excluding holidays which are counted separately)
               el,
               sl,
               cl,
