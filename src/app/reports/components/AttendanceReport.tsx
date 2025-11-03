@@ -1027,7 +1027,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
          
           const totalPayableDays = Math.ceil(
             monthlySummary.presentDays +
-            monthlySummary.regularizedPresentDays +
+            // regularizedPresentDays should NOT be added to payable days
             monthlySummary.halfDays + // Half days should be added as full days, not divided by 2
             monthlySummary.partiallyAbsentDays +
             monthlySummary.weekOffs + // Week offs (Sundays/weekends)
