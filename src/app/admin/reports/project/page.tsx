@@ -205,7 +205,10 @@ export default function ProjectManagementPage() {
     { date: '2025-08-08', description: 'Varamahalakshmi' },
     { date: '2025-08-15', description: 'Independence Day' },
     { date: '2025-08-27', description: 'Ganesh Chaturthi' },
+    { date: '2025-09-01', description: 'Vijayadashami' },
     { date: '2025-10-02', description: 'Gandhi Jayanti' },
+    { date: '2025-10-20', description: 'Deepavali' },
+    { date: '2025-10-22', description: 'Deepavali' },
   ], []);
 
   const isSecondOrFourthSaturday = (date: Date): boolean => {
