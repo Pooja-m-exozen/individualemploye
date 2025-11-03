@@ -714,14 +714,28 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         if (fromDateForPDF && toDateForPDF) {
             const fromDateObj = new Date(fromDateForPDF);
             const toDateObj = new Date(toDateForPDF);
+            // Set time to start/end of day for proper comparison
+            fromDateObj.setHours(0, 0, 0, 0);
+            toDateObj.setHours(23, 59, 59, 999);
+            
             if (fromDateObj > toDateObj) {
                 alert("From date cannot be after To date.");
                 return;
             }
             filteredRecords = processedAttendanceData.filter(record => {
                 const recordDate = new Date(record.date);
+                recordDate.setHours(0, 0, 0, 0);
                 return recordDate >= fromDateObj && recordDate <= toDateObj;
             });
+            
+            console.log('Date range filter:', {
+                fromDate: fromDateForPDF,
+                toDate: toDateForPDF,
+                totalRecords: processedAttendanceData.length,
+                filteredCount: filteredRecords.length,
+                sampleRecords: filteredRecords.slice(0, 3).map(r => ({ date: r.date, status: r.status }))
+            });
+            
             if (filteredRecords.length === 0) {
                 alert("No attendance data found for selected date range.");
                 return;
@@ -772,6 +786,10 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             return calculateHoursUtc(inTime, outTime);
         };
 
+        console.log('=== PDF GENERATION DEBUG ===');
+        console.log('Filtered records count:', filteredRecords.length);
+        console.log('Sample filtered records:', filteredRecords.slice(0, 5).map(r => ({ date: r.date, punchIn: r.punchInTime, punchOut: r.punchOutTime })));
+        
         const tableRows = filteredRecords.map((record: ExtendedRawAttendanceRecord) => {
             const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
             const status = getAttendanceStatus(record, dayType);
@@ -820,14 +838,17 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
             return [
                 formatDate(record.date),
-                formatTime(punchInTime),
-                formatTime(punchOutTime),
+                formatTime(punchInTime) || '-',
+                formatTime(punchOutTime) || '-',
                 hoursWorked,
                 shortage,
                 dayType,
                 status
             ];
         });
+        
+        console.log('Table rows generated:', tableRows.length);
+        console.log('Sample table rows:', tableRows.slice(0, 3));
 
         autoTable(doc, {
             head: [tableColumn],
@@ -875,15 +896,124 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             }
         });
 
-        // If a date range is selected, do not add more pages (single page only)
+        // Check if table was actually generated
+        const attendanceTableFinalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY;
+        
+        // If no table was generated or it's empty, show a message
+        if (!tableRows || tableRows.length === 0) {
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            yPosition += 10;
+            doc.text('No attendance data available for the selected period.', 15, yPosition);
+            doc.save(`attendance_${fromDateForPDF || `${selectedMonth}_${selectedYear}`}_to_${toDateForPDF || 'report'}.pdf`);
+            return;
+        }
+
+        // If a date range is selected, generate summary table before saving
         if (singlePage) {
+            // Add summary table for date range reports too
+            yPosition = (attendanceTableFinalY || yPosition) + 10;
+            
+            // Generate summary from filtered records
+            let presentDays = 0;
+            let halfDays = 0;
+            let partiallyAbsentDays = 0;
+            let weekOffs = 0;
+            let holidays = 0;
+            let el = 0;
+            let sl = 0;
+            let cl = 0;
+            let compOffGained = 0;
+            let compOffLeave = 0;
+            let lop = 0;
+            let regularizedPresent = 0;
+            
+            filteredRecords.forEach((record: ExtendedRawAttendanceRecord) => {
+                const dayType = getDayType(record.date, selectedYear, selectedMonth, record.projectName ?? undefined);
+                const status = getAttendanceStatus(record, dayType);
+                
+                if (status === 'Present') presentDays++;
+                else if (status === 'Half Day') halfDays += 0.5;
+                else if (dayType === 'Sunday' || dayType.includes('Sunday')) weekOffs++;
+                else if (dayType === 'Holiday' || dayType === '2nd Saturday' || dayType === '4th Saturday') holidays++;
+                else if (status.includes('EL')) el++;
+                else if (status.includes('SL')) sl++;
+                else if (status.includes('CL')) cl++;
+                else if (status === 'Comp Off') compOffGained++;
+            });
+            
+            // Create summary table for date range
+            const summaryHead = [['Total Days', 'Present Days', 'Half Days', 'Total Weekoff', 'Holidays', 'EL', 'SL', 'CL', 'LOP']];
+            const totalDays = filteredRecords.length;
+            const summaryBody = [[
+                totalDays,
+                presentDays,
+                halfDays,
+                weekOffs,
+                holidays,
+                el,
+                sl,
+                cl,
+                lop
+            ]];
+            
+            doc.setFontSize(11);
+            doc.setTextColor(41, 128, 185);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Overall Summary', 15, yPosition);
+            yPosition += 10;
+            
+            autoTable(doc, {
+                head: summaryHead,
+                body: summaryBody,
+                startY: yPosition,
+                theme: 'grid',
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 3,
+                    halign: 'center'
+                },
+                headStyles: {
+                    fillColor: [41, 128, 185],
+                    textColor: 255,
+                    fontSize: 9,
+                    fontStyle: 'bold'
+                },
+                margin: { top: 5, right: 10, bottom: 10, left: 10 }
+            });
+            
+            // Calculate total payable days for date range
+            const totalPayableDaysForRange = Math.ceil(
+                presentDays +
+                halfDays +
+                weekOffs +
+                holidays +
+                el +
+                sl +
+                cl +
+                compOffGained
+            );
+            
+            yPosition = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY || yPosition;
+            yPosition += 10;
+            
+            doc.setFontSize(9);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Total Days: ${totalDays}`, 15, yPosition);
+            yPosition += 7;
+            doc.text(`Total Payable Days: ${totalPayableDaysForRange}`, 15, yPosition);
+            yPosition += 7;
+            const attendancePercentage = totalDays > 0 ? ((totalPayableDaysForRange / totalDays) * 100).toFixed(2) : '0.00';
+            doc.text(`Attendance Percentage: ${attendancePercentage}%`, 15, yPosition);
+            
             doc.save(`attendance_${fromDateForPDF}_to_${toDateForPDF}.pdf`);
             return;
         }
 
         // Get the final Y position after the attendance table
-        const attendanceTableFinalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
-        yPosition = attendanceTableFinalY + 5;
+        yPosition = attendanceTableFinalY || yPosition;
+        yPosition += 5;
        
         // Calculate Comp Off count from attendance records regardless of API data
         let calculatedCompOffGained = 0;
