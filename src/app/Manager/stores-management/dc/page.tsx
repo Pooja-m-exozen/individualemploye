@@ -2513,27 +2513,50 @@ export default function StoreDCPage() {
       
       const fromBoxWidth = pageWidth / 2 - 25;
       const toBoxWidth = pageWidth / 2 - 25;
-      const boxHeight = 20;
+      const boxHeight = 35; // Increased height to accommodate multiple lines
       
       doc.rect(15, y + 5, fromBoxWidth, boxHeight);
       doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED\n25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", 17, y + 8, { maxWidth: fromBoxWidth - 2 });
       doc.rect(pageWidth / 2 + 2, y + 5, toBoxWidth, boxHeight);
      
-      // Use the actual project name from the created RDC
-      const projectName = rdc.projectName || rdc.customer;
-      console.log("Project name for RDC PDF (from RDC):", projectName);
-     
-      // If project name is still generic, try to get it from the first item's individualEmployeeData
-      let finalProjectName = projectName;
-      if (rdc.items && rdc.items.length > 0 && rdc.items[0].individualEmployeeData?.projectName) {
-        finalProjectName = rdc.items[0].individualEmployeeData.projectName;
-        console.log("Using project name from individualEmployeeData:", finalProjectName);
+      // Get receiver name (customer)
+      const receiverName = rdc.customer || "";
+      
+      // Get project name from various sources
+      let projectName = "";
+      if (rdc.projectName) {
+        projectName = rdc.projectName;
+      } else if (rdc.items && rdc.items.length > 0 && rdc.items[0].individualEmployeeData?.projectName) {
+        projectName = rdc.items[0].individualEmployeeData.projectName;
+      } else if (rdc.items && rdc.items.length > 0 && rdc.items[0].projectName) {
+        projectName = rdc.items[0].projectName;
       }
-     
-      // Ensure we don't use "N/A" as project name
-      if (!finalProjectName || finalProjectName === "N/A" || finalProjectName === "General") {
-        finalProjectName = rdc.customer || "Project Details";
+      
+      // Try to fetch project name from projects API based on address if not found
+      if (!projectName && rdc.address) {
+        try {
+          const projectRes = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+          if (projectRes.ok) {
+            const projectData = await projectRes.json();
+            if (projectData && Array.isArray(projectData)) {
+              const matchingProject = projectData.find((p: Project) => 
+                p.address && rdc.address && (
+                  rdc.address.toLowerCase().includes(p.address.toLowerCase()) ||
+                  p.address.toLowerCase().includes(rdc.address.toLowerCase())
+                )
+              );
+              if (matchingProject) {
+                projectName = matchingProject.projectName;
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching project name:", error);
+        }
       }
+      
+      console.log("Receiver name for RDC PDF:", receiverName);
+      console.log("Project name for RDC PDF:", projectName);
      
       // Fetch customer address from project API
       let customerAddress = "";
@@ -2545,12 +2568,12 @@ export default function StoreDCPage() {
           
           let matchingProject = null;
           
-          // First try to match by finalProjectName (most accurate)
-          if (finalProjectName && finalProjectName !== "N/A" && finalProjectName !== "Project Details") {
+          // First try to match by projectName (most accurate)
+          if (projectName && projectName !== "N/A" && projectName !== "Project Details") {
             matchingProject = projectData.find((p: { projectName: string; address?: string }) =>
-              p.projectName.toLowerCase().trim() === finalProjectName.toLowerCase().trim()
+              p.projectName.toLowerCase().trim() === projectName.toLowerCase().trim()
             );
-            console.log(`Trying to match by finalProjectName "${finalProjectName}":`, matchingProject);
+            console.log(`Trying to match by projectName "${projectName}":`, matchingProject);
           }
           
           // If no match by project name, try by customer name
@@ -2587,51 +2610,77 @@ export default function StoreDCPage() {
             );
             console.log(`Trying keyword match by customer keywords:`, customerKeywords, matchingProject);
           }
-         
+          
           if (matchingProject && matchingProject.address) {
             customerAddress = matchingProject.address;
             console.log(`✅ Found address for project "${matchingProject.projectName}": ${customerAddress}`);
           } else {
-            console.log(`❌ No matching project found for customer: ${rdc.customer}, finalProjectName: ${finalProjectName}`);
+            console.log(`❌ No matching project found for customer: ${rdc.customer}, projectName: ${projectName}`);
           }
         }
       } catch (error) {
         console.error("Error fetching customer address:", error);
       }
      
-      // Create the "To" text with project name and address (avoid duplication)
-      let toText = `${finalProjectName}`;
+      // Create the "To" text with receiver name, project name, and address
+      let toText = receiverName;
+      
+      // Add project name if available and different from receiver name
+      if (projectName && projectName.trim() !== "" && projectName !== receiverName && projectName !== "N/A") {
+        toText += `\nProject Name: ${projectName}`;
+      }
      
       // Add customer address if found
       if (customerAddress && customerAddress.trim() !== "" && customerAddress !== "N/A" && customerAddress !== "Address not available") {
+        // Remove "M/s." or "M/s" from the address
+        let cleanedAddress = customerAddress.replace(/^M\/s\.?\s*/i, '').trim();
+        
         // Format the address properly - split long addresses into multiple lines
-        const addressLines = customerAddress.split(',').map(line => line.trim()).filter(line => line);
+        const addressLines = cleanedAddress.split(',').map(line => line.trim()).filter(line => line && !line.match(/^M\/s\.?$/i));
+        
         if (addressLines.length > 1) {
-          // If address has multiple parts, join them with newlines
-          toText += `\n${addressLines.join('\n')}`;
+          // Combine pin code, state, and country on one line
+          const formattedLines: string[] = [];
+          let i = 0;
+          
+          while (i < addressLines.length) {
+            const currentLine = addressLines[i];
+            // Check if current line is a pin code (all digits)
+            const isPinCode = /^\d+$/.test(currentLine);
+            
+            if (isPinCode && i + 2 < addressLines.length) {
+              // Combine pin code, state, and country
+              const state = addressLines[i + 1];
+              const country = addressLines[i + 2];
+              formattedLines.push(`${currentLine}, ${state}, ${country}`);
+              i += 3;
+            } else if (isPinCode && i + 1 < addressLines.length) {
+              // Combine pin code and state
+              const state = addressLines[i + 1];
+              formattedLines.push(`${currentLine}, ${state}`);
+              i += 2;
+            } else {
+              formattedLines.push(currentLine);
+              i++;
+            }
+          }
+          
+          toText += `\n${formattedLines.join('\n')}`;
         } else {
-          toText += `\n${customerAddress}`;
+          toText += `\n${cleanedAddress}`;
         }
         console.log(`✅ Using fetched address: ${customerAddress}`);
       } else {
         console.log(`❌ No valid address found, customerAddress: "${customerAddress}"`);
         
-        // Fallback: try to use customer name if it's different from project name
-        if (rdc.customer && rdc.customer.trim() !== "N/A" && rdc.customer.trim() !== "" && finalProjectName !== rdc.customer) {
-          // Handle long customer names by truncating if necessary
-          const customerName = rdc.customer.length > 50 ? rdc.customer.substring(0, 50) + "..." : rdc.customer;
-          toText += `\n${customerName}`;
-          console.log(`Using customer name as fallback: ${customerName}`);
-        }
-        
         // If still no address, try to use a default address for known projects
-        if (finalProjectName.toLowerCase().includes('skootr')) {
+        if (projectName && projectName.toLowerCase().includes('skootr')) {
           toText += `\n213, Rainmakers Workspace, Mahatma Gandhi Road\nRamanashree Arcade, Bengaluru, 560001\nKarnataka, INDIA`;
           console.log(`Using default Skootr address`);
-        } else if (finalProjectName.toLowerCase().includes('exozen')) {
+        } else if (projectName && projectName.toLowerCase().includes('exozen')) {
           toText += `\n25/1, 4th Floor, SKIP House\nMuseum Road, Near Brigade Tower\nBangalore - 560025, Karnataka`;
           console.log(`Using default Exozen address`);
-        } else if (finalProjectName.toLowerCase().includes('testing')) {
+        } else if (projectName && projectName.toLowerCase().includes('testing')) {
           toText += `\n25/1, 4th Floor, Skip House\nMuseum Road, Near Brigade Tower\nBangalore - 560025, Karnataka`;
           console.log(`Using default Testing address`);
         }
@@ -2640,7 +2689,10 @@ export default function StoreDCPage() {
       // Log the final "To" text for debugging
       console.log("Final 'To' text for RDC PDF:", toText);
      
-      // Try to get better project information after we fetch employee data
+      // Write the "To" text to PDF with same alignment as "From" address
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      // Use same approach as "From" - doc.text with maxWidth for automatic wrapping and alignment
       doc.text(toText, pageWidth / 2 + 4, y + 8, { maxWidth: toBoxWidth - 2 });
 
       y += 30;

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import CoordinatorDashboardLayout from "@/components/dashboard/CoordinatorDashboardLayout";
+import CoordinatorDashboardLayout  from "@/components/dashboard/CoordinatorDashboardLayout";
 import CreateDCModal from "@/components/dashboard/CreateDCmodal";
 import { FaSearch, FaUpload, FaFileImage, FaFilePdf, FaFileWord, FaFileExcel, FaTimes, FaDownload, FaEye, FaBoxOpen, FaUsers, FaTshirt, FaFileAlt, FaUserPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -445,6 +445,9 @@ export default function StoreDCPage() {
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
   const [dcData, setDcData] = useState<DC[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // State to track employee IDs that already have requests generated
+  const [employeesWithRequests, setEmployeesWithRequests] = useState<Set<string>>(new Set());
   
   // Bulk issue state variables
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -1218,6 +1221,55 @@ export default function StoreDCPage() {
 
 
 
+  // Function to fetch employee IDs that already have requests generated
+  const fetchEmployeesWithExistingRequests = async (): Promise<Set<string>> => {
+    try {
+      const response = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+      if (!response.ok) {
+        console.error('Failed to fetch uniform requests');
+        return new Set();
+      }
+      
+      interface UniformRequestItem {
+        employeeId?: string;
+      }
+      
+      interface EmployeeGroup {
+        employeeId?: string;
+      }
+      
+      const data = await response.json();
+      const employeeIdsWithRequests = new Set<string>();
+      
+      // Handle different API response structures
+      if (data.success && data.uniforms) {
+        data.uniforms.forEach((request: UniformRequestItem) => {
+          if (request.employeeId) {
+            employeeIdsWithRequests.add(request.employeeId);
+          }
+        });
+      } else if (data.success && data.employeeGroups) {
+        data.employeeGroups.forEach((group: EmployeeGroup) => {
+          if (group.employeeId) {
+            employeeIdsWithRequests.add(group.employeeId);
+          }
+        });
+      } else if (Array.isArray(data)) {
+        data.forEach((request: UniformRequestItem) => {
+          if (request.employeeId) {
+            employeeIdsWithRequests.add(request.employeeId);
+          }
+        });
+      }
+      
+      console.log('Found employees with existing requests:', employeeIdsWithRequests.size);
+      return employeeIdsWithRequests;
+    } catch (error) {
+      console.error('Error fetching employees with existing requests:', error);
+      return new Set();
+    }
+  };
+
   // Function to fetch employees for specific project and designation
   const fetchEmployeesForMapping = async (projectName: string, designation?: string) => {
       // setEmployeesLoading(true);
@@ -1225,6 +1277,10 @@ export default function StoreDCPage() {
       console.log('Fetching employees for project:', projectName, 'designation:', designation);
       console.log('Total employees available:', employees.length);
       console.log('Sample employee data:', employees.slice(0, 3));
+      
+      // Fetch employees with existing requests
+      const employeesWithExistingRequests = await fetchEmployeesWithExistingRequests();
+      setEmployeesWithRequests(employeesWithExistingRequests);
       
       let employeesToFilter = employees;
       
@@ -1293,9 +1349,12 @@ export default function StoreDCPage() {
                            normalizedProjectName.includes(normalizedEmpProject);
         const designationMatch = !designation || emp.designation === designation;
         
-        console.log(`Employee ${emp.employeeId}: projectName="${emp.projectName}" (normalized: "${normalizedEmpProject}"), searchProject="${projectName}" (normalized: "${normalizedProjectName}"), matches=${projectMatch}, designation="${emp.designation}", designationMatch=${designationMatch}`);
+        // Exclude employees who already have requests generated
+        const hasExistingRequest = employeesWithExistingRequests.has(emp.employeeId);
         
-        return projectMatch && designationMatch;
+        console.log(`Employee ${emp.employeeId}: projectName="${emp.projectName}" (normalized: "${normalizedEmpProject}"), searchProject="${projectName}" (normalized: "${normalizedProjectName}"), matches=${projectMatch}, designation="${emp.designation}", designationMatch=${designationMatch}, hasExistingRequest=${hasExistingRequest}`);
+        
+        return projectMatch && designationMatch && !hasExistingRequest;
       });
       
       console.log('Filtered employees:', filteredEmployees);
@@ -2356,8 +2415,34 @@ export default function StoreDCPage() {
       doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 13);
       doc.text("2. Goods are delivered after careful checking", 12, finalY + 25);
 
+      // Instruction on Handling Company Assets and Disclaimer
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("Instruction on Handling Company Assets and Disclaimer", 12, finalY + 40);
+      doc.setFont("helvetica", "normal");
+      
+      const instructionText = "All employees are instructed to handle company assets, equipment, and materials with the utmost care, diligence, and responsibility. It is the duty of every employee to ensure that all company property is used solely for official purposes and maintained in good working condition. Any loss, damage, or misuse of company property resulting from negligence, carelessness, or unauthorized use will make the concerned individual liable for recovery of the cost of such damages, as assessed and determined by the management. Employees are also required to promptly report any malfunction, loss, or damage of assets to their immediate supervisor.";
+      const instructionLines = doc.splitTextToSize(instructionText, 180);
+      doc.text(instructionLines, 12, finalY + 48);
+      
+      // Contact Information - placed after instruction text and before disclaimer
+      const contactY = finalY + 48 + (instructionLines.length * 4.5);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("1. Office contact Number: Coordinator - 6366750572 and Babu - 7975532669", 12, contactY);
+      doc.text("2. Site contact Name : _____________ number _____________", 12, contactY + 6);
+      
+      doc.setFont("helvetica", "bold");
+      const disclaimerY = contactY + 14;
+      doc.text("Disclaimer:", 12, disclaimerY);
+      doc.setFont("helvetica", "normal");
+      
+      const disclaimerText = "The company reserves the right to recover the cost of repair, replacement, or loss arising from negligent or unauthorized use of company assets. Disciplinary action may also be initiated in cases of willful misconduct, negligence, or failure to comply with asset handling procedures.";
+      const disclaimerLines = doc.splitTextToSize(disclaimerText, 180);
+      doc.text(disclaimerLines, 12, disclaimerY + 6);
+
       // Signature lines - compact for single page
-      const sigY = finalY + 35; // Increased spacing
+      const sigY = disclaimerY + 6 + (disclaimerLines.length * 6) + 10; // Dynamic spacing based on text height
       doc.setDrawColor(120);
       doc.line(20, sigY, 60, sigY);
       doc.text("Initiated by", 30, sigY + 3);
@@ -2428,27 +2513,50 @@ export default function StoreDCPage() {
       
       const fromBoxWidth = pageWidth / 2 - 25;
       const toBoxWidth = pageWidth / 2 - 25;
-      const boxHeight = 20;
+      const boxHeight = 35; // Increased height to accommodate multiple lines
       
       doc.rect(15, y + 5, fromBoxWidth, boxHeight);
       doc.text("EXOZEN FACILITY MANAGEMENT SERVICES PRIVATE LIMITED\n25/1, 4th Floor, SKIP House, Museum Road, Near Brigade Tower, Bangalore - 560025, Karnataka", 17, y + 8, { maxWidth: fromBoxWidth - 2 });
       doc.rect(pageWidth / 2 + 2, y + 5, toBoxWidth, boxHeight);
      
-      // Use the actual project name from the created RDC
-      const projectName = rdc.projectName || rdc.customer;
-      console.log("Project name for RDC PDF (from RDC):", projectName);
-     
-      // If project name is still generic, try to get it from the first item's individualEmployeeData
-      let finalProjectName = projectName;
-      if (rdc.items && rdc.items.length > 0 && rdc.items[0].individualEmployeeData?.projectName) {
-        finalProjectName = rdc.items[0].individualEmployeeData.projectName;
-        console.log("Using project name from individualEmployeeData:", finalProjectName);
+      // Get receiver name (customer)
+      const receiverName = rdc.customer || "";
+      
+      // Get project name from various sources
+      let projectName = "";
+      if (rdc.projectName) {
+        projectName = rdc.projectName;
+      } else if (rdc.items && rdc.items.length > 0 && rdc.items[0].individualEmployeeData?.projectName) {
+        projectName = rdc.items[0].individualEmployeeData.projectName;
+      } else if (rdc.items && rdc.items.length > 0 && rdc.items[0].projectName) {
+        projectName = rdc.items[0].projectName;
       }
-     
-      // Ensure we don't use "N/A" as project name
-      if (!finalProjectName || finalProjectName === "N/A" || finalProjectName === "General") {
-        finalProjectName = rdc.customer || "Project Details";
+      
+      // Try to fetch project name from projects API based on address if not found
+      if (!projectName && rdc.address) {
+        try {
+          const projectRes = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+          if (projectRes.ok) {
+            const projectData = await projectRes.json();
+            if (projectData && Array.isArray(projectData)) {
+              const matchingProject = projectData.find((p: Project) => 
+                p.address && rdc.address && (
+                  rdc.address.toLowerCase().includes(p.address.toLowerCase()) ||
+                  p.address.toLowerCase().includes(rdc.address.toLowerCase())
+                )
+              );
+              if (matchingProject) {
+                projectName = matchingProject.projectName;
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching project name:", error);
+        }
       }
+      
+      console.log("Receiver name for RDC PDF:", receiverName);
+      console.log("Project name for RDC PDF:", projectName);
      
       // Fetch customer address from project API
       let customerAddress = "";
@@ -2460,12 +2568,12 @@ export default function StoreDCPage() {
           
           let matchingProject = null;
           
-          // First try to match by finalProjectName (most accurate)
-          if (finalProjectName && finalProjectName !== "N/A" && finalProjectName !== "Project Details") {
+          // First try to match by projectName (most accurate)
+          if (projectName && projectName !== "N/A" && projectName !== "Project Details") {
             matchingProject = projectData.find((p: { projectName: string; address?: string }) =>
-              p.projectName.toLowerCase().trim() === finalProjectName.toLowerCase().trim()
+              p.projectName.toLowerCase().trim() === projectName.toLowerCase().trim()
             );
-            console.log(`Trying to match by finalProjectName "${finalProjectName}":`, matchingProject);
+            console.log(`Trying to match by projectName "${projectName}":`, matchingProject);
           }
           
           // If no match by project name, try by customer name
@@ -2502,51 +2610,77 @@ export default function StoreDCPage() {
             );
             console.log(`Trying keyword match by customer keywords:`, customerKeywords, matchingProject);
           }
-         
+          
           if (matchingProject && matchingProject.address) {
             customerAddress = matchingProject.address;
             console.log(`✅ Found address for project "${matchingProject.projectName}": ${customerAddress}`);
           } else {
-            console.log(`❌ No matching project found for customer: ${rdc.customer}, finalProjectName: ${finalProjectName}`);
+            console.log(`❌ No matching project found for customer: ${rdc.customer}, projectName: ${projectName}`);
           }
         }
       } catch (error) {
         console.error("Error fetching customer address:", error);
       }
      
-      // Create the "To" text with project name and address (avoid duplication)
-      let toText = `${finalProjectName}`;
+      // Create the "To" text with receiver name, project name, and address
+      let toText = receiverName;
+      
+      // Add project name if available and different from receiver name
+      if (projectName && projectName.trim() !== "" && projectName !== receiverName && projectName !== "N/A") {
+        toText += `\nProject Name: ${projectName}`;
+      }
      
       // Add customer address if found
       if (customerAddress && customerAddress.trim() !== "" && customerAddress !== "N/A" && customerAddress !== "Address not available") {
+        // Remove "M/s." or "M/s" from the address
+        let cleanedAddress = customerAddress.replace(/^M\/s\.?\s*/i, '').trim();
+        
         // Format the address properly - split long addresses into multiple lines
-        const addressLines = customerAddress.split(',').map(line => line.trim()).filter(line => line);
+        const addressLines = cleanedAddress.split(',').map(line => line.trim()).filter(line => line && !line.match(/^M\/s\.?$/i));
+        
         if (addressLines.length > 1) {
-          // If address has multiple parts, join them with newlines
-          toText += `\n${addressLines.join('\n')}`;
+          // Combine pin code, state, and country on one line
+          const formattedLines: string[] = [];
+          let i = 0;
+          
+          while (i < addressLines.length) {
+            const currentLine = addressLines[i];
+            // Check if current line is a pin code (all digits)
+            const isPinCode = /^\d+$/.test(currentLine);
+            
+            if (isPinCode && i + 2 < addressLines.length) {
+              // Combine pin code, state, and country
+              const state = addressLines[i + 1];
+              const country = addressLines[i + 2];
+              formattedLines.push(`${currentLine}, ${state}, ${country}`);
+              i += 3;
+            } else if (isPinCode && i + 1 < addressLines.length) {
+              // Combine pin code and state
+              const state = addressLines[i + 1];
+              formattedLines.push(`${currentLine}, ${state}`);
+              i += 2;
+            } else {
+              formattedLines.push(currentLine);
+              i++;
+            }
+          }
+          
+          toText += `\n${formattedLines.join('\n')}`;
         } else {
-          toText += `\n${customerAddress}`;
+          toText += `\n${cleanedAddress}`;
         }
         console.log(`✅ Using fetched address: ${customerAddress}`);
       } else {
         console.log(`❌ No valid address found, customerAddress: "${customerAddress}"`);
         
-        // Fallback: try to use customer name if it's different from project name
-        if (rdc.customer && rdc.customer.trim() !== "N/A" && rdc.customer.trim() !== "" && finalProjectName !== rdc.customer) {
-          // Handle long customer names by truncating if necessary
-          const customerName = rdc.customer.length > 50 ? rdc.customer.substring(0, 50) + "..." : rdc.customer;
-          toText += `\n${customerName}`;
-          console.log(`Using customer name as fallback: ${customerName}`);
-        }
-        
         // If still no address, try to use a default address for known projects
-        if (finalProjectName.toLowerCase().includes('skootr')) {
+        if (projectName && projectName.toLowerCase().includes('skootr')) {
           toText += `\n213, Rainmakers Workspace, Mahatma Gandhi Road\nRamanashree Arcade, Bengaluru, 560001\nKarnataka, INDIA`;
           console.log(`Using default Skootr address`);
-        } else if (finalProjectName.toLowerCase().includes('exozen')) {
+        } else if (projectName && projectName.toLowerCase().includes('exozen')) {
           toText += `\n25/1, 4th Floor, SKIP House\nMuseum Road, Near Brigade Tower\nBangalore - 560025, Karnataka`;
           console.log(`Using default Exozen address`);
-        } else if (finalProjectName.toLowerCase().includes('testing')) {
+        } else if (projectName && projectName.toLowerCase().includes('testing')) {
           toText += `\n25/1, 4th Floor, Skip House\nMuseum Road, Near Brigade Tower\nBangalore - 560025, Karnataka`;
           console.log(`Using default Testing address`);
         }
@@ -2555,7 +2689,10 @@ export default function StoreDCPage() {
       // Log the final "To" text for debugging
       console.log("Final 'To' text for RDC PDF:", toText);
      
-      // Try to get better project information after we fetch employee data
+      // Write the "To" text to PDF with same alignment as "From" address
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      // Use same approach as "From" - doc.text with maxWidth for automatic wrapping and alignment
       doc.text(toText, pageWidth / 2 + 4, y + 8, { maxWidth: toBoxWidth - 2 });
 
       y += 30;
@@ -2651,8 +2788,35 @@ export default function StoreDCPage() {
         doc.text(`4. Items must be returned by: ${rdc.retrievalDeadline.split('T')[0]}`, 12, finalY + 49);
       }
 
+      // Instruction on Handling Company Assets and Disclaimer
+      const disclaimerStartY = finalY + (rdc.retrievalDeadline ? 62 : 52);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("Instruction on Handling Company Assets and Disclaimer", 12, disclaimerStartY);
+      doc.setFont("helvetica", "normal");
+      
+      const instructionText = "All employees are instructed to handle company assets, equipment, and materials with the utmost care, diligence, and responsibility. It is the duty of every employee to ensure that all company property is used solely for official purposes and maintained in good working condition. Any loss, damage, or misuse of company property resulting from negligence, carelessness, or unauthorized use will make the concerned individual liable for recovery of the cost of such damages, as assessed and determined by the management. Employees are also required to promptly report any malfunction, loss, or damage of assets to their immediate supervisor.";
+      const instructionLines = doc.splitTextToSize(instructionText, 180);
+      doc.text(instructionLines, 12, disclaimerStartY + 8);
+      
+      // Contact Information - placed after instruction text and before disclaimer
+      const contactY = disclaimerStartY + 8 + (instructionLines.length * 4.5);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("1. Office contact Number: Coordinator - 6366750572 and Babu - 7975532669", 12, contactY);
+      doc.text("2. Site contact Name : -------- number --------", 12, contactY + 6);
+      
+      doc.setFont("helvetica", "bold");
+      const disclaimerTitleY = contactY + 14;
+      doc.text("Disclaimer:", 12, disclaimerTitleY);
+      doc.setFont("helvetica", "normal");
+      
+      const disclaimerText = "The company reserves the right to recover the cost of repair, replacement, or loss arising from negligent or unauthorized use of company assets. Disciplinary action may also be initiated in cases of willful misconduct, negligence, or failure to comply with asset handling procedures.";
+      const disclaimerLines = doc.splitTextToSize(disclaimerText, 180);
+      doc.text(disclaimerLines, 12, disclaimerTitleY + 6);
+
       // Signature lines - compact for single page
-      const sigY = finalY + (rdc.retrievalDeadline ? 60 : 50); // Increased spacing
+      const sigY = disclaimerTitleY + 6 + (disclaimerLines.length * 6) + 10; // Dynamic spacing based on text height
       doc.setDrawColor(120);
       doc.line(20, sigY, 60, sigY);
       doc.text("Initiated by", 30, sigY + 3);
@@ -2739,11 +2903,39 @@ export default function StoreDCPage() {
     doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery.", 14, finalY + 20);
     doc.text("2. Goods are delivered after careful checking.", 14, finalY + 32);
 
-    // Footer
+    // Instruction on Handling Company Assets and Disclaimer
     doc.setFontSize(10);
-    doc.text("Initiated by", 14, finalY + 50);
-    doc.text("Received by", 80, finalY + 50);
-    doc.text("Issued by", 150, finalY + 50);
+    doc.setFont("helvetica", "bold");
+    doc.text("Instruction on Handling Company Assets and Disclaimer", 14, finalY + 45);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    
+    const instructionText = "All employees are instructed to handle company assets, equipment, and materials with the utmost care, diligence, and responsibility. It is the duty of every employee to ensure that all company property is used solely for official purposes and maintained in good working condition. Any loss, damage, or misuse of company property resulting from negligence, carelessness, or unauthorized use will make the concerned individual liable for recovery of the cost of such damages, as assessed and determined by the management. Employees are also required to promptly report any malfunction, loss, or damage of assets to their immediate supervisor.";
+    const instructionLines = doc.splitTextToSize(instructionText, 270);
+    doc.text(instructionLines, 14, finalY + 55);
+    
+    // Contact Information - placed after instruction text and before disclaimer
+    const contactY = finalY + 55 + (instructionLines.length * 4.5);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("1. Office contact Number: Coordinator - 6366750572 and Babu - 7975532669", 14, contactY);
+    doc.text("2. Site contact Name : -------- number --------", 14, contactY + 7);
+    
+    doc.setFont("helvetica", "bold");
+    const disclaimerY = contactY + 15;
+    doc.text("Disclaimer:", 14, disclaimerY);
+    doc.setFont("helvetica", "normal");
+    
+    const disclaimerText = "The company reserves the right to recover the cost of repair, replacement, or loss arising from negligent or unauthorized use of company assets. Disciplinary action may also be initiated in cases of willful misconduct, negligence, or failure to comply with asset handling procedures.";
+    const disclaimerLines = doc.splitTextToSize(disclaimerText, 270);
+    doc.text(disclaimerLines, 14, disclaimerY + 5);
+
+    // Footer - calculate position dynamically
+    const footerY = disclaimerY + 5 + (disclaimerLines.length * 5) + 10;
+    doc.setFontSize(10);
+    doc.text("Initiated by", 14, footerY);
+    doc.text("Received by", 80, footerY);
+    doc.text("Issued by", 150, footerY);
 
     doc.save("All_DCs_Summary.pdf");
     setToast("All DCs Summary PDF generated successfully!");
@@ -3171,8 +3363,37 @@ export default function StoreDCPage() {
       doc.text('3. This is a Bulk Issue Challan', 20, finalY + 44);
       doc.text('4. All items are issued as per company policy', 20, finalY + 56);
       
-      // Add signature lines
-      const signatureY = finalY + 75;
+      // Instruction on Handling Company Assets and Disclaimer
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text('Instruction on Handling Company Assets and Disclaimer', 20, finalY + 72);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0); // Black text
+      
+      const instructionText = 'All employees are instructed to handle company assets, equipment, and materials with the utmost care, diligence, and responsibility. It is the duty of every employee to ensure that all company property is used solely for official purposes and maintained in good working condition. Any loss, damage, or misuse of company property resulting from negligence, carelessness, or unauthorized use will make the concerned individual liable for recovery of the cost of such damages, as assessed and determined by the management. Employees are also required to promptly report any malfunction, loss, or damage of assets to their immediate supervisor.';
+      const instructionLines = doc.splitTextToSize(instructionText, 170);
+      doc.text(instructionLines, 20, finalY + 82);
+      
+      // Contact Information - placed after instruction text and before disclaimer
+      const contactY = finalY + 82 + (instructionLines.length * 4.5);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text('1. Office contact Number: Coordinator - 6366750572 and Babu - 7975532669', 20, contactY);
+      doc.text('2. Site contact Name : -------- number --------', 20, contactY + 6);
+      
+      doc.setFont('helvetica', 'bold');
+      const disclaimerY = contactY + 14;
+      doc.text('Disclaimer:', 20, disclaimerY);
+      doc.setFont('helvetica', 'normal');
+      
+      const disclaimerText = 'The company reserves the right to recover the cost of repair, replacement, or loss arising from negligent or unauthorized use of company assets. Disciplinary action may also be initiated in cases of willful misconduct, negligence, or failure to comply with asset handling procedures.';
+      const disclaimerLines = doc.splitTextToSize(disclaimerText, 170);
+      doc.text(disclaimerLines, 20, disclaimerY + 6);
+      
+      // Add signature lines - calculate position dynamically
+      const signatureY = disclaimerY + 6 + (disclaimerLines.length * 6) + 10;
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0); // Black text
       doc.text('Initiated by: _________________', 20, signatureY);
@@ -3492,6 +3713,378 @@ export default function StoreDCPage() {
   };
 
   // RDC Helper Functions (simplified - no designation mapping) - Updated
+
+  // Generate Asset Issuance Form PDF (can be called after creation or from action button)
+  const generateAssetIssuanceForm = async (rdc: DC, rdcCreationData?: { issueTo: string; department: string; address: string; issueDate: string }) => {
+    try {
+      setPdfLoading(`asset_${rdc.dcNumber}`);
+      const doc = new jsPDF('portrait', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let y = 15;
+
+      // Header - Company Name with styled EXOZEN (exactly matching the image)
+      // EXO in black, ZEN in orange, with FACILITY MANAGEMENT SERVICES PVT LTD to the right
+      doc.setFontSize(22); // Increased size for EXOZEN
+      doc.setFont("helvetica", "bold");
+      
+      // EXO in black
+      doc.setTextColor(0, 0, 0); // Black for EXO
+      doc.text("EXO", 20, y);
+      
+      // ZEN in vibrant orange (no space between EXO and ZEN)
+      doc.setTextColor(230, 81, 0); // Vibrant orange for ZEN (#E65100)
+      const exoWidth = doc.getTextWidth("EXO");
+      doc.text("ZEN", 20 + exoWidth, y); // No gap between EXO and ZEN
+      
+      // FACILITY MANAGEMENT SERVICES PVT LTD in black (same line, with proper space to prevent overlap)
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal"); // Regular weight, not bold
+      doc.setTextColor(0, 0, 0); // Black matching EXO
+      const zenWidth = doc.getTextWidth("ZEN");
+      const exozenEndX = 20 + exoWidth + zenWidth;
+      doc.text("FACILITY MANAGEMENT SERVICES PVT LTD", exozenEndX + 10, y); // More space to move F away from N
+
+      // Reset text color to black for rest of document
+      doc.setTextColor(0, 0, 0);
+
+      y += 12;
+
+      // Horizontal line above the title (dark gray, thin)
+      doc.setDrawColor(100, 100, 100); // Dark gray line
+      doc.setLineWidth(0.5);
+      doc.line(20, y, pageWidth - 20, y);
+
+      y += 5;
+
+      // Document Title
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("ASSET ISSUANCE FORM / CONSENT FORM", pageWidth / 2, y, { align: "center" });
+
+      y += 5;
+
+      // Employee Details Section
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Employee Details", 20, y);
+
+      y += 4;
+
+      // Get project name from various sources
+      let projectName = "";
+      if (rdc.projectName) {
+        projectName = rdc.projectName;
+      } else if (rdcCreationData?.department) {
+        // Check if department field contains the project name
+        projectName = rdcCreationData.department;
+      } else if (rdc.items && rdc.items.length > 0 && rdc.items[0].individualEmployeeData?.projectName) {
+        projectName = rdc.items[0].individualEmployeeData.projectName;
+      } else if (rdc.items && rdc.items.length > 0 && rdc.items[0].projectName) {
+        projectName = rdc.items[0].projectName;
+      } else {
+        // Try to fetch project name from projects API based on address
+        try {
+          const address = rdcCreationData?.address || rdc.address || "";
+          if (address) {
+            const projectsRes = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+            const projectsData = await projectsRes.json();
+            if (projectsData && Array.isArray(projectsData)) {
+              const matchingProject = projectsData.find((p: Project) => 
+                p.address && address.toLowerCase().includes(p.address.toLowerCase()) ||
+                p.address && p.address.toLowerCase().includes(address.toLowerCase())
+              );
+              if (matchingProject) {
+                projectName = matchingProject.projectName;
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching project name:", error);
+        }
+        // If still no project name found, don't use customer as fallback
+        if (!projectName) {
+          projectName = "";
+        }
+      }
+
+      // Employee Details Table
+      const employeeTableData = [
+        [
+          "Receiver Name",
+          rdcCreationData?.issueTo || rdc.customer || "",
+          "Date of Issue:",
+          rdc.dcDate ? rdc.dcDate.split("T")[0] : new Date().toISOString().split("T")[0]
+        ],
+        [
+          "Project Name",
+          projectName,
+          "Department / Site",
+          rdcCreationData?.department || rdcCreationData?.address || rdc.address || ""
+        ],
+        [
+          "Designation",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Contact Number",
+          "",
+          "",
+          ""
+        ]
+      ];
+
+      autoTable(doc, {
+        startY: y,
+        head: [],
+        body: employeeTableData,
+        theme: "grid",
+        styles: {
+          cellPadding: 1,
+          lineColor: [0, 0, 0],
+          lineWidth: 0.3,
+          fontSize: 7,
+          minCellHeight: 5
+        },
+        margin: { left: 20, right: 20 },
+        tableWidth: pageWidth - 40,
+        columnStyles: {
+          0: { 
+            cellWidth: (pageWidth - 40) * 0.25, 
+            halign: 'left',
+            fontStyle: 'bold',
+            cellPadding: 1
+          }, // Label column 1
+          1: { 
+            cellWidth: (pageWidth - 40) * 0.25, 
+            halign: 'left',
+            cellPadding: 1
+          }, // Input column 1
+          2: { 
+            cellWidth: (pageWidth - 40) * 0.25, 
+            halign: 'left',
+            fontStyle: 'bold',
+            cellPadding: 1
+          }, // Label column 2
+          3: { 
+            cellWidth: (pageWidth - 40) * 0.25, 
+            halign: 'left',
+            cellPadding: 1
+          }  // Input column 2
+        }
+      });
+
+      const employeeTableEndY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 20;
+      y = employeeTableEndY + 4;
+
+      // Asset Details Section
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Asset Details", 20, y);
+
+      y += 4;
+
+      // Asset Details Table
+      const tableHeaders = ["SL No.", "Asset Description", "Asset Code / Serial No.", "Quantity", "Condition at Issue (New/Used)", "Remarks"];
+      const tableBody: (string | number)[][] = [];
+
+      // Fetch inventory items to get item codes if needed
+      let inventoryItemsList: UniformItem[] = [];
+      try {
+        const invRes = await fetch("https://inventory.zenapi.co.in/api/inventory/items");
+        const invData = await invRes.json();
+        if (invData && Array.isArray(invData)) {
+          inventoryItemsList = invData;
+        }
+      } catch (error) {
+        console.error("Error fetching inventory items:", error);
+      }
+
+      rdc.items.forEach((item, index) => {
+        const assetDescription = Array.isArray(item.uniformType) 
+          ? item.uniformType.join(", ") 
+          : String(item.uniformType || item.name || "N/A");
+        
+        // Prioritize itemCode from the item itself
+        let assetCode = item.itemCode || "";
+        
+        // If itemCode is not available, try to find it from inventory items
+        if (!assetCode) {
+          const inventoryItem = inventoryItemsList.find(invItem => 
+            invItem._id === item.itemId
+          );
+          if (inventoryItem?.itemCode) {
+            assetCode = inventoryItem.itemCode;
+          } else {
+            assetCode = "N/A";
+          }
+        }
+        
+        tableBody.push([
+          index + 1,
+          assetDescription,
+          assetCode,
+          item.quantity || 0,
+          "New",
+          item.remarks || ""
+        ]);
+      });
+
+      autoTable(doc, {
+        startY: y,
+        head: [tableHeaders],
+        body: tableBody,
+        theme: "grid",
+        headStyles: {
+          fillColor: [230, 230, 230],
+          textColor: 20,
+          fontStyle: 'bold',
+          fontSize: 7
+        },
+        styles: {
+          fontSize: 6,
+          cellPadding: 1,
+          textColor: 20,
+          minCellHeight: 4
+        },
+        margin: { left: 20, right: 20 },
+        columnStyles: {
+          0: { cellWidth: 15, cellPadding: 1 }, // SL No
+          1: { cellWidth: 50, cellPadding: 1 }, // Asset Description
+          2: { cellWidth: 40, cellPadding: 1 }, // Asset Code
+          3: { cellWidth: 20, cellPadding: 1 }, // Quantity
+          4: { cellWidth: 35, cellPadding: 1 }, // Condition
+          5: { cellWidth: 30, cellPadding: 1 }  // Remarks
+        }
+      });
+
+      const tableEndY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
+      y = tableEndY + 5;
+
+      // Instruction on Handling Company Assets and Disclaimer Section
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("<> Instruction on Handling Company Assets and Disclaimer <>", pageWidth / 2, y, { align: "center" });
+
+      y += 5;
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      const instructionText1 = "All employees are instructed to handle company assets, equipment, and materials with the utmost care, diligence, and responsibility. It is the duty of every employee to ensure that all company property is used solely for official purposes and maintained in good working condition.";
+      const instructionLines1 = doc.splitTextToSize(instructionText1, pageWidth - 40);
+      doc.text(instructionLines1, 20, y);
+
+      y += instructionLines1.length * 3.5 + 2;
+
+      const instructionText2 = "Any loss, damage, or misuse of company property resulting from negligence, carelessness, or unauthorized use will make the concerned individual liable for recovery of the cost of such damages, as assessed and determined by the management. Employees are also required to promptly report any malfunction, loss, or damage of assets to their immediate supervisor.";
+      const instructionLines2 = doc.splitTextToSize(instructionText2, pageWidth - 40);
+      doc.text(instructionLines2, 20, y);
+
+      y += instructionLines2.length * 3.5 + 3;
+
+      // Disclaimer
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("* <> Disclaimer <>", pageWidth / 2, y, { align: "center" });
+
+      y += 4;
+
+      doc.setFont("helvetica", "normal");
+      const disclaimerText = "The company reserves the right to recover the cost of repair, replacement, or loss arising from negligent or unauthorized use of company assets. Disciplinary action may also be initiated in cases of willful misconduct, negligence, or failure to comply with asset handling procedures.";
+      const disclaimerLines = doc.splitTextToSize(disclaimerText, pageWidth - 40);
+      doc.text(disclaimerLines, 20, y);
+
+      y += disclaimerLines.length * 3.5 + 5;
+
+      // Employee Acknowledgement Section
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Employee Acknowledgement", 20, y);
+
+      y += 5;
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      const ackText1 = "I hereby acknowledge the receipt of the above-listed company assets and confirm that they are in good working condition at the time of issue.";
+      const ackLines1 = doc.splitTextToSize(ackText1, pageWidth - 40);
+      doc.text(ackLines1, 20, y);
+
+      y += ackLines1.length * 3.5 + 2;
+
+      const ackText2 = "I understand that I am responsible for the safekeeping and proper use of these assets and that any loss, damage, or misuse due to negligence or unauthorized use will make me liable for recovery of the cost as determined by the management.";
+      const ackLines2 = doc.splitTextToSize(ackText2, pageWidth - 40);
+      doc.text(ackLines2, 20, y);
+
+      y += ackLines2.length * 3.5 + 2;
+
+      const ackText3 = "I further agree to return all assets in good condition upon completion of my employment or upon request by the company.";
+      const ackLines3 = doc.splitTextToSize(ackText3, pageWidth - 40);
+      doc.text(ackLines3, 20, y);
+
+      y += ackLines3.length * 3.5 + 5;
+
+      // Signature lines
+      doc.setFontSize(8);
+      doc.text("Employee Signature:", 20, y);
+      doc.line(20, y + 2, 90, y + 2);
+
+      doc.text("Date: _____ / _____ / _____", 110, y);
+      doc.line(110, y + 2, pageWidth - 20, y + 2);
+
+      y += 10;
+
+      // Issued By Section
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Issued By (Authorized Person)", 20, y);
+
+      y += 5;
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("Name:", 20, y);
+      doc.line(20, y + 2, 90, y + 2);
+
+      doc.text("Designation:", 110, y);
+      doc.line(110, y + 2, pageWidth - 20, y + 2);
+
+      y += 6;
+
+      doc.text("Signature:", 20, y);
+      doc.line(20, y + 2, 90, y + 2);
+
+      doc.text("Date: _____ / _____ / _____", 110, y);
+      doc.line(110, y + 2, pageWidth - 20, y + 2);
+
+      // Footer on last page - add footer if there's space
+      if (y < pageHeight - 30) {
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.text("25/1, 4th Floor, Skip House, Museum Road, Near Brigade Tower, Bangalore-560025, Karnataka, India", pageWidth / 2, pageHeight - 20, { align: "center" });
+        doc.text("Web: www.exozen.com | Tel No: +91 8041651888", pageWidth / 2, pageHeight - 15, { align: "center" });
+        doc.text("GST NO: RAAGCSSMIZNANAAGC9585M", pageWidth / 2, pageHeight - 10, { align: "center" });
+      } else {
+        // Add footer on new page if no space
+        doc.addPage();
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.text("25/1, 4th Floor, Skip House, Museum Road, Near Brigade Tower, Bangalore-560025, Karnataka, India", pageWidth / 2, pageHeight - 20, { align: "center" });
+        doc.text("Web: www.exozen.com | Tel No: +91 8041651888", pageWidth / 2, pageHeight - 15, { align: "center" });
+        doc.text("GST NO: RAAGCSSMIZNANAAGC9585M", pageWidth / 2, pageHeight - 10, { align: "center" });
+      }
+
+      doc.save(`Asset_Issuance_Form_${rdc.dcNumber}.pdf`);
+      setToast(`Asset Issuance Form generated successfully for ${rdc.dcNumber}!`);
+    } catch (error) {
+      console.error("Error generating Asset Issuance Form:", error);
+      setToast("Error generating Asset Issuance Form. Please try again.");
+    } finally {
+      setPdfLoading(null);
+    }
+  };
+
   const handleRdcProjectChange = async (projectName: string) => {
     const project = projects.find(p => p.projectName === projectName);
     setSelectedRdcProject(project || null);
@@ -3620,6 +4213,42 @@ export default function StoreDCPage() {
       
       if (rdcResult.success) {
         setToast(`RDC created successfully! RDC Number: ${rdcResult.dcNumber || rdcResult.retrievableDCId}`);
+        
+        // Generate Asset Issuance Form PDF after RDC creation
+        const rdcForPDF: DC = {
+          _id: rdcResult.retrievableDCId || rdcResult._id || '',
+          customer: rdcCreationData.issueTo,
+          dcNumber: rdcResult.dcNumber || `RDC${Date.now()}`,
+          dcDate: rdcCreationData.issueDate,
+          address: rdcCreationData.address,
+          remarks: rdcCreationData.purpose,
+          items: selectedRdcItems.map(item => {
+            // Find the item code from availableItems
+            const inventoryItem = availableItems.find(invItem => invItem._id === item.itemId);
+            return {
+              _id: item.itemId,
+              employeeId: '',
+              itemId: item.itemId,
+              quantity: item.quantity,
+              size: item.size || '',
+              uniformType: item.itemName,
+              itemCode: inventoryItem?.itemCode || '',
+              name: item.itemName,
+              price: '',
+              remarks: ''
+            };
+          }),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          __v: 0,
+          isRetrievable: true,
+          retrievalStatus: 'available',
+          retrievalDeadline: rdcCreationData.deadlineDate || undefined
+        };
+        
+        // Generate Asset Issuance Form PDF
+        await generateAssetIssuanceForm(rdcForPDF, rdcCreationData);
+        
         setShowRdcModal(false);
         setRdcCreationData({
           issueTo: "",
@@ -3986,12 +4615,28 @@ export default function StoreDCPage() {
                                   ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-400' 
                                   : 'bg-green-500 hover:bg-green-600 text-white disabled:bg-green-300'
                               }`}
-                              title="Download PDF"
+                              title="Download RDC PDF"
                             >
                               {pdfLoading === rdc.dcNumber ? (
                                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
                               ) : (
                                 <FaDownload className="w-3 h-3" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => generateAssetIssuanceForm(rdc)}
+                              disabled={pdfLoading === `asset_${rdc.dcNumber}`}
+                              className={`px-2 py-1 text-xs rounded transition-colors ${
+                                theme === 'dark' 
+                                  ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-purple-400' 
+                                  : 'bg-purple-500 hover:bg-purple-600 text-white disabled:bg-purple-300'
+                              }`}
+                              title="Download Asset Consent Form"
+                            >
+                              {pdfLoading === `asset_${rdc.dcNumber}` ? (
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                              ) : (
+                                <FaFileAlt className="w-3 h-3" />
                               )}
                             </button>
                             <button
@@ -4242,6 +4887,11 @@ export default function StoreDCPage() {
                           <h5 className={`text-sm font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
                             Select Employees:
                           </h5>
+                              {employeesWithRequests.size > 0 && (
+                                <p className={`text-xs mt-1 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`}>
+                                  {employeesWithRequests.size} employee(s) with existing requests filtered out
+                                </p>
+                              )}
                               {employeeSearchTerm && (
                                 <p className={`text-xs mt-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
                                   {availableEmployees.filter(employee => {
@@ -4258,7 +4908,7 @@ export default function StoreDCPage() {
                             <div className="relative">
                               <input
                                 type="text"
-                                placeholder="Search employees..."
+                                placeholder="Search by Employee ID, Name, or Designation..."
                                 value={employeeSearchTerm}
                                 onChange={(e) => setEmployeeSearchTerm(e.target.value)}
                                 className={`w-64 px-3 py-1.5 text-sm rounded-md border ${
