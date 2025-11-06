@@ -4063,16 +4063,16 @@ export default function StoreDCPage() {
         doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
         doc.text("25/1, 4th Floor, Skip House, Museum Road, Near Brigade Tower, Bangalore-560025, Karnataka, India", pageWidth / 2, pageHeight - 20, { align: "center" });
-        doc.text("Web: www.exozen.com | Tel No: +91 8041651888", pageWidth / 2, pageHeight - 15, { align: "center" });
-        doc.text("GST NO: RAAGCSSMIZNANAAGC9585M", pageWidth / 2, pageHeight - 10, { align: "center" });
+        doc.text("Web: www.exozenfms.com | Tel No: +91 8041651888", pageWidth / 2, pageHeight - 15, { align: "center" });
+        doc.text("GST NO: 29AAGCE9585M1ZN", pageWidth / 2, pageHeight - 10, { align: "center" });
       } else {
         // Add footer on new page if no space
         doc.addPage();
         doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
         doc.text("25/1, 4th Floor, Skip House, Museum Road, Near Brigade Tower, Bangalore-560025, Karnataka, India", pageWidth / 2, pageHeight - 20, { align: "center" });
-        doc.text("Web: www.exozen.com | Tel No: +91 8041651888", pageWidth / 2, pageHeight - 15, { align: "center" });
-        doc.text("GST NO: RAAGCSSMIZNANAAGC9585M", pageWidth / 2, pageHeight - 10, { align: "center" });
+        doc.text("Web: www.exozenfms.com | Tel No: +91 8041651888", pageWidth / 2, pageHeight - 15, { align: "center" });
+        doc.text("GST NO: 29AAGCE9585M1ZN", pageWidth / 2, pageHeight - 10, { align: "center" });
       }
 
       doc.save(`Asset_Issuance_Form_${rdc.dcNumber}.pdf`);
