@@ -228,12 +228,46 @@ function MarkAttendanceContent() {
   const [showCameraModal, setShowCameraModal] = useState(false);
   const { theme } = useTheme();
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [isRemoteUser, setIsRemoteUser] = useState<boolean>(false);
+  const [employeeData, setEmployeeData] = useState<any>(null);
 
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/login');
       return;
     }
+    
+    // Fetch employee data to check if they're a remote user
+    const fetchEmployeeData = async () => {
+      try {
+        const employeeId = getEmployeeId();
+        if (!employeeId) return;
+        
+        const response = await fetch(`https://cafm.zenapi.co.in/api/kyc`);
+        const data = await response.json();
+        
+        if (data.kycForms) {
+          const employee = data.kycForms.find(
+            (form: any) => form.personalDetails?.employeeId === employeeId
+          );
+          
+          if (employee) {
+            setEmployeeData(employee);
+            const projectName = employee.personalDetails?.projectName || '';
+            // Check if project name contains "Remote" or similar indicators
+            const remoteIndicators = ['Remote', 'remote', 'Work from Home', 'WFH', 'Home'];
+            const isRemote = remoteIndicators.some(indicator => 
+              projectName.toLowerCase().includes(indicator.toLowerCase())
+            );
+            setIsRemoteUser(isRemote);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching employee data:', error);
+      }
+    };
+    
+    fetchEmployeeData();
   }, [router]);
 
 
@@ -290,9 +324,15 @@ function MarkAttendanceContent() {
     });
   };
 
-  const validateLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
+  const validateLocation = async (skipValidation: boolean = false): Promise<{ latitude: number; longitude: number } | null> => {
     try {
       const location = await getCurrentLocation();
+      
+      // Skip distance validation for remote users
+      if (skipValidation || isRemoteUser) {
+        setLocationError(null);
+        return location;
+      }
       
       const distance = calculateDistance(
         location.latitude,
@@ -310,6 +350,11 @@ function MarkAttendanceContent() {
       return null;
     } catch (error) {
       console.error('Location error:', error);
+      // For remote users, if location fails, still allow attendance marking
+      if (isRemoteUser) {
+        setLocationError(null);
+        return null; // Return null but don't show error
+      }
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setLocationError(errorMessage);
       return null;
@@ -332,10 +377,34 @@ function MarkAttendanceContent() {
         throw new Error('Employee ID not found. Please login again.');
       }
 
-      // Get current location
-      const location = await validateLocation();
-      if (!location) {
-        throw new Error('Location validation failed. Please ensure you are within the office radius.');
+      // Get current location - skip validation for remote users
+      let location = null;
+      if (isRemoteUser) {
+        // For remote users, try to get location but don't require it
+        try {
+          location = await validateLocation(true);
+        } catch (error) {
+          // If location fails for remote users, continue without it
+          console.log('Location not available for remote user, continuing without location');
+        }
+      } else {
+        // For office users, location validation is required
+        location = await validateLocation();
+        if (!location) {
+          throw new Error('Location validation failed. Please ensure you are within the office radius.');
+        }
+      }
+
+      // Prepare request body - include location if available
+      const requestBody: any = {
+        photo: photoPreview,
+        attendanceType: isRemoteUser ? "remote" : "office"
+      };
+
+      // Only include location if we have it
+      if (location) {
+        requestBody.latitude = location.latitude;
+        requestBody.longitude = location.longitude;
       }
 
       const response = await fetch(`https://cafm.zenapi.co.in/api/attendance/${employeeId}/mark-with-photo`, {
@@ -344,12 +413,7 @@ function MarkAttendanceContent() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify({
-          photo: photoPreview,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          attendanceType: "office"
-        })
+        body: JSON.stringify(requestBody)
       });
 
       const data = await response.json();
@@ -505,13 +569,27 @@ function MarkAttendanceContent() {
                 ? 'bg-gray-700 border-gray-600'
                 : 'bg-gray-50 border-gray-200'
             }`}>
-              <p className={`text-sm mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
-                <FaInfoCircle className="inline mr-2 text-blue-600 dark:text-blue-400" />
-                Your device&apos;s location will be verified against your registered office location
-              </p>
-              <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                Please ensure your device&apos;s location services are enabled
-              </p>
+              {isRemoteUser ? (
+                <>
+                  <p className={`text-sm mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                    <FaInfoCircle className="inline mr-2 text-blue-600 dark:text-blue-400" />
+                    Remote user detected - Location verification is optional
+                  </p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    You can mark attendance from any location
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className={`text-sm mb-1 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                    <FaInfoCircle className="inline mr-2 text-blue-600 dark:text-blue-400" />
+                    Your device&apos;s location will be verified against your registered office location
+                  </p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Please ensure your device&apos;s location services are enabled
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -536,8 +614,8 @@ function MarkAttendanceContent() {
               )}
             </div>
 
-            {/* Add location error message */}
-            {locationError && (
+            {/* Add location error message - only show for non-remote users */}
+            {locationError && !isRemoteUser && (
               <FeedbackMessage message={locationError} type="error" />
             )}
 

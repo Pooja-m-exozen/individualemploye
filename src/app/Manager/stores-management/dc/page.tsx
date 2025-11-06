@@ -2442,7 +2442,6 @@ export default function StoreDCPage() {
       doc.text(disclaimerLines, 12, disclaimerY + 6);
 
       // Signature lines - compact for single page
-      const totalDisclaimerHeight = (instructionLines.length * 6) + 6 + (disclaimerLines.length * 6);
       const sigY = disclaimerY + 6 + (disclaimerLines.length * 6) + 10; // Dynamic spacing based on text height
       doc.setDrawColor(120);
       doc.line(20, sigY, 60, sigY);
@@ -2765,7 +2764,6 @@ export default function StoreDCPage() {
       doc.text(disclaimerLines, 12, disclaimerTitleY + 6);
 
       // Signature lines - compact for single page
-      const totalDisclaimerHeight = (instructionLines.length * 6) + 6 + (disclaimerLines.length * 6);
       const sigY = disclaimerTitleY + 6 + (disclaimerLines.length * 6) + 10; // Dynamic spacing based on text height
       doc.setDrawColor(120);
       doc.line(20, sigY, 60, sigY);
@@ -2881,7 +2879,6 @@ export default function StoreDCPage() {
     doc.text(disclaimerLines, 14, disclaimerY + 5);
 
     // Footer - calculate position dynamically
-    const totalDisclaimerHeight = (instructionLines.length * 5) + 5 + (disclaimerLines.length * 5);
     const footerY = disclaimerY + 5 + (disclaimerLines.length * 5) + 10;
     doc.setFontSize(10);
     doc.text("Initiated by", 14, footerY);
@@ -3344,7 +3341,6 @@ export default function StoreDCPage() {
       doc.text(disclaimerLines, 20, disclaimerY + 6);
       
       // Add signature lines - calculate position dynamically
-      const totalDisclaimerHeight = (instructionLines.length * 6) + 6 + (disclaimerLines.length * 6);
       const signatureY = disclaimerY + 6 + (disclaimerLines.length * 6) + 10;
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0); // Black text
