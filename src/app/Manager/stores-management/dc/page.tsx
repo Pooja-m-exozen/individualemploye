@@ -2415,8 +2415,35 @@ export default function StoreDCPage() {
       doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery", 12, finalY + 13);
       doc.text("2. Goods are delivered after careful checking", 12, finalY + 25);
 
+      // Instruction on Handling Company Assets and Disclaimer
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("Instruction on Handling Company Assets and Disclaimer", 12, finalY + 40);
+      doc.setFont("helvetica", "normal");
+      
+      const instructionText = "All employees are instructed to handle company assets, equipment, and materials with the utmost care, diligence, and responsibility. It is the duty of every employee to ensure that all company property is used solely for official purposes and maintained in good working condition. Any loss, damage, or misuse of company property resulting from negligence, carelessness, or unauthorized use will make the concerned individual liable for recovery of the cost of such damages, as assessed and determined by the management. Employees are also required to promptly report any malfunction, loss, or damage of assets to their immediate supervisor.";
+      const instructionLines = doc.splitTextToSize(instructionText, 180);
+      doc.text(instructionLines, 12, finalY + 48);
+      
+      // Contact Information - placed after instruction text and before disclaimer
+      const contactY = finalY + 48 + (instructionLines.length * 4.5);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("1. Office contact Number: Coordinator - 6366750572 and Babu - 7975532669", 12, contactY);
+      doc.text("2. Site contact Name : _____________ number _____________", 12, contactY + 6);
+      
+      doc.setFont("helvetica", "bold");
+      const disclaimerY = contactY + 14;
+      doc.text("Disclaimer:", 12, disclaimerY);
+      doc.setFont("helvetica", "normal");
+      
+      const disclaimerText = "The company reserves the right to recover the cost of repair, replacement, or loss arising from negligent or unauthorized use of company assets. Disciplinary action may also be initiated in cases of willful misconduct, negligence, or failure to comply with asset handling procedures.";
+      const disclaimerLines = doc.splitTextToSize(disclaimerText, 180);
+      doc.text(disclaimerLines, 12, disclaimerY + 6);
+
       // Signature lines - compact for single page
-      const sigY = finalY + 35; // Increased spacing
+      const totalDisclaimerHeight = (instructionLines.length * 6) + 6 + (disclaimerLines.length * 6);
+      const sigY = disclaimerY + 6 + (disclaimerLines.length * 6) + 10; // Dynamic spacing based on text height
       doc.setDrawColor(120);
       doc.line(20, sigY, 60, sigY);
       doc.text("Initiated by", 30, sigY + 3);
@@ -2710,8 +2737,36 @@ export default function StoreDCPage() {
         doc.text(`4. Items must be returned by: ${rdc.retrievalDeadline.split('T')[0]}`, 12, finalY + 49);
       }
 
+      // Instruction on Handling Company Assets and Disclaimer
+      const disclaimerStartY = finalY + (rdc.retrievalDeadline ? 62 : 52);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("Instruction on Handling Company Assets and Disclaimer", 12, disclaimerStartY);
+      doc.setFont("helvetica", "normal");
+      
+      const instructionText = "All employees are instructed to handle company assets, equipment, and materials with the utmost care, diligence, and responsibility. It is the duty of every employee to ensure that all company property is used solely for official purposes and maintained in good working condition. Any loss, damage, or misuse of company property resulting from negligence, carelessness, or unauthorized use will make the concerned individual liable for recovery of the cost of such damages, as assessed and determined by the management. Employees are also required to promptly report any malfunction, loss, or damage of assets to their immediate supervisor.";
+      const instructionLines = doc.splitTextToSize(instructionText, 180);
+      doc.text(instructionLines, 12, disclaimerStartY + 8);
+      
+      // Contact Information - placed after instruction text and before disclaimer
+      const contactY = disclaimerStartY + 8 + (instructionLines.length * 4.5);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("1. Office contact Number: Coordinator - 6366750572 and Babu - 7975532669", 12, contactY);
+      doc.text("2. Site contact Name : -------- number --------", 12, contactY + 6);
+      
+      doc.setFont("helvetica", "bold");
+      const disclaimerTitleY = contactY + 14;
+      doc.text("Disclaimer:", 12, disclaimerTitleY);
+      doc.setFont("helvetica", "normal");
+      
+      const disclaimerText = "The company reserves the right to recover the cost of repair, replacement, or loss arising from negligent or unauthorized use of company assets. Disciplinary action may also be initiated in cases of willful misconduct, negligence, or failure to comply with asset handling procedures.";
+      const disclaimerLines = doc.splitTextToSize(disclaimerText, 180);
+      doc.text(disclaimerLines, 12, disclaimerTitleY + 6);
+
       // Signature lines - compact for single page
-      const sigY = finalY + (rdc.retrievalDeadline ? 60 : 50); // Increased spacing
+      const totalDisclaimerHeight = (instructionLines.length * 6) + 6 + (disclaimerLines.length * 6);
+      const sigY = disclaimerTitleY + 6 + (disclaimerLines.length * 6) + 10; // Dynamic spacing based on text height
       doc.setDrawColor(120);
       doc.line(20, sigY, 60, sigY);
       doc.text("Initiated by", 30, sigY + 3);
@@ -2798,11 +2853,40 @@ export default function StoreDCPage() {
     doc.text("1. Complaints will be entertained if the goods are received within 24hrs of delivery.", 14, finalY + 20);
     doc.text("2. Goods are delivered after careful checking.", 14, finalY + 32);
 
-    // Footer
+    // Instruction on Handling Company Assets and Disclaimer
     doc.setFontSize(10);
-    doc.text("Initiated by", 14, finalY + 50);
-    doc.text("Received by", 80, finalY + 50);
-    doc.text("Issued by", 150, finalY + 50);
+    doc.setFont("helvetica", "bold");
+    doc.text("Instruction on Handling Company Assets and Disclaimer", 14, finalY + 45);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    
+    const instructionText = "All employees are instructed to handle company assets, equipment, and materials with the utmost care, diligence, and responsibility. It is the duty of every employee to ensure that all company property is used solely for official purposes and maintained in good working condition. Any loss, damage, or misuse of company property resulting from negligence, carelessness, or unauthorized use will make the concerned individual liable for recovery of the cost of such damages, as assessed and determined by the management. Employees are also required to promptly report any malfunction, loss, or damage of assets to their immediate supervisor.";
+    const instructionLines = doc.splitTextToSize(instructionText, 270);
+    doc.text(instructionLines, 14, finalY + 55);
+    
+    // Contact Information - placed after instruction text and before disclaimer
+    const contactY = finalY + 55 + (instructionLines.length * 4.5);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("1. Office contact Number: Coordinator - 6366750572 and Babu - 7975532669", 14, contactY);
+    doc.text("2. Site contact Name : -------- number --------", 14, contactY + 7);
+    
+    doc.setFont("helvetica", "bold");
+    const disclaimerY = contactY + 15;
+    doc.text("Disclaimer:", 14, disclaimerY);
+    doc.setFont("helvetica", "normal");
+    
+    const disclaimerText = "The company reserves the right to recover the cost of repair, replacement, or loss arising from negligent or unauthorized use of company assets. Disciplinary action may also be initiated in cases of willful misconduct, negligence, or failure to comply with asset handling procedures.";
+    const disclaimerLines = doc.splitTextToSize(disclaimerText, 270);
+    doc.text(disclaimerLines, 14, disclaimerY + 5);
+
+    // Footer - calculate position dynamically
+    const totalDisclaimerHeight = (instructionLines.length * 5) + 5 + (disclaimerLines.length * 5);
+    const footerY = disclaimerY + 5 + (disclaimerLines.length * 5) + 10;
+    doc.setFontSize(10);
+    doc.text("Initiated by", 14, footerY);
+    doc.text("Received by", 80, footerY);
+    doc.text("Issued by", 150, footerY);
 
     doc.save("All_DCs_Summary.pdf");
     setToast("All DCs Summary PDF generated successfully!");
@@ -3230,8 +3314,38 @@ export default function StoreDCPage() {
       doc.text('3. This is a Bulk Issue Challan', 20, finalY + 44);
       doc.text('4. All items are issued as per company policy', 20, finalY + 56);
       
-      // Add signature lines
-      const signatureY = finalY + 75;
+      // Instruction on Handling Company Assets and Disclaimer
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text('Instruction on Handling Company Assets and Disclaimer', 20, finalY + 72);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0); // Black text
+      
+      const instructionText = 'All employees are instructed to handle company assets, equipment, and materials with the utmost care, diligence, and responsibility. It is the duty of every employee to ensure that all company property is used solely for official purposes and maintained in good working condition. Any loss, damage, or misuse of company property resulting from negligence, carelessness, or unauthorized use will make the concerned individual liable for recovery of the cost of such damages, as assessed and determined by the management. Employees are also required to promptly report any malfunction, loss, or damage of assets to their immediate supervisor.';
+      const instructionLines = doc.splitTextToSize(instructionText, 170);
+      doc.text(instructionLines, 20, finalY + 82);
+      
+      // Contact Information - placed after instruction text and before disclaimer
+      const contactY = finalY + 82 + (instructionLines.length * 4.5);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0); // Black text
+      doc.text('1. Office contact Number: Coordinator - 6366750572 and Babu - 7975532669', 20, contactY);
+      doc.text('2. Site contact Name : -------- number --------', 20, contactY + 6);
+      
+      doc.setFont('helvetica', 'bold');
+      const disclaimerY = contactY + 14;
+      doc.text('Disclaimer:', 20, disclaimerY);
+      doc.setFont('helvetica', 'normal');
+      
+      const disclaimerText = 'The company reserves the right to recover the cost of repair, replacement, or loss arising from negligent or unauthorized use of company assets. Disciplinary action may also be initiated in cases of willful misconduct, negligence, or failure to comply with asset handling procedures.';
+      const disclaimerLines = doc.splitTextToSize(disclaimerText, 170);
+      doc.text(disclaimerLines, 20, disclaimerY + 6);
+      
+      // Add signature lines - calculate position dynamically
+      const totalDisclaimerHeight = (instructionLines.length * 6) + 6 + (disclaimerLines.length * 6);
+      const signatureY = disclaimerY + 6 + (disclaimerLines.length * 6) + 10;
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0); // Black text
       doc.text('Initiated by: _________________', 20, signatureY);
