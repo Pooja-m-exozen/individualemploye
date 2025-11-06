@@ -229,7 +229,6 @@ function MarkAttendanceContent() {
   const { theme } = useTheme();
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isRemoteUser, setIsRemoteUser] = useState<boolean>(false);
-  const [employeeData, setEmployeeData] = useState<any>(null);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -247,12 +246,18 @@ function MarkAttendanceContent() {
         const data = await response.json();
         
         if (data.kycForms) {
+          interface KYCForm {
+            personalDetails?: {
+              employeeId?: string;
+              projectName?: string;
+            };
+          }
+          
           const employee = data.kycForms.find(
-            (form: any) => form.personalDetails?.employeeId === employeeId
+            (form: KYCForm) => form.personalDetails?.employeeId === employeeId
           );
           
           if (employee) {
-            setEmployeeData(employee);
             const projectName = employee.personalDetails?.projectName || '';
             // Check if project name contains "Remote" or similar indicators
             const remoteIndicators = ['Remote', 'remote', 'Work from Home', 'WFH', 'Home'];
@@ -378,12 +383,12 @@ function MarkAttendanceContent() {
       }
 
       // Get current location - skip validation for remote users
-      let location = null;
+      let location: { latitude: number; longitude: number } | null = null;
       if (isRemoteUser) {
         // For remote users, try to get location but don't require it
         try {
           location = await validateLocation(true);
-        } catch (error) {
+        } catch {
           // If location fails for remote users, continue without it
           console.log('Location not available for remote user, continuing without location');
         }
@@ -396,7 +401,14 @@ function MarkAttendanceContent() {
       }
 
       // Prepare request body - include location if available
-      const requestBody: any = {
+      interface AttendanceRequestBody {
+        photo: string;
+        attendanceType: string;
+        latitude?: number;
+        longitude?: number;
+      }
+      
+      const requestBody: AttendanceRequestBody = {
         photo: photoPreview,
         attendanceType: isRemoteUser ? "remote" : "office"
       };
