@@ -2633,7 +2633,7 @@ export default function StoreDCPage() {
       // Add customer address if found
       if (customerAddress && customerAddress.trim() !== "" && customerAddress !== "N/A" && customerAddress !== "Address not available") {
         // Remove "M/s." or "M/s" from the address
-        let cleanedAddress = customerAddress.replace(/^M\/s\.?\s*/i, '').trim();
+        const cleanedAddress = customerAddress.replace(/^M\/s\.?\s*/i, '').trim();
         
         // Format the address properly - split long addresses into multiple lines
         const addressLines = cleanedAddress.split(',').map(line => line.trim()).filter(line => line && !line.match(/^M\/s\.?$/i));
