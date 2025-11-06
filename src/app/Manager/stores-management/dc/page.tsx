@@ -3661,6 +3661,378 @@ export default function StoreDCPage() {
   };
 
   // RDC Helper Functions (simplified - no designation mapping) - Updated
+
+  // Generate Asset Issuance Form PDF (can be called after creation or from action button)
+  const generateAssetIssuanceForm = async (rdc: DC, rdcCreationData?: { issueTo: string; department: string; address: string; issueDate: string }) => {
+    try {
+      setPdfLoading(`asset_${rdc.dcNumber}`);
+      const doc = new jsPDF('portrait', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let y = 15;
+
+      // Header - Company Name with styled EXOZEN (exactly matching the image)
+      // EXO in black, ZEN in orange, with FACILITY MANAGEMENT SERVICES PVT LTD to the right
+      doc.setFontSize(22); // Increased size for EXOZEN
+      doc.setFont("helvetica", "bold");
+      
+      // EXO in black
+      doc.setTextColor(0, 0, 0); // Black for EXO
+      doc.text("EXO", 20, y);
+      
+      // ZEN in vibrant orange (no space between EXO and ZEN)
+      doc.setTextColor(230, 81, 0); // Vibrant orange for ZEN (#E65100)
+      const exoWidth = doc.getTextWidth("EXO");
+      doc.text("ZEN", 20 + exoWidth, y); // No gap between EXO and ZEN
+      
+      // FACILITY MANAGEMENT SERVICES PVT LTD in black (same line, with proper space to prevent overlap)
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal"); // Regular weight, not bold
+      doc.setTextColor(0, 0, 0); // Black matching EXO
+      const zenWidth = doc.getTextWidth("ZEN");
+      const exozenEndX = 20 + exoWidth + zenWidth;
+      doc.text("FACILITY MANAGEMENT SERVICES PVT LTD", exozenEndX + 10, y); // More space to move F away from N
+
+      // Reset text color to black for rest of document
+      doc.setTextColor(0, 0, 0);
+
+      y += 12;
+
+      // Horizontal line above the title (dark gray, thin)
+      doc.setDrawColor(100, 100, 100); // Dark gray line
+      doc.setLineWidth(0.5);
+      doc.line(20, y, pageWidth - 20, y);
+
+      y += 5;
+
+      // Document Title
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("ASSET ISSUANCE FORM / CONSENT FORM", pageWidth / 2, y, { align: "center" });
+
+      y += 5;
+
+      // Employee Details Section
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Employee Details", 20, y);
+
+      y += 4;
+
+      // Get project name from various sources
+      let projectName = "";
+      if (rdc.projectName) {
+        projectName = rdc.projectName;
+      } else if (rdcCreationData?.department) {
+        // Check if department field contains the project name
+        projectName = rdcCreationData.department;
+      } else if (rdc.items && rdc.items.length > 0 && rdc.items[0].individualEmployeeData?.projectName) {
+        projectName = rdc.items[0].individualEmployeeData.projectName;
+      } else if (rdc.items && rdc.items.length > 0 && rdc.items[0].projectName) {
+        projectName = rdc.items[0].projectName;
+      } else {
+        // Try to fetch project name from projects API based on address
+        try {
+          const address = rdcCreationData?.address || rdc.address || "";
+          if (address) {
+            const projectsRes = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+            const projectsData = await projectsRes.json();
+            if (projectsData && Array.isArray(projectsData)) {
+              const matchingProject = projectsData.find((p: Project) => 
+                p.address && address.toLowerCase().includes(p.address.toLowerCase()) ||
+                p.address && p.address.toLowerCase().includes(address.toLowerCase())
+              );
+              if (matchingProject) {
+                projectName = matchingProject.projectName;
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching project name:", error);
+        }
+        // If still no project name found, don't use customer as fallback
+        if (!projectName) {
+          projectName = "";
+        }
+      }
+
+      // Employee Details Table
+      const employeeTableData = [
+        [
+          "Receiver Name",
+          rdcCreationData?.issueTo || rdc.customer || "",
+          "Date of Issue:",
+          rdc.dcDate ? rdc.dcDate.split("T")[0] : new Date().toISOString().split("T")[0]
+        ],
+        [
+          "Project Name",
+          projectName,
+          "Department / Site",
+          rdcCreationData?.department || rdcCreationData?.address || rdc.address || ""
+        ],
+        [
+          "Designation",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Contact Number",
+          "",
+          "",
+          ""
+        ]
+      ];
+
+      autoTable(doc, {
+        startY: y,
+        head: [],
+        body: employeeTableData,
+        theme: "grid",
+        styles: {
+          cellPadding: 1,
+          lineColor: [0, 0, 0],
+          lineWidth: 0.3,
+          fontSize: 7,
+          minCellHeight: 5
+        },
+        margin: { left: 20, right: 20 },
+        tableWidth: pageWidth - 40,
+        columnStyles: {
+          0: { 
+            cellWidth: (pageWidth - 40) * 0.25, 
+            halign: 'left',
+            fontStyle: 'bold',
+            cellPadding: 1
+          }, // Label column 1
+          1: { 
+            cellWidth: (pageWidth - 40) * 0.25, 
+            halign: 'left',
+            cellPadding: 1
+          }, // Input column 1
+          2: { 
+            cellWidth: (pageWidth - 40) * 0.25, 
+            halign: 'left',
+            fontStyle: 'bold',
+            cellPadding: 1
+          }, // Label column 2
+          3: { 
+            cellWidth: (pageWidth - 40) * 0.25, 
+            halign: 'left',
+            cellPadding: 1
+          }  // Input column 2
+        }
+      });
+
+      const employeeTableEndY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 20;
+      y = employeeTableEndY + 4;
+
+      // Asset Details Section
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Asset Details", 20, y);
+
+      y += 4;
+
+      // Asset Details Table
+      const tableHeaders = ["SL No.", "Asset Description", "Asset Code / Serial No.", "Quantity", "Condition at Issue (New/Used)", "Remarks"];
+      const tableBody: (string | number)[][] = [];
+
+      // Fetch inventory items to get item codes if needed
+      let inventoryItemsList: UniformItem[] = [];
+      try {
+        const invRes = await fetch("https://inventory.zenapi.co.in/api/inventory/items");
+        const invData = await invRes.json();
+        if (invData && Array.isArray(invData)) {
+          inventoryItemsList = invData;
+        }
+      } catch (error) {
+        console.error("Error fetching inventory items:", error);
+      }
+
+      rdc.items.forEach((item, index) => {
+        const assetDescription = Array.isArray(item.uniformType) 
+          ? item.uniformType.join(", ") 
+          : String(item.uniformType || item.name || "N/A");
+        
+        // Prioritize itemCode from the item itself
+        let assetCode = item.itemCode || "";
+        
+        // If itemCode is not available, try to find it from inventory items
+        if (!assetCode) {
+          const inventoryItem = inventoryItemsList.find(invItem => 
+            invItem._id === item.itemId
+          );
+          if (inventoryItem?.itemCode) {
+            assetCode = inventoryItem.itemCode;
+          } else {
+            assetCode = "N/A";
+          }
+        }
+        
+        tableBody.push([
+          index + 1,
+          assetDescription,
+          assetCode,
+          item.quantity || 0,
+          "New",
+          item.remarks || ""
+        ]);
+      });
+
+      autoTable(doc, {
+        startY: y,
+        head: [tableHeaders],
+        body: tableBody,
+        theme: "grid",
+        headStyles: {
+          fillColor: [230, 230, 230],
+          textColor: 20,
+          fontStyle: 'bold',
+          fontSize: 7
+        },
+        styles: {
+          fontSize: 6,
+          cellPadding: 1,
+          textColor: 20,
+          minCellHeight: 4
+        },
+        margin: { left: 20, right: 20 },
+        columnStyles: {
+          0: { cellWidth: 15, cellPadding: 1 }, // SL No
+          1: { cellWidth: 50, cellPadding: 1 }, // Asset Description
+          2: { cellWidth: 40, cellPadding: 1 }, // Asset Code
+          3: { cellWidth: 20, cellPadding: 1 }, // Quantity
+          4: { cellWidth: 35, cellPadding: 1 }, // Condition
+          5: { cellWidth: 30, cellPadding: 1 }  // Remarks
+        }
+      });
+
+      const tableEndY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
+      y = tableEndY + 5;
+
+      // Instruction on Handling Company Assets and Disclaimer Section
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("<> Instruction on Handling Company Assets and Disclaimer <>", pageWidth / 2, y, { align: "center" });
+
+      y += 5;
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      const instructionText1 = "All employees are instructed to handle company assets, equipment, and materials with the utmost care, diligence, and responsibility. It is the duty of every employee to ensure that all company property is used solely for official purposes and maintained in good working condition.";
+      const instructionLines1 = doc.splitTextToSize(instructionText1, pageWidth - 40);
+      doc.text(instructionLines1, 20, y);
+
+      y += instructionLines1.length * 3.5 + 2;
+
+      const instructionText2 = "Any loss, damage, or misuse of company property resulting from negligence, carelessness, or unauthorized use will make the concerned individual liable for recovery of the cost of such damages, as assessed and determined by the management. Employees are also required to promptly report any malfunction, loss, or damage of assets to their immediate supervisor.";
+      const instructionLines2 = doc.splitTextToSize(instructionText2, pageWidth - 40);
+      doc.text(instructionLines2, 20, y);
+
+      y += instructionLines2.length * 3.5 + 3;
+
+      // Disclaimer
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("* <> Disclaimer <>", pageWidth / 2, y, { align: "center" });
+
+      y += 4;
+
+      doc.setFont("helvetica", "normal");
+      const disclaimerText = "The company reserves the right to recover the cost of repair, replacement, or loss arising from negligent or unauthorized use of company assets. Disciplinary action may also be initiated in cases of willful misconduct, negligence, or failure to comply with asset handling procedures.";
+      const disclaimerLines = doc.splitTextToSize(disclaimerText, pageWidth - 40);
+      doc.text(disclaimerLines, 20, y);
+
+      y += disclaimerLines.length * 3.5 + 5;
+
+      // Employee Acknowledgement Section
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Employee Acknowledgement", 20, y);
+
+      y += 5;
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      const ackText1 = "I hereby acknowledge the receipt of the above-listed company assets and confirm that they are in good working condition at the time of issue.";
+      const ackLines1 = doc.splitTextToSize(ackText1, pageWidth - 40);
+      doc.text(ackLines1, 20, y);
+
+      y += ackLines1.length * 3.5 + 2;
+
+      const ackText2 = "I understand that I am responsible for the safekeeping and proper use of these assets and that any loss, damage, or misuse due to negligence or unauthorized use will make me liable for recovery of the cost as determined by the management.";
+      const ackLines2 = doc.splitTextToSize(ackText2, pageWidth - 40);
+      doc.text(ackLines2, 20, y);
+
+      y += ackLines2.length * 3.5 + 2;
+
+      const ackText3 = "I further agree to return all assets in good condition upon completion of my employment or upon request by the company.";
+      const ackLines3 = doc.splitTextToSize(ackText3, pageWidth - 40);
+      doc.text(ackLines3, 20, y);
+
+      y += ackLines3.length * 3.5 + 5;
+
+      // Signature lines
+      doc.setFontSize(8);
+      doc.text("Employee Signature:", 20, y);
+      doc.line(20, y + 2, 90, y + 2);
+
+      doc.text("Date: _____ / _____ / _____", 110, y);
+      doc.line(110, y + 2, pageWidth - 20, y + 2);
+
+      y += 10;
+
+      // Issued By Section
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Issued By (Authorized Person)", 20, y);
+
+      y += 5;
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("Name:", 20, y);
+      doc.line(20, y + 2, 90, y + 2);
+
+      doc.text("Designation:", 110, y);
+      doc.line(110, y + 2, pageWidth - 20, y + 2);
+
+      y += 6;
+
+      doc.text("Signature:", 20, y);
+      doc.line(20, y + 2, 90, y + 2);
+
+      doc.text("Date: _____ / _____ / _____", 110, y);
+      doc.line(110, y + 2, pageWidth - 20, y + 2);
+
+      // Footer on last page - add footer if there's space
+      if (y < pageHeight - 30) {
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.text("25/1, 4th Floor, Skip House, Museum Road, Near Brigade Tower, Bangalore-560025, Karnataka, India", pageWidth / 2, pageHeight - 20, { align: "center" });
+        doc.text("Web: www.exozen.com | Tel No: +91 8041651888", pageWidth / 2, pageHeight - 15, { align: "center" });
+        doc.text("GST NO: RAAGCSSMIZNANAAGC9585M", pageWidth / 2, pageHeight - 10, { align: "center" });
+      } else {
+        // Add footer on new page if no space
+        doc.addPage();
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.text("25/1, 4th Floor, Skip House, Museum Road, Near Brigade Tower, Bangalore-560025, Karnataka, India", pageWidth / 2, pageHeight - 20, { align: "center" });
+        doc.text("Web: www.exozen.com | Tel No: +91 8041651888", pageWidth / 2, pageHeight - 15, { align: "center" });
+        doc.text("GST NO: RAAGCSSMIZNANAAGC9585M", pageWidth / 2, pageHeight - 10, { align: "center" });
+      }
+
+      doc.save(`Asset_Issuance_Form_${rdc.dcNumber}.pdf`);
+      setToast(`Asset Issuance Form generated successfully for ${rdc.dcNumber}!`);
+    } catch (error) {
+      console.error("Error generating Asset Issuance Form:", error);
+      setToast("Error generating Asset Issuance Form. Please try again.");
+    } finally {
+      setPdfLoading(null);
+    }
+  };
+
   const handleRdcProjectChange = async (projectName: string) => {
     const project = projects.find(p => p.projectName === projectName);
     setSelectedRdcProject(project || null);
@@ -3789,6 +4161,42 @@ export default function StoreDCPage() {
       
       if (rdcResult.success) {
         setToast(`RDC created successfully! RDC Number: ${rdcResult.dcNumber || rdcResult.retrievableDCId}`);
+        
+        // Generate Asset Issuance Form PDF after RDC creation
+        const rdcForPDF: DC = {
+          _id: rdcResult.retrievableDCId || rdcResult._id || '',
+          customer: rdcCreationData.issueTo,
+          dcNumber: rdcResult.dcNumber || `RDC${Date.now()}`,
+          dcDate: rdcCreationData.issueDate,
+          address: rdcCreationData.address,
+          remarks: rdcCreationData.purpose,
+          items: selectedRdcItems.map(item => {
+            // Find the item code from availableItems
+            const inventoryItem = availableItems.find(invItem => invItem._id === item.itemId);
+            return {
+              _id: item.itemId,
+              employeeId: '',
+              itemId: item.itemId,
+              quantity: item.quantity,
+              size: item.size || '',
+              uniformType: item.itemName,
+              itemCode: inventoryItem?.itemCode || '',
+              name: item.itemName,
+              price: '',
+              remarks: ''
+            };
+          }),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          __v: 0,
+          isRetrievable: true,
+          retrievalStatus: 'available',
+          retrievalDeadline: rdcCreationData.deadlineDate || undefined
+        };
+        
+        // Generate Asset Issuance Form PDF
+        await generateAssetIssuanceForm(rdcForPDF, rdcCreationData);
+        
         setShowRdcModal(false);
         setRdcCreationData({
           issueTo: "",
@@ -4155,12 +4563,28 @@ export default function StoreDCPage() {
                                   ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-400' 
                                   : 'bg-green-500 hover:bg-green-600 text-white disabled:bg-green-300'
                               }`}
-                              title="Download PDF"
+                              title="Download RDC PDF"
                             >
                               {pdfLoading === rdc.dcNumber ? (
                                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
                               ) : (
                                 <FaDownload className="w-3 h-3" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => generateAssetIssuanceForm(rdc)}
+                              disabled={pdfLoading === `asset_${rdc.dcNumber}`}
+                              className={`px-2 py-1 text-xs rounded transition-colors ${
+                                theme === 'dark' 
+                                  ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-purple-400' 
+                                  : 'bg-purple-500 hover:bg-purple-600 text-white disabled:bg-purple-300'
+                              }`}
+                              title="Download Asset Consent Form"
+                            >
+                              {pdfLoading === `asset_${rdc.dcNumber}` ? (
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                              ) : (
+                                <FaFileAlt className="w-3 h-3" />
                               )}
                             </button>
                             <button
