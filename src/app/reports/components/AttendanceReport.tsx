@@ -708,7 +708,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         let yPosition = 15;
 
         // If a date range is selected, filter records for that range; otherwise, use the full month
-        let filteredRecords: TransformedAttendanceRecord[];
+        let filteredRecords: ExtendedRawAttendanceRecord[];
         let reportTitle = `Attendance Report - ${months[selectedMonth - 1]} ${selectedYear}`;
         let singlePage = false;
         if (fromDateForPDF && toDateForPDF) {
@@ -722,7 +722,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 alert("From date cannot be after To date.");
                 return;
             }
-            filteredRecords = processedAttendanceData.filter(record => {
+            filteredRecords = processedData.filter(record => {
                 const recordDate = new Date(record.date);
                 recordDate.setHours(0, 0, 0, 0);
                 return recordDate >= fromDateObj && recordDate <= toDateObj;
@@ -731,9 +731,9 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             console.log('Date range filter:', {
                 fromDate: fromDateForPDF,
                 toDate: toDateForPDF,
-                totalRecords: processedAttendanceData.length,
+                totalRecords: processedData.length,
                 filteredCount: filteredRecords.length,
-                sampleRecords: filteredRecords.slice(0, 3).map(r => ({ date: r.date, status: r.status }))
+                sampleRecords: filteredRecords.slice(0, 3).map(r => ({ date: r.date }))
             });
             
             if (filteredRecords.length === 0) {
@@ -743,25 +743,88 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
             reportTitle = `Attendance Report - ${fromDateForPDF} to ${toDateForPDF}`;
             singlePage = true;
         } else {
-            filteredRecords = processedAttendanceData.filter(record => {
-                const dateObj = new Date(record.date);
-                const isInMonth = dateObj.getMonth() === selectedMonth - 1 && dateObj.getFullYear() === selectedYear;
-               
-                // Debug specific dates
+            // Use the same logic as the report page - generate all dates from start of month up to today
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Get the first day of the selected month
+            const firstDayOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
+            firstDayOfMonth.setHours(0, 0, 0, 0);
+            
+            // Get the last day of the selected month
+            const lastDayOfMonth = new Date(selectedYear, selectedMonth, 0);
+            lastDayOfMonth.setHours(23, 59, 59, 999);
+            
+            // Determine the last day to show (either today or end of month, whichever comes first)
+            const isCurrentMonth = today.getMonth() === selectedMonth - 1 && today.getFullYear() === selectedYear;
+            const lastDayToShow = isCurrentMonth ? today : lastDayOfMonth;
+            
+            // Create a map of existing attendance records by date
+            const attendanceMap = new Map<string, ExtendedRawAttendanceRecord>();
+            processedData.forEach(record => {
                 const dateStr = record.date.split('T')[0];
-                if (dateStr.includes('2025-08-08') || dateStr.includes('2025-08-15') || dateStr.includes('2025-08-27') || dateStr.includes('2025-08-31')) {
-                  console.log('Filtering check for', dateStr, ':', {
-                    originalDate: record.date,
-                    dateObj: dateObj.toISOString(),
-                    month: dateObj.getMonth(),
-                    year: dateObj.getFullYear(),
-                    selectedMonth: selectedMonth,
-                    selectedYear: selectedYear,
-                    isInMonth
-                  });
+                const [year, month, day] = dateStr.split('-').map(Number);
+                const recordDate = new Date(year, month - 1, day);
+                recordDate.setHours(0, 0, 0, 0);
+                
+                const isInSelectedMonth = recordDate.getMonth() === selectedMonth - 1;
+                const isInSelectedYear = recordDate.getFullYear() === selectedYear;
+                const isNotFuture = recordDate <= today;
+                const isNotBeforeFirstDay = recordDate >= firstDayOfMonth;
+                const dateStrMatches = year === selectedYear && month === selectedMonth;
+                
+                if (isInSelectedMonth && isInSelectedYear && isNotFuture && isNotBeforeFirstDay && dateStrMatches) {
+                    attendanceMap.set(dateStr, record);
                 }
-               
-                return isInMonth;
+            });
+            
+            // Get project name and designation from first record if available
+            const projectName = processedData.length > 0 ? processedData[0].projectName : undefined;
+            const designation = processedData.length > 0 ? processedData[0].designation : undefined;
+            
+            // Generate all dates from first day of month up to lastDayToShow (inclusive)
+            const allDates: ExtendedRawAttendanceRecord[] = [];
+            const currentDate = new Date(firstDayOfMonth);
+            const endDate = new Date(lastDayToShow);
+            endDate.setHours(0, 0, 0, 0);
+            
+            while (currentDate <= endDate) {
+                // Format date as YYYY-MM-DD using local date
+                const year = currentDate.getFullYear();
+                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                const day = String(currentDate.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                
+                if (attendanceMap.has(dateStr)) {
+                    allDates.push(attendanceMap.get(dateStr)!);
+                } else {
+                    // Create placeholder record for missing dates
+                    const placeholderRecord: ExtendedRawAttendanceRecord = {
+                        _id: `placeholder-${dateStr}`,
+                        employeeId: employeeId,
+                        date: dateStr,
+                        projectName: projectName || null,
+                        designation: designation || null,
+                        punchInTime: null,
+                        punchOutTime: null,
+                        punchInUtc: undefined,
+                        punchOutUtc: undefined,
+                        punchInLocation: undefined,
+                        punchOutLocation: undefined,
+                        punchInPhoto: null,
+                        punchOutPhoto: null,
+                    };
+                    allDates.push(placeholderRecord);
+                }
+                
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            // Sort by date
+            filteredRecords = allDates.sort((a, b) => {
+                const dateA = new Date(a.date).getTime();
+                const dateB = new Date(b.date).getTime();
+                return dateA - dateB;
             });
         }
 
