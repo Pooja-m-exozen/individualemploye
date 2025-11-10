@@ -75,7 +75,16 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const topNav: Array<{ label: string; href?: string; subItems?: Array<{ label: string; href: string }>; }> = useMemo(() => [
     { label: "Dashboard", href: "/dashboard" },
     { label: "KYC", href: "/kyc" },
-    { label: "Attendance", href: "/attendance/view" },
+    { 
+      label: "Attendance", 
+      href: "/attendance/view",
+      subItems: [
+        { label: "View Attendance", href: "/attendance/view" },
+        { label: "Mark Attendance", href: "/attendance/mark" },
+        { label: "Face Enrollment", href: "/attendance/face-enrollment" },
+      ]
+    },
+    //{ label: "Door Attendance", href: "/attendance/door" },
     { label: "Leave Management", href: "/leave-management/history" },
     { label: "Payslip", href: "/payslip" },
     { label: "Reports", href: "/reports/Attendance" },

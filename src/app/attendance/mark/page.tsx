@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { FaCamera, FaSpinner, FaCheckCircle, FaExclamationCircle, FaMapMarkerAlt, FaUserCheck, FaInfoCircle, FaStopCircle, FaTimes, FaArrowLeft } from 'react-icons/fa';
+import { FaCamera, FaSpinner, FaCheckCircle, FaExclamationCircle, FaMapMarkerAlt, FaUserCheck, FaInfoCircle, FaStopCircle, FaTimes, FaArrowLeft, FaFingerprint, FaUserShield } from 'react-icons/fa';
 import { isAuthenticated, getEmployeeId } from '@/services/auth';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import Image from 'next/image';
 import { useTheme } from "@/context/ThemeContext";
+import { matchFace, detectFaces, verifyFaceQuality, markAttendanceWithFace, enrollFace } from '@/services/facialRecognition';
+import { scanForDevices, markAttendanceWithFingerprint, BiometricDevice } from '@/services/biometricDevice';
 
 // Update office location with more precise radius
 const OFFICE_LOCATION = {
@@ -229,6 +231,17 @@ function MarkAttendanceContent() {
   const { theme } = useTheme();
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isRemoteUser, setIsRemoteUser] = useState<boolean>(false);
+  const [faceVerificationStatus, setFaceVerificationStatus] = useState<'idle' | 'verifying' | 'verified' | 'failed'>('idle');
+  const [faceVerificationMessage, setFaceVerificationMessage] = useState<string | null>(null);
+  const [faceConfidence, setFaceConfidence] = useState<number>(0);
+  const [useFacialRecognition] = useState<boolean>(true);
+  const [useBiometricDevice, setUseBiometricDevice] = useState<boolean>(false);
+  const [availableBiometricDevices, setAvailableBiometricDevices] = useState<BiometricDevice[]>([]);
+  const [selectedBiometricDevice, setSelectedBiometricDevice] = useState<string | null>(null);
+  const [biometricVerificationStatus, setBiometricVerificationStatus] = useState<'idle' | 'verifying' | 'verified' | 'failed'>('idle');
+  const [biometricConfidence, setBiometricConfidence] = useState<number>(0);
+  const [isEnrollingFace, setIsEnrollingFace] = useState(false);
+  const [faceNotEnrolled, setFaceNotEnrolled] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -273,10 +286,22 @@ function MarkAttendanceContent() {
     };
     
     fetchEmployeeData();
+    
+    // Scan for biometric devices on mount
+    const scanDevices = async () => {
+      const devices = await scanForDevices();
+      setAvailableBiometricDevices(devices);
+      if (devices.length > 0 && devices[0].isConnected) {
+        setSelectedBiometricDevice(devices[0].id);
+        setUseBiometricDevice(true);
+      }
+    };
+    
+    scanDevices();
   }, [router]);
 
 
-  const handlePhotoCapture = (photoData: string) => {
+  const handlePhotoCapture = async (photoData: string) => {
     // Validate that the photo is in correct format
     if (!photoData.startsWith('data:image/')) {
       setMarkAttendanceError('Invalid photo format');
@@ -286,6 +311,180 @@ function MarkAttendanceContent() {
     // Store the full data URL
     setPhotoPreview(photoData);
     setMarkAttendanceError(null);
+    setFaceVerificationStatus('idle');
+    setFaceVerificationMessage(null);
+    setFaceConfidence(0);
+    setFaceNotEnrolled(false);
+    
+    // If facial recognition is enabled, verify the face
+    if (useFacialRecognition) {
+      await verifyCapturedFace(photoData);
+    }
+  };
+  
+  const verifyCapturedFace = async (photoData: string) => {
+    try {
+      setFaceVerificationStatus('verifying');
+      setFaceVerificationMessage('Verifying face...');
+      
+      // First, detect if a face is present
+      const detection = await detectFaces(photoData);
+      
+      if (!detection.success || detection.facesDetected === 0) {
+        setFaceVerificationStatus('failed');
+        setFaceVerificationMessage('No face detected. Please ensure your face is clearly visible.');
+        return;
+      }
+      
+      if (detection.facesDetected > 1) {
+        setFaceVerificationStatus('failed');
+        setFaceVerificationMessage('Multiple faces detected. Please ensure only your face is visible.');
+        return;
+      }
+      
+      // Verify face quality
+      const qualityCheck = await verifyFaceQuality(photoData);
+      if (!qualityCheck.success) {
+        setFaceVerificationStatus('failed');
+        setFaceVerificationMessage(`Face quality issue: ${qualityCheck.issues.join(', ')}`);
+        return;
+      }
+      
+      // Match face against registered employee
+      const employeeId = getEmployeeId();
+      const matchResult = await matchFace(photoData, employeeId || undefined);
+      
+      if (matchResult.success && matchResult.confidence >= 0.7) {
+        setFaceVerificationStatus('verified');
+        setFaceConfidence(matchResult.confidence);
+        setFaceVerificationMessage(`Face verified successfully (${Math.round(matchResult.confidence * 100)}% confidence)`);
+        setFaceNotEnrolled(false);
+      } else {
+        setFaceVerificationStatus('failed');
+        setFaceConfidence(0);
+        const errorMessage = matchResult.message || 'Face verification failed. Please try again.';
+        setFaceVerificationMessage(errorMessage);
+        
+        // Check if the error indicates face is not enrolled
+        const isNotEnrolled = errorMessage.toLowerCase().includes('not enrolled') || 
+                              errorMessage.toLowerCase().includes('face is not enrolled') ||
+                              errorMessage.toLowerCase().includes('no face enrolled');
+        setFaceNotEnrolled(isNotEnrolled);
+      }
+    } catch (error) {
+      console.error('Face verification error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Face verification failed';
+      setFaceVerificationStatus('failed');
+      setFaceVerificationMessage(errorMessage);
+      
+      // Check if the error indicates face is not enrolled
+      const isNotEnrolled = errorMessage.toLowerCase().includes('not enrolled') || 
+                            errorMessage.toLowerCase().includes('face is not enrolled') ||
+                            errorMessage.toLowerCase().includes('no face enrolled');
+      setFaceNotEnrolled(isNotEnrolled);
+    }
+  };
+  
+  const handleEnrollFace = async () => {
+    if (!photoPreview) {
+      setMarkAttendanceError('Please capture a photo first');
+      return;
+    }
+    
+    try {
+      setIsEnrollingFace(true);
+      setMarkAttendanceError(null);
+      
+      const employeeId = getEmployeeId();
+      if (!employeeId) {
+        throw new Error('Employee ID not found. Please login again.');
+      }
+      
+      // Verify face quality before enrollment
+      const qualityCheck = await verifyFaceQuality(photoPreview);
+      if (!qualityCheck.success) {
+        throw new Error(`Face quality issue: ${qualityCheck.issues.join(', ')}. Please capture a better photo.`);
+      }
+      
+      // Enroll the face
+      const result = await enrollFace(
+        employeeId,
+        photoPreview,
+        undefined, // employeeName - can be fetched if needed
+        qualityCheck.quality
+      );
+      
+      if (result.success) {
+        setMarkAttendanceSuccess('Face enrolled successfully! You can now mark attendance.');
+        setFaceNotEnrolled(false);
+        setFaceVerificationStatus('idle');
+        setFaceVerificationMessage(null);
+        // Automatically verify the face after enrollment
+        await verifyCapturedFace(photoPreview);
+      } else {
+        throw new Error(result.message || 'Face enrollment failed');
+      }
+    } catch (error) {
+      console.error('Face enrollment error:', error);
+      setMarkAttendanceError(error instanceof Error ? error.message : 'Face enrollment failed');
+    } finally {
+      setIsEnrollingFace(false);
+    }
+  };
+  
+  const handleBiometricVerification = async () => {
+    if (!selectedBiometricDevice) {
+      setMarkAttendanceError('Please select a biometric device');
+      return;
+    }
+    
+    try {
+      setBiometricVerificationStatus('verifying');
+      setMarkAttendanceError(null);
+      
+      const employeeId = getEmployeeId();
+      if (!employeeId) {
+        throw new Error('Employee ID not found. Please login again.');
+      }
+
+      // Get location
+      let location: { latitude: number; longitude: number } | null = null;
+      if (isRemoteUser) {
+        try {
+          location = await validateLocation(true);
+        } catch {
+          console.log('Location not available for remote user, continuing without location');
+        }
+      } else {
+        location = await validateLocation();
+        if (!location) {
+          throw new Error('Location validation failed. Please ensure you are within the office radius.');
+        }
+      }
+
+      // Use new endpoint that handles verification and marking in one call
+      const result = await markAttendanceWithFingerprint(
+        employeeId,
+        selectedBiometricDevice,
+        location?.latitude,
+        location?.longitude
+      );
+      
+      if (result.success) {
+        setBiometricVerificationStatus('verified');
+        setBiometricConfidence(result.data?.confidence || 0);
+        setMarkAttendanceSuccess(result.message || 'Attendance marked successfully');
+        setPhotoPreview(null);
+      } else {
+        setBiometricVerificationStatus('failed');
+        setBiometricConfidence(0);
+        setMarkAttendanceError(result.message || 'Biometric verification failed');
+      }
+    } catch (error) {
+      console.error('Biometric verification error:', error);
+      setBiometricVerificationStatus('failed');
+      setMarkAttendanceError(error instanceof Error ? error.message : 'Biometric verification failed');
+    }
   };
 
   const getCurrentLocation = (): Promise<{ latitude: number; longitude: number }> => {
@@ -373,10 +572,6 @@ function MarkAttendanceContent() {
       setMarkAttendanceError(null);
       setLocationError(null);
 
-      if (!photoPreview) {
-        throw new Error('Please capture a photo first');
-      }
-
       const employeeId = getEmployeeId();
       if (!employeeId) {
         throw new Error('Employee ID not found. Please login again.');
@@ -400,17 +595,76 @@ function MarkAttendanceContent() {
         }
       }
 
+      // If facial recognition is enabled, use the new endpoint
+      if (useFacialRecognition && photoPreview) {
+        if (faceVerificationStatus !== 'verified') {
+          throw new Error('Please verify your face before marking attendance');
+        }
+
+        // Use new endpoint that handles verification and marking in one call
+        const result = await markAttendanceWithFace(
+          employeeId,
+          photoPreview, // Can be image or faceEncoding
+          location?.latitude,
+          location?.longitude
+        );
+
+        if (result.success) {
+          const successMessage = result.message || 'Attendance marked successfully';
+          setMarkAttendanceSuccess(successMessage);
+          setPhotoPreview(null);
+          setFaceVerificationStatus('idle');
+          setFaceVerificationMessage(null);
+          setFaceConfidence(0);
+        } else {
+          throw new Error(result.message || 'Failed to mark attendance');
+        }
+        return;
+      }
+
+      // If biometric device is enabled, it should be handled by handleBiometricVerification
+      if (useBiometricDevice) {
+        throw new Error('Please use the biometric device verification button');
+      }
+
+      // Fallback to old method if no biometric verification is enabled
+      if (!photoPreview) {
+        throw new Error('Please capture a photo first');
+      }
+
       // Prepare request body - include location if available
       interface AttendanceRequestBody {
         photo: string;
         attendanceType: string;
         latitude?: number;
         longitude?: number;
+        faceVerified?: boolean;
+        biometricVerified?: boolean;
+        faceConfidence?: number;
+        biometricConfidence?: number;
+        verificationMethod?: string;
+      }
+      
+      // Determine verification method
+      const faceVerified = useFacialRecognition && faceVerificationStatus === 'verified';
+      const bioVerified = useBiometricDevice && biometricVerificationStatus === 'verified';
+      let verificationMethod = 'none';
+      if (faceVerified && bioVerified) {
+        verificationMethod = 'both';
+      } else if (faceVerified) {
+        verificationMethod = 'face';
+      } else if (bioVerified) {
+        verificationMethod = 'biometric';
       }
       
       const requestBody: AttendanceRequestBody = {
         photo: photoPreview,
-        attendanceType: isRemoteUser ? "remote" : "office"
+        attendanceType: isRemoteUser ? "remote" : "office",
+        faceVerified,
+        biometricVerified: bioVerified,
+        faceConfidence: faceVerified ? faceConfidence : undefined,
+        biometricConfidence: bioVerified ? biometricConfidence : undefined,
+        verificationMethod,
       };
 
       // Only include location if we have it
@@ -473,6 +727,18 @@ function MarkAttendanceContent() {
               <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Mark Attendance</h2>
               <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Mark your daily attendance</p>
             </div>
+            <button
+              onClick={() => router.push('/attendance/face-enrollment')}
+              className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium flex items-center gap-2 ${
+                theme === 'dark' 
+                  ? 'bg-purple-700 hover:bg-purple-600 text-purple-200' 
+                  : 'bg-purple-100 hover:bg-purple-200 text-purple-600'
+              }`}
+              title="Enroll your face for attendance"
+            >
+              <FaUserShield className="w-4 h-4" />
+              <span>Enroll Face</span>
+            </button>
           </div>
           <button
             onClick={() => router.push('/attendance/view')}
@@ -605,6 +871,148 @@ function MarkAttendanceContent() {
             </div>
 
             <div className="space-y-4">
+              {/* Facial Recognition Status */}
+              {useFacialRecognition && photoPreview && (
+                <div className={`p-3 rounded-lg border ${
+                  faceVerificationStatus === 'verified'
+                    ? 'bg-green-50 border-green-200 dark:bg-green-900 dark:border-green-700'
+                    : faceVerificationStatus === 'failed'
+                    ? 'bg-red-50 border-red-200 dark:bg-red-900 dark:border-red-700'
+                    : 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900 dark:border-yellow-700'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {faceVerificationStatus === 'verifying' && (
+                      <FaSpinner className="animate-spin w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                    )}
+                    {faceVerificationStatus === 'verified' && (
+                      <FaCheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    )}
+                    {faceVerificationStatus === 'failed' && (
+                      <FaExclamationCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    )}
+                    {faceVerificationStatus === 'idle' && (
+                      <FaUserShield className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                    )}
+                    <p className={`text-sm ${
+                      faceVerificationStatus === 'verified'
+                        ? 'text-green-800 dark:text-green-200'
+                        : faceVerificationStatus === 'failed'
+                        ? 'text-red-800 dark:text-red-200'
+                        : 'text-yellow-800 dark:text-yellow-200'
+                    }`}>
+                      {faceVerificationMessage || 'Face verification pending...'}
+                    </p>
+                  </div>
+                  {faceVerificationStatus === 'failed' && (
+                    <div className="mt-2 flex flex-col gap-2">
+                      {faceNotEnrolled ? (
+                        <>
+                          <button
+                            onClick={handleEnrollFace}
+                            disabled={isEnrollingFace}
+                            className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              isEnrollingFace
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }`}
+                          >
+                            {isEnrollingFace ? (
+                              <>
+                                <FaSpinner className="animate-spin w-4 h-4" />
+                                <span>Enrolling...</span>
+                              </>
+                            ) : (
+                              <>
+                                <FaUserShield className="w-4 h-4" />
+                                <span>Enroll Face</span>
+                              </>
+                            )}
+                          </button>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            Your face is not enrolled. Click above to enroll using this photo.
+                          </p>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => verifyCapturedFace(photoPreview)}
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          Retry Verification
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Biometric Device Selection */}
+              {availableBiometricDevices.length > 0 && (
+                <div className={`p-3 rounded-lg border ${
+                  theme === 'dark'
+                    ? 'bg-gray-700 border-gray-600'
+                    : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className={`text-sm font-medium flex items-center gap-2 ${
+                      theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                    }`}>
+                      <FaFingerprint className="text-blue-600 dark:text-blue-400" />
+                      Use Biometric Device
+                    </label>
+                    <input
+                      type="checkbox"
+                      checked={useBiometricDevice}
+                      onChange={(e) => {
+                        setUseBiometricDevice(e.target.checked);
+                        setBiometricVerificationStatus('idle');
+                      }}
+                      className="rounded"
+                    />
+                  </div>
+                  {useBiometricDevice && (
+                    <select
+                      value={selectedBiometricDevice || ''}
+                      onChange={(e) => setSelectedBiometricDevice(e.target.value)}
+                      className={`w-full mt-2 px-3 py-2 rounded-lg text-sm ${
+                        theme === 'dark'
+                          ? 'bg-gray-600 text-gray-200 border-gray-500'
+                          : 'bg-white text-gray-900 border-gray-300'
+                      } border`}
+                    >
+                      <option value="">Select device...</option>
+                      {availableBiometricDevices.map((device) => (
+                        <option key={device.id} value={device.id}>
+                          {device.name} ({device.type})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {useBiometricDevice && selectedBiometricDevice && biometricVerificationStatus !== 'verified' && (
+                    <button
+                      onClick={handleBiometricVerification}
+                      disabled={biometricVerificationStatus === 'verifying'}
+                      className={`w-full mt-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        biometricVerificationStatus === 'verifying'
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                    >
+                      {biometricVerificationStatus === 'verifying' ? (
+                        <>
+                          <FaSpinner className="animate-spin inline mr-2" />
+                          Verifying...
+                        </>
+                      ) : (
+                        <>
+                          <FaFingerprint className="inline mr-2" />
+                          Verify Biometric
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
+              
               {markAttendanceError && (
                 <FeedbackMessage message={markAttendanceError} type="error" />
               )}
@@ -633,9 +1041,17 @@ function MarkAttendanceContent() {
 
             <button
               onClick={handleMarkAttendance}
-              disabled={markingAttendance || !photoPreview}
+              disabled={
+                markingAttendance || 
+                !photoPreview || 
+                (useFacialRecognition && faceVerificationStatus !== 'verified') ||
+                (useBiometricDevice && biometricVerificationStatus !== 'verified')
+              }
               className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                markingAttendance || !photoPreview
+                markingAttendance || 
+                !photoPreview || 
+                (useFacialRecognition && faceVerificationStatus !== 'verified') ||
+                (useBiometricDevice && biometricVerificationStatus !== 'verified')
                   ? theme === 'dark'
                     ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'

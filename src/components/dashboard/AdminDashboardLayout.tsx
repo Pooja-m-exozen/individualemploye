@@ -87,11 +87,60 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
     setIsClient(true);
   }, []);
 
-  // Fetch pending leave count
+  // Fetch pending leave count - with caching and debouncing to prevent excessive API calls
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout;
+
     const fetchPendingLeaveCount = async () => {
       try {
+        // Check if we have cached data (cache for 5 minutes)
+        const cacheKey = 'pendingLeaveCount';
+        const cacheTime = 5 * 60 * 1000; // 5 minutes
+        const cached = sessionStorage.getItem(cacheKey);
+        const cachedTime = sessionStorage.getItem(`${cacheKey}_time`);
+        
+        if (cached && cachedTime) {
+          const timeDiff = Date.now() - parseInt(cachedTime, 10);
+          if (timeDiff < cacheTime) {
+            if (isMounted) {
+              setPendingLeaveCount(parseInt(cached, 10));
+            }
+            return;
+          }
+        }
+
+        // Try to use a dedicated endpoint for pending leave count first
+        // If that doesn't exist, fall back to fetching all (but with better error handling)
+        try {
+          const response = await fetch('https://cafm.zenapi.co.in/api/leave/pending/count', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const count = data.count || data.pendingCount || 0;
+            if (isMounted) {
+              setPendingLeaveCount(count);
+              // Cache the result
+              sessionStorage.setItem(cacheKey, count.toString());
+              sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
+            }
+            return;
+          }
+        } catch {
+          // If dedicated endpoint doesn't exist, fall back to fetching all
+          console.log('Pending count endpoint not available, using fallback');
+        }
+
+        // Fallback: Only fetch if absolutely necessary and with proper error handling
+        // This should be replaced with a backend endpoint that returns just the count
         const allLeaveData = await getAllEmployeesLeaveHistory();
+        if (!isMounted) return;
+        
         const allLeaves = allLeaveData.flatMap((emp) =>
           (emp.leaveHistory?.leaveHistory || []).map((leave) => ({
             ...leave,
@@ -103,16 +152,33 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
         );
         
         const pendingCount = allLeaves.filter(leave => leave.status === "Pending").length;
-        setPendingLeaveCount(pendingCount);
+        if (isMounted) {
+          setPendingLeaveCount(pendingCount);
+          // Cache the result
+          sessionStorage.setItem(cacheKey, pendingCount.toString());
+          sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
+        }
       } catch (error) {
         console.error("Error fetching pending leave count:", error);
-        setPendingLeaveCount(0);
+        if (isMounted) {
+          setPendingLeaveCount(0);
+        }
       }
     };
 
     if (isClient) {
-      fetchPendingLeaveCount();
+      // Debounce the API call to prevent rapid successive calls
+      timeoutId = setTimeout(() => {
+        fetchPendingLeaveCount();
+      }, 500); // Wait 500ms after component mounts
     }
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [isClient]);
 
   const handleLogout = () => {
@@ -138,6 +204,10 @@ const AdminLayout = ({ children }: AdminLayoutProps): ReactNode => {
       label: "Leave Management", 
       href: "/admin/leave-management",
       badge: pendingLeaveCount > 0 ? pendingLeaveCount : undefined
+    },
+    {
+      label: "Biometric Enrollment",
+      href: "/admin/biometric-enrollment",
     },
     {
       label: "Uniform Management",
