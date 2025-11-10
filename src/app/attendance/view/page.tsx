@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { 
   FaExclamationCircle, 
   FaClock,
@@ -51,6 +51,8 @@ function ViewAttendanceContent() {
   const [inLocationAddress, setInLocationAddress] = useState<string | null>(null);
   const [outLocationAddress, setOutLocationAddress] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  // State to store all location addresses (caching)
+  const [locationAddresses, setLocationAddresses] = useState<Map<string, string>>(new Map());
 
   // Helper function to format time to HH:mm:ss format - same as AttendanceReport.tsx
   const formatTime = (dateString: string | null): string => {
@@ -107,46 +109,152 @@ function ViewAttendanceContent() {
     return `${hours}h ${minutes}m`;
   };
 
-  // Helper function to reverse geocode location
-  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+  // Enhanced reverseGeocode function with retry mechanism and better error handling
+  const reverseGeocode = useCallback(async (lat: number, lng: number, retryCount = 0): Promise<string> => {
+    // Validate coordinates
     if (!lat || !lng || isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+      console.warn('Invalid coordinates:', { lat, lng });
       return 'Invalid coordinates';
     }
 
+    console.log(`Geocoding request for: (${lat}, ${lng}) - Attempt ${retryCount + 1}`);
+   
     try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en&zoom=18`;
+      // Try different zoom levels and parameters for better results
+      const zoomLevels = [16, 14, 12, 10];
+      const currentZoom = zoomLevels[Math.min(retryCount, zoomLevels.length - 1)];
       
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en&zoom=${currentZoom}&extratags=1&namedetails=1`;
+      
+      console.log('Geocoding URL:', url);
+
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
+
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'EmployeeManagementApp/1.0'
-        }
+          'User-Agent': 'EmployeeManagementApp/1.0',
+          'Accept': 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9'
+        },
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
+        console.warn(`Geocoding API error: ${response.status} ${response.statusText}`);
+        if (retryCount < 2) {
+          console.log(`Retrying geocoding for (${lat}, ${lng})...`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+          return reverseGeocode(lat, lng, retryCount + 1);
+        }
         return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
       }
 
       const data = await response.json();
-      
-      if (data && data.display_name) {
-        const address = data.address || {};
-        const addressParts = [
-          address.house_number && address.road ? `${address.house_number} ${address.road}` : address.road,
-          address.suburb || address.neighbourhood,
-          address.city || address.town || address.village,
-          address.state,
-          address.country
-        ].filter(Boolean);
+      console.log('Geocoding response:', data);
 
-        return addressParts.join(', ') || data.display_name;
+      if (data && data.display_name) {
+        // Extract address components from Nominatim response
+        const address = data.address || {};
+       
+        // Build a comprehensive address from available components
+        const addressParts = [];
+        
+        // Add house number and road
+        if (address.house_number && address.road) {
+          addressParts.push(`${address.house_number} ${address.road}`);
+        } else if (address.road) {
+          addressParts.push(address.road);
+        }
+        
+        // Add locality/suburb/neighbourhood
+        if (address.suburb) {
+          addressParts.push(address.suburb);
+        } else if (address.neighbourhood) {
+          addressParts.push(address.neighbourhood);
+        } else if (address.hamlet) {
+          addressParts.push(address.hamlet);
+        } else if (address.locality) {
+          addressParts.push(address.locality);
+        }
+        
+        // Add city/town/village
+        if (address.city) {
+          addressParts.push(address.city);
+        } else if (address.town) {
+          addressParts.push(address.town);
+        } else if (address.village) {
+          addressParts.push(address.village);
+        }
+        
+        // Add district/division
+        if (address.city_district) {
+          addressParts.push(address.city_district);
+        } else if (address.district) {
+          addressParts.push(address.district);
+        } else if (address.county) {
+          addressParts.push(address.county);
+        }
+        
+        // Add state
+        if (address.state) {
+          addressParts.push(address.state);
+        }
+        
+        // Add country
+        if (address.country) {
+          addressParts.push(address.country);
+        }
+
+        // Filter out empty parts and join
+        const filteredParts = addressParts.filter(part => part && part.trim() !== '');
+        let formattedAddress;
+        
+        if (filteredParts.length > 0) {
+          formattedAddress = filteredParts.join(', ');
+        } else {
+          // Use display_name as fallback, but clean it up
+          formattedAddress = data.display_name;
+        }
+        
+        // Truncate very long addresses to keep them readable
+        if (formattedAddress.length > 100) {
+          formattedAddress = formattedAddress.substring(0, 97) + '...';
+        }
+       
+        console.log('Formatted address:', formattedAddress);
+        return formattedAddress;
+      } else if (data && data.error) {
+        console.warn('Geocoding error:', data.error);
+        if (retryCount < 2) {
+          console.log(`Retrying geocoding for (${lat}, ${lng}) due to error...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return reverseGeocode(lat, lng, retryCount + 1);
+        }
+        return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
       }
-      
+     
+      console.warn('No results found for location:', { lat, lng });
+      if (retryCount < 2) {
+        console.log(`Retrying geocoding for (${lat}, ${lng}) - no results...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return reverseGeocode(lat, lng, retryCount + 1);
+      }
       return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
     } catch (error) {
       console.error('Geocoding error:', error);
+      if (retryCount < 2) {
+        console.log(`Retrying geocoding for (${lat}, ${lng}) due to exception...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return reverseGeocode(lat, lng, retryCount + 1);
+      }
+      
       return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -170,6 +278,37 @@ function ViewAttendanceContent() {
     const dateValue = record.date as string;
     const dateObj = new Date(dateValue);
     
+    // Handle location data - check both formats (object or separate lat/lng fields)
+    let punchInLocation: Location | undefined;
+    if (record.punchInLocation && typeof record.punchInLocation === 'object') {
+      const loc = record.punchInLocation as { latitude?: number; longitude?: number };
+      if (loc.latitude && loc.longitude) {
+        punchInLocation = { latitude: loc.latitude, longitude: loc.longitude };
+        console.log('Punch In Location (object format):', punchInLocation);
+      }
+    } else if (record.punchInLatitude && record.punchInLongitude) {
+      punchInLocation = {
+        latitude: record.punchInLatitude as number,
+        longitude: record.punchInLongitude as number
+      };
+      console.log('Punch In Location (separate fields):', punchInLocation);
+    }
+    
+    let punchOutLocation: Location | undefined;
+    if (record.punchOutLocation && typeof record.punchOutLocation === 'object') {
+      const loc = record.punchOutLocation as { latitude?: number; longitude?: number };
+      if (loc.latitude && loc.longitude) {
+        punchOutLocation = { latitude: loc.latitude, longitude: loc.longitude };
+        console.log('Punch Out Location (object format):', punchOutLocation);
+      }
+    } else if (record.punchOutLatitude && record.punchOutLongitude) {
+      punchOutLocation = {
+        latitude: record.punchOutLatitude as number,
+        longitude: record.punchOutLongitude as number
+      };
+      console.log('Punch Out Location (separate fields):', punchOutLocation);
+    }
+    
     return {
       date: format(dateObj, 'yyyy-MM-dd'),
       displayDate: format(dateObj, 'EEE, MMM d, yyyy'),
@@ -181,8 +320,8 @@ function ViewAttendanceContent() {
       isLate: (record.isLate as boolean) || false,
       remarks: record.remarks as string | undefined,
       totalHoursWorked: (record.totalHoursWorked as string) || '0',
-      punchInLocation: record.punchInLocation as Location | undefined,
-      punchOutLocation: record.punchOutLocation as Location | undefined,
+      punchInLocation: punchInLocation,
+      punchOutLocation: punchOutLocation,
       projectName: record.projectName as string | undefined,
     };
   });
@@ -204,28 +343,54 @@ function ViewAttendanceContent() {
     fetchActivities();
   }, [router, selectedDate]);
 
-  // Fetch location addresses when a record is selected
+  // Fetch location addresses when a record is selected (with caching)
   useEffect(() => {
     const fetchLocations = async () => {
+      console.log('Selected activity for location:', selectedActivity);
+
       if (selectedActivity) {
         try {
           if (selectedActivity.punchInLocation?.latitude && selectedActivity.punchInLocation?.longitude) {
-            const inAddress = await reverseGeocode(
-              selectedActivity.punchInLocation.latitude,
-              selectedActivity.punchInLocation.longitude
-            );
-            setInLocationAddress(inAddress);
+            const locationKey = `${selectedActivity.punchInLocation.latitude},${selectedActivity.punchInLocation.longitude}`;
+            
+            // Check if we already have this address cached
+            if (locationAddresses.has(locationKey)) {
+              setInLocationAddress(locationAddresses.get(locationKey)!);
+            } else {
+              console.log('Fetching punch-in location:', selectedActivity.punchInLocation);
+              const inAddress = await reverseGeocode(
+                selectedActivity.punchInLocation.latitude,
+                selectedActivity.punchInLocation.longitude
+              );
+              console.log('Punch-in address found:', inAddress);
+              setInLocationAddress(inAddress);
+              
+              // Cache the address
+              setLocationAddresses(prev => new Map(prev).set(locationKey, inAddress));
+            }
           }
 
           if (selectedActivity.punchOutLocation?.latitude && selectedActivity.punchOutLocation?.longitude) {
-            const outAddress = await reverseGeocode(
-              selectedActivity.punchOutLocation.latitude,
-              selectedActivity.punchOutLocation.longitude
-            );
-            setOutLocationAddress(outAddress);
+            const locationKey = `${selectedActivity.punchOutLocation.latitude},${selectedActivity.punchOutLocation.longitude}`;
+            
+            // Check if we already have this address cached
+            if (locationAddresses.has(locationKey)) {
+              setOutLocationAddress(locationAddresses.get(locationKey)!);
+            } else {
+              console.log('Fetching punch-out location:', selectedActivity.punchOutLocation);
+              const outAddress = await reverseGeocode(
+                selectedActivity.punchOutLocation.latitude,
+                selectedActivity.punchOutLocation.longitude
+              );
+              console.log('Punch-out address found:', outAddress);
+              setOutLocationAddress(outAddress);
+              
+              // Cache the address
+              setLocationAddresses(prev => new Map(prev).set(locationKey, outAddress));
+            }
           }
         } catch (error) {
-          console.error('Error fetching locations:', error);
+          console.error('Error in location fetching:', error);
           setInLocationAddress('Error fetching location');
           setOutLocationAddress('Error fetching location');
         }
@@ -235,7 +400,7 @@ function ViewAttendanceContent() {
       }
     };
     fetchLocations();
-  }, [selectedActivity]);
+  }, [selectedActivity, locationAddresses, reverseGeocode]);
 
   // Filter activities based on search term
   const filteredActivities = activities.filter(activity => {
@@ -473,9 +638,9 @@ function ViewAttendanceContent() {
                             {formatTime(selectedActivity.punchInTime)}
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-start">
                           <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
-                          <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
+                          <span className={`text-right max-w-[70%] break-words ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
                             {selectedActivity.punchInLocation
                               ? (inLocationAddress || 'Fetching location...')
                               : 'Location not available'}
@@ -496,16 +661,16 @@ function ViewAttendanceContent() {
                             {formatTime(selectedActivity.punchOutTime)}
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-start">
                           <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Location:</span>
-                          <span className={`text-right max-w-[70%] ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
+                          <span className={`text-right max-w-[70%] break-words ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
                             {selectedActivity.punchOutLocation
                               ? (outLocationAddress || 'Fetching location...')
                               : 'Location not available'}
                           </span>
-                  </div>
-                  </div>
-                </div>
+                        </div>
+                      </div>
+                    </div>
 
                     {selectedActivity.remarks && (
                       <div className={`flex justify-between border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pb-2`}>
@@ -513,20 +678,20 @@ function ViewAttendanceContent() {
                         <span className={theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>
                           {selectedActivity.remarks}
                         </span>
-                  </div>
-                )}
+                      </div>
+                    )}
                   </div>
                   <div className="mt-6 flex justify-end">
-            <button
+                    <button
                       onClick={() => setSelectedActivity(null)}
                       className="px-6 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-lg hover:from-blue-200 hover:to-indigo-200 transition font-medium shadow-sm"
-            >
-              Close
-            </button>
-          </div>
-          </div>
-        </div>
-      )}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
     </div>
   );
 }
