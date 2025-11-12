@@ -111,6 +111,45 @@ export default function AttendanceViewPage() {
     return d.toISOString().slice(0, 10);
   };
 
+  // Format time in IST (Indian Standard Time) - 24-hour format (HH:MM:SS)
+  // Same format as used in attendance/view/page.tsx and AttendanceReport.tsx
+  const formatTimeIST = (timeStr: string | undefined): string => {
+    if (!timeStr) return "-";
+    try {
+      // If it's already in HH:mm:ss format, return it
+      const timeMatch = timeStr.match(/(\d{2}:\d{2}:\d{2})/);
+      if (timeMatch) {
+        return timeMatch[1];
+      }
+      const timeMatchShort = timeStr.match(/(\d{2}:\d{2})/);
+      if (timeMatchShort) {
+        return timeMatchShort[1] + ":00";
+      }
+      
+      // Parse as a full date string
+      const date = new Date(timeStr);
+      if (Number.isNaN(date.getTime())) return "-";
+      
+      // Convert to IST (UTC+5:30) - same approach as attendance/view/page.tsx
+      const istTime = new Date(date.getTime() + (5.5 * 60 * 60 * 1000));
+      
+      // If the time is 00:00:00, treat as missing
+      const h = istTime.getUTCHours();
+      const m = istTime.getUTCMinutes();
+      const s = istTime.getUTCSeconds();
+      if (h === 0 && m === 0 && s === 0) return "-";
+      
+      // Format as HH:MM:SS (24-hour format)
+      const hours = String(h).padStart(2, '0');
+      const minutes = String(m).padStart(2, '0');
+      const seconds = String(s).padStart(2, '0');
+      
+      return `${hours}:${minutes}:${seconds}`;
+    } catch {
+      return "-";
+    }
+  };
+
   // Filtering logic must come next
   const filterAttendance = (): AttendanceRecord[] => {
     return attendanceData
@@ -3175,8 +3214,8 @@ export default function AttendanceViewPage() {
                         <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={kyc?.designation || "-"}>{kyc?.designation || "-"}</div></td>
                         <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={record.projectName}>{record.projectName}</div></td>
                         <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{record.date ? new Date(record.date).toLocaleDateString() : "N/A"}</td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{record.punchInTime ? new Date(record.punchInTime).toLocaleTimeString() : "-"}</td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{record.punchOutTime ? new Date(record.punchOutTime).toLocaleTimeString() : "-"}</td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{formatTimeIST(record.punchInTime)}</td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{formatTimeIST(record.punchOutTime)}</td>
                         <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
                             record.status === 'Present' 
@@ -3232,8 +3271,8 @@ export default function AttendanceViewPage() {
                   <div><b>Designation:</b> {selectedRecord.designation || '-'}</div>
                   <div><b>Date:</b> {selectedRecord.date ? new Date(selectedRecord.date).toLocaleDateString() : '-'}</div>
                   <div><b>Status:</b> {selectedRecord.status || '-'}</div>
-                  <div><b>Punch In Time:</b> {selectedRecord.punchInTime ? new Date(selectedRecord.punchInTime).toLocaleTimeString() : '-'}</div>
-                  <div><b>Punch Out Time:</b> {selectedRecord.punchOutTime ? new Date(selectedRecord.punchOutTime).toLocaleTimeString() : '-'}</div>
+                  <div><b>Punch In Time:</b> {formatTimeIST(selectedRecord.punchInTime)}</div>
+                  <div><b>Punch Out Time:</b> {formatTimeIST(selectedRecord.punchOutTime)}</div>
                   <div className="col-span-2">
                     <b>Punch In Location:</b> 
                     {selectedRecord.punchInLocation?.address ? (
