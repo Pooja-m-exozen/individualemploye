@@ -1319,12 +1319,15 @@ function StandaloneKYCPageContent() {
           <div className="flex items-center space-x-4">
             <div className="flex-shrink-0">
               {employeeImage ? (
-                <Image
+                <img
                   src={URL.createObjectURL(employeeImage)}
                   alt="Employee"
-                  width={100}
-                  height={100}
                   className="w-24 h-24 rounded-full object-cover border-2 border-gray-300"
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    console.error('Image load error:', e);
+                    setError('Failed to load image. Please try a different file.');
+                  }}
                 />
               ) : (
                 <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center">
@@ -1332,13 +1335,31 @@ function StandaloneKYCPageContent() {
                 </div>
               )}
             </div>
-            <div>
+            <div className="flex-1">
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setEmployeeImage(e.target.files?.[0] || null)}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  if (file) {
+                    // Validate it's actually an image file
+                    if (file.type.startsWith('image/')) {
+                      setEmployeeImage(file);
+                    } else {
+                      setError('Please select a valid image file');
+                      e.target.value = ''; // Reset input
+                    }
+                  } else {
+                    setEmployeeImage(null);
+                  }
+                }}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
+              {employeeImage && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Selected: {employeeImage.name} ({(employeeImage.size / 1024).toFixed(2)} KB)
+                </p>
+              )}
             </div>
           </div>
         </div>
