@@ -527,6 +527,56 @@ function StandaloneKYCPageContent() {
       return;
     }
 
+    if (!personalDetails.uanNumber) {
+      setError('UAN Number is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!personalDetails.esicNumber) {
+      setError('ESIC Number is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!personalDetails.monthlySalary) {
+      setError('Monthly Salary is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!personalDetails.languages || personalDetails.languages.trim() === '') {
+      setError('At least one language must be selected');
+      setLoading(false);
+      return;
+    }
+
+    if (!addressDetails.permanentAddress.street || !addressDetails.permanentAddress.city || 
+        !addressDetails.permanentAddress.state || !addressDetails.permanentAddress.postalCode) {
+      setError('All permanent address fields are required');
+      setLoading(false);
+      return;
+    }
+
+    if (!addressDetails.currentAddress.street || !addressDetails.currentAddress.city || 
+        !addressDetails.currentAddress.state || !addressDetails.currentAddress.postalCode) {
+      setError('All current address fields are required');
+      setLoading(false);
+      return;
+    }
+
+    if (!emergencyContact.aadhar) {
+      setError('Emergency contact Aadhar number is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!employeeImage) {
+      setError('Employee photo is required');
+      setLoading(false);
+      return;
+    }
+
     // Validate replacement requirements if in replacement mode
     if (replacementMode) {
       if (!selectedEmployeeToReplace) {
@@ -948,22 +998,24 @@ function StandaloneKYCPageContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium mb-2">UAN Number</label>
+          <label className="block text-sm font-medium mb-2">UAN Number *</label>
           <input
             type="text"
             value={personalDetails.uanNumber}
             onChange={(e) => setPersonalDetails({...personalDetails, uanNumber: e.target.value})}
             className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+            required
           />
         </div>
         
         <div>
-          <label className="block text-sm font-medium mb-2">ESIC Number</label>
+          <label className="block text-sm font-medium mb-2">ESIC Number *</label>
           <input
             type="text"
             value={personalDetails.esicNumber}
             onChange={(e) => setPersonalDetails({...personalDetails, esicNumber: e.target.value})}
             className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+            required
           />
         </div>
       </div>
@@ -1030,13 +1082,14 @@ function StandaloneKYCPageContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium mb-2">Monthly Salary</label>
+          <label className="block text-sm font-medium mb-2">Monthly Salary *</label>
           <input
             type="number"
             value={personalDetails.monthlySalary}
             onChange={(e) => setPersonalDetails({...personalDetails, monthlySalary: e.target.value})}
             className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
             placeholder="Enter monthly salary"
+            required
           />
         </div>
       </div>
@@ -1066,59 +1119,63 @@ function StandaloneKYCPageContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <h3 className="text-lg font-semibold mb-4">Permanent Address</h3>
+          <h3 className="text-lg font-semibold mb-4">Permanent Address *</h3>
           <div className="space-y-4">
             <input
               type="text"
-              placeholder="Street Address"
+              placeholder="Street Address *"
               value={addressDetails.permanentAddress.street}
               onChange={(e) => setAddressDetails({
                 ...addressDetails,
                 permanentAddress: {...addressDetails.permanentAddress, street: e.target.value}
               })}
               className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+              required
             />
             <div className="grid grid-cols-2 gap-4">
               <input
                 type="text"
-                placeholder="City"
+                placeholder="City *"
                 value={addressDetails.permanentAddress.city}
                 onChange={(e) => setAddressDetails({
                   ...addressDetails,
                   permanentAddress: {...addressDetails.permanentAddress, city: e.target.value}
                 })}
                 className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                required
               />
               <input
                 type="text"
-                placeholder="State"
+                placeholder="State *"
                 value={addressDetails.permanentAddress.state}
                 onChange={(e) => setAddressDetails({
                   ...addressDetails,
                   permanentAddress: {...addressDetails.permanentAddress, state: e.target.value}
                 })}
                 className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                required
               />
             </div>
             <input
               type="text"
-              placeholder="Postal Code"
+              placeholder="Postal Code *"
               value={addressDetails.permanentAddress.postalCode}
               onChange={(e) => setAddressDetails({
                 ...addressDetails,
                 permanentAddress: {...addressDetails.permanentAddress, postalCode: e.target.value}
               })}
               className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+              required
             />
           </div>
         </div>
 
         <div>
-          <h3 className="text-lg font-semibold mb-4">Current Address</h3>
+          <h3 className="text-lg font-semibold mb-4">Current Address *</h3>
           <div className="space-y-4">
             <input
               type="text"
-              placeholder="Street Address"
+              placeholder="Street Address *"
               value={addressDetails.currentAddress.street}
               onChange={(e) => setAddressDetails({
                 ...addressDetails,
@@ -1126,11 +1183,12 @@ function StandaloneKYCPageContent() {
               })}
               disabled={isSameAddress}
               className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isSameAddress ? 'opacity-50 cursor-not-allowed' : ''}`}
+              required
             />
             <div className="grid grid-cols-2 gap-4">
               <input
                 type="text"
-                placeholder="City"
+                placeholder="City *"
                 value={addressDetails.currentAddress.city}
                 onChange={(e) => setAddressDetails({
                   ...addressDetails,
@@ -1138,10 +1196,11 @@ function StandaloneKYCPageContent() {
                 })}
                 disabled={isSameAddress}
                 className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isSameAddress ? 'opacity-50 cursor-not-allowed' : ''}`}
+                required
               />
               <input
                 type="text"
-                placeholder="State"
+                placeholder="State *"
                 value={addressDetails.currentAddress.state}
                 onChange={(e) => setAddressDetails({
                   ...addressDetails,
@@ -1149,11 +1208,12 @@ function StandaloneKYCPageContent() {
                 })}
                 disabled={isSameAddress}
                 className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isSameAddress ? 'opacity-50 cursor-not-allowed' : ''}`}
+                required
               />
             </div>
             <input
               type="text"
-              placeholder="Postal Code"
+              placeholder="Postal Code *"
               value={addressDetails.currentAddress.postalCode}
               onChange={(e) => setAddressDetails({
                 ...addressDetails,
@@ -1161,6 +1221,7 @@ function StandaloneKYCPageContent() {
               })}
               disabled={isSameAddress}
               className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isSameAddress ? 'opacity-50 cursor-not-allowed' : ''}`}
+              required
             />
           </div>
         </div>
@@ -1292,12 +1353,13 @@ function StandaloneKYCPageContent() {
         </div>
         
         <div>
-          <label className="block text-sm font-medium mb-2">Aadhar Number</label>
+          <label className="block text-sm font-medium mb-2">Aadhar Number *</label>
           <input
             type="text"
             value={emergencyContact.aadhar}
             onChange={(e) => setEmergencyContact({...emergencyContact, aadhar: e.target.value})}
             className={`w-full px-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+            required
           />
         </div>
       </div>
@@ -1315,7 +1377,7 @@ function StandaloneKYCPageContent() {
     return (
       <div className="space-y-6">
         <div>
-          <label className="block text-sm font-medium mb-2">Employee Photo</label>
+          <label className="block text-sm font-medium mb-2">Employee Photo *</label>
           <div className="flex items-center space-x-4">
             <div className="flex-shrink-0">
               {employeeImage ? (
@@ -1338,6 +1400,7 @@ function StandaloneKYCPageContent() {
                 accept="image/*"
                 onChange={(e) => setEmployeeImage(e.target.files?.[0] || null)}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                required
               />
             </div>
           </div>
@@ -1541,7 +1604,7 @@ function StandaloneKYCPageContent() {
                 {activeSection === sections[sections.length - 1].id ? (
                   <button
                     onClick={handleSubmit}
-                    disabled={loading || !personalDetails.employeeId || !personalDetails.projectName || !personalDetails.fullName || !personalDetails.phoneNumber || !personalDetails.designation || !personalDetails.dateOfJoining}
+                    disabled={loading || !personalDetails.employeeId || !personalDetails.projectName || !personalDetails.fullName || !personalDetails.phoneNumber || !personalDetails.designation || !personalDetails.dateOfJoining || !employeeImage}
                     className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center"
                   >
                     {loading ? (
