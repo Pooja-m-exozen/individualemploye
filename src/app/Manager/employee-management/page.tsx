@@ -377,7 +377,7 @@ export default function EmployeeManagementPage() {
     // Check KYC form status
     const kycForm = emp.kycForm;
     if (kycForm) {
-      const status = String((kycForm as any).status || "").toLowerCase().trim();
+      const status = String(kycForm.status || "").toLowerCase().trim();
       const workType = String(kycForm.personalDetails?.workType || "").toLowerCase().trim();
       
       if (status === "rejected") return "REJECTED";
@@ -852,71 +852,63 @@ export default function EmployeeManagementPage() {
                     )}
                     {visibleCols.kyc && (
                       <td className={`px-2 py-1 text-center border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
-                        <button className={`px-3 py-1 rounded font-semibold shadow ${isLeft ? "text-gray-400 cursor-not-allowed opacity-50" : "text-gray-700 hover:bg-gray-100"}`} onClick={() => {
-                          if (!isLeft && emp.kycForm) {
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
+                          if (emp.kycForm) {
                             const kycData = emp.kycForm as unknown as KYCData;
                             setKycModal({ open: true, kycData });
                           }
-                        }} disabled={isLeft}>
+                        }}>
                           <FaEye />
                         </button>
                       </td>
                     )}
                     {visibleCols.idCard && (
                       <td className={`px-2 py-1 text-center border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
-                        <button className={`px-3 py-1 rounded font-semibold shadow ${isLeft ? "text-gray-400 cursor-not-allowed opacity-50" : "text-gray-700 hover:bg-gray-100"}`} onClick={() => {
-                          if (!isLeft) {
-                            const bloodGroup = (emp.personalDetails as Record<string, unknown>)?.bloodGroup as string || '';
-                            let employeeImage = (emp.personalDetails as Record<string, unknown>)?.employeeImage as string;
-                            if (!employeeImage) employeeImage = '/placeholder-user.jpg';
-                            setIdCardModal({
-                              open: true,
-                              cardData: {
-                                fullName: emp.fullName || '',
-                                employeeId: emp.employeeId || '',
-                                designation: emp.designation || '',
-                                projectName: emp.projectName || '',
-                                bloodGroup,
-                                employeeImage,
-                                qrCodeImage: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(emp.employeeId || '')}`,
-                                validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
-                              }
-                            });
-                          }
-                        }} disabled={isLeft}>
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
+                          const bloodGroup = (emp.personalDetails as Record<string, unknown>)?.bloodGroup as string || '';
+                          let employeeImage = (emp.personalDetails as Record<string, unknown>)?.employeeImage as string;
+                          if (!employeeImage) employeeImage = '/placeholder-user.jpg';
+                          setIdCardModal({
+                            open: true,
+                            cardData: {
+                              fullName: emp.fullName || '',
+                              employeeId: emp.employeeId || '',
+                              designation: emp.designation || '',
+                              projectName: emp.projectName || '',
+                              bloodGroup,
+                              employeeImage,
+                              qrCodeImage: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(emp.employeeId || '')}`,
+                              validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+                            }
+                          });
+                        }}>
                           <FaEye />
                         </button>
                       </td>
                     )}
                     {visibleCols.uniform && (
                       <td className={`px-2 py-1 text-center border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
-                        <button className={`px-3 py-1 rounded font-semibold shadow ${isLeft ? "text-gray-400 cursor-not-allowed opacity-50" : "text-gray-700 hover:bg-gray-100"}`} onClick={() => {
-                          if (!isLeft) {
-                            setUniformModal({ open: true, employeeId: emp.employeeId });
-                          }
-                        }} disabled={isLeft}>
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
+                          setUniformModal({ open: true, employeeId: emp.employeeId });
+                        }}>
                           <FaEye />
                         </button>
                       </td>
                     )}
                     {visibleCols.attendance && (
                       <td className={`px-2 py-1 text-center border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
-                        <button className={`px-3 py-1 rounded font-semibold shadow ${isLeft ? "text-gray-400 cursor-not-allowed opacity-50" : "text-gray-700 hover:bg-gray-100"}`} onClick={() => {
-                          if (!isLeft) {
-                            setAttendanceModal({ open: true, employeeId: emp.employeeId, employeeName: emp.fullName });
-                          }
-                        }} disabled={isLeft}>
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
+                          setAttendanceModal({ open: true, employeeId: emp.employeeId, employeeName: emp.fullName });
+                        }}>
                           <FaEye />
                         </button>
                       </td>
                     )}
                     {visibleCols.payslip && (
                       <td className={`px-2 py-1 text-center border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
-                        <button className={`px-3 py-1 rounded font-semibold shadow ${isLeft ? "text-gray-400 cursor-not-allowed opacity-50" : "text-gray-700 hover:bg-gray-100"}`} onClick={() => {
-                          if (!isLeft) {
-                            alert('View Payslip');
-                          }
-                        }} disabled={isLeft}>
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
+                          alert('View Payslip');
+                        }}>
                           <FaEye />
                         </button>
                       </td>

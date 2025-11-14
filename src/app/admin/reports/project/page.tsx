@@ -153,6 +153,7 @@ export default function ProjectManagementPage() {
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [showAttendanceDownloadDropdown, setShowAttendanceDownloadDropdown] = useState(false);
+  const [selectedAttendanceEmployeeIds, setSelectedAttendanceEmployeeIds] = useState<string[]>([]);
 
   const handleFormChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -262,7 +263,7 @@ export default function ProjectManagementPage() {
     { date: '2025-08-08', description: 'Varamahalakshmi' },
     { date: '2025-08-15', description: 'Independence Day' },
     { date: '2025-08-27', description: 'Ganesh Chaturthi' },
-    { date: '2025-09-01', description: 'Vijayadashami' },
+    { date: '2025-10-01', description: 'Vijayadashami' },
     { date: '2025-10-02', description: 'Gandhi Jayanti' },
     { date: '2025-10-20', description: 'Deepavali' },
     { date: '2025-10-22', description: 'Deepavali' },
@@ -607,6 +608,26 @@ export default function ProjectManagementPage() {
     });
   }, [attendanceEmployees, selectedProjects, selectedDesignation, attendanceSearchQuery]);
 
+  // Select/Deselect all attendance employees
+  const handleSelectAllAttendance = (checked: boolean) => {
+    if (checked) {
+      setSelectedAttendanceEmployeeIds(filteredAttendanceEmployees.map(emp => emp.employeeId));
+    } else {
+      setSelectedAttendanceEmployeeIds([]);
+    }
+  };
+
+  const handleAttendanceEmployeeSelect = (employeeId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedAttendanceEmployeeIds(prev => [...prev, employeeId]);
+    } else {
+      setSelectedAttendanceEmployeeIds(prev => prev.filter(id => id !== employeeId));
+    }
+  };
+
+  const allAttendanceSelected = filteredAttendanceEmployees.length > 0 && selectedAttendanceEmployeeIds.length === filteredAttendanceEmployees.length;
+  const someAttendanceSelected = selectedAttendanceEmployeeIds.length > 0 && selectedAttendanceEmployeeIds.length < filteredAttendanceEmployees.length;
+
   // Extract unique project names and designations for attendance
   const attendanceProjectNames = Array.from(new Set(attendanceEmployees.map(e => e.projectName).filter(Boolean)));
   const attendanceDesignations = Array.from(new Set(attendanceEmployees.map(e => e.designation).filter(Boolean)));
@@ -754,9 +775,16 @@ export default function ProjectManagementPage() {
   // Export Attendance to Excel
   const handleExportAttendanceToExcel = async () => {
     try {
+      // Only include selected employees (require at least one selection)
+      if (selectedAttendanceEmployeeIds.length === 0) {
+        alert('Please select at least one employee to download.');
+        return;
+      }
+      const employeesToDownload = filteredAttendanceEmployees.filter(e => selectedAttendanceEmployeeIds.includes(e.employeeId));
+      
       const xlsx = await import('xlsx');
       
-      const worksheetData = filteredAttendanceEmployees.map(employee => {
+      const worksheetData = employeesToDownload.map(employee => {
         const empAttendance = attendanceData[employee.employeeId] || [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -830,6 +858,13 @@ export default function ProjectManagementPage() {
   // Export Attendance to PDF
   const handleExportAttendanceToPDF = async () => {
     try {
+      // Only include selected employees (require at least one selection)
+      if (selectedAttendanceEmployeeIds.length === 0) {
+        alert('Please select at least one employee to download.');
+        return;
+      }
+      const employeesToDownload = filteredAttendanceEmployees.filter(e => selectedAttendanceEmployeeIds.includes(e.employeeId));
+      
       const { jsPDF } = await import('jspdf');
       const autoTable = await import('jspdf-autotable');
       
@@ -869,7 +904,7 @@ export default function ProjectManagementPage() {
       headerRow.push('P', 'A', 'H', 'CF', 'CFL', 'EL', 'SL', 'CL', 'Payable');
       
       // Prepare table data with all columns
-      const tableData = filteredAttendanceEmployees.map(employee => {
+      const tableData = employeesToDownload.map(employee => {
         const empAttendance = attendanceData[employee.employeeId] || [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -1256,10 +1291,12 @@ export default function ProjectManagementPage() {
                   <button
                     type="button"
                     aria-label="Download attendance options"
-                    className={`p-2 rounded-lg font-semibold flex items-center gap-2 shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-gray-100 focus:ring-blue-300' : 'bg-blue-600 text-white focus:ring-blue-300'}`}
+                    className={`p-2 rounded-lg font-semibold flex items-center gap-2 shadow-sm focus:outline-none focus:ring-2 ${theme === 'dark' ? 'bg-gray-800 text-gray-100 focus:ring-blue-300' : 'bg-blue-600 text-white focus:ring-blue-300'} ${selectedAttendanceEmployeeIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                     onClick={() => setShowAttendanceDownloadDropdown(v => !v)}
+                    disabled={selectedAttendanceEmployeeIds.length === 0}
                   >
                     <FaDownload className="w-5 h-5" />
+                    {selectedAttendanceEmployeeIds.length > 0 && <span className="text-xs">({selectedAttendanceEmployeeIds.length})</span>}
                   </button>
                   {showAttendanceDownloadDropdown && (
                     <div className={`absolute right-0 mt-2 w-56 rounded-xl shadow-2xl z-10 py-2 ${theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}`}>
@@ -1358,7 +1395,19 @@ export default function ProjectManagementPage() {
                     <table className={`w-full min-w-[1200px] rounded-lg overflow-hidden text-sm ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-700'}`}>
                       <thead className={`sticky top-0 z-10 ${theme === 'dark' ? 'bg-gray-700/80 backdrop-blur-sm' : 'bg-blue-600/90 backdrop-blur-sm'} text-white`}>
                         <tr>
-                          <th className="py-3 pl-4 pr-8 text-left font-semibold sticky left-0 bg-inherit z-20 w-64">Employee</th>
+                          <th className={`py-3 pl-4 text-center font-semibold sticky left-0 bg-inherit z-20 w-12 ${theme === 'dark' ? 'bg-blue-600/90' : 'bg-blue-600/90'}`}>
+                            <input
+                              type="checkbox"
+                              checked={allAttendanceSelected}
+                              ref={(input) => {
+                                if (input) input.indeterminate = someAttendanceSelected;
+                              }}
+                              onChange={(e) => handleSelectAllAttendance(e.target.checked)}
+                              className="w-5 h-5 cursor-pointer accent-blue-500"
+                              style={{ cursor: 'pointer' }}
+                            />
+                          </th>
+                          <th className="py-3 pl-4 pr-8 text-left font-semibold sticky left-12 bg-inherit z-20 w-64">Employee</th>
                           {Array.from({ length: new Date(attendanceYear, attendanceMonth, 0).getDate() }, (_, i) => (
                             <th key={i + 1} className="p-3 text-center font-semibold">
                               {new Date(attendanceYear, attendanceMonth - 1, i + 1).toLocaleDateString("en-US", { day: "2-digit", month: "short" })}
@@ -1480,7 +1529,16 @@ export default function ProjectManagementPage() {
                           
                           return (
                             <tr key={employee.employeeId} className={`transition-colors duration-150 ${theme === 'dark' ? 'hover:bg-gray-700/50' : 'hover:bg-blue-50/50'}`}>
-                              <td className={`py-3 pl-4 pr-8 sticky left-0 bg-inherit z-10 whitespace-nowrap ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+                              <td className={`py-3 pl-4 text-center sticky left-0 bg-inherit z-10 w-12 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedAttendanceEmployeeIds.includes(employee.employeeId)}
+                                  onChange={(e) => handleAttendanceEmployeeSelect(employee.employeeId, e.target.checked)}
+                                  className="w-5 h-5 cursor-pointer accent-blue-500"
+                                  style={{ cursor: 'pointer' }}
+                                />
+                              </td>
+                              <td className={`py-3 pl-4 pr-8 sticky left-12 bg-inherit z-10 whitespace-nowrap ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
                                 <div className="flex items-center gap-3">
                                   <Image src={employee.imageUrl} alt={employee.fullName} width={40} height={40} className="rounded-full object-cover" />
                                   <div>

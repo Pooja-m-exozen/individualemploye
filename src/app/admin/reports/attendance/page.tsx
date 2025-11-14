@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useEffect, useState } from "react";
+import React, { JSX, useEffect, useState, useMemo } from "react";
 import AdminLayout from "@/components/dashboard/AdminDashboardLayout";
 import { useTheme } from "@/context/ThemeContext";
 import { FaSpinner,  FaFilePdf, FaFileExcel, FaInfoCircle, FaFilter, FaChevronDown } from "react-icons/fa";
@@ -47,6 +47,7 @@ const GOVERNMENT_HOLIDAYS = [
   { date: '2025-08-08', description: 'Varamahalakshmi' }, //Varamahalakshmi
   { date: '2025-08-15', description: 'Independence Day' }, // Independence Day
   { date: '2025-08-27', description: 'Ganesh Chaturthi' }, // Ganesh Chaturthi
+  { date: '2025-10-01', description: 'Vijaya Dashami' },
   { date: '2025-10-02', description: 'Gandhi Jayanti' }, // Gandhi Jayanti
 ];
 
@@ -223,6 +224,8 @@ const OverallAttendancePage = (): JSX.Element => {
   const [downloadDropdownOpen, setDownloadDropdownOpen] = useState(false);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<'name' | 'employeeId' | 'project' | 'designation' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     const fetchEmployeesAndLeaves = async () => {
@@ -349,10 +352,12 @@ const OverallAttendancePage = (): JSX.Element => {
       ]
     ];
 
-    // Only include selected employees if any are selected, otherwise all filteredEmployees
-    const employeesToDownload = selectedEmployeeIds.length > 0
-      ? employees.filter(e => selectedEmployeeIds.includes(e.employeeId))
-      : filteredEmployees;
+    // Only include selected employees (require at least one selection)
+    if (selectedEmployeeIds.length === 0) {
+      alert('Please select at least one employee to download.');
+      return;
+    }
+    const employeesToDownload = sortedEmployees.filter(e => selectedEmployeeIds.includes(e.employeeId));
 
     const tableData = employeesToDownload.map(employee => {
       const empAttendance = attendanceData[employee.employeeId] || [];
@@ -427,7 +432,13 @@ const OverallAttendancePage = (): JSX.Element => {
   };
 
   const downloadExcel = () => {
-    const worksheetData = employees.map((employee) => {
+    // Only include selected employees (require at least one selection)
+    if (selectedEmployeeIds.length === 0) {
+      alert('Please select at least one employee to download.');
+      return;
+    }
+    const employeesToDownload = sortedEmployees.filter(e => selectedEmployeeIds.includes(e.employeeId));
+    const worksheetData = employeesToDownload.map((employee) => {
       const empAttendance = attendanceData[employee.employeeId] || [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -512,6 +523,65 @@ const OverallAttendancePage = (): JSX.Element => {
       : true;
     return matchesProject && matchesDesignation && matchesSearch;
   });
+
+  // Sort filtered employees
+  const sortedEmployees = useMemo(() => {
+    const items = [...filteredEmployees];
+    if (!sortBy) return items;
+    
+    items.sort((a, b) => {
+      let aVal = '';
+      let bVal = '';
+      
+      if (sortBy === 'name') {
+        aVal = a.fullName || '';
+        bVal = b.fullName || '';
+      } else if (sortBy === 'employeeId') {
+        aVal = a.employeeId || '';
+        bVal = b.employeeId || '';
+      } else if (sortBy === 'project') {
+        aVal = a.projectName || '';
+        bVal = b.projectName || '';
+      } else if (sortBy === 'designation') {
+        aVal = a.designation || '';
+        bVal = b.designation || '';
+      }
+      
+      const comparison = aVal.localeCompare(bVal, undefined, { sensitivity: 'base' });
+      return sortDir === 'asc' ? comparison : -comparison;
+    });
+    
+    return items;
+  }, [filteredEmployees, sortBy, sortDir]);
+
+  const handleSort = (key: 'name' | 'employeeId' | 'project' | 'designation') => {
+    if (sortBy === key) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(key);
+      setSortDir('asc');
+    }
+  };
+
+  // Select/Deselect all employees (must be after sortedEmployees is defined)
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedEmployeeIds(sortedEmployees.map(emp => emp.employeeId));
+    } else {
+      setSelectedEmployeeIds([]);
+    }
+  };
+
+  const handleEmployeeSelect = (employeeId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedEmployeeIds(prev => [...prev, employeeId]);
+    } else {
+      setSelectedEmployeeIds(prev => prev.filter(id => id !== employeeId));
+    }
+  };
+
+  const allSelected = sortedEmployees.length > 0 && selectedEmployeeIds.length === sortedEmployees.length;
+  const someSelected = selectedEmployeeIds.length > 0 && selectedEmployeeIds.length < sortedEmployees.length;
 
   return (
     <AdminLayout>
@@ -665,30 +735,6 @@ const OverallAttendancePage = (): JSX.Element => {
                   </div>
                 </div>
               )}
-              {/* Multi-select for employees after project filter */}
-              {selectedProjects.length > 0 && filteredEmployees.length > 0 && (
-                <div className="mb-4">
-                  <label className="block mb-1 text-sm font-semibold text-white">Select Employees to Download (optional):</label>
-                  <div className="flex flex-wrap gap-2">
-                    {filteredEmployees.map(emp => (
-                      <label key={emp.employeeId} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded">
-                        <input
-                          type="checkbox"
-                          checked={selectedEmployeeIds.includes(emp.employeeId)}
-                          onChange={e => {
-                            if (e.target.checked) {
-                              setSelectedEmployeeIds(ids => [...ids, emp.employeeId]);
-                            } else {
-                              setSelectedEmployeeIds(ids => ids.filter(id => id !== emp.employeeId));
-                            }
-                          }}
-                        />
-                        <span>{emp.fullName} ({emp.employeeId})</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
               {/* Attendance Legend with Download Dropdown */}
               <div className={`mb-4 p-4 rounded-lg border flex items-center justify-between ${theme === 'dark' ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'}`}>
                 <div>
@@ -708,8 +754,9 @@ const OverallAttendancePage = (): JSX.Element => {
                   <button
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600' : 'bg-white text-blue-900 border-gray-300 hover:bg-blue-50'}`}
                     onClick={() => setDownloadDropdownOpen((open) => !open)}
+                    disabled={selectedEmployeeIds.length === 0}
                   >
-                    <span>Download</span>
+                    <span>Download {selectedEmployeeIds.length > 0 ? `(${selectedEmployeeIds.length})` : ''}</span>
                     <FaChevronDown className="w-4 h-4" />
                   </button>
                   {downloadDropdownOpen && (
@@ -740,7 +787,21 @@ const OverallAttendancePage = (): JSX.Element => {
                   <table className={`w-full min-w-[1200px] rounded-lg overflow-hidden text-sm ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-700'}`}>
                     <thead className={`sticky top-0 z-10 ${theme === 'dark' ? 'bg-gray-700/80 backdrop-blur-sm' : 'bg-blue-600/90 backdrop-blur-sm'} text-white`}>
                       <tr>
-                        <th className="py-3 pl-4 pr-8 text-left font-semibold sticky left-0 bg-inherit z-20 w-64">Employee</th>
+                        <th className={`py-3 pl-4 text-center font-semibold sticky left-0 bg-inherit z-20 w-12 ${theme === 'dark' ? 'bg-blue-600/90' : 'bg-blue-600/90'}`}>
+                          <input
+                            type="checkbox"
+                            checked={allSelected}
+                            ref={(input) => {
+                              if (input) input.indeterminate = someSelected;
+                            }}
+                            onChange={(e) => handleSelectAll(e.target.checked)}
+                            className="w-5 h-5 cursor-pointer accent-blue-500"
+                            style={{ cursor: 'pointer' }}
+                          />
+                        </th>
+                        <th onClick={() => handleSort('name')} className="py-3 pl-4 pr-8 text-left font-semibold sticky left-12 bg-inherit z-20 w-64 cursor-pointer select-none hover:bg-blue-700/20">
+                          Employee {sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+                        </th>
                         {Array.from({ length: getDaysInMonth(year, month) }, (_, i) => (
                           <th key={i + 1} className="p-3 text-center font-semibold">
                             {new Date(year, month - 1, i + 1).toLocaleDateString("en-US", { day: "2-digit", month: "short" })}
@@ -758,7 +819,7 @@ const OverallAttendancePage = (): JSX.Element => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {filteredEmployees.map((employee) => {
+                      {sortedEmployees.map((employee) => {
                         const empAttendance = attendanceData[employee.employeeId] || [];
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
@@ -771,7 +832,16 @@ const OverallAttendancePage = (): JSX.Element => {
                         
                         return (
                           <tr key={employee.employeeId} className={`transition-colors duration-150 ${theme === 'dark' ? 'hover:bg-gray-700/50' : 'hover:bg-blue-50/50'}`}>
-                            <td className={`py-3 pl-4 pr-8 sticky left-0 bg-inherit z-10 whitespace-nowrap ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+                            <td className={`py-3 pl-4 text-center sticky left-0 bg-inherit z-10 w-12 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+                              <input
+                                type="checkbox"
+                                checked={selectedEmployeeIds.includes(employee.employeeId)}
+                                onChange={(e) => handleEmployeeSelect(employee.employeeId, e.target.checked)}
+                                className="w-5 h-5 cursor-pointer accent-blue-500"
+                                style={{ cursor: 'pointer' }}
+                              />
+                            </td>
+                            <td className={`py-3 pl-4 pr-8 sticky left-12 bg-inherit z-10 whitespace-nowrap ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
                               <div className="flex items-center gap-3">
                                 <Image src={employee.imageUrl} alt={employee.fullName} width={40} height={40} className="rounded-full object-cover" />
                                 <div>
