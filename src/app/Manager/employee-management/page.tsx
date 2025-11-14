@@ -176,6 +176,7 @@ export default function EmployeeManagementPage() {
   const [designationFilter, setDesignationFilter] = useState("All Designations");
   const [projectFilter, setProjectFilter] = useState("All Projects");
   const [projectOptions, setProjectOptions] = useState<string[]>(["All Projects"]);
+  const [statusFilter, setStatusFilter] = useState("All Status");
   // Excel-like header filters and selection
   const [empIdFilter, setEmpIdFilter] = useState("");
   const [nameFilter, setNameFilter] = useState("");
@@ -317,6 +318,39 @@ export default function EmployeeManagementPage() {
     ...Array.from(new Set(employees.map(e => e.designation).filter(Boolean)))
   ], [employees]);
 
+  // Helper function to get employee status text
+  const getEmployeeStatus = (emp: EmployeeWithSummary): string | null => {
+    // Check KYC form status
+    const kycForm = emp.kycForm;
+    if (kycForm) {
+      const status = String(kycForm.status || "").toLowerCase().trim();
+      const workType = String(kycForm.personalDetails?.workType || "").toLowerCase().trim();
+      
+      if (status === "rejected") return "REJECTED";
+      if (status === "exited" || status === "left" || workType === "left") return "LEFT";
+    }
+    
+    // Also check summary KYC status if available
+    if (emp.summary?.kyc?.status) {
+      const summaryStatus = String(emp.summary.kyc.status).toLowerCase().trim();
+      if (summaryStatus === "rejected") return "REJECTED";
+      if (summaryStatus === "exited" || summaryStatus === "left") return "LEFT";
+    }
+    
+    // Check personalDetails workType directly from employee object
+    if (emp.personalDetails?.workType) {
+      const workType = String(emp.personalDetails.workType).toLowerCase().trim();
+      if (workType === "left") return "LEFT";
+    }
+    
+    return null;
+  };
+
+  // Helper function to check if employee should be grayed out (left/exited/rejected)
+  const hasEmployeeLeft = (emp: EmployeeWithSummary): boolean => {
+    return getEmployeeStatus(emp) !== null;
+  };
+
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp: EmployeeWithSummary) => {
       const matchesSearch =
@@ -330,9 +364,16 @@ export default function EmployeeManagementPage() {
         emp.projectName === projectFilter;
       const matchesHeaderEmpId = empIdFilter === "" || emp.employeeId.toLowerCase().includes(empIdFilter.toLowerCase());
       const matchesHeaderName = nameFilter === "" || emp.fullName.toLowerCase().includes(nameFilter.toLowerCase());
-      return matchesSearch && matchesDesignation && matchesProject && matchesHeaderEmpId && matchesHeaderName;
+      // Status filter logic
+      const empStatus = getEmployeeStatus(emp);
+      const matchesStatus =
+        statusFilter === "All Status" ||
+        (statusFilter === "Active" && empStatus === null) ||
+        (statusFilter === "Left" && empStatus === "LEFT") ||
+        (statusFilter === "Rejected" && empStatus === "REJECTED");
+      return matchesSearch && matchesDesignation && matchesProject && matchesHeaderEmpId && matchesHeaderName && matchesStatus;
     });
-  }, [search, employees, designationFilter, projectFilter, empIdFilter, nameFilter]);
+  }, [search, employees, designationFilter, projectFilter, empIdFilter, nameFilter, statusFilter]);
 
   const sortedEmployees = useMemo(() => {
     const items = [...filteredEmployees];
@@ -370,39 +411,6 @@ export default function EmployeeManagementPage() {
 
   const toggleColumn = (key: keyof VisibleCols) => {
     setVisibleCols(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  // Helper function to get employee status text
-  const getEmployeeStatus = (emp: EmployeeWithSummary): string | null => {
-    // Check KYC form status
-    const kycForm = emp.kycForm;
-    if (kycForm) {
-      const status = String(kycForm.status || "").toLowerCase().trim();
-      const workType = String(kycForm.personalDetails?.workType || "").toLowerCase().trim();
-      
-      if (status === "rejected") return "REJECTED";
-      if (status === "exited" || status === "left" || workType === "left") return "LEFT";
-    }
-    
-    // Also check summary KYC status if available
-    if (emp.summary?.kyc?.status) {
-      const summaryStatus = String(emp.summary.kyc.status).toLowerCase().trim();
-      if (summaryStatus === "rejected") return "REJECTED";
-      if (summaryStatus === "exited" || summaryStatus === "left") return "LEFT";
-    }
-    
-    // Check personalDetails workType directly from employee object
-    if (emp.personalDetails?.workType) {
-      const workType = String(emp.personalDetails.workType).toLowerCase().trim();
-      if (workType === "left") return "LEFT";
-    }
-    
-    return null;
-  };
-
-  // Helper function to check if employee should be grayed out (left/exited/rejected)
-  const hasEmployeeLeft = (emp: EmployeeWithSummary): boolean => {
-    return getEmployeeStatus(emp) !== null;
   };
 
   const exportCsv = () => {
@@ -655,6 +663,23 @@ export default function EmployeeManagementPage() {
               {designationOptions.map((designation) => (
                 <option key={designation} value={designation}>{designation}</option>
               ))}
+            </select>
+          </div>
+          {/* Status Dropdown */}
+          <div className="relative w-44 min-w-[130px]">
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                theme === "dark"
+                  ? "bg-gray-800 border-blue-900 text-white"
+                  : "bg-white border-gray-200 text-black"
+              }`}
+            >
+              <option value="All Status">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Left">Left</option>
+              <option value="Rejected">Rejected</option>
             </select>
           </div>
           {/* Search Bar */}
