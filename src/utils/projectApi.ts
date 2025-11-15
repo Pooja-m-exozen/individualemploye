@@ -68,7 +68,7 @@ export const filterItemsByProject = <T extends Record<string, unknown>>(
   
   return items.filter((item) => {
     const itemProject = item[projectField];
-    return itemProject && itemProject.toLowerCase() === project.toLowerCase();
+    return typeof itemProject === 'string' && itemProject.toLowerCase() === project.toLowerCase();
   });
 };
 

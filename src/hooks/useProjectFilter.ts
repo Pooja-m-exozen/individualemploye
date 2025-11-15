@@ -66,7 +66,7 @@ export const useProjectFilter = () => {
     }
     return items.filter((item) => {
       const itemProject = item[projectField];
-      return itemProject && itemProject.toLowerCase() === projectName.toLowerCase();
+      return typeof itemProject === 'string' && itemProject.toLowerCase() === projectName.toLowerCase();
     });
   };
 
