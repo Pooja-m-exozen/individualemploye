@@ -781,26 +781,29 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         // Also refresh the DC data to ensure consistency
         await refreshDCData();
         
-        // Update uniform requests with DC number and set status to "Issued"
-        try {
-          console.log('Updating uniform requests with DC number:', payload.dcNumber);
-          
-          // Update each uniform request with DC number and issued status
-          const updatePromises = selectedRequests.map(async (request) => {
-            try {
-              console.log(`Updating uniform request for employee ${request.employeeId} with DC number: ${payload.dcNumber}`);
-              
-              const updateRes = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${request.employeeId}/update-dc`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  requestId: request._id,
-                  dcNumber: payload.dcNumber,
-                  issuedStatus: 'Issued'
-                })
-              });
+        // Update uniform requests with DC number and set status to "Issued" (only for NRDC)
+        // RDC (Retrievable DC) should not update uniform request status
+        if (dcType === 'nrdc') {
+          try {
+            console.log('Updating uniform requests with DC number:', payload.dcNumber, 'for NRDC');
+            
+            // Update each uniform request with DC number and issued status
+            const updatePromises = selectedRequests.map(async (request) => {
+              try {
+                console.log(`Updating uniform request for employee ${request.employeeId} with DC number: ${payload.dcNumber}`);
+                
+                const updateRes = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${request.employeeId}/update-dc`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    requestId: request._id,
+                    dcNumber: payload.dcNumber,
+                    issuedStatus: 'Issued',
+                    issuedDate: new Date().toISOString().split('T')[0] // Add issued date
+                  })
+                });
               
               if (updateRes.ok) {
                 const updateData = await updateRes.json();
@@ -819,7 +822,8 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                     },
                     body: JSON.stringify({
                       dcNumber: payload.dcNumber,
-                      issuedStatus: 'Issued'
+                      issuedStatus: 'Issued',
+                      issuedDate: new Date().toISOString().split('T')[0] // Add issued date
                     })
                   });
                   
@@ -846,26 +850,29 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
           
           console.log(`Uniform request updates: ${successful} successful, ${failed} failed`);
           
-          if (failed > 0) {
-            console.warn(`Some uniform requests could not be updated. This may require manual update.`);
+            if (failed > 0) {
+              console.warn(`Some uniform requests could not be updated. This may require manual update.`);
+            }
+          } catch (error) {
+            console.error('Error updating uniform requests with DC number:', error);
+            // Don't fail the DC creation if uniform request update fails
           }
-        } catch (error) {
-          console.error('Error updating uniform requests with DC number:', error);
-          // Don't fail the DC creation if uniform request update fails
-        }
-        
-        // Refresh uniform requests to get updated issuedStatus from backend
-        // This ensures that requests with newly created DCs are marked as 'Issued'
-        try {
-          const uniformRes = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
-          if (uniformRes.ok) {
-            await uniformRes.json();
-            // The uniform requests will now have updated issuedStatus
-            // The useEffect will automatically filter them out on next render
-            console.log('Refreshed uniform requests after DC creation');
+          
+          // Refresh uniform requests to get updated issuedStatus from backend
+          // This ensures that requests with newly created DCs are marked as 'Issued'
+          try {
+            const uniformRes = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+            if (uniformRes.ok) {
+              await uniformRes.json();
+              // The uniform requests will now have updated issuedStatus
+              // The useEffect will automatically filter them out on next render
+              console.log('Refreshed uniform requests after DC creation');
+            }
+          } catch (error) {
+            console.error('Error refreshing uniform requests:', error);
           }
-        } catch (error) {
-          console.error('Error refreshing uniform requests:', error);
+        } else {
+          console.log('Skipping uniform request update for RDC. RDC does not update uniform request status.');
         }
         
         setSaveDCError(null);
