@@ -145,3 +145,42 @@ export const getEmployeeId = (): string | null => {
   }
   return null;
 };
+
+/**
+ * Get the user's primary project (first project in the projects array)
+ * For project-wise admin filtering
+ */
+export const getUserProject = (): string | null => {
+  const user = getUser();
+  if (user && user.projects && user.projects.length > 0) {
+    return user.projects[0]; // Return first project as primary project
+  }
+  return null;
+};
+
+/**
+ * Get all user's projects
+ */
+export const getUserProjects = (): string[] => {
+  const user = getUser();
+  return user?.projects || [];
+};
+
+/**
+ * Check if user has access to a specific project
+ */
+export const hasProjectAccess = (projectName: string): boolean => {
+  const user = getUser();
+  if (!user || !user.projects) return false;
+  return user.projects.includes(projectName);
+};
+
+/**
+ * Check if current user is a project-wise admin
+ * (Admin role with a specific project assigned)
+ */
+export const isProjectAdmin = (): boolean => {
+  const role = getUserRole();
+  const project = getUserProject();
+  return role === 'Admin' && project !== null;
+};

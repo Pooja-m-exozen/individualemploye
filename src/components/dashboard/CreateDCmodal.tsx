@@ -75,6 +75,7 @@ interface UniformApiResponse {
     remarks: string;
     requestDate: string;
     type: string[];
+    dcNumber?: string; // DC number if a DC has been created for this request
   }>;
 }
 
@@ -273,6 +274,9 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
     fetchUniformData();
   }, []);
 
+  // Store all uniforms data for checking pending requests
+  const [allUniformsData, setAllUniformsData] = useState<UniformApiResponse | null>(null);
+
   // Filter uniform requests when project is selected
   useEffect(() => {
     const fetchUniformRequests = async () => {
@@ -280,6 +284,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
       try {
         const res = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
         const data: UniformApiResponse = await res.json();
+        setAllUniformsData(data); // Store for checking pending requests
         
         // Debug: Log the entire API response structure
         console.log('=== RAW API RESPONSE ===');
@@ -295,64 +300,152 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
             console.log('Available fields in uniform request:', Object.keys(data.uniforms[0]));
           }
           
-          // Only show projects that are NOT generic and not already issued
-          // Also filter out employees who already have their uniforms in an existing DC
+          // PRIMARY FILTER: Only show employees that do NOT have a DC number
+          // This is the main requirement - show only employees without DC numbers to generate DC
           const filteredRequests = data.uniforms.filter(req => {
-            // Basic filters
-            const basicFilters = req.projectName === selectedProject && 
-                   req.approvalStatus === 'Approved' &&
-                   req.issuedStatus !== 'Issued' &&
+            // PRIMARY CHECK: Must NOT have a DC number
+            // Check if dcNumber exists and is a valid value (not null, undefined, empty, "N/A", "null", "undefined")
+            const dcNumber = req.dcNumber ? String(req.dcNumber).trim() : '';
+            const hasDCNumber = dcNumber !== '' && 
+                              dcNumber.toLowerCase() !== 'n/a' && 
+                              dcNumber !== 'null' && 
+                              dcNumber !== 'undefined';
+            
+            // EXCLUDE if has DC number - this is the primary filter
+            if (hasDCNumber) {
+              console.log(`❌ Excluding: ${req.fullName} (${req.employeeId}) - Set Count ${req.setCount} - has dcNumber: "${dcNumber}"`);
+              return false;
+            }
+            
+            // Basic project and approval filters
+            const projectMatch = req.projectName === selectedProject && 
                    req.projectName !== "General" &&
                    req.projectName !== "N/A" &&
                    !req.projectName.toLowerCase().includes("general");
             
-            if (!basicFilters) return false;
+            if (!projectMatch) return false;
             
-            // Check if this employee's uniform is already in an existing DC
-            const isInExistingDC = dcData.some(dc => 
-              dc.items.some(item => item.employeeId === req.employeeId)
-            );
+            // Must be approved
+            if (req.approvalStatus !== 'Approved') return false;
             
-            return !isInExistingDC;
+            // Check issuedStatus - exclude if already issued (secondary check)
+            // Handle case-insensitive comparison and null/undefined values
+            const issuedStatus = String(req.issuedStatus || '').trim();
+            if (issuedStatus.toLowerCase() === 'issued') {
+              console.log(`❌ Excluding: ${req.fullName} (${req.employeeId}) - Set Count ${req.setCount} - issuedStatus is "Issued"`);
+              return false;
+            }
+            
+            // Log what's being included for debugging
+            console.log(`✅ Including: ${req.fullName} (${req.employeeId}) - Set Count ${req.setCount} - No DC Number, issuedStatus: "${issuedStatus}"`);
+            
+            // Return true if all filters pass (no DC number, approved, not issued, valid project)
+            return true;
           });
 
           // Debug logging to understand the data structure
           console.log('=== FILTERING UNIFORM REQUESTS ===');
           console.log('Selected project:', selectedProject);
           
+          // Log the raw API response for the specific employee to verify data
+          const efms3184Requests = data.uniforms.filter(req => req.employeeId === 'EFMS3184' && req.projectName === selectedProject);
+          if (efms3184Requests.length > 0) {
+            console.log('🔍 EFMS3184 requests from API:', efms3184Requests.map(req => ({
+              setCount: req.setCount,
+              issuedStatus: req.issuedStatus,
+              dcNumber: req.dcNumber || 'N/A',
+              approvalStatus: req.approvalStatus,
+              _id: req._id
+            })));
+          }
+          
           const allProjectRequests = data.uniforms.filter(req => req.projectName === selectedProject);
           console.log('All requests for project:', allProjectRequests.length);
           
-          // Check which employees are in existing DCs
-          const employeesInExistingDCs = new Set<string>();
-          dcData.forEach(dc => {
-            dc.items.forEach(item => {
-              if (item.employeeId) {
-                employeesInExistingDCs.add(item.employeeId);
-              }
-            });
-          });
-          console.log('Employees already in existing DCs:', Array.from(employeesInExistingDCs));
+          // Log all requests with their statuses for debugging - including setCount and dcNumber
+          console.log('All project requests with statuses:', allProjectRequests.map(req => {
+            const hasDCNumber = req.dcNumber && req.dcNumber.trim() !== '' && req.dcNumber !== 'N/A';
+            const willShow = req.projectName === selectedProject && 
+                     req.approvalStatus === 'Approved' &&
+                     req.issuedStatus !== 'Issued' &&
+                     !hasDCNumber &&
+                     req.projectName !== "General" &&
+                     req.projectName !== "N/A" &&
+                     !req.projectName.toLowerCase().includes("general");
+            return {
+              name: req.fullName,
+              employeeId: req.employeeId,
+              setCount: req.setCount,
+              requestId: req._id,
+              approvalStatus: req.approvalStatus,
+              issuedStatus: req.issuedStatus,
+              dcNumber: req.dcNumber || 'N/A',
+              hasDCNumber: hasDCNumber,
+              requestDate: req.requestDate,
+              willShow: willShow,
+              excludedReason: !willShow ? (
+                req.approvalStatus !== 'Approved' ? 'Not Approved' :
+                req.issuedStatus === 'Issued' ? 'Already Issued' :
+                hasDCNumber ? `Has DC Number: ${req.dcNumber}` :
+                'Other filter'
+              ) : null
+            };
+          }));
           
+          // Check which requests are already issued (by issuedStatus, not by employee)
           const issuedRequests = allProjectRequests.filter(req => req.issuedStatus === 'Issued');
           console.log('Already issued requests (filtered out):', issuedRequests.length);
           console.log('Issued request details:', issuedRequests.map(req => ({ 
             name: req.fullName,
             employeeId: req.employeeId,
+            setCount: req.setCount,
             issuedStatus: req.issuedStatus,
-            approvalStatus: req.approvalStatus
+            approvalStatus: req.approvalStatus,
+            dcNumber: req.dcNumber || 'N/A'
           })));
           
+          // Check which requests have dcNumber but issuedStatus is not "Issued" (backend issue)
+          const requestsWithDCButNotIssued = allProjectRequests.filter(req => {
+            const hasDCNumber = req.dcNumber && req.dcNumber.trim() !== '' && req.dcNumber !== 'N/A';
+            return hasDCNumber && req.issuedStatus !== 'Issued';
+          });
+          if (requestsWithDCButNotIssued.length > 0) {
+            console.warn('⚠️ Backend issue: Requests with DC Number but issuedStatus is not "Issued":', requestsWithDCButNotIssued.length);
+            console.log('Requests with DC but not marked as Issued:', requestsWithDCButNotIssued.map(req => ({
+              name: req.fullName,
+              employeeId: req.employeeId,
+              setCount: req.setCount,
+              dcNumber: req.dcNumber,
+              issuedStatus: req.issuedStatus,
+              approvalStatus: req.approvalStatus
+            })));
+          }
+          
+          // Check which requests are pending approval
+          const pendingRequests = allProjectRequests.filter(req => req.approvalStatus === 'Pending');
+          console.log('Pending approval requests (filtered out):', pendingRequests.length);
+          console.log('Pending request details:', pendingRequests.map(req => ({ 
+            name: req.fullName,
+            employeeId: req.employeeId,
+            setCount: req.setCount,
+            approvalStatus: req.approvalStatus,
+            issuedStatus: req.issuedStatus
+          })));
+          
+          // Filter based on issuedStatus only - each uniform request (setCount) is tracked separately
+          // This allows Set 2 to show even if Set 1 has been issued
           const filteredByDC = allProjectRequests.filter(req => 
             req.projectName === selectedProject && 
             req.approvalStatus === 'Approved' &&
-            req.issuedStatus !== 'Issued' &&
-            !employeesInExistingDCs.has(req.employeeId)
+            req.issuedStatus !== 'Issued'
           );
-          console.log('Filtered by existing DC check:', filteredByDC.length);
-          console.log('Employees filtered by DC:', allProjectRequests
-            .filter(req => employeesInExistingDCs.has(req.employeeId))
-            .map(req => ({ name: req.fullName, employeeId: req.employeeId })));
+          console.log('Filtered by issuedStatus check:', filteredByDC.length);
+          console.log('Available requests (not issued):', filteredByDC.map(req => ({ 
+            name: req.fullName, 
+            employeeId: req.employeeId,
+            setCount: req.setCount,
+            issuedStatus: req.issuedStatus
+          })));
           
           console.log('Final available requests:', filteredRequests.length);
           console.log('Filtered requests details:', filteredRequests.map(req => ({ 
@@ -363,7 +456,8 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
             qty: req.qty,
             setCount: req.setCount,
             issuedStatus: req.issuedStatus,
-            approvalStatus: req.approvalStatus
+            approvalStatus: req.approvalStatus,
+            dcNumber: req.dcNumber || 'N/A'
           })));
 
           setUniformRequests(filteredRequests);
@@ -686,6 +780,21 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         
         // Also refresh the DC data to ensure consistency
         await refreshDCData();
+        
+        // Refresh uniform requests to get updated issuedStatus from backend
+        // This ensures that requests with newly created DCs are marked as 'Issued'
+        try {
+          const uniformRes = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+          if (uniformRes.ok) {
+            const uniformData: UniformApiResponse = await uniformRes.json();
+            // The uniform requests will now have updated issuedStatus
+            // The useEffect will automatically filter them out on next render
+            console.log('Refreshed uniform requests after DC creation');
+          }
+        } catch (error) {
+          console.error('Error refreshing uniform requests:', error);
+        }
+        
         setSaveDCError(null);
         onClose();
       } else {
@@ -1065,9 +1174,29 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
                   ) : uniformRequests.length === 0 ? (
                     <div className={`text-center py-8 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
                       {(() => {
+                        // Check for pending requests that don't have DCs
+                        const allProjectRequests = allUniformsData?.uniforms?.filter((req: { projectName: string; approvalStatus: string; issuedStatus: string }) => req.projectName === selectedProject) || [];
+                        const pendingRequests = allProjectRequests.filter((req: { approvalStatus: string; issuedStatus: string }) => 
+                          req.approvalStatus === 'Pending' && 
+                          req.issuedStatus !== 'Issued'
+                        );
                         const hasEmployeesWithDCs = dcData && dcData.length > 0 && dcData.some(dc => 
                           dc.items.some(item => item.employeeId)
                         );
+                        
+                        if (pendingRequests.length > 0) {
+                          return (
+                            <div className="space-y-2">
+                              <div className="text-orange-600 font-semibold">
+                                No approved uniform requests available for this project.
+                              </div>
+                              <div className="text-sm">
+                                Found {pendingRequests.length} pending approval request(s) (Set Count: {pendingRequests.map((r: { setCount?: number; qty?: number }) => r.setCount || r.qty).join(', ')}). 
+                                These requests need to be approved before creating a DC.
+                              </div>
+                            </div>
+                          );
+                        }
                         
                         if (hasEmployeesWithDCs) {
                           return (

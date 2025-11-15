@@ -101,6 +101,11 @@ interface UniformItem {
   __v: number;
 }
 
+interface SerialNumberEntry {
+  itemCode: string;
+  serialNumber: string;
+}
+
 interface DCItemOriginal {
   employeeId: string;
   itemCode: string;
@@ -142,6 +147,7 @@ interface DCItemOriginal {
   }>;
   retrievableQuantity?: number; // Add retrievable quantity for RDC - Updated
   retrievalStatus?: string; // Add retrieval status for RDC items - Updated
+  serialNumbers?: SerialNumberEntry[]; // Add serial numbers for ASS-prefixed assets
   _id: string;
 }
 
@@ -478,7 +484,7 @@ export default function StoreDCPage() {
   });
   const [isCreatingRdc, setIsCreatingRdc] = useState(false);
   const [selectedRdcProject, setSelectedRdcProject] = useState<Project | null>(null);
-  const [selectedRdcItems, setSelectedRdcItems] = useState<Array<{itemId: string, itemName: string, quantity: number, size?: string}>>([]);
+  const [selectedRdcItems, setSelectedRdcItems] = useState<Array<{itemId: string, itemName: string, quantity: number, size?: string, itemCode?: string, serialNumbers?: SerialNumberEntry[]}>>([]);
   const [availableItems, setAvailableItems] = useState<UniformItem[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -2703,18 +2709,26 @@ export default function StoreDCPage() {
       // Create table body using RDC items directly
       const tableBody: (string | number)[][] = [];
      
+      let siNoCounter = 1; // Counter for SI No. that increments for each row
+      
       rdc.items.forEach((item, index) => {
-        // Create simple row for each item
+        // Create one row per item with total quantity (aggregated)
         const itemName = item.uniformType || item.name || "N/A";
+        
+        // Calculate total quantity - use serial numbers count if available, otherwise use item quantity
+        const quantity = item.serialNumbers && item.serialNumbers.length > 0 
+          ? item.serialNumbers.length 
+          : (item.quantity || 0);
+        
         const row: (string | number)[] = [
-          index + 1, // SI No
+          siNoCounter++, // SI No - increment for each unique item
           Array.isArray(itemName) ? itemName.join(", ") : String(itemName), // Item Name - handle arrays
           item.size || "N/A", // Size
-          item.quantity || 0, // Quantity
+          quantity, // Total quantity for this item
           "N/A" // Amount field
         ];
        
-        console.log(`Created RDC item row ${index + 1}:`, row);
+        console.log(`Created RDC item row ${siNoCounter - 1}:`, row);
         tableBody.push(row);
       });
      
@@ -2776,7 +2790,37 @@ export default function StoreDCPage() {
       });
 
       // Get Y after table
-      const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
+      let finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || y + 30;
+
+      // Add Serial Numbers section if any item has serial numbers
+      const itemsWithSerialNumbers = rdc.items.filter(item => item.serialNumbers && item.serialNumbers.length > 0);
+      if (itemsWithSerialNumbers.length > 0) {
+        finalY += 5;
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.text("Serial Number Details:", 12, finalY);
+        finalY += 5;
+        
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        itemsWithSerialNumbers.forEach((item) => {
+          const itemName = Array.isArray(item.uniformType) 
+            ? item.uniformType.join(", ") 
+            : String(item.uniformType || item.name || "N/A");
+          
+          doc.setFont("helvetica", "bold");
+          doc.text(`${itemName} (${item.size || "N/A"}):`, 12, finalY);
+          finalY += 4;
+          
+          doc.setFont("helvetica", "normal");
+          item.serialNumbers?.forEach((serial, idx) => {
+            const serialText = `${idx + 1}. Item Code: ${serial.itemCode || "N/A"} | Serial No: ${serial.serialNumber || "N/A"}`;
+            doc.text(serialText, 15, finalY);
+            finalY += 4;
+          });
+          finalY += 2;
+        });
+      }
 
       // Terms & Conditions - compact for single page
       doc.setFontSize(8);
@@ -3902,34 +3946,57 @@ export default function StoreDCPage() {
         console.error("Error fetching inventory items:", error);
       }
 
+      let slNoCounter = 1; // Counter for SL No. that increments for each row
+      
       rdc.items.forEach((item, index) => {
         const assetDescription = Array.isArray(item.uniformType) 
           ? item.uniformType.join(", ") 
           : String(item.uniformType || item.name || "N/A");
         
         // Prioritize itemCode from the item itself
-        let assetCode = item.itemCode || "";
+        let baseAssetCode = item.itemCode || "";
         
         // If itemCode is not available, try to find it from inventory items
-        if (!assetCode) {
+        if (!baseAssetCode) {
           const inventoryItem = inventoryItemsList.find(invItem => 
             invItem._id === item.itemId
           );
           if (inventoryItem?.itemCode) {
-            assetCode = inventoryItem.itemCode;
+            baseAssetCode = inventoryItem.itemCode;
           } else {
-            assetCode = "N/A";
+            baseAssetCode = "N/A";
           }
         }
         
-        tableBody.push([
-          index + 1,
-          assetDescription,
-          assetCode,
-          item.quantity || 0,
-          "New",
-          item.remarks || ""
-        ]);
+        // If item has serial numbers, create a row for each serial number
+        if (item.serialNumbers && item.serialNumbers.length > 0) {
+          item.serialNumbers.forEach((serial, serialIndex) => {
+            // Use the itemCode from serial entry, fallback to base assetCode
+            const itemCode = serial.itemCode || baseAssetCode;
+            // Format: "ASS-WA-WAL/123" (itemCode/serialNumber)
+            const serialInfo = serial.serialNumber 
+              ? `${itemCode}/${serial.serialNumber}`
+              : itemCode;
+            tableBody.push([
+              slNoCounter++, // Increment SL No. for each row
+              assetDescription,
+              serialInfo,
+              1, // Quantity is 1 per serial number
+              "New",
+              item.remarks || ""
+            ]);
+          });
+        } else {
+          // No serial numbers, use original format
+          tableBody.push([
+            slNoCounter++,
+            assetDescription,
+            baseAssetCode,
+            item.quantity || 0,
+            "New",
+            item.remarks || ""
+          ]);
+        }
       });
 
       autoTable(doc, {
@@ -4122,14 +4189,64 @@ export default function StoreDCPage() {
     }
   };
 
-  const handleRdcItemSelection = (itemId: string, itemName: string, quantity: number, size?: string) => {
+  const handleRdcItemSelection = (itemId: string, itemName: string, quantity: number, size?: string, itemCode?: string) => {
     setSelectedRdcItems(prev => {
       const filtered = prev.filter(item => !(item.itemId === itemId && item.size === size));
       if (quantity > 0) {
-        return [...filtered, { itemId, itemName, quantity, size }];
+        // Find the item to get its itemCode if not provided
+        const inventoryItem = availableItems.find(item => item._id === itemId);
+        const finalItemCode = itemCode || inventoryItem?.itemCode || '';
+        
+        // Check if this item already exists to preserve existing serial numbers
+        const existingItem = prev.find(item => item.itemId === itemId && item.size === size);
+        let serialNumbers: SerialNumberEntry[] = [];
+        
+        if (finalItemCode && finalItemCode.toUpperCase().startsWith('ASS')) {
+          // If item exists and has serial numbers, preserve them and add/remove as needed
+          if (existingItem && existingItem.serialNumbers) {
+            serialNumbers = [...existingItem.serialNumbers];
+            // If quantity increased, add new empty entries
+            if (quantity > serialNumbers.length) {
+              for (let i = serialNumbers.length; i < quantity; i++) {
+                serialNumbers.push({ itemCode: finalItemCode, serialNumber: '' });
+              }
+            }
+            // If quantity decreased, remove excess entries
+            else if (quantity < serialNumbers.length) {
+              serialNumbers = serialNumbers.slice(0, quantity);
+            }
+            // Update itemCode for all entries if it changed
+            if (serialNumbers.length > 0 && serialNumbers[0].itemCode !== finalItemCode) {
+              serialNumbers = serialNumbers.map(s => ({ ...s, itemCode: finalItemCode }));
+            }
+          } else {
+            // New item, initialize serial numbers array
+            for (let i = 0; i < quantity; i++) {
+              serialNumbers.push({ itemCode: finalItemCode, serialNumber: '' });
+            }
+          }
+        }
+        
+        return [...filtered, { itemId, itemName, quantity, size, itemCode: finalItemCode, serialNumbers }];
       }
       return filtered;
     });
+  };
+
+  const updateSerialNumber = (itemId: string, size: string | undefined, index: number, field: 'itemCode' | 'serialNumber', value: string) => {
+    setSelectedRdcItems(prev => prev.map(item => {
+      if (item.itemId === itemId && item.size === size && item.serialNumbers) {
+        const updatedSerialNumbers = [...item.serialNumbers];
+        if (updatedSerialNumbers[index]) {
+          updatedSerialNumbers[index] = {
+            ...updatedSerialNumbers[index],
+            [field]: value
+          };
+        }
+        return { ...item, serialNumbers: updatedSerialNumbers };
+      }
+      return item;
+    }));
   };
 
   const createRDCFromIssue = async () => {
@@ -4189,7 +4306,8 @@ export default function StoreDCPage() {
           size: item.size || "",
           uniformType: item.itemName,
           retrievableQuantity: item.quantity,
-          retrievalStatus: 'available'
+          retrievalStatus: 'available',
+          serialNumbers: item.serialNumbers || []
         })),
         attachments: [],
         isRetrievable: true,
@@ -4232,10 +4350,11 @@ export default function StoreDCPage() {
               quantity: item.quantity,
               size: item.size || '',
               uniformType: item.itemName,
-              itemCode: inventoryItem?.itemCode || '',
+              itemCode: inventoryItem?.itemCode || item.itemCode || '',
               name: item.itemName,
               price: '',
-              remarks: ''
+              remarks: '',
+              serialNumbers: item.serialNumbers || []
             };
           }),
           createdAt: new Date().toISOString(),
@@ -6522,7 +6641,7 @@ export default function StoreDCPage() {
                   <div><b>Project:</b> {selectedDC ? getProjectName(selectedDC!) : 'N/A'}</div>
                   <div><b>Status:</b> Issued</div>
                   <div><b>Customer:</b> {selectedDC?.customer}</div>
-                  <div><b>Total Items:</b> {selectedDC?.items.length}</div>
+                  <div><b>Total Items:</b> {selectedDC?.items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</div>
                 </div>
 
                 {/* Employee Details */}
@@ -7076,7 +7195,7 @@ export default function StoreDCPage() {
                                         min="0"
                                         max={availableQty}
                                         value={currentQty}
-                                        onChange={(e) => handleRdcItemSelection(item._id, item.name, parseInt(e.target.value) || 0, size)}
+                                        onChange={(e) => handleRdcItemSelection(item._id, item.name, parseInt(e.target.value) || 0, size, item.itemCode)}
                                         className={`w-20 px-2 py-1 text-sm border rounded focus:ring-2 focus:border-transparent ${
                                           theme === "dark"
                                             ? "bg-gray-600 border-gray-500 text-gray-100 focus:ring-blue-900"
@@ -7111,6 +7230,64 @@ export default function StoreDCPage() {
                       <p>No items available for the selected project</p>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Serial Number Input Section for ASS-prefixed items */}
+              {selectedRdcItems.some(item => item.itemCode && item.itemCode.toUpperCase().startsWith('ASS') && item.quantity > 0) && (
+                <div className={`mt-6 p-4 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                  <h3 className={`text-lg font-semibold mb-4 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                    Serial Number & Item Code Details
+                  </h3>
+                  <div className="space-y-4">
+                    {selectedRdcItems
+                      .filter(item => item.itemCode && item.itemCode.toUpperCase().startsWith('ASS') && item.quantity > 0)
+                      .map((item, itemIndex) => (
+                        <div key={`${item.itemId}-${item.size}-${itemIndex}`} className={`p-4 rounded-lg ${theme === "dark" ? "bg-gray-700" : "bg-white"}`}>
+                          <div className={`font-semibold mb-3 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                            {item.itemName} {item.size && `- Size: ${item.size}`} (Qty: {item.quantity})
+                          </div>
+                          <div className="space-y-2">
+                            {item.serialNumbers && item.serialNumbers.map((serial, serialIndex) => (
+                              <div key={serialIndex} className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                                    Item {serialIndex + 1} - Item Code
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={serial.itemCode}
+                                    onChange={(e) => updateSerialNumber(item.itemId, item.size, serialIndex, 'itemCode', e.target.value)}
+                                    className={`w-full px-3 py-2 text-sm border rounded focus:ring-2 focus:border-transparent ${
+                                      theme === "dark"
+                                        ? "bg-gray-600 border-gray-500 text-gray-100 focus:ring-blue-900"
+                                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                                    }`}
+                                    placeholder="Enter item code"
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                                    Item {serialIndex + 1} - Serial Number
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={serial.serialNumber}
+                                    onChange={(e) => updateSerialNumber(item.itemId, item.size, serialIndex, 'serialNumber', e.target.value)}
+                                    className={`w-full px-3 py-2 text-sm border rounded focus:ring-2 focus:border-transparent ${
+                                      theme === "dark"
+                                        ? "bg-gray-600 border-gray-500 text-gray-100 focus:ring-blue-900"
+                                        : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500"
+                                    }`}
+                                    placeholder="Enter serial number"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
                 </div>
               )}
 

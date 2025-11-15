@@ -228,7 +228,13 @@ export default function FaceEnrollmentPage() {
       }
     } catch (err) {
       setEnrollmentStatus('failed');
-      setError(err instanceof Error ? err.message : 'Face enrollment failed');
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : typeof err === 'string'
+        ? err
+        : 'Face enrollment failed. Please check your connection and try again.';
+      setError(errorMessage);
+      console.error('Face enrollment error details:', err);
     } finally {
       setIsEnrolling(false);
     }
@@ -423,9 +429,18 @@ export default function FaceEnrollmentPage() {
               {/* Error Message */}
               {error && (
                 <div className={`p-3 rounded-lg border bg-red-50 border-red-200 dark:bg-red-900 dark:border-red-700`}>
-                  <div className="flex items-center gap-2">
-                    <FaExclamationCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
-                    <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+                  <div className="flex items-start gap-2">
+                    <FaExclamationCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">Error enrolling face</p>
+                      <p className="text-xs text-red-700 dark:text-red-300">{error}</p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                        Please check:
+                        <br />• Your internet connection
+                        <br />• That you&apos;re logged in
+                        <br />• Try capturing a new photo with better lighting
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

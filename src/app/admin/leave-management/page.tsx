@@ -7,9 +7,11 @@ import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory } from "@/service
 import { showToast, ToastStyles } from "@/components/Toast";
 import { api } from "@/services/api";
 import Image from "next/image";
+import { useProjectFilter } from "@/hooks/useProjectFilter";
 
 export default function LeaveManagementViewPage() {
   const { theme } = useTheme();
+  const { projectName, isProjectWiseAdmin, filterByProject } = useProjectFilter();
   const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterLeaveType, setFilterLeaveType] = useState("All");
@@ -26,14 +28,20 @@ export default function LeaveManagementViewPage() {
     setLoading(true);
     getAllEmployeesLeaveHistory()
       .then((data) => {
-        setAllLeaveData(data);
+        // Filter by project if project-wise admin
+        const filtered = isProjectWiseAdmin && projectName
+          ? data.filter(emp => 
+              emp.kyc.personalDetails.projectName?.toLowerCase() === projectName.toLowerCase()
+            )
+          : data;
+        setAllLeaveData(filtered);
         setLoading(false);
       })
       .catch(() => {
         setError("Failed to fetch leave history for all employees");
         setLoading(false);
       });
-  }, []);
+  }, [isProjectWiseAdmin, projectName, filterByProject]);
 
   // Flatten all leave records with employee info
   const allLeaves = allLeaveData.flatMap((emp) =>

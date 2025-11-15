@@ -229,19 +229,40 @@ export async function enrollFace(
       requestBody.qualityScore = qualityScore;
     }
 
-    const response = await fetch(`${FACIAL_RECOGNITION_CONFIG.backend.apiUrl}/facial-recognition/enroll`, {
+    // Use Next.js API route as proxy to backend (with basePath if configured)
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/v1/employee';
+    const apiUrl = typeof window !== 'undefined' 
+      ? `${basePath}/api/facial-recognition/enroll`
+      : `${FACIAL_RECOGNITION_CONFIG.backend.apiUrl}/facial-recognition/enroll`;
+    
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        ...(token && { 'Authorization': `Bearer ${token}` }),
       },
       body: JSON.stringify(requestBody),
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      // If response is not JSON, get text
+      const text = await response.text();
+      throw new Error(`Server error: ${response.status} ${response.statusText}. ${text}`);
+    }
     
     if (!response.ok) {
-      throw new Error(data.message || 'Face enrollment failed');
+      const errorMessage = data.message || data.error || `HTTP ${response.status}: ${response.statusText}`;
+      console.error('Face enrollment API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+      });
+      throw new Error(errorMessage);
     }
 
     return {
@@ -251,9 +272,15 @@ export async function enrollFace(
     };
   } catch (error) {
     console.error('Face enrollment error:', error);
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'string'
+      ? error
+      : 'Face enrollment failed. Please check your connection and try again.';
+    
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Face enrollment failed',
+      message: errorMessage,
     };
   }
 }
