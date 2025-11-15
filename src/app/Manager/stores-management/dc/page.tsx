@@ -78,6 +78,22 @@ interface InventoryItem {
   }>;
 }
 
+interface UniformRequest {
+  _id?: string;
+  employeeId?: string;
+  dcNumber?: string | null;
+  issuedStatus?: string;
+  issuedDate?: string | null;
+  issuedBy?: string | null;
+  [key: string]: unknown;
+}
+
+interface EmployeeGroup {
+  requests?: UniformRequest[];
+  uniforms?: UniformRequest[];
+  [key: string]: unknown;
+}
+
 interface UniformItem {
   _id: string;
   itemCode: string;
@@ -3485,16 +3501,16 @@ export default function StoreDCPage() {
       }
 
       const uniformData = await uniformRes.json();
-      let allUniformRequests: any[] = [];
+      let allUniformRequests: UniformRequest[] = [];
 
       // Handle different API response structures
       if (uniformData.success && uniformData.uniforms) {
-        allUniformRequests = uniformData.uniforms;
+        allUniformRequests = uniformData.uniforms as UniformRequest[];
       } else if (Array.isArray(uniformData)) {
-        allUniformRequests = uniformData;
+        allUniformRequests = uniformData as UniformRequest[];
       } else if (uniformData.success && uniformData.employeeGroups) {
         // Flatten employee groups - check both requests and uniforms arrays
-        allUniformRequests = uniformData.employeeGroups.flatMap((group: any) => {
+        allUniformRequests = (uniformData.employeeGroups as EmployeeGroup[]).flatMap((group: EmployeeGroup) => {
           const requests = group.requests || [];
           const uniforms = group.uniforms || [];
           return [...requests, ...uniforms];
@@ -3503,7 +3519,7 @@ export default function StoreDCPage() {
 
       // Filter uniform requests for the employee IDs we need to update
       // Also check if DC number already exists but status is not "Issued"
-      const requestsToUpdate = allUniformRequests.filter((request: any) => {
+      const requestsToUpdate = allUniformRequests.filter((request: UniformRequest) => {
         if (!request.employeeId || !uniqueEmployeeIds.includes(request.employeeId)) {
           return false;
         }
@@ -3525,7 +3541,7 @@ export default function StoreDCPage() {
       console.log(`Found ${requestsToUpdate.length} uniform requests to update`);
 
       // Update each uniform request with DC number and issued status
-      const updatePromises = requestsToUpdate.map(async (request: any) => {
+      const updatePromises = requestsToUpdate.map(async (request: UniformRequest) => {
         try {
           // Use existing DC number if available, otherwise use the new one
           const finalDCNumber = (request.dcNumber && 
@@ -3694,13 +3710,13 @@ export default function StoreDCPage() {
                   let employeeIds: string[] = [];
                   
                   if (createdDC?.items && Array.isArray(createdDC.items)) {
-                    // Extract from DC employee mappings (more accurate)
-                    employeeIds = createdDC.items.flatMap((item: any) => {
-                      if (item.employeeMappings && Array.isArray(item.employeeMappings)) {
-                        return item.employeeMappings.map((mapping: any) => mapping.employeeId);
-                      }
-                      return item.employeeId ? [item.employeeId] : [];
-                    }).filter((id: any): id is string => Boolean(id));
+                  // Extract from DC employee mappings (more accurate)
+                  employeeIds = createdDC.items.flatMap((item: { employeeMappings?: Array<{ employeeId: string }>; employeeId?: string }) => {
+                    if (item.employeeMappings && Array.isArray(item.employeeMappings)) {
+                      return item.employeeMappings.map((mapping: { employeeId: string }) => mapping.employeeId);
+                    }
+                    return item.employeeId ? [item.employeeId] : [];
+                  }).filter((id: string | undefined): id is string => Boolean(id));
                   }
                   
                   // Fallback to issue items if no employee IDs found in DC

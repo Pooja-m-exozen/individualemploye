@@ -785,18 +785,9 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         try {
           console.log('Updating uniform requests with DC number:', payload.dcNumber);
           
-          // Get unique employee IDs from selected requests
-          const uniqueEmployeeIds = Array.from(new Set(selectedRequests.map(req => req.employeeId)));
-          
           // Update each uniform request with DC number and issued status
           const updatePromises = selectedRequests.map(async (request) => {
             try {
-              // Update the uniform request with DC number and issued status
-              const updatePayload = {
-                dcNumber: payload.dcNumber,
-                issuedStatus: 'Issued'
-              };
-              
               console.log(`Updating uniform request for employee ${request.employeeId} with DC number: ${payload.dcNumber}`);
               
               const updateRes = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${request.employeeId}/update-dc`, {
