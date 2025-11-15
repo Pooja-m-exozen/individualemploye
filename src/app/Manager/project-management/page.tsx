@@ -2,6 +2,7 @@
 import React, { useState, useMemo, ChangeEvent, FormEvent, useEffect } from "react";
 import { FaSearch, FaEdit, FaTrash } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import ExcelJS from "exceljs";
 
 // Toast notification component
 function Toast({ message, onClose }: { message: string; onClose: () => void }) {
@@ -48,6 +49,31 @@ interface DesignationCount {
   count: string;
 }
 
+interface ProjectKYCData {
+  totalKYC: number;
+  activeCount: number;
+  designationWiseKYC: Record<string, number>;
+  designationWiseActive: Record<string, number>;
+  designationWiseEmployeeIds: Record<string, string[]>; // All Employee IDs grouped by designation
+  designationWiseActiveEmployeeIds: Record<string, string[]>; // Active Employee IDs only
+}
+
+interface KYCForm {
+  _id?: string;
+  personalDetails?: {
+    projectName?: string;
+    designation?: string;
+    workType?: string;
+    employeeId?: string;
+    empId?: string;
+  };
+  projectName?: string;
+  designation?: string;
+  workType?: string;
+  employeeId?: string;
+  status?: string;
+}
+
 export default function ProjectManagementPage() {
   const { theme } = useTheme();
   const [search, setSearch] = useState("");
@@ -56,6 +82,7 @@ export default function ProjectManagementPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [projectKYCData, setProjectKYCData] = useState<Record<string, ProjectKYCData>>({});
   const [showCreate, setShowCreate] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -491,6 +518,8 @@ export default function ProjectManagementPage() {
       if (!res.ok) throw new Error("Failed to fetch projects");
       const data = await res.json();
       setProjects(data);
+      // Fetch KYC data for all projects
+      await fetchKYCDataForProjects(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
@@ -498,8 +527,116 @@ export default function ProjectManagementPage() {
     }
   };
 
+  const fetchKYCDataForProjects = async (projectsList: Project[]) => {
+    try {
+      // Fetch all KYC forms - try both endpoints
+      let kycForms: KYCForm[] = [];
+      try {
+        const kycRes = await fetch("https://cafm.zenapi.co.in/api/kyc");
+        if (kycRes.ok) {
+          const data = await kycRes.json();
+          kycForms = Array.isArray(data.kycForms) ? data.kycForms : (Array.isArray(data) ? data : []);
+        }
+      } catch {
+        // Try alternative endpoint
+        try {
+          const kycRes2 = await fetch("https://cafm.zenapi.co.in/api/kyc/forms");
+          if (kycRes2.ok) {
+            const data2 = await kycRes2.json();
+            kycForms = Array.isArray(data2.kycForms) ? data2.kycForms : (Array.isArray(data2) ? data2 : []);
+          }
+        } catch (e2) {
+          console.error("Failed to fetch KYC forms from both endpoints:", e2);
+          return;
+        }
+      }
+
+      if (kycForms.length === 0) {
+        console.warn("No KYC forms found");
+        return;
+      }
+
+      // Process KYC data per project
+      const kycDataMap: Record<string, ProjectKYCData> = {};
+
+      projectsList.forEach((project) => {
+        const projectName = project.projectName;
+        const designationWiseKYC: Record<string, number> = {};
+        const designationWiseActive: Record<string, number> = {};
+        const designationWiseEmployeeIds: Record<string, string[]> = {};
+        const designationWiseActiveEmployeeIds: Record<string, string[]> = {};
+        let totalKYC = 0;
+        let activeCount = 0;
+
+        // Filter KYC forms for this project - match project name exactly
+        const projectKYCForms = kycForms.filter((form: KYCForm) => {
+          const formProjectName = form.personalDetails?.projectName || form.projectName || "";
+          // Case-insensitive comparison and trim whitespace
+          return formProjectName.trim().toLowerCase() === projectName.trim().toLowerCase();
+        });
+
+        projectKYCForms.forEach((form: KYCForm) => {
+          const designation = (form.personalDetails?.designation || form.designation || "Unknown").trim();
+          const status = String(form.status || "").toLowerCase().trim();
+          const workType = String(form.personalDetails?.workType || form.workType || "").toLowerCase().trim();
+          const employeeId = (form.personalDetails?.employeeId || form.personalDetails?.empId || form.employeeId || "").trim();
+          
+          // Skip if no employee ID
+          if (!employeeId) {
+            return;
+          }
+          
+          // Initialize arrays if needed
+          if (!designationWiseEmployeeIds[designation]) {
+            designationWiseEmployeeIds[designation] = [];
+          }
+          if (!designationWiseActiveEmployeeIds[designation]) {
+            designationWiseActiveEmployeeIds[designation] = [];
+          }
+          
+          // Count all KYC (including rejected and left)
+          totalKYC++;
+          designationWiseKYC[designation] = (designationWiseKYC[designation] || 0) + 1;
+          
+          // Add employee ID to the list (all employees)
+          if (employeeId && !designationWiseEmployeeIds[designation].includes(employeeId)) {
+            designationWiseEmployeeIds[designation].push(employeeId);
+          }
+
+          // Count only active (excluding rejected and left)
+          const isRejected = status === "rejected";
+          const isLeft = status === "exited" || status === "left" || workType === "left";
+          
+          if (!isRejected && !isLeft) {
+            activeCount++;
+            designationWiseActive[designation] = (designationWiseActive[designation] || 0) + 1;
+            // Add to active employee IDs list (only if not already added)
+            if (employeeId && !designationWiseActiveEmployeeIds[designation].includes(employeeId)) {
+              designationWiseActiveEmployeeIds[designation].push(employeeId);
+            }
+          }
+        });
+
+        kycDataMap[projectName] = {
+          totalKYC,
+          activeCount,
+          designationWiseKYC,
+          designationWiseActive,
+          designationWiseEmployeeIds,
+          designationWiseActiveEmployeeIds,
+        };
+      });
+
+      setProjectKYCData(kycDataMap);
+      console.log("KYC Data loaded for projects:", Object.keys(kycDataMap));
+    } catch (err) {
+      console.error("Failed to fetch KYC data:", err);
+    }
+  };
+
   useEffect(() => {
     fetchProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Memoized options
@@ -588,13 +725,633 @@ export default function ProjectManagementPage() {
     setVisibleCols((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // New Excel export function matching the image format with proper UI/UX and complete data
+  const exportExcelComparison = async () => {
+    try {
+      // Always refresh KYC data to ensure real-time accuracy
+      setToast("Refreshing data, please wait...");
+      
+      // Fetch fresh KYC data directly
+      let latestKYCData: Record<string, ProjectKYCData> = {};
+      try {
+        const kycRes = await fetch("https://cafm.zenapi.co.in/api/kyc");
+        if (kycRes.ok) {
+          const data = await kycRes.json();
+          const kycForms: KYCForm[] = Array.isArray(data.kycForms) ? data.kycForms : (Array.isArray(data) ? data : []);
+          
+          // Process KYC data per project with fresh data
+          projects.forEach((project) => {
+            const projectName = project.projectName;
+            const designationWiseKYC: Record<string, number> = {};
+            const designationWiseActive: Record<string, number> = {};
+            const designationWiseEmployeeIds: Record<string, string[]> = {};
+            const designationWiseActiveEmployeeIds: Record<string, string[]> = {};
+            let totalKYC = 0;
+            let activeCount = 0;
+
+            const projectKYCForms = kycForms.filter((form: KYCForm) => {
+              const formProjectName = form.personalDetails?.projectName || form.projectName || "";
+              return formProjectName.trim().toLowerCase() === projectName.trim().toLowerCase();
+            });
+
+            projectKYCForms.forEach((form: KYCForm) => {
+              // Get designation - try multiple possible fields, preserve original spelling
+              const rawDesignation = form.personalDetails?.designation || form.designation || "Unknown";
+              let designation = String(rawDesignation).trim(); // Keep original spelling (even if typo)
+              
+              // Get employee ID - try multiple possible fields
+              const employeeId = (
+                form.personalDetails?.employeeId || 
+                form.personalDetails?.empId || 
+                form.employeeId ||
+                form._id || // Sometimes _id might be used
+                ""
+              ).trim();
+              
+              // Skip if no employee ID
+              if (!employeeId) {
+                console.warn(`Skipping KYC form - missing employeeId:`, {
+                  designation: designation,
+                  projectName: projectName,
+                  formId: form._id
+                });
+                return;
+              }
+              
+              // Skip if no designation (but log it)
+              if (!designation || designation === "Unknown") {
+                console.warn(`KYC form with missing designation (using employeeId as fallback):`, {
+                  employeeId: employeeId,
+                  projectName: projectName
+                });
+                designation = "Unknown"; // Still process it
+              }
+              
+              const status = String(form.status || "").toLowerCase().trim();
+              const workType = String(form.personalDetails?.workType || form.workType || "").toLowerCase().trim();
+              
+              // Initialize arrays if needed (preserve original designation spelling from KYC)
+              if (!designationWiseEmployeeIds[designation]) {
+                designationWiseEmployeeIds[designation] = [];
+              }
+              if (!designationWiseActiveEmployeeIds[designation]) {
+                designationWiseActiveEmployeeIds[designation] = [];
+              }
+              
+              // Count all KYC (including rejected and left)
+              totalKYC++;
+              designationWiseKYC[designation] = (designationWiseKYC[designation] || 0) + 1;
+              
+              // Add employee ID to all list (avoid duplicates)
+              if (!designationWiseEmployeeIds[designation].includes(employeeId)) {
+                designationWiseEmployeeIds[designation].push(employeeId);
+              }
+
+              // Determine if employee is active (not rejected and not left)
+              const isRejected = status === "rejected";
+              const isLeft = status === "exited" || status === "left" || workType === "left";
+              
+              if (!isRejected && !isLeft) {
+                activeCount++;
+                designationWiseActive[designation] = (designationWiseActive[designation] || 0) + 1;
+                // Add to active employee IDs list (avoid duplicates)
+                if (!designationWiseActiveEmployeeIds[designation].includes(employeeId)) {
+                  designationWiseActiveEmployeeIds[designation].push(employeeId);
+                }
+              }
+            });
+            
+            // Validate data accuracy - sum of designation-wise active should equal total active
+            const sumOfDesignationWiseActive = Object.values(designationWiseActive).reduce((sum, count) => sum + count, 0);
+            const sumOfActiveEmployeeIds = Object.values(designationWiseActiveEmployeeIds).reduce((sum, ids) => sum + ids.length, 0);
+            
+            if (sumOfDesignationWiseActive !== activeCount) {
+              console.error(`Data mismatch for ${projectName}: Sum of designation-wise active (${sumOfDesignationWiseActive}) != Total active (${activeCount})`);
+            }
+            
+            if (sumOfActiveEmployeeIds !== activeCount) {
+              console.error(`Employee ID mismatch for ${projectName}: Sum of active employee IDs (${sumOfActiveEmployeeIds}) != Total active (${activeCount})`);
+            }
+            
+            // Log summary for debugging
+            console.log(`KYC Data Summary for ${projectName}:`, {
+              totalKYC,
+              activeCount,
+              sumOfDesignationWiseActive,
+              sumOfActiveEmployeeIds,
+              designations: Object.keys(designationWiseActive),
+              designationWiseActive: { ...designationWiseActive }
+            });
+
+            latestKYCData[projectName] = {
+              totalKYC,
+              activeCount,
+              designationWiseKYC,
+              designationWiseActive,
+              designationWiseEmployeeIds,
+              designationWiseActiveEmployeeIds,
+            };
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch fresh KYC data:", err);
+        // Fallback to existing data if fetch fails
+        latestKYCData = { ...projectKYCData };
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Project Employee Comparison");
+
+      // Define columns with proper widths
+      worksheet.columns = [
+        { header: "SL NO", key: "slNo", width: 10 },
+        { header: "PROJECT NAME", key: "projectName", width: 40 },
+        { header: "TOTAL", key: "total", width: 12 },
+        { header: "DESIGNATION WISE", key: "designationWise", width: 35 },
+        { header: "ACTIVE", key: "active", width: 12 },
+        { header: "DESIGNATION WISE ACTIVE", key: "designationWiseActive", width: 35 },
+        { header: "EMP ID", key: "empId", width: 50 }, // Wider column for employee IDs
+      ];
+
+      // Style the header row - bold with borders and coloring
+      const headerRow = worksheet.getRow(1);
+      headerRow.font = { 
+        bold: true, 
+        size: 11, 
+        color: { argb: "FFFFFFFF" },
+        name: "Arial"
+      };
+      headerRow.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF4472C4" }, // Blue background like the image
+      };
+      headerRow.alignment = { 
+        vertical: "middle", 
+        horizontal: "center", 
+        wrapText: true 
+      };
+      headerRow.height = 25;
+      
+      // Add borders to header - all sides with black borders
+      headerRow.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin", color: { argb: "FF000000" } },
+          left: { style: "thin", color: { argb: "FF000000" } },
+          bottom: { style: "thin", color: { argb: "FF000000" } },
+          right: { style: "thin", color: { argb: "FF000000" } },
+        };
+      });
+
+      // Function to style data rows - simple and clean UI/UX with clear project separation
+      const styleDataRow = (
+        row: ExcelJS.Row,
+        _rowNum: number,
+        isLastDesignation: boolean = false,
+        empIdCount: number = 0
+      ) => {
+        // Calculate row height based on employee IDs - allow expansion for multiple IDs
+        // Base height + additional height for each employee ID
+        // Estimate: ~12 characters per ID, column width 50 = ~4 IDs per line
+        const baseHeight = 20;
+        const idsPerLine = 4; // Based on column width of 50
+        const lineHeight = 15; // Height per line
+        const estimatedLines = Math.max(1, Math.ceil(empIdCount / idsPerLine));
+        const calculatedHeight = baseHeight + ((estimatedLines - 1) * lineHeight);
+        // Set minimum height but allow Excel to expand further if needed
+        row.height = Math.max(baseHeight, calculatedHeight);
+        
+        // Simple font styling
+        row.font = { size: 10, name: "Arial" };
+        
+        // Add borders to all cells - clear separation between projects
+        row.eachCell((cell, colNumber) => {
+          // Determine alignment based on column
+          if (colNumber === 1 || colNumber === 3 || colNumber === 5) {
+            // SL NO, TOTAL, ACTIVE - center aligned for numbers
+            cell.alignment = { 
+              vertical: "top", // Top align for better expansion
+              horizontal: "center", 
+              wrapText: true 
+            };
+          } else if (colNumber === 7) {
+            // EMP ID column - top align and wrap text to show all IDs
+            cell.alignment = { 
+              vertical: "top", 
+              horizontal: "left", 
+              wrapText: true,
+              shrinkToFit: false
+            };
+          } else {
+            // Text columns - left aligned, top aligned for expansion
+            cell.alignment = { 
+              vertical: "top", 
+              horizontal: "left", 
+              wrapText: true 
+            };
+          }
+          
+          // Clear borders - thicker bottom border to separate projects
+          cell.border = {
+            top: { style: "thin", color: { argb: "FF000000" } },
+            left: { style: "thin", color: { argb: "FF000000" } },
+            bottom: isLastDesignation 
+              ? { style: "thick", color: { argb: "FF000000" } } // Thick border to clearly separate projects
+              : { style: "thin", color: { argb: "FF000000" } },
+            right: { style: "thin", color: { argb: "FF000000" } },
+          };
+          
+          // No background colors - keep it simple and clean
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFFFFFFF" }, // White background for all rows
+          };
+        });
+      };
+
+      let slNo = 1;
+      let currentRow = 2;
+      let totalProjectsExported = 0;
+      let totalDesignationsExported = 0;
+      let totalEmployeeIdsExported = 0;
+
+      // Helper function to normalize designation for flexible matching (handles typos)
+      const normalizeDesignation = (des: string): string => {
+        return des.trim().toLowerCase().replace(/\s+/g, ' '); // Normalize spaces
+      };
+
+      // Helper function to calculate similarity between two strings (simple Levenshtein-like)
+      const calculateSimilarity = (str1: string, str2: string): number => {
+        const s1 = normalizeDesignation(str1);
+        const s2 = normalizeDesignation(str2);
+        
+        if (s1 === s2) return 1.0;
+        if (s1.includes(s2) || s2.includes(s1)) return 0.9;
+        
+        // Check for common typos (character swaps, missing/extra chars)
+        const longer = s1.length > s2.length ? s1 : s2;
+        const shorter = s1.length > s2.length ? s2 : s1;
+        
+        if (longer.length === 0) return 1.0;
+        
+        // Simple similarity: count matching characters
+        let matches = 0;
+        for (let i = 0; i < shorter.length; i++) {
+          if (longer.includes(shorter[i])) matches++;
+        }
+        
+        return matches / longer.length;
+      };
+
+      // Helper function to find matching KYC designation (handles typos and variations)
+      // Currently unused but kept for potential future use
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _findMatchingKYCDesignation = (
+        projectDes: string,
+        kycDesignations: string[]
+      ): string | null => {
+        const normalizedProjectDes = normalizeDesignation(projectDes);
+        
+        // First try exact match (case-insensitive)
+        const exactMatch = kycDesignations.find(
+          kycDes => normalizeDesignation(kycDes) === normalizedProjectDes
+        );
+        if (exactMatch) return exactMatch;
+        
+        // Try partial match (contains) - handles cases like "Security Guard" vs "Security Guard : 2"
+        const partialMatch = kycDesignations.find(
+          kycDes => {
+            const normalizedKYC = normalizeDesignation(kycDes);
+            return normalizedKYC.includes(normalizedProjectDes) ||
+                   normalizedProjectDes.includes(normalizedKYC);
+          }
+        );
+        if (partialMatch) return partialMatch;
+        
+        // Try fuzzy matching for typos (e.g., "Secuirty Guard" vs "Security Guard")
+        // Find the best match with similarity > 0.7
+        let bestMatch: string | null = null;
+        let bestSimilarity = 0;
+        
+        kycDesignations.forEach(kycDes => {
+          const similarity = calculateSimilarity(projectDes, kycDes);
+          if (similarity > bestSimilarity && similarity >= 0.7) {
+            bestSimilarity = similarity;
+            bestMatch = kycDes;
+          }
+        });
+        
+        if (bestMatch) {
+          console.log(`🔍 Fuzzy match found: "${projectDes}" matched with "${bestMatch}" (similarity: ${(bestSimilarity * 100).toFixed(1)}%)`);
+          return bestMatch;
+        }
+        
+        return null;
+      };
+
+      // Export ALL projects - use ONLY project management designations (no extra designations from KYC)
+      sortedProjects.forEach((project) => {
+        // Use latest KYC data to ensure real-time accuracy
+        const kycData = latestKYCData[project.projectName];
+        
+        // Get designations from project management
+        const projectDesignations = Object.keys(project.designationWiseCount || {});
+        
+        // Get ALL KYC designations from designationWiseActive (this is the source of truth for active designations)
+        // This ensures we capture every designation that has active KYC data, including typos
+        const kycActiveDesignationKeys = kycData 
+          ? Array.from(new Set([
+              ...Object.keys(kycData.designationWiseActive || {}), 
+              ...Object.keys(kycData.designationWiseActiveEmployeeIds || {})
+            ]))
+          : [];
+        
+        // Also get all KYC designations (including inactive) for total counts
+        // Currently unused but kept for potential future use
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _kycAllDesignationKeys = kycData 
+          ? Array.from(new Set([
+              ...Object.keys(kycData.designationWiseKYC || {}),
+              ...Object.keys(kycData.designationWiseEmployeeIds || {})
+            ]))
+          : [];
+        
+        // Find KYC designations that don't match any project designation
+        // Use ALL active KYC designations as the source
+        const unmatchedKYCDesignations = kycActiveDesignationKeys.filter(kycDes => {
+          // Check if this KYC designation matches any project designation (with fuzzy matching)
+          return !projectDesignations.some(projDes => {
+            const similarity = calculateSimilarity(projDes, kycDes);
+            return similarity >= 0.7; // If similarity is high, it's already matched
+          });
+        });
+        
+        // Combine: Project designations first, then ALL unmatched KYC active designations
+        // This ensures we show:
+        // 1. All project designations (with their counts from project management)
+        // 2. ALL KYC active designations that don't exist in project (shown in DESIGNATION WISE ACTIVE)
+        const allDesignationsToShow = new Set([
+          ...projectDesignations,
+          ...kycActiveDesignationKeys // Show ALL active KYC designations, not just unmatched ones
+        ]);
+        
+        // Debug: Log available designations
+        if (kycData && kycActiveDesignationKeys.length > 0) {
+          console.log(`📊 Project: ${project.projectName}`);
+          console.log(`  Project designations:`, projectDesignations);
+          console.log(`  ALL KYC Active designations (from designationWiseActive):`, kycActiveDesignationKeys);
+          console.log(`  KYC designation sources:`, {
+            fromActive: Object.keys(kycData.designationWiseActive || {}),
+            fromKYC: Object.keys(kycData.designationWiseKYC || {}),
+            fromActiveIds: Object.keys(kycData.designationWiseActiveEmployeeIds || {}),
+            fromAllIds: Object.keys(kycData.designationWiseEmployeeIds || {})
+          });
+          if (unmatchedKYCDesignations.length > 0) {
+            console.log(`  ✅ Unmatched KYC designations (will be shown in Excel):`, unmatchedKYCDesignations);
+          } else {
+            console.log(`  ℹ️ All KYC designations matched with project designations`);
+          }
+          console.log(`  📝 Total designations to export: ${allDesignationsToShow.size} (${projectDesignations.length} project + ${kycActiveDesignationKeys.length} KYC active)`);
+          console.log(`  📋 Designation-wise Active counts:`, Object.entries(kycData.designationWiseActive || {}).map(([des, count]) => `${des}: ${count}`).join(", "));
+        }
+        
+        // Sort designations: project designations first, then unmatched KYC designations
+        // Currently unused but kept for potential future use
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _sortedDesignations = Array.from(allDesignationsToShow).sort((a, b) => {
+          const aInProject = projectDesignations.includes(a);
+          const bInProject = projectDesignations.includes(b);
+          if (aInProject && !bInProject) return -1;
+          if (!aInProject && bInProject) return 1;
+          return a.localeCompare(b);
+        });
+
+        totalProjectsExported++;
+
+        // Track all employee IDs to avoid duplicates across designations
+        const allEmployeeIdsSet = new Set<string>();
+        
+        // Build designation-wise strings
+        const designationWiseEntries: string[] = [];
+        const designationWiseActiveEntries: string[] = [];
+        const designationWiseActiveMap: Map<string, { count: number; empIds: string[] }> = new Map();
+        
+        // Process project designations first (show each only once in DESIGNATION WISE)
+        const processedProjectDesignations = new Set<string>();
+        projectDesignations.forEach((designation) => {
+          if (processedProjectDesignations.has(designation)) return;
+          processedProjectDesignations.add(designation);
+          
+          const projectCount = project.designationWiseCount?.[designation] || 0;
+          if (projectCount > 0) {
+            designationWiseEntries.push(`${designation}: ${projectCount}`);
+          }
+        });
+        
+        // Process ALL KYC active designations (including typos) for DESIGNATION WISE ACTIVE
+        if (kycData) {
+          Object.entries(kycData.designationWiseActive || {}).forEach(([kycDes, count]) => {
+            const empIds = kycData.designationWiseActiveEmployeeIds?.[kycDes] || [];
+            designationWiseActiveMap.set(kycDes, { count, empIds });
+            
+            // Add to designation-wise active entries
+            designationWiseActiveEntries.push(`${kycDes}: ${count}`);
+            
+            // Add employee IDs to the set (will deduplicate later)
+            empIds.forEach(id => {
+              if (id && id.trim()) {
+                allEmployeeIdsSet.add(id.trim());
+              }
+            });
+          });
+        }
+        
+        // If no designations, add one row with project info
+        if (designationWiseEntries.length === 0 && designationWiseActiveEntries.length === 0) {
+          const row = worksheet.addRow({
+            slNo: String(slNo++),
+            projectName: project.projectName || "Unknown Project",
+            total: String(project.totalManpower || 0),
+            designationWise: "",
+            active: kycData ? String(kycData.activeCount || 0) : "0",
+            designationWiseActive: "",
+            empId: "",
+          });
+          
+          styleDataRow(row, currentRow, true, 0);
+          currentRow++;
+        } else {
+          // Create rows: one for project designations, then one for each KYC active designation
+          let isFirstRow = true;
+          const maxRows = Math.max(designationWiseEntries.length, designationWiseActiveEntries.length);
+          
+          for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
+            const designationWiseValue = rowIndex < designationWiseEntries.length 
+              ? designationWiseEntries[rowIndex] 
+              : "";
+            
+            const designationWiseActiveValue = rowIndex < designationWiseActiveEntries.length
+              ? designationWiseActiveEntries[rowIndex]
+              : "";
+            
+            // Get employee IDs for this KYC designation (if it exists)
+            let empIdsForRow: string[] = [];
+            if (rowIndex < designationWiseActiveEntries.length) {
+              const kycDes = designationWiseActiveEntries[rowIndex].split(":")[0].trim();
+              const kycDataEntry = designationWiseActiveMap.get(kycDes);
+              if (kycDataEntry) {
+                empIdsForRow = kycDataEntry.empIds.filter(id => id && id.trim());
+              }
+            }
+            
+            const empIdString = empIdsForRow.length > 0 
+              ? empIdsForRow.join(", ") 
+              : "";
+            
+            totalDesignationsExported++;
+            totalEmployeeIdsExported += empIdsForRow.length;
+            
+            const row = worksheet.addRow({
+              slNo: isFirstRow ? String(slNo++) : "",
+              projectName: isFirstRow ? (project.projectName || "Unknown Project") : "",
+              total: isFirstRow ? String(project.totalManpower || 0) : "",
+              designationWise: designationWiseValue,
+              active: isFirstRow ? String(kycData?.activeCount || 0) : "",
+              designationWiseActive: designationWiseActiveValue,
+              empId: empIdString,
+            });
+            
+            const isLastRow = rowIndex === maxRows - 1;
+            styleDataRow(row, currentRow, isLastRow, empIdsForRow.length);
+            
+            currentRow++;
+            isFirstRow = false;
+          }
+        }
+      });
+
+      // Freeze header row for better navigation
+      worksheet.views = [
+        {
+          state: "frozen",
+          ySplit: 1,
+          xSplit: 0,
+          topLeftCell: "A2",
+          activeCell: "A2",
+        },
+      ];
+
+      // Set print settings for better printing
+      worksheet.pageSetup = {
+        orientation: "landscape",
+        paperSize: 9, // A4
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        margins: {
+          left: 0.7,
+          right: 0.7,
+          top: 0.75,
+          bottom: 0.75,
+          header: 0.3,
+          footer: 0.3,
+        },
+      };
+
+      // Add auto filter to header row for easy filtering
+      worksheet.autoFilter = {
+        from: "A1",
+        to: "G1",
+      };
+
+      // Final validation: Verify data accuracy before export
+      sortedProjects.forEach((project) => {
+        const kycData = latestKYCData[project.projectName];
+        if (kycData) {
+          const sumOfDesignationWiseActive = Object.values(kycData.designationWiseActive || {}).reduce((sum, count) => sum + count, 0);
+          const sumOfActiveEmployeeIds = Object.values(kycData.designationWiseActiveEmployeeIds || {}).reduce((sum, ids) => sum + ids.length, 0);
+          
+          if (sumOfDesignationWiseActive !== kycData.activeCount) {
+            console.error(`❌ CRITICAL: ${project.projectName} - Sum of designation-wise active (${sumOfDesignationWiseActive}) != Total active (${kycData.activeCount})`);
+          }
+          
+          if (sumOfActiveEmployeeIds !== kycData.activeCount) {
+            console.error(`❌ CRITICAL: ${project.projectName} - Sum of active employee IDs (${sumOfActiveEmployeeIds}) != Total active (${kycData.activeCount})`);
+            console.log(`  Designation breakdown:`, Object.entries(kycData.designationWiseActive || {}).map(([des, count]) => ({
+              designation: des,
+              count,
+              employeeIds: kycData.designationWiseActiveEmployeeIds?.[des] || []
+            })));
+          }
+        }
+      });
+
+      // Generate Excel file
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `project-employee-comparison-${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      // Log export summary for verification
+      console.log("✅ Excel Export Summary:", {
+        totalProjects: totalProjectsExported,
+        totalDesignations: totalDesignationsExported,
+        totalEmployeeIds: totalEmployeeIdsExported,
+        totalRows: currentRow - 1
+      });
+      
+      // Log detailed breakdown for each project
+      sortedProjects.forEach((project) => {
+        const kycData = latestKYCData[project.projectName];
+        if (kycData) {
+          console.log(`📊 ${project.projectName}:`, {
+            totalActive: kycData.activeCount,
+            designationBreakdown: Object.entries(kycData.designationWiseActive || {}).map(([des, count]) => ({
+              designation: des,
+              activeCount: count,
+              employeeIds: kycData.designationWiseActiveEmployeeIds?.[des] || []
+            }))
+          });
+        }
+      });
+      
+      setToast(`Excel file exported successfully! (${totalProjectsExported} projects, ${totalDesignationsExported} designations, ${totalEmployeeIdsExported} employee IDs)`);
+    } catch (err) {
+      console.error("Error exporting Excel:", err);
+      setToast("Failed to export Excel file. Please check console for details.");
+    }
+  };
+
   const exportCsv = () => {
     const header = [];
     if (visibleCols.rownum) header.push("#");
     if (visibleCols.projectName) header.push("Project Name");
     if (visibleCols.address) header.push("Address");
-    if (visibleCols.totalManpower) header.push("Total Manpower");
-    if (visibleCols.designationCounts) header.push("Designation-wise Count");
+    if (visibleCols.totalManpower) header.push("Total Manpower (Project)");
+    if (visibleCols.designationCounts) header.push("Designation-wise Count (Project)");
+    
+    // KYC Comparison Columns
+    header.push("Active KYC Count (Employee Mgmt)");
+    header.push("Total KYC Count (Employee Mgmt)");
+    header.push("KYC vs Manpower Difference");
+    header.push("⚠ ISSUE STATUS");
+    header.push("❌ ISSUES FOUND");
+    
+    // Detailed Comparison
+    header.push("Designation Mismatches");
+    header.push("Designation-wise Detailed Comparison");
+    header.push("Project Designations (Not in KYC)");
+    header.push("KYC Designations (Not in Project)");
+    
     if (visibleCols.projectManager) header.push("Project Manager");
     if (visibleCols.status) header.push("Status");
     if (visibleCols.projectCost) header.push("Project Cost");
@@ -605,15 +1362,137 @@ export default function ProjectManagementPage() {
     if (visibleCols.designationSalaries) header.push("Designation-wise Salary");
     if (visibleCols.employeeSalaries) header.push("Employee-wise Salary");
     if (visibleCols.updatedAt) header.push("Last Updated");
-    if (visibleCols.action) header.push("Action");
 
     const rows = sortedProjects.map((p, idx) => {
       const parts = [];
+      const kycData = projectKYCData[p.projectName];
+      
       if (visibleCols.rownum) parts.push(String(idx + 1));
       if (visibleCols.projectName) parts.push(p.projectName);
       if (visibleCols.address) parts.push(p.address);
       if (visibleCols.totalManpower) parts.push(String(p.totalManpower));
-      if (visibleCols.designationCounts) parts.push(Object.entries(p.designationWiseCount || {}).map(([d, c]) => `${d}:${c}`).join("; "));
+      if (visibleCols.designationCounts) {
+        const projectDesignations = Object.entries(p.designationWiseCount || {}).map(([d, c]) => `${d}:${c}`).join("; ");
+        parts.push(projectDesignations || "None");
+      }
+      
+      // KYC Comparison Data with Issue Detection
+      if (kycData) {
+        parts.push(String(kycData.activeCount));
+        parts.push(String(kycData.totalKYC));
+        
+        const diff = kycData.totalKYC - p.totalManpower;
+        const activeDiff = kycData.activeCount - p.totalManpower;
+        const diffText = diff > 0 
+          ? `+${diff} (Total KYC exceeds Manpower - includes ${diff} rejected/left employees)` 
+          : diff < 0 
+          ? `${diff} (ERROR: KYC count is LESS than Manpower - missing ${Math.abs(diff)} employees)` 
+          : "✓ Match";
+        parts.push(diffText);
+        
+        // Issue Detection
+        const issues: string[] = [];
+        let issueStatus = "✓ OK";
+        
+        // Check manpower vs KYC mismatch
+        if (diff > 0) {
+          issues.push(`WARNING: Total KYC (${kycData.totalKYC}) exceeds Manpower (${p.totalManpower}) by ${diff} - includes rejected/left employees`);
+          issueStatus = "⚠ WARNING";
+        } else if (diff < 0) {
+          issues.push(`ERROR: Total KYC (${kycData.totalKYC}) is LESS than Manpower (${p.totalManpower}) by ${Math.abs(diff)} - missing employees`);
+          issueStatus = "❌ ERROR";
+        }
+        
+        if (activeDiff !== 0) {
+          if (activeDiff > 0) {
+            issues.push(`WARNING: Active KYC (${kycData.activeCount}) exceeds Manpower (${p.totalManpower}) by ${activeDiff}`);
+            if (issueStatus === "✓ OK") issueStatus = "⚠ WARNING";
+          } else {
+            issues.push(`INFO: Active KYC (${kycData.activeCount}) is ${Math.abs(activeDiff)} less than Manpower (${p.totalManpower}) - may have rejected/left employees`);
+          }
+        }
+        
+        // Check designation mismatches
+        const projectDesignations = new Set(Object.keys(p.designationWiseCount || {}));
+        const kycDesignations = new Set(Object.keys(kycData.designationWiseKYC));
+        const onlyInProject = Array.from(projectDesignations).filter(d => !kycDesignations.has(d));
+        const onlyInKYC = Array.from(kycDesignations).filter(d => !projectDesignations.has(d));
+        
+        if (onlyInProject.length > 0) {
+          issues.push(`WARNING: Designations in Project but NOT in KYC: ${onlyInProject.join(", ")}`);
+          if (issueStatus === "✓ OK") issueStatus = "⚠ WARNING";
+        }
+        
+        if (onlyInKYC.length > 0) {
+          issues.push(`WARNING: Designations in KYC but NOT in Project: ${onlyInKYC.join(", ")}`);
+          if (issueStatus === "✓ OK") issueStatus = "⚠ WARNING";
+        }
+        
+        // Check designation count mismatches
+        const allDesignations = new Set([...projectDesignations, ...kycDesignations]);
+        allDesignations.forEach(designation => {
+          const projectCount = p.designationWiseCount?.[designation] || 0;
+          const kycTotal = kycData.designationWiseKYC[designation] || 0;
+          
+          if (projectCount > 0 && kycTotal > 0) {
+            const countDiff = kycTotal - projectCount;
+            if (countDiff > 0) {
+              issues.push(`WARNING: ${designation} - Project has ${projectCount} but KYC has ${kycTotal} (${countDiff} extra)`);
+              if (issueStatus === "✓ OK") issueStatus = "⚠ WARNING";
+            } else if (countDiff < 0) {
+              issues.push(`ERROR: ${designation} - Project has ${projectCount} but KYC has only ${kycTotal} (missing ${Math.abs(countDiff)})`);
+              if (issueStatus !== "❌ ERROR") issueStatus = "❌ ERROR";
+            }
+          }
+        });
+        
+        parts.push(issueStatus);
+        parts.push(issues.length > 0 ? issues.join(" | ") : "No issues found");
+        
+        // Designation Mismatches
+        const mismatchDetails: string[] = [];
+        if (onlyInProject.length > 0) {
+          mismatchDetails.push(`Project Only: ${onlyInProject.join(", ")}`);
+        }
+        if (onlyInKYC.length > 0) {
+          mismatchDetails.push(`KYC Only: ${onlyInKYC.join(", ")}`);
+        }
+        parts.push(mismatchDetails.length > 0 ? mismatchDetails.join(" | ") : "✓ All designations match");
+        
+        // Detailed Designation Comparison
+        const designationComparison = Array.from(allDesignations).map((designation) => {
+          const projectCount = p.designationWiseCount?.[designation] || 0;
+          const kycActive = kycData.designationWiseActive[designation] || 0;
+          const kycTotal = kycData.designationWiseKYC[designation] || 0;
+          const countDiff = kycTotal - projectCount;
+          const status = countDiff === 0 ? "✓" : countDiff > 0 ? "⚠" : "❌";
+          return `${status} ${designation}: Project=${projectCount} | Active KYC=${kycActive} | Total KYC=${kycTotal} | Diff=${countDiff > 0 ? `+${countDiff}` : countDiff}`;
+        }).join(" || ");
+        parts.push(designationComparison || "No designation data");
+        
+        // Project Designations not in KYC
+        parts.push(onlyInProject.length > 0 ? onlyInProject.join(", ") : "None");
+        
+        // KYC Designations not in Project
+        parts.push(onlyInKYC.length > 0 ? onlyInKYC.join(", ") : "None");
+        
+      } else {
+        // No KYC data - show 0 counts
+        parts.push("0"); // Active KYC Count
+        parts.push("0"); // Total KYC Count
+        const diff = 0 - p.totalManpower;
+        const diffText = diff < 0 
+          ? `${diff} (No KYC data - Manpower set to ${p.totalManpower} but no employees found in Employee Management)` 
+          : "0 (No KYC data)";
+        parts.push(diffText);
+        parts.push("⚠ WARNING");
+        parts.push(`WARNING: No KYC data found for this project in Employee Management. Manpower is set to ${p.totalManpower} but no employees are registered.`);
+        parts.push("No KYC data - cannot compare designations");
+        parts.push("No KYC data - cannot compare designations");
+        parts.push(Object.keys(p.designationWiseCount || {}).length > 0 ? Object.keys(p.designationWiseCount || {}).join(", ") : "None");
+        parts.push("None");
+      }
+      
       if (visibleCols.projectManager) parts.push(p.projectManager ?? "");
       if (visibleCols.status) parts.push(p.status ?? "");
       if (visibleCols.projectCost) parts.push(String(p.projectCost ?? ""));
@@ -624,7 +1503,6 @@ export default function ProjectManagementPage() {
       if (visibleCols.designationSalaries) parts.push(Object.entries(p.designationWiseSalary || {}).map(([d, s]) => `${d}:${s}`).join("; "));
       if (visibleCols.employeeSalaries) parts.push((p.employeeWiseSalary || []).map(e => `${e.employeeId}:${e.salary}@${e.effectiveFrom}`).join("; "));
       if (visibleCols.updatedAt) parts.push(p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "-");
-      if (visibleCols.action) parts.push("");
       return parts.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
     });
 
@@ -920,6 +1798,12 @@ export default function ProjectManagementPage() {
                   Export CSV
                 </button>
                 <button
+                  onClick={exportExcelComparison}
+                  className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === "dark" ? "bg-green-700 text-white border-green-900 hover:bg-green-800" : "bg-green-600 text-white border-green-200 hover:bg-green-700"}`}
+                >
+                  Export Excel Comparison
+                </button>
+                <button
                   onClick={() => setShowCreate((p) => !p)}
                   className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === "dark" ? "bg-blue-700 text-white border-blue-900 hover:bg-blue-800" : "bg-blue-600 text-white border-blue-200 hover:bg-blue-700"}`}
                 >
@@ -1120,7 +2004,7 @@ export default function ProjectManagementPage() {
               <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
             ) : (
               <div className="overflow-x-auto w-full">
-                <table className="min-w-[1400px] min-w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                <table className="min-w-[1400px] text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
                   <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                     <tr>
                       {visibleCols.rownum && (<th className={`px-2 py-1 text-left font-semibold sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`} style={{ width: 56 }}>#</th>)}
@@ -1179,7 +2063,10 @@ export default function ProjectManagementPage() {
                         <td colSpan={6} className={`px-4 py-12 text-center border ${theme === "dark" ? "text-gray-400 border-blue-800" : "text-gray-500 border-blue-200"}`}>No projects found</td>
                       </tr>
                     ) : sortedProjects.map((project, idx) => (
-                      <tr key={project._id || project.projectName} className={`${theme === "dark" ? "hover:bg-blue-900" : "hover:bg-blue-50"} transition even:bg-gray-50 dark:even:bg-gray-900`}>
+                      <tr 
+                        key={project._id || project.projectName} 
+                        className={`${theme === "dark" ? "hover:bg-blue-900" : "hover:bg-blue-50"} transition even:bg-gray-50 dark:even:bg-gray-900 relative`}
+                      >
                         {visibleCols.rownum && (
                           <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === "dark" ? "bg-gray-800 text-gray-300 border-blue-800" : "bg-white text-gray-600 border-blue-200"}`} style={{ width: 56 }}>
                             {idx + 1}
