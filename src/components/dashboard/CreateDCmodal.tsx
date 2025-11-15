@@ -781,6 +781,88 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         // Also refresh the DC data to ensure consistency
         await refreshDCData();
         
+        // Update uniform requests with DC number and set status to "Issued"
+        try {
+          console.log('Updating uniform requests with DC number:', payload.dcNumber);
+          
+          // Get unique employee IDs from selected requests
+          const uniqueEmployeeIds = Array.from(new Set(selectedRequests.map(req => req.employeeId)));
+          
+          // Update each uniform request with DC number and issued status
+          const updatePromises = selectedRequests.map(async (request) => {
+            try {
+              // Update the uniform request with DC number and issued status
+              const updatePayload = {
+                dcNumber: payload.dcNumber,
+                issuedStatus: 'Issued'
+              };
+              
+              console.log(`Updating uniform request for employee ${request.employeeId} with DC number: ${payload.dcNumber}`);
+              
+              const updateRes = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${request.employeeId}/update-dc`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  requestId: request._id,
+                  dcNumber: payload.dcNumber,
+                  issuedStatus: 'Issued'
+                })
+              });
+              
+              if (updateRes.ok) {
+                const updateData = await updateRes.json();
+                console.log(`Successfully updated uniform request for ${request.employeeId}:`, updateData);
+                return { success: true, employeeId: request.employeeId };
+              } else {
+                const errorData = await updateRes.json().catch(() => ({}));
+                console.warn(`Failed to update uniform request for ${request.employeeId}:`, updateRes.status, errorData);
+                
+                // Try alternative endpoint if the first one fails
+                try {
+                  const altRes = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${request.employeeId}/edit`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      dcNumber: payload.dcNumber,
+                      issuedStatus: 'Issued'
+                    })
+                  });
+                  
+                  if (altRes.ok) {
+                    const altData = await altRes.json();
+                    console.log(`Successfully updated via alternative endpoint for ${request.employeeId}:`, altData);
+                    return { success: true, employeeId: request.employeeId };
+                  }
+                } catch (altError) {
+                  console.error(`Alternative update also failed for ${request.employeeId}:`, altError);
+                }
+                
+                return { success: false, employeeId: request.employeeId };
+              }
+            } catch (error) {
+              console.error(`Error updating uniform request for ${request.employeeId}:`, error);
+              return { success: false, employeeId: request.employeeId, error };
+            }
+          });
+          
+          const updateResults = await Promise.all(updatePromises);
+          const successful = updateResults.filter(r => r.success).length;
+          const failed = updateResults.filter(r => !r.success).length;
+          
+          console.log(`Uniform request updates: ${successful} successful, ${failed} failed`);
+          
+          if (failed > 0) {
+            console.warn(`Some uniform requests could not be updated. This may require manual update.`);
+          }
+        } catch (error) {
+          console.error('Error updating uniform requests with DC number:', error);
+          // Don't fail the DC creation if uniform request update fails
+        }
+        
         // Refresh uniform requests to get updated issuedStatus from backend
         // This ensures that requests with newly created DCs are marked as 'Issued'
         try {

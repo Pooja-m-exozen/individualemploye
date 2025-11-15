@@ -3459,6 +3459,152 @@ export default function StoreDCPage() {
     setSelectedItems(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Helper function to update uniform requests with DC number and status
+  const updateUniformRequestsWithDC = async (dcNumber: string, employeeIds: string[]): Promise<void> => {
+    if (!dcNumber || employeeIds.length === 0) {
+      console.log('Skipping uniform request update: missing DC number or employee IDs');
+      return;
+    }
+
+    try {
+      console.log('Updating uniform requests with DC number:', dcNumber, 'for employees:', employeeIds);
+      
+      // Get unique employee IDs
+      const uniqueEmployeeIds = Array.from(new Set(employeeIds.filter(id => id)));
+      
+      if (uniqueEmployeeIds.length === 0) {
+        console.log('No valid employee IDs to update');
+        return;
+      }
+
+      // Fetch all uniform requests to find matching ones
+      const uniformRes = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
+      if (!uniformRes.ok) {
+        console.error('Failed to fetch uniform requests');
+        return;
+      }
+
+      const uniformData = await uniformRes.json();
+      let allUniformRequests: any[] = [];
+
+      // Handle different API response structures
+      if (uniformData.success && uniformData.uniforms) {
+        allUniformRequests = uniformData.uniforms;
+      } else if (Array.isArray(uniformData)) {
+        allUniformRequests = uniformData;
+      } else if (uniformData.success && uniformData.employeeGroups) {
+        // Flatten employee groups - check both requests and uniforms arrays
+        allUniformRequests = uniformData.employeeGroups.flatMap((group: any) => {
+          const requests = group.requests || [];
+          const uniforms = group.uniforms || [];
+          return [...requests, ...uniforms];
+        });
+      }
+
+      // Filter uniform requests for the employee IDs we need to update
+      // Also check if DC number already exists but status is not "Issued"
+      const requestsToUpdate = allUniformRequests.filter((request: any) => {
+        if (!request.employeeId || !uniqueEmployeeIds.includes(request.employeeId)) {
+          return false;
+        }
+        
+        // If DC number exists but status is not "Issued", we should update it
+        const hasDCNumber = request.dcNumber && 
+                           request.dcNumber.trim() !== '' && 
+                           request.dcNumber.toLowerCase() !== 'n/a' &&
+                           request.dcNumber !== 'null' &&
+                           request.dcNumber !== 'undefined';
+        
+        const isNotIssued = !request.issuedStatus || 
+                           request.issuedStatus.toLowerCase() !== 'issued';
+        
+        // Update if: no DC number yet, OR has DC number but status is not Issued
+        return !hasDCNumber || (hasDCNumber && isNotIssued);
+      });
+
+      console.log(`Found ${requestsToUpdate.length} uniform requests to update`);
+
+      // Update each uniform request with DC number and issued status
+      const updatePromises = requestsToUpdate.map(async (request: any) => {
+        try {
+          // Use existing DC number if available, otherwise use the new one
+          const finalDCNumber = (request.dcNumber && 
+                                request.dcNumber.trim() !== '' && 
+                                request.dcNumber.toLowerCase() !== 'n/a' &&
+                                request.dcNumber !== 'null' &&
+                                request.dcNumber !== 'undefined') 
+                                ? request.dcNumber 
+                                : dcNumber;
+          
+          console.log(`Updating uniform request for employee ${request.employeeId} with DC number: ${finalDCNumber}`);
+          
+          const updateRes = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${request.employeeId}/update-dc`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              requestId: request._id,
+              dcNumber: finalDCNumber,
+              issuedStatus: 'Issued',
+              issuedDate: new Date().toISOString().split('T')[0] // Add issued date
+            })
+          });
+          
+          if (updateRes.ok) {
+            const updateData = await updateRes.json();
+            console.log(`Successfully updated uniform request for ${request.employeeId}:`, updateData);
+            return { success: true, employeeId: request.employeeId };
+          } else {
+            const errorData = await updateRes.json().catch(() => ({}));
+            console.warn(`Failed to update uniform request for ${request.employeeId}:`, updateRes.status, errorData);
+            
+            // Try alternative endpoint if the first one fails
+            try {
+              const altRes = await fetch(`https://cafm.zenapi.co.in/api/uniforms/${request.employeeId}/edit`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  dcNumber: finalDCNumber,
+                  issuedStatus: 'Issued',
+                  issuedDate: new Date().toISOString().split('T')[0] // Add issued date
+                })
+              });
+              
+              if (altRes.ok) {
+                const altData = await altRes.json();
+                console.log(`Successfully updated via alternative endpoint for ${request.employeeId}:`, altData);
+                return { success: true, employeeId: request.employeeId };
+              }
+            } catch (altError) {
+              console.error(`Alternative update also failed for ${request.employeeId}:`, altError);
+            }
+            
+            return { success: false, employeeId: request.employeeId };
+          }
+        } catch (error) {
+          console.error(`Error updating uniform request for ${request.employeeId}:`, error);
+          return { success: false, employeeId: request.employeeId, error };
+        }
+      });
+      
+      const updateResults = await Promise.all(updatePromises);
+      const successful = updateResults.filter(r => r.success).length;
+      const failed = updateResults.filter(r => !r.success).length;
+      
+      console.log(`Uniform request updates: ${successful} successful, ${failed} failed`);
+      
+      if (failed > 0) {
+        console.warn(`Some uniform requests could not be updated. This may require manual update.`);
+      }
+    } catch (error) {
+      console.error('Error updating uniform requests with DC number:', error);
+      // Don't fail the DC creation if uniform request update fails
+    }
+  };
+
   const createIssueFromBulkItems = async () => {
     if (!bulkIssueData.issueTo || !bulkIssueData.purpose || selectedItems.length === 0) {
       setToast("Please fill all required fields and select items");
@@ -3535,6 +3681,43 @@ export default function StoreDCPage() {
               const dcResult = await dcResponse.json();
               console.log('DC creation response:', dcResult);
               if (dcResult.success) {
+                const createdDC = dcResult.dc || dcResult.data;
+                const dcNumber = createdDC?.dcNumber || dcCreationData.dcNumber;
+                
+                // Check if this is an RDC (Retrievable DC) - skip uniform request update for RDCs
+                const isRDC = createdDC?.isRetrievable === true || 
+                             (dcNumber && dcNumber.toUpperCase().startsWith('RDC'));
+                
+                // Only update uniform requests for NRDC (Non-Retrievable DC)
+                if (!isRDC) {
+                  // Extract employee IDs - prefer from DC items (employeeMappings) if available, otherwise from issue items
+                  let employeeIds: string[] = [];
+                  
+                  if (createdDC?.items && Array.isArray(createdDC.items)) {
+                    // Extract from DC employee mappings (more accurate)
+                    employeeIds = createdDC.items.flatMap((item: any) => {
+                      if (item.employeeMappings && Array.isArray(item.employeeMappings)) {
+                        return item.employeeMappings.map((mapping: any) => mapping.employeeId);
+                      }
+                      return item.employeeId ? [item.employeeId] : [];
+                    }).filter((id: any): id is string => Boolean(id));
+                  }
+                  
+                  // Fallback to issue items if no employee IDs found in DC
+                  if (employeeIds.length === 0) {
+                    employeeIds = issueData.items
+                      .map(item => item.employeeId)
+                      .filter((id): id is string => Boolean(id));
+                  }
+                  
+                  // Update uniform requests with DC number and status (only for NRDC)
+                  if (dcNumber && employeeIds.length > 0) {
+                    await updateUniformRequestsWithDC(dcNumber, employeeIds);
+                  }
+                } else {
+                  console.log('Skipping uniform request update for RDC:', dcNumber);
+                }
+                
                 setToast("Bulk issue and DC created successfully!");
               } else {
                 setToast("Bulk issue created, but DC creation failed. Please create DC manually.");
