@@ -87,6 +87,7 @@ interface Employee {
 // Extend KycForm and Employee types to include projectName and employeeImage
 interface KycForm {
   _id?: string;
+  status?: string;
   personalDetails?: {
     employeeId?: string;
     empId?: string;
@@ -95,6 +96,7 @@ interface KycForm {
     designation?: string;
     projectName?: string;
     employeeImage?: string;
+    workType?: string;
     // ...other fields
   };
   // ...other fields
@@ -154,6 +156,7 @@ interface EmployeeWithSummary extends Employee {
   personalDetails?: {
     employeeImage?: string;
     projectName?: string;
+    workType?: string;
     // ...other fields
   };
   kycForm?: KycForm; // Add this field
@@ -173,6 +176,7 @@ export default function EmployeeManagementPage() {
   const [designationFilter, setDesignationFilter] = useState("All Designations");
   const [projectFilter, setProjectFilter] = useState("All Projects");
   const [projectOptions, setProjectOptions] = useState<string[]>(["All Projects"]);
+  const [statusFilter, setStatusFilter] = useState("All Status");
   // Excel-like header filters and selection
   const [empIdFilter, setEmpIdFilter] = useState("");
   const [nameFilter, setNameFilter] = useState("");
@@ -314,6 +318,39 @@ export default function EmployeeManagementPage() {
     ...Array.from(new Set(employees.map(e => e.designation).filter(Boolean)))
   ], [employees]);
 
+  // Helper function to get employee status text
+  const getEmployeeStatus = (emp: EmployeeWithSummary): string | null => {
+    // Check KYC form status
+    const kycForm = emp.kycForm;
+    if (kycForm) {
+      const status = String(kycForm.status || "").toLowerCase().trim();
+      const workType = String(kycForm.personalDetails?.workType || "").toLowerCase().trim();
+      
+      if (status === "rejected") return "REJECTED";
+      if (status === "exited" || status === "left" || workType === "left") return "LEFT";
+    }
+    
+    // Also check summary KYC status if available
+    if (emp.summary?.kyc?.status) {
+      const summaryStatus = String(emp.summary.kyc.status).toLowerCase().trim();
+      if (summaryStatus === "rejected") return "REJECTED";
+      if (summaryStatus === "exited" || summaryStatus === "left") return "LEFT";
+    }
+    
+    // Check personalDetails workType directly from employee object
+    if (emp.personalDetails?.workType) {
+      const workType = String(emp.personalDetails.workType).toLowerCase().trim();
+      if (workType === "left") return "LEFT";
+    }
+    
+    return null;
+  };
+
+  // Helper function to check if employee should be grayed out (left/exited/rejected)
+  const hasEmployeeLeft = (emp: EmployeeWithSummary): boolean => {
+    return getEmployeeStatus(emp) !== null;
+  };
+
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp: EmployeeWithSummary) => {
       const matchesSearch =
@@ -327,9 +364,16 @@ export default function EmployeeManagementPage() {
         emp.projectName === projectFilter;
       const matchesHeaderEmpId = empIdFilter === "" || emp.employeeId.toLowerCase().includes(empIdFilter.toLowerCase());
       const matchesHeaderName = nameFilter === "" || emp.fullName.toLowerCase().includes(nameFilter.toLowerCase());
-      return matchesSearch && matchesDesignation && matchesProject && matchesHeaderEmpId && matchesHeaderName;
+      // Status filter logic
+      const empStatus = getEmployeeStatus(emp);
+      const matchesStatus =
+        statusFilter === "All Status" ||
+        (statusFilter === "Active" && empStatus === null) ||
+        (statusFilter === "Left" && empStatus === "LEFT") ||
+        (statusFilter === "Rejected" && empStatus === "REJECTED");
+      return matchesSearch && matchesDesignation && matchesProject && matchesHeaderEmpId && matchesHeaderName && matchesStatus;
     });
-  }, [search, employees, designationFilter, projectFilter, empIdFilter, nameFilter]);
+  }, [search, employees, designationFilter, projectFilter, empIdFilter, nameFilter, statusFilter]);
 
   const sortedEmployees = useMemo(() => {
     const items = [...filteredEmployees];
@@ -621,6 +665,23 @@ export default function EmployeeManagementPage() {
               ))}
             </select>
           </div>
+          {/* Status Dropdown */}
+          <div className="relative w-44 min-w-[130px]">
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                theme === "dark"
+                  ? "bg-gray-800 border-blue-900 text-white"
+                  : "bg-white border-gray-200 text-black"
+              }`}
+            >
+              <option value="All Status">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Left">Left</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
           {/* Search Bar */}
           <div className="relative flex-1 min-w-[180px] max-w-xs">
             <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
@@ -763,40 +824,59 @@ export default function EmployeeManagementPage() {
                   <tr>
                     <td colSpan={5} className={`px-4 py-12 text-center border ${theme === "dark" ? "text-gray-400 border-blue-800" : "text-gray-500 border-blue-200"}`}>No employees found</td>
                   </tr>
-                ) : sortedEmployees.map((emp, idx) => (
-                  <tr key={emp.employeeId} id={`emp-${emp.employeeId}`} className={`${theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition"} even:bg-gray-50 dark:even:bg-gray-900`}>
-                    {visibleCols.rownum && (<td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>)}
-                    {visibleCols.photo && (
-                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                        <Image
-                          src={brokenImgUrls[emp.personalDetails?.employeeImage || ""] ? PLACEHOLDER_DATA_URL : resolveImg(emp.personalDetails?.employeeImage)}
-                          alt={emp.fullName}
-                          width={32}
-                          height={32}
-                          className={`rounded object-cover border ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}
-                          onError={(e) => {
-                            const target = e.currentTarget as HTMLImageElement & { src: string };
-                            const failedUrl = emp.personalDetails?.employeeImage;
-                            if (failedUrl) {
-                              setBrokenImgUrls(prev => ({ ...prev, [failedUrl]: true }));
-                            }
-                            target.src = PLACEHOLDER_DATA_URL;
-                          }}
-                        />
+                ) : sortedEmployees.map((emp, idx) => {
+                  const isLeft = hasEmployeeLeft(emp);
+                  const statusText = getEmployeeStatus(emp);
+                  return (
+                  <tr key={emp.employeeId} id={`emp-${emp.employeeId}`} className={`${isLeft ? (theme === "dark" ? "bg-gray-700 opacity-60" : "bg-gray-200 opacity-60") : (theme === "dark" ? "hover:bg-blue-900 transition" : "hover:bg-blue-50 transition")} ${!isLeft && idx % 2 === 1 ? (theme === "dark" ? "bg-gray-900" : "bg-gray-50") : ""} relative`}>
+                    {visibleCols.rownum && (
+                      <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${isLeft ? (theme === 'dark' ? 'bg-gray-700 text-gray-400 border-gray-600' : 'bg-gray-200 text-gray-500 border-gray-300') : (theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200')}`}>
+                        {idx + 1}
+                        {isLeft && (
+                          <span className="ml-1 text-red-500 font-bold">●</span>
+                        )}
                       </td>
                     )}
-                    {visibleCols.employeeId && (<td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{emp.employeeId}</td>)}
+                    {visibleCols.photo && (
+                      <td className={`px-2 py-1 border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
+                        <div className={isLeft ? "opacity-50" : ""}>
+                          <Image
+                            src={brokenImgUrls[emp.personalDetails?.employeeImage || ""] ? PLACEHOLDER_DATA_URL : resolveImg(emp.personalDetails?.employeeImage)}
+                            alt={emp.fullName}
+                            width={32}
+                            height={32}
+                            className={`rounded object-cover border ${isLeft ? (theme === 'dark' ? 'border-gray-600' : 'border-gray-300') : (theme === 'dark' ? 'border-blue-900' : 'border-blue-200')}`}
+                            onError={(e) => {
+                              const target = e.currentTarget as HTMLImageElement & { src: string };
+                              const failedUrl = emp.personalDetails?.employeeImage;
+                              if (failedUrl) {
+                                setBrokenImgUrls(prev => ({ ...prev, [failedUrl]: true }));
+                              }
+                              target.src = PLACEHOLDER_DATA_URL;
+                            }}
+                          />
+                        </div>
+                      </td>
+                    )}
+                    {visibleCols.employeeId && (
+                      <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${isLeft ? (theme === "dark" ? "text-gray-400 border-gray-600" : "text-gray-500 border-gray-300") : (theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200")}`}>
+                        {emp.employeeId}
+                        {statusText && (
+                          <span className={`ml-2 px-2 py-0.5 text-xs font-bold text-white rounded ${statusText === "REJECTED" ? "bg-red-600" : "bg-red-500"}`}>{statusText}</span>
+                        )}
+                      </td>
+                    )}
                     {visibleCols.name && (
-                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={emp.fullName}>{emp.fullName}</div></td>
+                      <td className={`px-2 py-1 border ${isLeft ? (theme === "dark" ? "border-gray-600 text-gray-400" : "border-gray-300 text-gray-500") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}><div className="truncate" title={emp.fullName}>{emp.fullName}</div></td>
                     )}
                     {visibleCols.designation && (
-                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={emp.designation}>{emp.designation}</div></td>
+                      <td className={`px-2 py-1 border ${isLeft ? (theme === "dark" ? "border-gray-600 text-gray-400" : "border-gray-300 text-gray-500") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}><div className="truncate" title={emp.designation}>{emp.designation}</div></td>
                     )}
                     {visibleCols.project && (
-                      <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={emp.projectName}>{emp.projectName}</div></td>
+                      <td className={`px-2 py-1 border ${isLeft ? (theme === 'dark' ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-300') : (theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200')}`}><div className="truncate" title={emp.projectName}>{emp.projectName}</div></td>
                     )}
                     {visibleCols.kyc && (
-                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <td className={`px-2 py-1 text-center border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
                         <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
                           if (emp.kycForm) {
                             const kycData = emp.kycForm as unknown as KYCData;
@@ -808,7 +888,7 @@ export default function EmployeeManagementPage() {
                       </td>
                     )}
                     {visibleCols.idCard && (
-                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <td className={`px-2 py-1 text-center border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
                         <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
                           const bloodGroup = (emp.personalDetails as Record<string, unknown>)?.bloodGroup as string || '';
                           let employeeImage = (emp.personalDetails as Record<string, unknown>)?.employeeImage as string;
@@ -832,28 +912,35 @@ export default function EmployeeManagementPage() {
                       </td>
                     )}
                     {visibleCols.uniform && (
-                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => setUniformModal({ open: true, employeeId: emp.employeeId })}>
+                      <td className={`px-2 py-1 text-center border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
+                          setUniformModal({ open: true, employeeId: emp.employeeId });
+                        }}>
                           <FaEye />
                         </button>
                       </td>
                     )}
                     {visibleCols.attendance && (
-                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => setAttendanceModal({ open: true, employeeId: emp.employeeId, employeeName: emp.fullName })}>
+                      <td className={`px-2 py-1 text-center border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
+                          setAttendanceModal({ open: true, employeeId: emp.employeeId, employeeName: emp.fullName });
+                        }}>
                           <FaEye />
                         </button>
                       </td>
                     )}
                     {visibleCols.payslip && (
-                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
-                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => alert('View Payslip')}>
+                      <td className={`px-2 py-1 text-center border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
+                        <button className="px-3 py-1 rounded font-semibold shadow text-gray-700 hover:bg-gray-100" onClick={() => {
+                          alert('View Payslip');
+                        }}>
                           <FaEye />
                         </button>
                       </td>
                     )}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             </>

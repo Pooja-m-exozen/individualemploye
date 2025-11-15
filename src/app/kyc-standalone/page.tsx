@@ -1319,12 +1319,15 @@ function StandaloneKYCPageContent() {
           <div className="flex items-center space-x-4">
             <div className="flex-shrink-0">
               {employeeImage ? (
-                <Image
+                <img
                   src={URL.createObjectURL(employeeImage)}
                   alt="Employee"
-                  width={100}
-                  height={100}
                   className="w-24 h-24 rounded-full object-cover border-2 border-gray-300"
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    console.error('Image load error:', e);
+                    setError('Failed to load image. Please try a different file.');
+                  }}
                 />
               ) : (
                 <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center">
@@ -1332,13 +1335,31 @@ function StandaloneKYCPageContent() {
                 </div>
               )}
             </div>
-            <div>
+            <div className="flex-1">
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setEmployeeImage(e.target.files?.[0] || null)}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  if (file) {
+                    // Validate it's actually an image file
+                    if (file.type.startsWith('image/')) {
+                      setEmployeeImage(file);
+                    } else {
+                      setError('Please select a valid image file');
+                      e.target.value = ''; // Reset input
+                    }
+                  } else {
+                    setEmployeeImage(null);
+                  }
+                }}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
+              {employeeImage && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Selected: {employeeImage.name} ({(employeeImage.size / 1024).toFixed(2)} KB)
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -1541,7 +1562,7 @@ function StandaloneKYCPageContent() {
                 {activeSection === sections[sections.length - 1].id ? (
                   <button
                     onClick={handleSubmit}
-                    disabled={loading || !personalDetails.employeeId || !personalDetails.projectName || !personalDetails.fullName || !personalDetails.phoneNumber || !personalDetails.designation || !personalDetails.dateOfJoining}
+                    disabled={loading}
                     className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center"
                   >
                     {loading ? (
@@ -1569,9 +1590,24 @@ function StandaloneKYCPageContent() {
                 )}
               </div>
 
-              {message && (
-                <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
-                  {message}
+              {message && !showUploadModal && (
+                <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FaCheckCircle className="w-5 h-5" />
+                    <span>{message}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setMessage(null);
+                      setError(null);
+                      // Form is already reset, just ensure we're on the first section
+                      setActiveSection(sections[0].id);
+                      setCompletedSections([]);
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                  >
+                    Add Another KYC
+                  </button>
                 </div>
               )}
 
@@ -1587,8 +1623,33 @@ function StandaloneKYCPageContent() {
 
       {/* Modal for document upload after KYC creation */}
       {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className={`rounded-2xl p-8 w-full max-w-lg shadow-xl border ${theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-white border-blue-200"}`}>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowUploadModal(false);
+              setKycCreatedEmployeeId(null);
+              setDocUploadComplete(false);
+              setMessage(null);
+              setError(null);
+            }
+          }}
+        >
+          <div className={`rounded-2xl p-8 w-full max-w-lg shadow-xl border relative ${theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-white border-blue-200"}`}>
+            {/* Close X Button */}
+            <button
+              onClick={() => {
+                setShowUploadModal(false);
+                setKycCreatedEmployeeId(null);
+                setDocUploadComplete(false);
+                setMessage(null);
+                setError(null);
+              }}
+              className={`absolute top-4 right-4 p-2 rounded-full hover:bg-opacity-80 ${theme === "dark" ? "text-gray-400 hover:bg-gray-700" : "text-gray-500 hover:bg-gray-100"}`}
+            >
+              <FaTimesCircle className="w-5 h-5" />
+            </button>
+            
             {/* Modal State Management */}
             {(!docUploadComplete || docUploadComplete === "single" || docUploadComplete === "multiple") ? (
               <>
@@ -1731,17 +1792,34 @@ function StandaloneKYCPageContent() {
                   </div>
                 </div>
 
-                {/* Close Modal Button */}
-                <div className="flex justify-end">
+                {/* Close Modal Buttons */}
+                <div className="flex justify-between gap-4 mt-6">
                   <button
                     onClick={() => {
                       setShowUploadModal(false);
                       setKycCreatedEmployeeId(null);
                       setDocUploadComplete(false);
+                      setMessage(null);
+                      setError(null);
                     }}
                     className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
                   >
                     Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowUploadModal(false);
+                      setKycCreatedEmployeeId(null);
+                      setDocUploadComplete(false);
+                      setMessage(null);
+                      setError(null);
+                      // Form is already reset, just ensure we're on the first section
+                      setActiveSection(sections[0].id);
+                      setCompletedSections([]);
+                    }}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Add Another KYC
                   </button>
                 </div>
               </>
@@ -1753,16 +1831,35 @@ function StandaloneKYCPageContent() {
                 <p className={`mb-6 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
                   All documents have been uploaded successfully.
                 </p>
-                <button
-                  onClick={() => {
-                    setShowUploadModal(false);
-                    setKycCreatedEmployeeId(null);
-                    setDocUploadComplete(false);
-                  }}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Continue
-                </button>
+                <div className="flex justify-center gap-4">
+                  <button
+                    onClick={() => {
+                      setShowUploadModal(false);
+                      setKycCreatedEmployeeId(null);
+                      setDocUploadComplete(false);
+                      setMessage(null);
+                      setError(null);
+                    }}
+                    className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowUploadModal(false);
+                      setKycCreatedEmployeeId(null);
+                      setDocUploadComplete(false);
+                      setMessage(null);
+                      setError(null);
+                      // Form is already reset, just ensure we're on the first section
+                      setActiveSection(sections[0].id);
+                      setCompletedSections([]);
+                    }}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Add Another KYC
+                  </button>
+                </div>
               </div>
             )}
           </div>
