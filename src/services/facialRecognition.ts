@@ -249,7 +249,7 @@ export async function enrollFace(
     let data;
     try {
       data = await response.json();
-    } catch (parseError) {
+    } catch {
       // If response is not JSON, get text
       const text = await response.text();
       throw new Error(`Server error: ${response.status} ${response.statusText}. ${text}`);

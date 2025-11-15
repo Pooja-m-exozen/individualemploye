@@ -32,9 +32,9 @@ export const addProjectFilterToUrl = (
  * @returns Query parameters with project filter if applicable
  */
 export const addProjectFilterToParams = (
-  params: Record<string, any> = {},
+  params: Record<string, string | number | boolean> = {},
   projectField: string = 'projectName'
-): Record<string, any> => {
+): Record<string, string | number | boolean> => {
   if (isProjectAdmin()) {
     const project = getUserProject();
     if (project) {
@@ -53,7 +53,7 @@ export const addProjectFilterToParams = (
  * @param projectField - Field name containing project name (default: 'projectName')
  * @returns Filtered array
  */
-export const filterItemsByProject = <T extends Record<string, any>>(
+export const filterItemsByProject = <T extends Record<string, unknown>>(
   items: T[],
   projectField: string = 'projectName'
 ): T[] => {

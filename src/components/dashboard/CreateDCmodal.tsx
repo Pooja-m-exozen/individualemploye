@@ -786,7 +786,7 @@ export default function CreateDCModal({ onClose, theme, setDcData, dcData, refre
         try {
           const uniformRes = await fetch("https://cafm.zenapi.co.in/api/uniforms/all");
           if (uniformRes.ok) {
-            const uniformData: UniformApiResponse = await uniformRes.json();
+            await uniformRes.json();
             // The uniform requests will now have updated issuedStatus
             // The useEffect will automatically filter them out on next render
             console.log('Refreshed uniform requests after DC creation');

@@ -42,9 +42,9 @@ export const useProjectFilter = () => {
    * Add project filter to existing query params
    */
   const addProjectFilter = (
-    existingParams: Record<string, any> = {},
+    existingParams: Record<string, string | number | boolean> = {},
     fieldName: string = 'projectName'
-  ): Record<string, any> => {
+  ): Record<string, string | number | boolean> => {
     if (projectName) {
       return {
         ...existingParams,
@@ -57,7 +57,7 @@ export const useProjectFilter = () => {
   /**
    * Filter array of items by project
    */
-  const filterByProject = <T extends Record<string, any>>(
+  const filterByProject = <T extends Record<string, unknown>>(
     items: T[],
     projectField: string = 'projectName'
   ): T[] => {

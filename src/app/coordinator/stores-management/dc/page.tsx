@@ -2711,7 +2711,7 @@ export default function StoreDCPage() {
      
       let siNoCounter = 1; // Counter for SI No. that increments for each row
       
-      rdc.items.forEach((item, index) => {
+      rdc.items.forEach((item) => {
         // Create one row per item with total quantity (aggregated)
         const itemName = item.uniformType || item.name || "N/A";
         
@@ -3948,7 +3948,7 @@ export default function StoreDCPage() {
 
       let slNoCounter = 1; // Counter for SL No. that increments for each row
       
-      rdc.items.forEach((item, index) => {
+      rdc.items.forEach((item) => {
         const assetDescription = Array.isArray(item.uniformType) 
           ? item.uniformType.join(", ") 
           : String(item.uniformType || item.name || "N/A");
@@ -3970,7 +3970,7 @@ export default function StoreDCPage() {
         
         // If item has serial numbers, create a row for each serial number
         if (item.serialNumbers && item.serialNumbers.length > 0) {
-          item.serialNumbers.forEach((serial, serialIndex) => {
+          item.serialNumbers.forEach((serial) => {
             // Use the itemCode from serial entry, fallback to base assetCode
             const itemCode = serial.itemCode || baseAssetCode;
             // Format: "ASS-WA-WAL/123" (itemCode/serialNumber)
