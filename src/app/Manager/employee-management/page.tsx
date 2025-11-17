@@ -460,7 +460,7 @@ export default function EmployeeManagementPage() {
     setUpdatingStatus(prev => ({ ...prev, [employeeId]: true }));
     try {
       // Find the employee's KYC form
-      let employee = employees.find(emp => emp.employeeId === employeeId);
+      const employee = employees.find(emp => emp.employeeId === employeeId);
       let kycForm = employee?.kycForm;
 
       // If KYC form not found in employee object, try to fetch it directly
@@ -508,7 +508,17 @@ export default function EmployeeManagementPage() {
         workTypeValue = "left";
       }
 
-      const updateData: any = {
+      interface UpdateKYCData {
+        status: string;
+        personalDetails: {
+          workType: string;
+          exitDate?: string;
+          [key: string]: unknown;
+        };
+        [key: string]: unknown;
+      }
+      
+      const updateData: UpdateKYCData = {
         ...kycForm,
         status: statusValue,
         personalDetails: {

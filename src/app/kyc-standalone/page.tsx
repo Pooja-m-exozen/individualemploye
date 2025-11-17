@@ -1319,6 +1319,7 @@ function StandaloneKYCPageContent() {
           <div className="flex items-center space-x-4">
             <div className="flex-shrink-0">
               {employeeImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={URL.createObjectURL(employeeImage)}
                   alt="Employee"
