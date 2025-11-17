@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
-import { FaSearch, FaCheckCircle, FaEye } from "react-icons/fa";
+import { FaSearch, FaCheckCircle, FaEye, FaSpinner } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 import ViewKYCModal from '@/components/dashboard/ViewKYCModal';
@@ -190,6 +190,7 @@ export default function EmployeeManagementPage() {
     name: boolean;
     designation: boolean;
     project: boolean;
+    status: boolean;
     kyc: boolean;
     idCard: boolean;
     uniform: boolean;
@@ -203,12 +204,17 @@ export default function EmployeeManagementPage() {
     name: true,
     designation: true,
     project: true,
+    status: true,
     kyc: true,
     idCard: true,
     uniform: true,
     attendance: true,
     payslip: true,
   });
+  const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>({});
+  const [exitDateModal, setExitDateModal] = useState<{ open: boolean; employeeId: string | null; employeeName: string | null; newStatus: "Left" | "Exited" | null; previousStatus: string | null }>({ open: false, employeeId: null, employeeName: null, newStatus: null, previousStatus: null });
+  const [exitDate, setExitDate] = useState("");
+  const [statusDropdownValues, setStatusDropdownValues] = useState<Record<string, string>>({});
   // Track failed image URLs to show a placeholder instead of broken image
   const [brokenImgUrls, setBrokenImgUrls] = useState<Record<string, boolean>>({});
   // Track which employee row's workflow dropdown is open
@@ -281,6 +287,7 @@ export default function EmployeeManagementPage() {
             summary,
             personalDetails: emp.personalDetails,
             projectName: emp.projectName,
+            kycForm: emp.kycForm, // Explicitly preserve kycForm
           } as EmployeeWithSummary;
         } catch {
           return {
@@ -296,6 +303,7 @@ export default function EmployeeManagementPage() {
             summary: null,
             personalDetails: emp.personalDetails,
             projectName: emp.projectName,
+            kycForm: emp.kycForm, // Explicitly preserve kycForm
           } as EmployeeWithSummary;
         }
       });
@@ -327,14 +335,16 @@ export default function EmployeeManagementPage() {
       const workType = String(kycForm.personalDetails?.workType || "").toLowerCase().trim();
       
       if (status === "rejected") return "REJECTED";
-      if (status === "exited" || status === "left" || workType === "left") return "LEFT";
+      if (status === "exited") return "EXITED";
+      if (status === "left" || workType === "left") return "LEFT";
     }
     
     // Also check summary KYC status if available
     if (emp.summary?.kyc?.status) {
       const summaryStatus = String(emp.summary.kyc.status).toLowerCase().trim();
       if (summaryStatus === "rejected") return "REJECTED";
-      if (summaryStatus === "exited" || summaryStatus === "left") return "LEFT";
+      if (summaryStatus === "exited") return "EXITED";
+      if (summaryStatus === "left") return "LEFT";
     }
     
     // Check personalDetails workType directly from employee object
@@ -369,7 +379,7 @@ export default function EmployeeManagementPage() {
       const matchesStatus =
         statusFilter === "All Status" ||
         (statusFilter === "Active" && empStatus === null) ||
-        (statusFilter === "Left" && empStatus === "LEFT") ||
+        (statusFilter === "Left" && (empStatus === "LEFT" || empStatus === "EXITED")) ||
         (statusFilter === "Rejected" && empStatus === "REJECTED");
       return matchesSearch && matchesDesignation && matchesProject && matchesHeaderEmpId && matchesHeaderName && matchesStatus;
     });
@@ -421,6 +431,7 @@ export default function EmployeeManagementPage() {
     if (visibleCols.name) header.push("Name");
     if (visibleCols.designation) header.push("Designation");
     if (visibleCols.project) header.push("Project");
+    if (visibleCols.status) header.push("Status");
     const rows = sortedEmployees.map((emp, idx) => {
       const parts: string[] = [];
       if (visibleCols.rownum) parts.push(String(idx + 1));
@@ -429,6 +440,7 @@ export default function EmployeeManagementPage() {
       if (visibleCols.name) parts.push(emp.fullName || "");
       if (visibleCols.designation) parts.push(emp.designation || "");
       if (visibleCols.project) parts.push(emp.projectName || "");
+      if (visibleCols.status) parts.push(getEmployeeStatus(emp) || "Active");
       return parts.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
     });
     const csv = [header.join(","), ...rows].join("\n");
@@ -441,6 +453,131 @@ export default function EmployeeManagementPage() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  // Function to update employee status
+  const updateEmployeeStatus = async (employeeId: string, newStatus: "Active" | "Left" | "Exited", exitDateValue?: string) => {
+    setUpdatingStatus(prev => ({ ...prev, [employeeId]: true }));
+    try {
+      // Find the employee's KYC form
+      let employee = employees.find(emp => emp.employeeId === employeeId);
+      let kycForm = employee?.kycForm;
+
+      // If KYC form not found in employee object, try to fetch it directly
+      if (!employee || !kycForm) {
+        try {
+          const kycRes = await fetch(`https://cafm.zenapi.co.in/api/kyc/${employeeId}`);
+          if (kycRes.ok) {
+            const kycData = await kycRes.json();
+            // Handle different response formats
+            const fetchedKycForm = kycData.kycForm || kycData.kycData || kycData;
+            if (!fetchedKycForm || !fetchedKycForm.personalDetails) {
+              throw new Error("Invalid KYC form data received");
+            }
+            kycForm = fetchedKycForm;
+          } else {
+            const errorData = await kycRes.json().catch(() => ({}));
+            throw new Error(errorData.message || errorData.reason || "Failed to fetch KYC form");
+          }
+        } catch (fetchError) {
+          const errorMsg = fetchError instanceof Error ? fetchError.message : "Unknown error";
+          throw new Error(`Employee KYC form not found for employee ID: ${employeeId}. ${errorMsg}`);
+        }
+      }
+
+      // Ensure kycForm is defined before proceeding
+      if (!kycForm || !kycForm.personalDetails) {
+        throw new Error(`KYC form is required for employee ID: ${employeeId}`);
+      }
+
+      // API endpoint uses employeeId, not MongoDB _id
+      const apiEmployeeId = kycForm.personalDetails.employeeId || employeeId;
+
+      // Prepare update data based on status
+      let statusValue: string;
+      let workTypeValue: string;
+      
+      if (newStatus === "Active") {
+        statusValue = "Pending"; // or "Approved" depending on your business logic
+        workTypeValue = "";
+      } else if (newStatus === "Left") {
+        statusValue = "left";
+        workTypeValue = "left";
+      } else { // Exited
+        statusValue = "exited";
+        workTypeValue = "left";
+      }
+
+      const updateData: any = {
+        ...kycForm,
+        status: statusValue,
+        personalDetails: {
+          ...kycForm.personalDetails,
+          workType: workTypeValue,
+          ...(exitDateValue && { exitDate: exitDateValue }),
+        },
+      };
+
+      // Call API to update status - use employeeId in URL, not MongoDB _id
+      const response = await fetch(`https://cafm.zenapi.co.in/api/kyc/${apiEmployeeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to update employee status');
+      }
+
+      // Refresh employee list
+      await fetchEmployees();
+      // Close modal if open
+      setExitDateModal({ open: false, employeeId: null, employeeName: null, newStatus: null, previousStatus: null });
+      setExitDate("");
+      // Clear stored dropdown value
+      if (employeeId) {
+        setStatusDropdownValues(prev => {
+          const updated = { ...prev };
+          delete updated[employeeId];
+          return updated;
+        });
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to update employee status');
+    } finally {
+      setUpdatingStatus(prev => ({ ...prev, [employeeId]: false }));
+    }
+  };
+
+  // Handle status change - show modal for Left/Exited
+  const handleStatusChange = (employeeId: string, employeeName: string, newStatus: "Active" | "Left" | "Exited", currentStatus: string) => {
+    if (newStatus === "Left" || newStatus === "Exited") {
+      // Show modal to get exit date
+      setExitDateModal({ open: true, employeeId, employeeName, newStatus, previousStatus: currentStatus });
+      setExitDate("");
+      // Store the current status in case user cancels
+      setStatusDropdownValues(prev => ({ ...prev, [employeeId]: currentStatus }));
+    } else if (newStatus === "Active" && currentStatus !== "Active") {
+      // Direct update for Active status
+      if (confirm(`Are you sure you want to update ${employeeName}'s status to Active?`)) {
+        updateEmployeeStatus(employeeId, newStatus);
+      } else {
+        // Reset dropdown if cancelled
+        setStatusDropdownValues(prev => ({ ...prev, [employeeId]: currentStatus }));
+      }
+    }
+  };
+
+  // Handle exit date submission
+  const handleExitDateSubmit = () => {
+    if (!exitDateModal.employeeId || !exitDateModal.newStatus || !exitDate) {
+      alert("Please enter an exit date");
+      return;
+    }
+    if (confirm(`Are you sure you want to update ${exitDateModal.employeeName}'s status to ${exitDateModal.newStatus} with exit date ${exitDate}?`)) {
+      updateEmployeeStatus(exitDateModal.employeeId, exitDateModal.newStatus, exitDate);
+    }
   };
 
   // Dummy data for each step
@@ -755,6 +892,7 @@ export default function EmployeeManagementPage() {
                   {visibleCols.name && (<th onClick={() => onSort('name')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Name {sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
                   {visibleCols.designation && (<th onClick={() => onSort('designation')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Designation {sortBy === 'designation' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
                   {visibleCols.project && (<th onClick={() => onSort('project')} className={`px-2 py-2 text-left font-bold uppercase cursor-pointer select-none whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Project {sortBy === 'project' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>)}
+                  {visibleCols.status && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-32 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>)}
                   {visibleCols.kyc && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>KYC</th>)}
                   {visibleCols.idCard && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>ID Card</th>)}
                   {visibleCols.uniform && (<th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Uniform</th>)}
@@ -812,6 +950,20 @@ export default function EmployeeManagementPage() {
                       </select>
                     </th>
                   )}
+                  {visibleCols.status && (
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <select
+                        value={statusFilter}
+                        onChange={e => setStatusFilter(e.target.value)}
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      >
+                        <option value="All Status">All Status</option>
+                        <option value="Active">Active</option>
+                        <option value="Left">Left</option>
+                        <option value="Rejected">Rejected</option>
+                      </select>
+                    </th>
+                  )}
                   {visibleCols.kyc && (<th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>)}
                   {visibleCols.idCard && (<th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>)}
                   {visibleCols.uniform && (<th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>)}
@@ -822,7 +974,7 @@ export default function EmployeeManagementPage() {
               <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
                 {sortedEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className={`px-4 py-12 text-center border ${theme === "dark" ? "text-gray-400 border-blue-800" : "text-gray-500 border-blue-200"}`}>No employees found</td>
+                    <td colSpan={Object.values(visibleCols).filter(Boolean).length} className={`px-4 py-12 text-center border ${theme === "dark" ? "text-gray-400 border-blue-800" : "text-gray-500 border-blue-200"}`}>No employees found</td>
                   </tr>
                 ) : sortedEmployees.map((emp, idx) => {
                   const isLeft = hasEmployeeLeft(emp);
@@ -874,6 +1026,33 @@ export default function EmployeeManagementPage() {
                     )}
                     {visibleCols.project && (
                       <td className={`px-2 py-1 border ${isLeft ? (theme === 'dark' ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-300') : (theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200')}`}><div className="truncate" title={emp.projectName}>{emp.projectName}</div></td>
+                    )}
+                    {visibleCols.status && (
+                      <td className={`px-2 py-1 border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={statusDropdownValues[emp.employeeId] || (statusText === "LEFT" ? "Left" : statusText === "EXITED" ? "Exited" : statusText === "REJECTED" ? "Rejected" : "Active")}
+                            onChange={(e) => {
+                              const newStatus = e.target.value as "Active" | "Left" | "Exited";
+                              const currentStatus = statusText === "LEFT" ? "Left" : statusText === "EXITED" ? "Exited" : statusText === "REJECTED" ? "Rejected" : "Active";
+                              if (newStatus !== currentStatus) {
+                                // Update dropdown value immediately for better UX
+                                setStatusDropdownValues(prev => ({ ...prev, [emp.employeeId]: newStatus }));
+                                handleStatusChange(emp.employeeId, emp.fullName, newStatus, currentStatus);
+                              }
+                            }}
+                            disabled={updatingStatus[emp.employeeId] || statusText === "REJECTED"}
+                            className={`w-full px-2 py-1 text-xs rounded border ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "bg-white border-gray-300 text-black"} ${updatingStatus[emp.employeeId] || statusText === "REJECTED" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                          >
+                            <option value="Active">Active</option>
+                            <option value="Left">Left</option>
+                            <option value="Exited">Exited</option>
+                          </select>
+                          {updatingStatus[emp.employeeId] && (
+                            <FaSpinner className="inline-block animate-spin text-blue-500" size={14} />
+                          )}
+                        </div>
+                      </td>
                     )}
                     {visibleCols.kyc && (
                       <td className={`px-2 py-1 text-center border ${isLeft ? (theme === "dark" ? "border-gray-600" : "border-gray-300") : (theme === "dark" ? "border-blue-800" : "border-blue-200")}`}>
@@ -1057,6 +1236,94 @@ export default function EmployeeManagementPage() {
           employeeName={attendanceModal.employeeName}
           theme={theme} 
         />
+      )}
+      {/* Exit Date Modal */}
+      {exitDateModal.open && exitDateModal.employeeId && exitDateModal.employeeName && exitDateModal.newStatus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className={`rounded-2xl shadow-xl p-6 w-full max-w-md relative ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-gray-900"}`}>
+            <button
+              className={`absolute top-4 right-4 text-2xl ${theme === "dark" ? "text-gray-400 hover:text-gray-200" : "text-gray-400 hover:text-gray-700"}`}
+              onClick={() => {
+                // Reset dropdown to previous status if cancelled
+                if (exitDateModal.employeeId && exitDateModal.previousStatus) {
+                  setStatusDropdownValues(prev => ({ ...prev, [exitDateModal.employeeId!]: exitDateModal.previousStatus! }));
+                }
+                setExitDateModal({ open: false, employeeId: null, employeeName: null, newStatus: null, previousStatus: null });
+                setExitDate("");
+              }}
+              aria-label="Close"
+            >
+              &times;
+            </button>
+            <h2 className={`text-2xl font-bold mb-4 ${theme === "dark" ? "text-blue-300" : "text-blue-700"}`}>
+              Update Employee Status
+            </h2>
+            <div className="mb-4">
+              <p className={`${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                Employee: <span className="font-semibold">{exitDateModal.employeeName}</span>
+              </p>
+              <p className={`${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                New Status: <span className="font-semibold">{exitDateModal.newStatus}</span>
+              </p>
+            </div>
+            <div className="mb-6">
+              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                Exit Date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={exitDate}
+                onChange={(e) => setExitDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-300 text-black"
+                }`}
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  // Reset dropdown to previous status if cancelled
+                  if (exitDateModal.employeeId && exitDateModal.previousStatus) {
+                    setStatusDropdownValues(prev => ({ ...prev, [exitDateModal.employeeId!]: exitDateModal.previousStatus! }));
+                  }
+                  setExitDateModal({ open: false, employeeId: null, employeeName: null, newStatus: null, previousStatus: null });
+                  setExitDate("");
+                }}
+                className={`px-4 py-2 rounded-lg font-semibold border ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-gray-700 text-white hover:bg-gray-700"
+                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExitDateSubmit}
+                disabled={!exitDate || updatingStatus[exitDateModal.employeeId]}
+                className={`px-6 py-2 rounded-lg font-semibold shadow ${
+                  !exitDate || updatingStatus[exitDateModal.employeeId]
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : theme === "dark"
+                    ? "bg-blue-700 text-white hover:bg-blue-800"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+              >
+                {updatingStatus[exitDateModal.employeeId] ? (
+                  <span className="flex items-center gap-2">
+                    <FaSpinner className="animate-spin" />
+                    Updating...
+                  </span>
+                ) : (
+                  "Update Status"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
