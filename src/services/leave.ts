@@ -174,6 +174,7 @@ export interface AllLeavesItem {
   approvedBy?: string;
   rejectionReason?: string;
   emergencyContact?: string;
+  daysPending?: number; // For pending leaves, calculated on backend
 }
 
 export interface AllLeavesResponse {

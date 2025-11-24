@@ -20,7 +20,6 @@ export default function LeaveManagementViewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
-  const [useOptimizedEndpoint, setUseOptimizedEndpoint] = useState(true); // Toggle to use new endpoint
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectLeaveId, setRejectLeaveId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -65,26 +64,24 @@ export default function LeaveManagementViewPage() {
     
     const fetchLeaves = async () => {
       try {
-        // Try optimized endpoint first, fallback to old method if it fails
-        if (useOptimizedEndpoint) {
-          try {
-            const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
-            const data = await getAllLeaves(
-              status,
-              1,
-              500, // Large limit for initial load
-              isProjectWiseAdmin && projectName ? projectName : undefined,
-              filterLeaveType !== "All" ? filterLeaveType : undefined
-            );
-            setAllLeavesData(data);
-            setLoading(false);
-            return;
-          } catch (_optimizedError) {
-            // If optimized endpoint doesn't exist, fall back to old method
-            console.warn("Optimized endpoint not available, using fallback method");
-            setUseOptimizedEndpoint(false);
+        // Use optimized endpoint (now implemented in backend)
+        try {
+          const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
+          const data = await getAllLeaves(
+            status,
+            1,
+            500, // Large limit for initial load
+            isProjectWiseAdmin && projectName ? projectName : undefined,
+            filterLeaveType !== "All" ? filterLeaveType : undefined
+          );
+          setAllLeavesData(data);
+          setLoading(false);
+          return;
+          } catch {
+            // If optimized endpoint fails, fall back to old method
+            console.warn("Optimized endpoint failed, using fallback method");
+            // Continue to fallback method below
           }
-        }
         
         // Fallback: Use old progressive loading method
         const { getAllKYCEmployees, getLeaveHistory } = await import("@/services/leave");
@@ -184,7 +181,7 @@ export default function LeaveManagementViewPage() {
     };
     
     fetchLeaves();
-  }, [isProjectWiseAdmin, projectName, filterByProject, activeTab, useOptimizedEndpoint, filterLeaveType]);
+  }, [isProjectWiseAdmin, projectName, filterByProject, activeTab, filterLeaveType]);
 
   // Fetch pending leaves using optimized endpoint
   React.useEffect(() => {
@@ -242,7 +239,7 @@ export default function LeaveManagementViewPage() {
       );
   }, [allLeaveData, allLeavesData]);
 
-  // Memoize filtered and sorted data for better performance (for non-Pending tabs)
+  // Memoize filtered and sorted data for better performance
   const sortedData = useMemo(() => {
     if (activeTab === "Pending" && pendingLeavesData) {
       // Use pending leaves data when Pending tab is active
@@ -262,7 +259,7 @@ export default function LeaveManagementViewPage() {
       // Sort by daysPending descending (oldest pending first) or by startDate
       return [...filtered].sort((a, b) => {
         // Sort by daysPending first (most urgent first), then by startDate
-        if (a.daysPending !== b.daysPending) {
+        if (a.daysPending !== undefined && b.daysPending !== undefined && a.daysPending !== b.daysPending) {
           return b.daysPending - a.daysPending;
         }
         const dateA = new Date(a.startDate).getTime();
@@ -271,12 +268,15 @@ export default function LeaveManagementViewPage() {
       });
     }
 
-    // For other tabs, use existing logic
-    const filteredLeaveData =
-      activeTab === "All"
-        ? allLeaves
-        : allLeaves.filter((leave) => leave.status === activeTab);
+    // For other tabs, use optimized endpoint data if available, otherwise use old method
+    let filteredLeaveData = allLeaves;
+    
+    // Apply status filter if not "All"
+    if (activeTab !== "All") {
+      filteredLeaveData = filteredLeaveData.filter((leave) => leave.status === activeTab);
+    }
 
+    // Apply search and leave type filters
     const filteredSearchData = filteredLeaveData.filter(
       (leave) =>
         (filterLeaveType === "All" || leave.leaveType === filterLeaveType) &&
@@ -288,7 +288,14 @@ export default function LeaveManagementViewPage() {
     );
 
     // Sort filteredSearchData by startDate descending (most recent first)
+    // For pending leaves, also consider daysPending if available
     return [...filteredSearchData].sort((a, b) => {
+      // If both have daysPending, sort by that first
+      if ('daysPending' in a && 'daysPending' in b && a.daysPending !== undefined && b.daysPending !== undefined) {
+        if (a.daysPending !== b.daysPending) {
+          return b.daysPending - a.daysPending;
+        }
+      }
       const dateA = new Date(a.startDate).getTime();
       const dateB = new Date(b.startDate).getTime();
       return dateB - dateA;
@@ -324,36 +331,32 @@ export default function LeaveManagementViewPage() {
         setPendingLoading(false);
       }
     } else {
-      // Refresh all leaves
+      // Refresh all leaves using optimized endpoint
       setLoading(true);
       try {
-        if (useOptimizedEndpoint) {
-          try {
-            const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
-            const data = await getAllLeaves(
-              status,
-              1,
-              500,
-              isProjectWiseAdmin && projectName ? projectName : undefined,
-              filterLeaveType !== "All" ? filterLeaveType : undefined
-            );
-            setAllLeavesData(data);
-            setLoading(false);
-            return;
-          } catch {
-            // Fallback handled below
-          }
+        try {
+          const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
+          const data = await getAllLeaves(
+            status,
+            1,
+            500,
+            isProjectWiseAdmin && projectName ? projectName : undefined,
+            filterLeaveType !== "All" ? filterLeaveType : undefined
+          );
+          setAllLeavesData(data);
+          setLoading(false);
+          return;
+        } catch {
+          // Fallback to old method if optimized endpoint fails
+          setAllLeavesData(null); // Clear optimized data
+          const data = await getAllEmployeesLeaveHistory();
+          const filtered = isProjectWiseAdmin && projectName
+            ? data.filter(emp => 
+                emp.kyc.personalDetails.projectName?.toLowerCase() === projectName.toLowerCase()
+              )
+            : data;
+          setAllLeaveData(filtered);
         }
-        
-        // Fallback to old method
-        setAllLeavesData(null); // Clear optimized data
-        const data = await getAllEmployeesLeaveHistory();
-        const filtered = isProjectWiseAdmin && projectName
-          ? data.filter(emp => 
-              emp.kyc.personalDetails.projectName?.toLowerCase() === projectName.toLowerCase()
-            )
-          : data;
-        setAllLeaveData(filtered);
       } finally {
         setLoading(false);
       }
@@ -724,16 +727,16 @@ export default function LeaveManagementViewPage() {
                               {leave.status}
                             </span>
                           </td>
-                          {activeTab === "Pending" && 'daysPending' in leave && (
+                          {activeTab === "Pending" && 'daysPending' in leave && leave.daysPending !== undefined && (
                             <td className={`px-2 py-2 text-center border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                (leave as PendingLeaveItem).daysPending > 7
+                                leave.daysPending > 7
                                   ? (theme === 'dark' ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800')
-                                  : (leave as PendingLeaveItem).daysPending > 3
+                                  : leave.daysPending > 3
                                   ? (theme === 'dark' ? 'bg-orange-900 text-orange-200' : 'bg-orange-100 text-orange-800')
                                   : (theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800')
                               }`}>
-                                {(leave as PendingLeaveItem).daysPending} days
+                                {leave.daysPending} days
                               </span>
                             </td>
                           )}
