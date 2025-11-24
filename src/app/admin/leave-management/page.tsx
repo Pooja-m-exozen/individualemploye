@@ -91,10 +91,24 @@ export default function LeaveManagementViewPage() {
 
   const updateLeaveStatus = async (leaveId: string, status: string, reason?: string) => {
     try {
-      const response = await api.put(`/leave/update-status/${leaveId}`, { status, reason });
+      const payload: { status: string; rejectionReason?: string } = { status };
+      if (status === "Rejected" && reason) {
+        payload.rejectionReason = reason;
+      }
+      const response = await api.put(`/leave/update/${leaveId}`, payload);
       if (response.data) {
         showToast({ message: "Leave status updated successfully.", type: "success" });
-        // Optionally refresh data here
+        // Refresh data after successful update
+        setLoading(true);
+        getAllEmployeesLeaveHistory()
+          .then((data) => {
+            setAllLeaveData(data);
+            setLoading(false);
+          })
+          .catch(() => {
+            setError("Failed to refresh leave data");
+            setLoading(false);
+          });
       }
     } catch (error) {
       showToast({ message: "Failed to update leave status.", type: "error" });
@@ -366,7 +380,7 @@ export default function LeaveManagementViewPage() {
                     <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Start Date</th>
                     <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>End Date</th>
                     <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-32 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Reason</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase w-48 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Reason</th>
                     <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
                   </tr>
                   {/* Inline header filters */}
@@ -457,7 +471,11 @@ export default function LeaveManagementViewPage() {
                           {leave.status || "N/A"}
                         </span>
                       </td>
-                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={leave.reason || "-"}>{leave.reason || "-"}</div></td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                        <div className="break-words whitespace-normal max-w-xs" title={leave.reason || "-"}>
+                          {leave.reason || "-"}
+                        </div>
+                      </td>
                       <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                         {leave.status === "Pending" ? (
                           <div className="flex gap-1">
