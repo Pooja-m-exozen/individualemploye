@@ -3,7 +3,7 @@ import React, { useState, useMemo } from "react";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { FaSearch, FaEye, FaSpinner } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory, getPendingLeaves, PendingLeavesResponse, getAllLeaves, AllLeavesResponse } from "@/services/leave";
+import { getPendingLeaves, PendingLeavesResponse, getAllLeaves, AllLeavesResponse } from "@/services/leave";
 import { showToast, ToastStyles } from "@/components/Toast";
 import { api } from "@/services/api";
 import Image from "next/image";
@@ -15,7 +15,6 @@ export default function LeaveManagementViewPage() {
   const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterLeaveType, setFilterLeaveType] = useState("All");
-  const [allLeaveData, setAllLeaveData] = useState<EmployeeWithLeaveHistory[]>([]);
   const [allLeavesData, setAllLeavesData] = useState<AllLeavesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,122 +58,37 @@ export default function LeaveManagementViewPage() {
     
     setLoading(true);
     setError(null);
-    setAllLeaveData([]);
     setAllLeavesData(null);
     
     const fetchLeaves = async () => {
       try {
-        // Use optimized endpoint (now implemented in backend)
-        try {
-          const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
-          const data = await getAllLeaves(
-            status,
-            1,
-            500, // Large limit for initial load
-            isProjectWiseAdmin && projectName ? projectName : undefined,
-            filterLeaveType !== "All" ? filterLeaveType : undefined
-          );
-          setAllLeavesData(data);
-          setLoading(false);
-          return;
-          } catch {
-            // If optimized endpoint fails, fall back to old method
-            console.warn("Optimized endpoint failed, using fallback method");
-            // Continue to fallback method below
-          }
-        
-        // Fallback: Use old progressive loading method
-        const { getAllKYCEmployees, getLeaveHistory } = await import("@/services/leave");
-        const employees = await getAllKYCEmployees();
-        
-        const filteredEmployees = isProjectWiseAdmin && projectName
-          ? employees.filter(emp => 
-              emp.personalDetails.projectName?.toLowerCase() === projectName.toLowerCase()
-            )
-          : employees;
-        
-        setLoadingProgress({ current: 0, total: filteredEmployees.length });
-        
-        // Don't initialize with empty data - wait for actual leave data
-        // This prevents showing employees without leaves
-        setAllLeaveData([]);
-        
-        const sessionCache = new Map<string, { data: import("@/services/leave").LeaveHistoryResponse | null; timestamp: number }>();
-        const CACHE_DURATION = 5 * 60 * 1000;
-        const BATCH_SIZE = 15;
-        const DELAY_BETWEEN_BATCHES = 30;
-        
-        for (let i = 0; i < filteredEmployees.length; i += BATCH_SIZE) {
-          const batch = filteredEmployees.slice(i, i + BATCH_SIZE);
-          
-          const batchPromises = batch.map(async (emp) => {
-            const employeeId = emp.personalDetails.employeeId;
-            if (!employeeId) {
-              return { emp, leaveHistory: null };
-            }
-            
-            const cached = sessionCache.get(employeeId);
-            if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-              return { emp, leaveHistory: cached.data };
-            }
-            
-            try {
-              const leaveHistory = await getLeaveHistory(employeeId);
-              sessionCache.set(employeeId, { data: leaveHistory, timestamp: Date.now() });
-              return { emp, leaveHistory };
-            } catch (error: unknown) {
-              // Handle 404s specifically - cache null to avoid retrying
-              const axiosError = error as { response?: { status?: number } };
-              if (axiosError?.response?.status === 404) {
-                // Employee has no leave history - cache null immediately to prevent retries
-                sessionCache.set(employeeId, { data: null, timestamp: Date.now() });
-              }
-              return { emp, leaveHistory: null };
-            }
-          });
-          
-          const batchResults = await Promise.all(batchPromises);
-          
-          setAllLeaveData((prev) => {
-            const updated = [...prev];
-            batchResults.forEach(({ emp, leaveHistory }) => {
-              // Only add employees who have leave history
-              if (leaveHistory && leaveHistory.leaveHistory && leaveHistory.leaveHistory.length > 0) {
-                const index = updated.findIndex(
-                  (e) => e.kyc.personalDetails.employeeId === emp.personalDetails.employeeId
-                );
-                if (index === -1) {
-                  // Add new employee with leave history
-                  updated.push({
-                    kyc: emp,
-                    leaveHistory,
-                  });
-                } else {
-                  // Update existing employee
-                  updated[index] = {
-                    ...updated[index],
-                    leaveHistory,
-                  };
-                }
-              }
-            });
-            return updated;
-          });
-          
-          setLoadingProgress({ 
-            current: Math.min(i + BATCH_SIZE, filteredEmployees.length), 
-            total: filteredEmployees.length 
-          });
-          
-          if (i + BATCH_SIZE < filteredEmployees.length) {
-            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
-          }
-        }
-        
+        // Use optimized endpoint - returns ONLY leaves, no need to fetch all employees
+        const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
+        const data = await getAllLeaves(
+          status,
+          1,
+          500, // Large limit for initial load
+          isProjectWiseAdmin && projectName ? projectName : undefined,
+          filterLeaveType !== "All" ? filterLeaveType : undefined
+        );
+        setAllLeavesData(data);
         setLoading(false);
-        setLoadingProgress({ current: 0, total: 0 });
-      } catch {
-        setError("Failed to fetch leave history for all employees");
+      } catch (error: unknown) {
+        // Log detailed error for debugging
+        const axiosError = error as { response?: { status?: number; data?: unknown }; message?: string };
+        console.error("Failed to fetch leaves from optimized endpoint:", {
+          status: axiosError?.response?.status,
+          data: axiosError?.response?.data,
+          message: axiosError?.message || axiosError
+        });
+        
+        const errorMessage = axiosError?.response?.status === 404
+          ? "Leave endpoint not found. Please ensure /api/leave/all is implemented on the backend."
+          : axiosError?.response?.status === 500
+          ? "Server error. Please try again later."
+          : `Failed to fetch leave data (Status: ${axiosError?.response?.status || 'Unknown'}). Please check the backend endpoint.`;
+        
+        setError(errorMessage);
         setLoading(false);
         setLoadingProgress({ current: 0, total: 0 });
       }
@@ -211,33 +125,21 @@ export default function LeaveManagementViewPage() {
     fetchPendingLeaves();
   }, [activeTab, currentPage, pageLimit, isProjectWiseAdmin, projectName]);
 
-  // Flatten all leave records with employee info - memoized for performance
-  // Use optimized endpoint data if available, otherwise use old method
+  // Flatten all leave records with employee info - ONLY from optimized endpoint
   const allLeaves = useMemo(() => {
-    if (allLeavesData && allLeavesData.leaves) {
-      // Use optimized endpoint data - already filtered to only employees with leaves
-      return allLeavesData.leaves.map((leave) => ({
-        ...leave,
-        employeeName: leave.employeeName,
-        employeeId: leave.employeeId,
-        designation: leave.designation || "",
-        employeeImage: leave.employeeImage,
-      }));
+    if (!allLeavesData || !allLeavesData.leaves) {
+      return [];
     }
     
-    // Fallback to old method - filter out employees with no leave history
-    return allLeaveData
-      .filter((emp) => emp.leaveHistory !== null && emp.leaveHistory?.leaveHistory?.length > 0)
-      .flatMap((emp) =>
-        (emp.leaveHistory?.leaveHistory || []).map((leave) => ({
-          ...leave,
-          employeeName: emp.kyc.personalDetails.fullName,
-          employeeId: emp.kyc.personalDetails.employeeId,
-          designation: emp.kyc.personalDetails.designation,
-          employeeImage: emp.kyc.personalDetails.employeeImage,
-        }))
-      );
-  }, [allLeaveData, allLeavesData]);
+    // Use optimized endpoint data - already includes all employee details
+    return allLeavesData.leaves.map((leave) => ({
+      ...leave,
+      employeeName: leave.employeeName,
+      employeeId: leave.employeeId,
+      designation: leave.designation || "",
+      employeeImage: leave.employeeImage,
+    }));
+  }, [allLeavesData]);
 
   // Memoize filtered and sorted data for better performance
   const sortedData = useMemo(() => {
@@ -334,29 +236,16 @@ export default function LeaveManagementViewPage() {
       // Refresh all leaves using optimized endpoint
       setLoading(true);
       try {
-        try {
-          const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
-          const data = await getAllLeaves(
-            status,
-            1,
-            500,
-            isProjectWiseAdmin && projectName ? projectName : undefined,
-            filterLeaveType !== "All" ? filterLeaveType : undefined
-          );
-          setAllLeavesData(data);
-          setLoading(false);
-          return;
-        } catch {
-          // Fallback to old method if optimized endpoint fails
-          setAllLeavesData(null); // Clear optimized data
-          const data = await getAllEmployeesLeaveHistory();
-          const filtered = isProjectWiseAdmin && projectName
-            ? data.filter(emp => 
-                emp.kyc.personalDetails.projectName?.toLowerCase() === projectName.toLowerCase()
-              )
-            : data;
-          setAllLeaveData(filtered);
-        }
+        // Use optimized endpoint - ONLY leaves, no KYC fetching
+        const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
+        const data = await getAllLeaves(
+          status,
+          1,
+          500,
+          isProjectWiseAdmin && projectName ? projectName : undefined,
+          filterLeaveType !== "All" ? filterLeaveType : undefined
+        );
+        setAllLeavesData(data);
       } finally {
         setLoading(false);
       }
