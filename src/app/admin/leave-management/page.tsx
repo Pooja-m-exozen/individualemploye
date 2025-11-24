@@ -98,11 +98,9 @@ export default function LeaveManagementViewPage() {
         
         setLoadingProgress({ current: 0, total: filteredEmployees.length });
         
-        const initialData: EmployeeWithLeaveHistory[] = filteredEmployees.map(emp => ({
-          kyc: emp,
-          leaveHistory: null,
-        }));
-        setAllLeaveData(initialData);
+        // Don't initialize with empty data - wait for actual leave data
+        // This prevents showing employees without leaves
+        setAllLeaveData([]);
         
         const sessionCache = new Map<string, { data: import("@/services/leave").LeaveHistoryResponse | null; timestamp: number }>();
         const CACHE_DURATION = 5 * 60 * 1000;
@@ -127,7 +125,13 @@ export default function LeaveManagementViewPage() {
               const leaveHistory = await getLeaveHistory(employeeId);
               sessionCache.set(employeeId, { data: leaveHistory, timestamp: Date.now() });
               return { emp, leaveHistory };
-            } catch {
+            } catch (error: unknown) {
+              // Handle 404s specifically - cache null to avoid retrying
+              const axiosError = error as { response?: { status?: number } };
+              if (axiosError?.response?.status === 404) {
+                // Employee has no leave history - cache null immediately to prevent retries
+                sessionCache.set(employeeId, { data: null, timestamp: Date.now() });
+              }
               return { emp, leaveHistory: null };
             }
           });
@@ -137,14 +141,24 @@ export default function LeaveManagementViewPage() {
           setAllLeaveData((prev) => {
             const updated = [...prev];
             batchResults.forEach(({ emp, leaveHistory }) => {
-              const index = updated.findIndex(
-                (e) => e.kyc.personalDetails.employeeId === emp.personalDetails.employeeId
-              );
-              if (index !== -1) {
-                updated[index] = {
-                  ...updated[index],
-                  leaveHistory,
-                };
+              // Only add employees who have leave history
+              if (leaveHistory && leaveHistory.leaveHistory && leaveHistory.leaveHistory.length > 0) {
+                const index = updated.findIndex(
+                  (e) => e.kyc.personalDetails.employeeId === emp.personalDetails.employeeId
+                );
+                if (index === -1) {
+                  // Add new employee with leave history
+                  updated.push({
+                    kyc: emp,
+                    leaveHistory,
+                  });
+                } else {
+                  // Update existing employee
+                  updated[index] = {
+                    ...updated[index],
+                    leaveHistory,
+                  };
+                }
               }
             });
             return updated;
@@ -204,7 +218,7 @@ export default function LeaveManagementViewPage() {
   // Use optimized endpoint data if available, otherwise use old method
   const allLeaves = useMemo(() => {
     if (allLeavesData && allLeavesData.leaves) {
-      // Use optimized endpoint data
+      // Use optimized endpoint data - already filtered to only employees with leaves
       return allLeavesData.leaves.map((leave) => ({
         ...leave,
         employeeName: leave.employeeName,
@@ -214,16 +228,18 @@ export default function LeaveManagementViewPage() {
       }));
     }
     
-    // Fallback to old method
-    return allLeaveData.flatMap((emp) =>
-      (emp.leaveHistory?.leaveHistory || []).map((leave) => ({
-        ...leave,
-        employeeName: emp.kyc.personalDetails.fullName,
-        employeeId: emp.kyc.personalDetails.employeeId,
-        designation: emp.kyc.personalDetails.designation,
-        employeeImage: emp.kyc.personalDetails.employeeImage,
-      }))
-    );
+    // Fallback to old method - filter out employees with no leave history
+    return allLeaveData
+      .filter((emp) => emp.leaveHistory !== null && emp.leaveHistory?.leaveHistory?.length > 0)
+      .flatMap((emp) =>
+        (emp.leaveHistory?.leaveHistory || []).map((leave) => ({
+          ...leave,
+          employeeName: emp.kyc.personalDetails.fullName,
+          employeeId: emp.kyc.personalDetails.employeeId,
+          designation: emp.kyc.personalDetails.designation,
+          employeeImage: emp.kyc.personalDetails.employeeImage,
+        }))
+      );
   }, [allLeaveData, allLeavesData]);
 
   // Memoize filtered and sorted data for better performance (for non-Pending tabs)
