@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
-import { FaSearch, FaCheckCircle, FaEye } from "react-icons/fa";
+import { FaSearch, FaCheckCircle, FaEye, FaSpinner } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 import ViewKYCModal from '@/components/dashboard/ViewKYCModal';
@@ -166,6 +166,11 @@ export default function EmployeeManagementPage() {
   const [employees, setEmployees] = useState<EmployeeWithSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
+  
+  // Cache for employee summaries to prevent re-fetching (using ref to avoid dependency issues)
+  const summaryCacheRef = React.useRef(new Map<string, { data: EmployeeSummary; timestamp: number }>());
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   // Excel-like full-screen grid (no pagination)
   const [designationFilter, setDesignationFilter] = useState("All Designations");
   const [projectFilter, setProjectFilter] = useState("All Projects");
@@ -233,6 +238,8 @@ export default function EmployeeManagementPage() {
   useEffect(() => {
     setLoading(true);
     setError(null);
+    setLoadingProgress({ current: 0, total: 0 });
+    
     fetch("https://cafm.zenapi.co.in/api/kyc")
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch employees");
@@ -253,48 +260,93 @@ export default function EmployeeManagementPage() {
             kycForm: form, // store the full KYC form
           };
         }).filter((emp: { employeeId: string }) => emp.employeeId);
-        // Fetch summary for each employee
-        const summaryPromises = baseEmployees.map(async (emp: BaseEmployee) => {
-          try {
-            const summaryRes = await fetch(`https://cafm.zenapi.co.in/api/employees/${emp.employeeId}/summary`);
-            if (!summaryRes.ok) throw new Error();
-            const summary: EmployeeSummary = await summaryRes.json();
-            return {
-              ...emp,
-              workflow: {
-                kyc: summary.kyc && summary.kyc.status === "Approved",
-                idCard: summary.idCard && summary.idCard.status === "Issued",
-                uniform: summary.uniform && Array.isArray(summary.uniform.items) && summary.uniform.items.length > 0,
-                attendance: summary.attendance && Array.isArray(summary.attendance.recent) && summary.attendance.recent.length > 0,
-                leave: summary.leave && Array.isArray(summary.leave.recent) && summary.leave.recent.length > 0,
-                payslip: summary.payroll && Array.isArray(summary.payroll) && summary.payroll.length > 0,
-              },
-              summary,
-              personalDetails: emp.personalDetails,
-              projectName: emp.projectName,
-            } as EmployeeWithSummary;
-          } catch {
-            return {
-              ...emp,
-              workflow: {
-                kyc: false,
-                idCard: false,
-                uniform: false,
-                attendance: false,
-                leave: false,
-                payslip: false,
-              },
-              summary: null,
-              personalDetails: emp.personalDetails,
-              projectName: emp.projectName,
-            } as EmployeeWithSummary;
+        
+        // Set total for progress tracking
+        setLoadingProgress({ current: 0, total: baseEmployees.length });
+        
+        // Show base employees immediately (without summaries)
+        const baseEmployeesWithDefaults: EmployeeWithSummary[] = baseEmployees.map((emp) => ({
+          ...emp,
+          workflow: {
+            kyc: false,
+            idCard: false,
+            uniform: false,
+            attendance: false,
+            leave: false,
+            payslip: false,
+          },
+          summary: null,
+          personalDetails: emp.personalDetails,
+          projectName: emp.projectName,
+        } as EmployeeWithSummary));
+        setEmployees(baseEmployeesWithDefaults);
+        
+        // Fetch summaries in batches to avoid overwhelming the server
+        const BATCH_SIZE = 10;
+        const DELAY_BETWEEN_BATCHES = 50; // 50ms delay between batches
+        
+        for (let i = 0; i < baseEmployees.length; i += BATCH_SIZE) {
+          const batch = baseEmployees.slice(i, i + BATCH_SIZE);
+          
+          // Process batch in parallel
+          const batchPromises = batch.map(async (emp: BaseEmployee) => {
+            // Check cache first
+            const cached = summaryCacheRef.current.get(emp.employeeId);
+            if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+              return { emp, summary: cached.data };
+            }
+            
+            try {
+              const summaryRes = await fetch(`https://cafm.zenapi.co.in/api/employees/${emp.employeeId}/summary`);
+              if (!summaryRes.ok) throw new Error();
+              const summary: EmployeeSummary = await summaryRes.json();
+              // Cache successful responses
+              summaryCacheRef.current.set(emp.employeeId, { data: summary, timestamp: Date.now() });
+              return { emp, summary };
+            } catch {
+              return { emp, summary: null };
+            }
+          });
+          
+          const batchResults = await Promise.all(batchPromises);
+          
+          // Update employees progressively as batches complete
+          setEmployees((prev) => {
+            const updated = [...prev];
+            batchResults.forEach(({ emp, summary }) => {
+              const index = updated.findIndex((e) => e.employeeId === emp.employeeId);
+              if (index !== -1) {
+                updated[index] = {
+                  ...updated[index],
+                  workflow: {
+                    kyc: summary && summary.kyc && summary.kyc.status === "Approved",
+                    idCard: summary && summary.idCard && summary.idCard.status === "Issued",
+                    uniform: summary && summary.uniform && Array.isArray(summary.uniform.items) && summary.uniform.items.length > 0,
+                    attendance: summary && summary.attendance && Array.isArray(summary.attendance.recent) && summary.attendance.recent.length > 0,
+                    leave: summary && summary.leave && Array.isArray(summary.leave.recent) && summary.leave.recent.length > 0,
+                    payslip: summary && summary.payroll && Array.isArray(summary.payroll) && summary.payroll.length > 0,
+                  },
+                  summary,
+                } as EmployeeWithSummary;
+              }
+            });
+            return updated;
+          });
+          
+          // Update progress
+          setLoadingProgress({ current: Math.min(i + BATCH_SIZE, baseEmployees.length), total: baseEmployees.length });
+          
+          // Add delay between batches to avoid overwhelming the server
+          if (i + BATCH_SIZE < baseEmployees.length) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
           }
-        });
-        const employeesWithWorkflow: EmployeeWithSummary[] = await Promise.all(summaryPromises);
-        setEmployees(employeesWithWorkflow);
+        }
       })
       .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setLoadingProgress({ current: 0, total: 0 });
+      });
   }, []);
 
   // Get unique designations for dropdowns
@@ -665,12 +717,35 @@ export default function EmployeeManagementPage() {
           </div>
         </div>
       </div>
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-40">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4 shadow-xl min-w-[300px]">
+            <FaSpinner className="animate-spin text-4xl text-blue-600 dark:text-blue-400" />
+            <p className={`text-lg font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+              Loading employees...
+            </p>
+            {loadingProgress.total > 0 && (
+              <>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                    style={{ width: `${(loadingProgress.current / loadingProgress.total) * 100}%` }}
+                  />
+                </div>
+                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {loadingProgress.current} of {loadingProgress.total} employees loaded
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      
       {/* Table - Excel-like compact grid full screen */}
       <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
         <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
-            {loading ? (
-            <div className="py-12 text-center text-lg font-semibold">Loading employees...</div>
-          ) : error ? (
+            {error ? (
             <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
           ) : (
             <>

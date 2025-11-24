@@ -965,7 +965,6 @@ function MarkAttendanceContent() {
                 onScanDevices={() => handleScanDevices(false)}
                 isScanning={false}
                 deviceConnected={!!selectedBiometricDevice && biometricVerificationStatus === 'verified'}
-                selectedDevice={selectedBiometricDevice}
               />
 
               {/* Biometric Device Selection */}
