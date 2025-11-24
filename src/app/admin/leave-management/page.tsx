@@ -22,7 +22,25 @@ export default function LeaveManagementViewPage() {
   const [rejectLeaveId, setRejectLeaveId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionError, setRejectionError] = useState("");
-  const [viewRecord, setViewRecord] = useState<any | null>(null);
+  type LeaveRecord = {
+    leaveId: string;
+    employeeName: string;
+    employeeId: string;
+    employeeImage?: string;
+    leaveType: string;
+    numberOfDays: number;
+    startDate: string;
+    endDate: string;
+    status: string;
+    reason: string;
+    appliedOn?: string;
+    lastUpdated?: string;
+    emergencyContact?: string;
+    approvedBy?: string;
+    rejectionReason?: string;
+    daysPending?: number;
+  };
+  const [viewRecord, setViewRecord] = useState<LeaveRecord | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   // Pagination and pending leaves state
   const [pendingLeavesData, setPendingLeavesData] = useState<PendingLeavesResponse | null>(null);
@@ -72,7 +90,7 @@ export default function LeaveManagementViewPage() {
         );
         setPendingLeavesData(data);
         setError(null);
-      } catch (err) {
+      } catch {
         setError("Failed to fetch pending leaves");
         setPendingLeavesData(null);
       } finally {

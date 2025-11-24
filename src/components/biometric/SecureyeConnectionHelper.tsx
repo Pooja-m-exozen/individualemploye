@@ -1,21 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { FaInfoCircle, FaCheckCircle, FaExclamationTriangle, FaFingerprint, FaPlug, FaSearch } from 'react-icons/fa';
+import { FaInfoCircle, FaCheckCircle, FaExclamationTriangle, FaSearch } from 'react-icons/fa';
 import { useTheme } from "@/context/ThemeContext";
 
 interface SecureyeConnectionHelperProps {
   onScanDevices?: () => void;
   isScanning?: boolean;
   deviceConnected?: boolean;
-  selectedDevice?: string | null;
 }
 
 export default function SecureyeConnectionHelper({
   onScanDevices,
   isScanning = false,
   deviceConnected = false,
-  selectedDevice = null,
 }: SecureyeConnectionHelperProps) {
   const { theme } = useTheme();
   const [showDetails, setShowDetails] = useState(false);
