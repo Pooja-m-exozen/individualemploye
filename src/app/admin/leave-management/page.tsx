@@ -3,7 +3,7 @@ import React, { useState, useMemo } from "react";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { FaSearch, FaEye, FaSpinner } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory, getPendingLeaves, PendingLeavesResponse, PendingLeaveItem, getAllLeaves, AllLeavesResponse } from "@/services/leave";
+import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory, getPendingLeaves, PendingLeavesResponse, getAllLeaves, AllLeavesResponse } from "@/services/leave";
 import { showToast, ToastStyles } from "@/components/Toast";
 import { api } from "@/services/api";
 import Image from "next/image";
