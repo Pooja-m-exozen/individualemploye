@@ -3,7 +3,7 @@ import React, { useState, useMemo } from "react";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { FaSearch, FaEye, FaSpinner } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory, getPendingLeaves, PendingLeavesResponse, PendingLeaveItem } from "@/services/leave";
+import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory, getPendingLeaves, PendingLeavesResponse, PendingLeaveItem, getAllLeaves, AllLeavesResponse } from "@/services/leave";
 import { showToast, ToastStyles } from "@/components/Toast";
 import { api } from "@/services/api";
 import Image from "next/image";
@@ -16,8 +16,11 @@ export default function LeaveManagementViewPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterLeaveType, setFilterLeaveType] = useState("All");
   const [allLeaveData, setAllLeaveData] = useState<EmployeeWithLeaveHistory[]>([]);
+  const [allLeavesData, setAllLeavesData] = useState<AllLeavesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
+  const [useOptimizedEndpoint, setUseOptimizedEndpoint] = useState(true); // Toggle to use new endpoint
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectLeaveId, setRejectLeaveId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -56,22 +59,118 @@ export default function LeaveManagementViewPage() {
     }
     
     setLoading(true);
-    getAllEmployeesLeaveHistory()
-      .then((data) => {
-        // Filter by project if project-wise admin
-        const filtered = isProjectWiseAdmin && projectName
-          ? data.filter(emp => 
-              emp.kyc.personalDetails.projectName?.toLowerCase() === projectName.toLowerCase()
+    setError(null);
+    setAllLeaveData([]);
+    setAllLeavesData(null);
+    
+    const fetchLeaves = async () => {
+      try {
+        // Try optimized endpoint first, fallback to old method if it fails
+        if (useOptimizedEndpoint) {
+          try {
+            const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
+            const data = await getAllLeaves(
+              status,
+              1,
+              500, // Large limit for initial load
+              isProjectWiseAdmin && projectName ? projectName : undefined,
+              filterLeaveType !== "All" ? filterLeaveType : undefined
+            );
+            setAllLeavesData(data);
+            setLoading(false);
+            return;
+          } catch (optimizedError) {
+            // If optimized endpoint doesn't exist, fall back to old method
+            console.warn("Optimized endpoint not available, using fallback method");
+            setUseOptimizedEndpoint(false);
+          }
+        }
+        
+        // Fallback: Use old progressive loading method
+        const { getAllKYCEmployees, getLeaveHistory } = await import("@/services/leave");
+        const employees = await getAllKYCEmployees();
+        
+        const filteredEmployees = isProjectWiseAdmin && projectName
+          ? employees.filter(emp => 
+              emp.personalDetails.projectName?.toLowerCase() === projectName.toLowerCase()
             )
-          : data;
-        setAllLeaveData(filtered);
+          : employees;
+        
+        setLoadingProgress({ current: 0, total: filteredEmployees.length });
+        
+        const initialData: EmployeeWithLeaveHistory[] = filteredEmployees.map(emp => ({
+          kyc: emp,
+          leaveHistory: null,
+        }));
+        setAllLeaveData(initialData);
+        
+        const sessionCache = new Map<string, { data: any; timestamp: number }>();
+        const CACHE_DURATION = 5 * 60 * 1000;
+        const BATCH_SIZE = 15;
+        const DELAY_BETWEEN_BATCHES = 30;
+        
+        for (let i = 0; i < filteredEmployees.length; i += BATCH_SIZE) {
+          const batch = filteredEmployees.slice(i, i + BATCH_SIZE);
+          
+          const batchPromises = batch.map(async (emp) => {
+            const employeeId = emp.personalDetails.employeeId;
+            if (!employeeId) {
+              return { emp, leaveHistory: null };
+            }
+            
+            const cached = sessionCache.get(employeeId);
+            if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+              return { emp, leaveHistory: cached.data };
+            }
+            
+            try {
+              const leaveHistory = await getLeaveHistory(employeeId);
+              sessionCache.set(employeeId, { data: leaveHistory, timestamp: Date.now() });
+              return { emp, leaveHistory };
+            } catch {
+              return { emp, leaveHistory: null };
+            }
+          });
+          
+          const batchResults = await Promise.all(batchPromises);
+          
+          setAllLeaveData((prev) => {
+            const updated = [...prev];
+            batchResults.forEach(({ emp, leaveHistory }) => {
+              const index = updated.findIndex(
+                (e) => e.kyc.personalDetails.employeeId === emp.personalDetails.employeeId
+              );
+              if (index !== -1) {
+                updated[index] = {
+                  ...updated[index],
+                  leaveHistory,
+                };
+              }
+            });
+            return updated;
+          });
+          
+          setLoadingProgress({ 
+            current: Math.min(i + BATCH_SIZE, filteredEmployees.length), 
+            total: filteredEmployees.length 
+          });
+          
+          if (i + BATCH_SIZE < filteredEmployees.length) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+          }
+        }
+        
         setLoading(false);
-      })
-      .catch(() => {
+        setLoadingProgress({ current: 0, total: 0 });
+      } catch (err) {
         setError("Failed to fetch leave history for all employees");
         setLoading(false);
-      });
-  }, [isProjectWiseAdmin, projectName, filterByProject, activeTab]);
+        setLoadingProgress({ current: 0, total: 0 });
+      }
+    };
+    
+    fetchLeaves();
+  }, [isProjectWiseAdmin, projectName, filterByProject, activeTab, useOptimizedEndpoint, filterLeaveType]);
 
   // Fetch pending leaves using optimized endpoint
   React.useEffect(() => {
@@ -102,8 +201,21 @@ export default function LeaveManagementViewPage() {
   }, [activeTab, currentPage, pageLimit, isProjectWiseAdmin, projectName]);
 
   // Flatten all leave records with employee info - memoized for performance
-  const allLeaves = useMemo(() => 
-    allLeaveData.flatMap((emp) =>
+  // Use optimized endpoint data if available, otherwise use old method
+  const allLeaves = useMemo(() => {
+    if (allLeavesData && allLeavesData.leaves) {
+      // Use optimized endpoint data
+      return allLeavesData.leaves.map((leave) => ({
+        ...leave,
+        employeeName: leave.employeeName,
+        employeeId: leave.employeeId,
+        designation: leave.designation || "",
+        employeeImage: leave.employeeImage,
+      }));
+    }
+    
+    // Fallback to old method
+    return allLeaveData.flatMap((emp) =>
       (emp.leaveHistory?.leaveHistory || []).map((leave) => ({
         ...leave,
         employeeName: emp.kyc.personalDetails.fullName,
@@ -111,8 +223,8 @@ export default function LeaveManagementViewPage() {
         designation: emp.kyc.personalDetails.designation,
         employeeImage: emp.kyc.personalDetails.employeeImage,
       }))
-    ), [allLeaveData]
-  );
+    );
+  }, [allLeaveData, allLeavesData]);
 
   // Memoize filtered and sorted data for better performance (for non-Pending tabs)
   const sortedData = useMemo(() => {
@@ -199,8 +311,27 @@ export default function LeaveManagementViewPage() {
       // Refresh all leaves
       setLoading(true);
       try {
+        if (useOptimizedEndpoint) {
+          try {
+            const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
+            const data = await getAllLeaves(
+              status,
+              1,
+              500,
+              isProjectWiseAdmin && projectName ? projectName : undefined,
+              filterLeaveType !== "All" ? filterLeaveType : undefined
+            );
+            setAllLeavesData(data);
+            setLoading(false);
+            return;
+          } catch {
+            // Fallback handled below
+          }
+        }
+        
+        // Fallback to old method
+        setAllLeavesData(null); // Clear optimized data
         const data = await getAllEmployeesLeaveHistory();
-        // Filter by project if project-wise admin
         const filtered = isProjectWiseAdmin && projectName
           ? data.filter(emp => 
               emp.kyc.personalDetails.projectName?.toLowerCase() === projectName.toLowerCase()
@@ -373,14 +504,29 @@ export default function LeaveManagementViewPage() {
       {/* Loading Overlay */}
       {(loading || pendingLoading) && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-40">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4 shadow-xl">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4 shadow-xl min-w-[300px]">
             <FaSpinner className="animate-spin text-4xl text-blue-600 dark:text-blue-400" />
             <p className={`text-lg font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
               {activeTab === "Pending" ? "Loading pending leaves..." : "Loading leave data..."}
             </p>
-            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-              Please wait while we fetch the data...
-            </p>
+            {loadingProgress.total > 0 && activeTab !== "Pending" && (
+              <>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                    style={{ width: `${(loadingProgress.current / loadingProgress.total) * 100}%` }}
+                  />
+                </div>
+                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {loadingProgress.current} of {loadingProgress.total} employees loaded
+                </p>
+              </>
+            )}
+            {activeTab === "Pending" && (
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                Please wait while we fetch the data...
+              </p>
+            )}
           </div>
         </div>
       )}

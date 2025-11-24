@@ -154,3 +154,68 @@ export const getPendingLeaves = async (
   const response = await api.get(`/leave/pending?${queryString}`);
   return response.data;
 };
+
+// Optimized endpoint for all leaves (similar to pending but for all statuses)
+export interface AllLeavesItem {
+  leaveId: string;
+  employeeId: string;
+  employeeName: string;
+  employeeImage?: string;
+  designation?: string;
+  projectName?: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  numberOfDays: number;
+  status: string;
+  reason: string;
+  appliedOn?: string;
+  lastUpdated?: string;
+  approvedBy?: string;
+  rejectionReason?: string;
+  emergencyContact?: string;
+}
+
+export interface AllLeavesResponse {
+  totalCount: number;
+  leaves: AllLeavesItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalPages: number;
+    totalCount: number;
+  };
+  summary: {
+    byStatus: Record<string, number>;
+    byLeaveType: Record<string, number>;
+  };
+}
+
+export const getAllLeaves = async (
+  status: "All" | "Approved" | "Rejected" | "Pending" = "All",
+  page: number = 1,
+  limit: number = 100,
+  projectName?: string,
+  leaveType?: string
+): Promise<AllLeavesResponse> => {
+  const params: Record<string, string> = {
+    page: page.toString(),
+    limit: limit.toString(),
+  };
+  
+  if (status !== "All") {
+    params.status = status;
+  }
+  
+  if (projectName) {
+    params.projectName = projectName;
+  }
+  
+  if (leaveType && leaveType !== "All") {
+    params.leaveType = leaveType;
+  }
+  
+  const queryString = new URLSearchParams(params).toString();
+  const response = await api.get(`/leave/all?${queryString}`);
+  return response.data;
+};
