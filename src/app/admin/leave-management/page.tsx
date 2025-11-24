@@ -98,17 +98,33 @@ export default function LeaveManagementViewPage() {
       const response = await api.put(`/leave/update/${leaveId}`, payload);
       if (response.data) {
         showToast({ message: "Leave status updated successfully.", type: "success" });
-        // Refresh data after successful update
-        setLoading(true);
-        getAllEmployeesLeaveHistory()
-          .then((data) => {
-            setAllLeaveData(data);
-            setLoading(false);
+        
+        // Update the local state immediately without refetching
+        setAllLeaveData(prevData => 
+          prevData.map(emp => {
+            if (!emp.leaveHistory?.leaveHistory) return emp;
+            
+            const updatedLeaveHistory = emp.leaveHistory.leaveHistory.map(leave => {
+              if (leave.leaveId === leaveId) {
+                return {
+                  ...leave,
+                  status: status,
+                  lastUpdated: new Date().toISOString(),
+                  ...(status === "Rejected" && reason ? { rejectionReason: reason } : {}),
+                };
+              }
+              return leave;
+            });
+            
+            return {
+              ...emp,
+              leaveHistory: {
+                ...emp.leaveHistory,
+                leaveHistory: updatedLeaveHistory,
+              },
+            };
           })
-          .catch(() => {
-            setError("Failed to refresh leave data");
-            setLoading(false);
-          });
+        );
       }
     } catch (error) {
       showToast({ message: "Failed to update leave status.", type: "error" });
