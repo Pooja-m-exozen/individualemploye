@@ -91,7 +91,7 @@ export default function LeaveManagementViewPage() {
 
   const updateLeaveStatus = async (leaveId: string, status: string, reason?: string) => {
     try {
-      const response = await api.put(`/api/leave/update-status/${leaveId}`, { status, reason });
+      const response = await api.put(`/leave/update-status/${leaveId}`, { status, reason });
       if (response.data) {
         showToast({ message: "Leave status updated successfully.", type: "success" });
         // Optionally refresh data here
