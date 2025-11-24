@@ -1,9 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
-import { FaSearch, FaEye } from "react-icons/fa";
+import { FaSearch, FaEye, FaSpinner } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory } from "@/services/leave";
+import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory, getPendingLeaves, PendingLeavesResponse, PendingLeaveItem } from "@/services/leave";
 import { showToast, ToastStyles } from "@/components/Toast";
 import { api } from "@/services/api";
 import Image from "next/image";
@@ -22,9 +22,21 @@ export default function LeaveManagementViewPage() {
   const [rejectLeaveId, setRejectLeaveId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionError, setRejectionError] = useState("");
-  const [viewRecord, setViewRecord] = useState<typeof allLeaves[0] | null>(null);
+  const [viewRecord, setViewRecord] = useState<any | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // Pagination and pending leaves state
+  const [pendingLeavesData, setPendingLeavesData] = useState<PendingLeavesResponse | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageLimit] = useState(50);
+  const [pendingLoading, setPendingLoading] = useState(false);
 
+  // Fetch all leaves (for All, Approved, Rejected tabs)
   React.useEffect(() => {
+    if (activeTab === "Pending") {
+      // Don't fetch all data when Pending tab is active
+      return;
+    }
+    
     setLoading(true);
     getAllEmployeesLeaveHistory()
       .then((data) => {
@@ -41,40 +53,101 @@ export default function LeaveManagementViewPage() {
         setError("Failed to fetch leave history for all employees");
         setLoading(false);
       });
-  }, [isProjectWiseAdmin, projectName, filterByProject]);
+  }, [isProjectWiseAdmin, projectName, filterByProject, activeTab]);
 
-  // Flatten all leave records with employee info
-  const allLeaves = allLeaveData.flatMap((emp) =>
-    (emp.leaveHistory?.leaveHistory || []).map((leave) => ({
-      ...leave,
-      employeeName: emp.kyc.personalDetails.fullName,
-      employeeId: emp.kyc.personalDetails.employeeId,
-      designation: emp.kyc.personalDetails.designation,
-      employeeImage: emp.kyc.personalDetails.employeeImage,
-    }))
+  // Fetch pending leaves using optimized endpoint
+  React.useEffect(() => {
+    if (activeTab !== "Pending") {
+      setPendingLeavesData(null);
+      return;
+    }
+
+    const fetchPendingLeaves = async () => {
+      setPendingLoading(true);
+      try {
+        const data = await getPendingLeaves(
+          currentPage,
+          pageLimit,
+          isProjectWiseAdmin && projectName ? projectName : undefined
+        );
+        setPendingLeavesData(data);
+        setError(null);
+      } catch (err) {
+        setError("Failed to fetch pending leaves");
+        setPendingLeavesData(null);
+      } finally {
+        setPendingLoading(false);
+      }
+    };
+
+    fetchPendingLeaves();
+  }, [activeTab, currentPage, pageLimit, isProjectWiseAdmin, projectName]);
+
+  // Flatten all leave records with employee info - memoized for performance
+  const allLeaves = useMemo(() => 
+    allLeaveData.flatMap((emp) =>
+      (emp.leaveHistory?.leaveHistory || []).map((leave) => ({
+        ...leave,
+        employeeName: emp.kyc.personalDetails.fullName,
+        employeeId: emp.kyc.personalDetails.employeeId,
+        designation: emp.kyc.personalDetails.designation,
+        employeeImage: emp.kyc.personalDetails.employeeImage,
+      }))
+    ), [allLeaveData]
   );
 
-  const filteredLeaveData =
-    activeTab === "All"
-      ? allLeaves
-      : allLeaves.filter((leave) => leave.status === activeTab);
+  // Memoize filtered and sorted data for better performance (for non-Pending tabs)
+  const sortedData = useMemo(() => {
+    if (activeTab === "Pending" && pendingLeavesData) {
+      // Use pending leaves data when Pending tab is active
+      let filtered = pendingLeavesData.pendingLeaves;
+      
+      // Apply search and filter
+      filtered = filtered.filter(
+        (leave) =>
+          (filterLeaveType === "All" || leave.leaveType === filterLeaveType) &&
+          (leave.leaveType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            leave.startDate.includes(searchQuery) ||
+            leave.endDate.includes(searchQuery) ||
+            leave.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            leave.employeeId.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
 
-  const filteredSearchData = filteredLeaveData.filter(
-    (leave) =>
-      (filterLeaveType === "All" || leave.leaveType === filterLeaveType) &&
-      (leave.leaveType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        leave.startDate.includes(searchQuery) ||
-        leave.endDate.includes(searchQuery) ||
-        leave.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        leave.employeeId.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+      // Sort by daysPending descending (oldest pending first) or by startDate
+      return [...filtered].sort((a, b) => {
+        // Sort by daysPending first (most urgent first), then by startDate
+        if (a.daysPending !== b.daysPending) {
+          return b.daysPending - a.daysPending;
+        }
+        const dateA = new Date(a.startDate).getTime();
+        const dateB = new Date(b.startDate).getTime();
+        return dateB - dateA;
+      });
+    }
 
-  // Sort filteredSearchData by startDate descending (most recent first)
-  const sortedData = [...filteredSearchData].sort((a, b) => {
-    const dateA = new Date(a.startDate).getTime();
-    const dateB = new Date(b.startDate).getTime();
-    return dateB - dateA;
-  });
+    // For other tabs, use existing logic
+    const filteredLeaveData =
+      activeTab === "All"
+        ? allLeaves
+        : allLeaves.filter((leave) => leave.status === activeTab);
+
+    const filteredSearchData = filteredLeaveData.filter(
+      (leave) =>
+        (filterLeaveType === "All" || leave.leaveType === filterLeaveType) &&
+        (leave.leaveType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          leave.startDate.includes(searchQuery) ||
+          leave.endDate.includes(searchQuery) ||
+          leave.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          leave.employeeId.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    // Sort filteredSearchData by startDate descending (most recent first)
+    return [...filteredSearchData].sort((a, b) => {
+      const dateA = new Date(a.startDate).getTime();
+      const dateB = new Date(b.startDate).getTime();
+      return dateB - dateA;
+    });
+  }, [allLeaves, activeTab, filterLeaveType, searchQuery, pendingLeavesData]);
 
 
   const updateLeaveStatus = async (
@@ -91,12 +164,34 @@ export default function LeaveManagementViewPage() {
   };
 
   const refreshLeaveData = async () => {
-    setLoading(true);
-    try {
-      const data = await getAllEmployeesLeaveHistory();
-      setAllLeaveData(data);
-    } finally {
-      setLoading(false);
+    if (activeTab === "Pending") {
+      // Refresh pending leaves
+      setPendingLoading(true);
+      try {
+        const data = await getPendingLeaves(
+          currentPage,
+          pageLimit,
+          isProjectWiseAdmin && projectName ? projectName : undefined
+        );
+        setPendingLeavesData(data);
+      } finally {
+        setPendingLoading(false);
+      }
+    } else {
+      // Refresh all leaves
+      setLoading(true);
+      try {
+        const data = await getAllEmployeesLeaveHistory();
+        // Filter by project if project-wise admin
+        const filtered = isProjectWiseAdmin && projectName
+          ? data.filter(emp => 
+              emp.kyc.personalDetails.projectName?.toLowerCase() === projectName.toLowerCase()
+            )
+          : data;
+        setAllLeaveData(filtered);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -108,6 +203,7 @@ export default function LeaveManagementViewPage() {
       return;
     }
     if (!rejectLeaveId) return;
+    setActionLoading(rejectLeaveId);
     setRejectModalOpen(false);
     try {
       await updateLeaveStatus(rejectLeaveId, "Rejected", rejectionReason.trim());
@@ -119,6 +215,7 @@ export default function LeaveManagementViewPage() {
       setRejectLeaveId(null);
       setRejectionReason("");
       setRejectionError("");
+      setActionLoading(null);
     }
   };
 
@@ -255,11 +352,55 @@ export default function LeaveManagementViewPage() {
           </div>
         </div>
       )}
+      {/* Loading Overlay */}
+      {(loading || pendingLoading) && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-40">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4 shadow-xl">
+            <FaSpinner className="animate-spin text-4xl text-blue-600 dark:text-blue-400" />
+            <p className={`text-lg font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+              {activeTab === "Pending" ? "Loading pending leaves..." : "Loading leave data..."}
+            </p>
+            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              Please wait while we fetch the data...
+            </p>
+          </div>
+        </div>
+      )}
       <div className={`flex flex-col gap-4 p-2 lg:p-4 w-full font-sans h-screen overflow-y-auto ${
         theme === 'dark'
           ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950 text-white'
           : 'bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-900'
       }`}>
+        {/* Summary Statistics for Pending Tab */}
+        {activeTab === "Pending" && pendingLeavesData && (
+          <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 p-4 rounded-lg ${
+            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+          } shadow-sm`}>
+            <div className={`text-center p-3 rounded-lg ${
+              theme === 'dark' ? 'bg-blue-900/50' : 'bg-blue-50'
+            }`}>
+              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}>
+                {pendingLeavesData.totalPending}
+              </p>
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                Total Pending
+              </p>
+            </div>
+            {Object.entries(pendingLeavesData.summary.byLeaveType).map(([type, count]) => (
+              <div key={type} className={`text-center p-3 rounded-lg ${
+                theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
+              }`}>
+                <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {count}
+                </p>
+                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {type}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Tabs and Filters */}
         <div className="flex flex-col lg:flex-row gap-4 mb-4">
           {/* Tabs */}
@@ -267,7 +408,10 @@ export default function LeaveManagementViewPage() {
             {['All', 'Approved', 'Rejected', 'Pending'].map(tab => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setCurrentPage(1); // Reset to first page when switching tabs
+                }}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   activeTab === tab
                     ? theme === 'dark'
@@ -279,6 +423,13 @@ export default function LeaveManagementViewPage() {
                 }`}
               >
                   {tab}
+                  {tab === "Pending" && pendingLeavesData && (
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                      theme === 'dark' ? 'bg-blue-500' : 'bg-blue-700'
+                    }`}>
+                      {pendingLeavesData.totalPending}
+                    </span>
+                  )}
               </button>
             ))}
           </div>
@@ -325,38 +476,41 @@ export default function LeaveManagementViewPage() {
                       <th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Leave Type</th>
                       <th className={`px-2 py-3 text-center font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Days</th>
                       <th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+                      {activeTab === "Pending" && (
+                        <th className={`px-2 py-3 text-center font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Days Pending</th>
+                      )}
                       <th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Reason</th>
                       <th className={`px-2 py-3 text-center font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
                   </tr>
                 </thead>
                   <tbody>
-                  {loading ? (
+                  {error ? (
                       <tr>
-                        <td colSpan={8} className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                          Loading...
-                        </td>
-                      </tr>
-                  ) : error ? (
-                      <tr>
-                        <td colSpan={8} className={`text-center py-8 ${theme === 'dark' ? 'text-red-400' : 'text-red-500'}`}>
+                        <td colSpan={activeTab === "Pending" ? 9 : 8} className={`text-center py-8 ${theme === 'dark' ? 'text-red-400' : 'text-red-500'}`}>
                           {error}
                         </td>
                       </tr>
                   ) : sortedData.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <td colSpan={activeTab === "Pending" ? 9 : 8} className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                           No records found.
                         </td>
                       </tr>
                     ) : (
-                      sortedData.map((leave, index) => (
+                      sortedData.map((leave, index) => {
+                        // Calculate row number accounting for pagination
+                        const rowNumber = activeTab === "Pending" && pendingLeavesData
+                          ? (pendingLeavesData.pagination.page - 1) * pendingLeavesData.pagination.limit + index + 1
+                          : index + 1;
+                        
+                        return (
                         <tr key={leave.leaveId} className={`${
                           index % 2 === 0 
                             ? (theme === 'dark' ? 'bg-gray-800' : 'bg-white') 
                             : (theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50')
                         } hover:${theme === 'dark' ? 'bg-gray-600' : 'bg-blue-50'} transition-colors`}>
                           <td className={`px-2 py-2 text-center font-medium border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
-                            {index + 1}
+                            {rowNumber}
                           </td>
                           <td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
                             <div className="flex items-center gap-2">
@@ -390,6 +544,19 @@ export default function LeaveManagementViewPage() {
                               {leave.status}
                             </span>
                           </td>
+                          {activeTab === "Pending" && 'daysPending' in leave && (
+                            <td className={`px-2 py-2 text-center border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                (leave as PendingLeaveItem).daysPending > 7
+                                  ? (theme === 'dark' ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800')
+                                  : (leave as PendingLeaveItem).daysPending > 3
+                                  ? (theme === 'dark' ? 'bg-orange-900 text-orange-200' : 'bg-orange-100 text-orange-800')
+                                  : (theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800')
+                              }`}>
+                                {(leave as PendingLeaveItem).daysPending} days
+                              </span>
+                            </td>
+                          )}
                           <td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
                             <div className="max-w-[120px] truncate">
                               {leave.reason}
@@ -412,49 +579,111 @@ export default function LeaveManagementViewPage() {
                               <>
                                 <button
                                   onClick={async () => {
+                                    if (actionLoading) return;
+                                    setActionLoading(leave.leaveId);
                                     try {
                                       await updateLeaveStatus(leave.leaveId, "Approved");
                                       showToast({ message: "Leave approved successfully!", type: "success" });
                                       await refreshLeaveData();
                                     } catch {
                                       showToast({ message: "Failed to approve leave", type: "error" });
+                                    } finally {
+                                      setActionLoading(null);
                                     }
                                   }}
-                                    className={`p-1 rounded transition-colors ${
-                                      theme === 'dark'
-                                        ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
-                                        : 'bg-green-50 text-green-600 hover:bg-green-100'
-                                    }`}
-                                    title="Approve"
-                                  >
+                                  disabled={actionLoading === leave.leaveId}
+                                  className={`p-1 rounded transition-colors ${
+                                    actionLoading === leave.leaveId
+                                      ? 'opacity-50 cursor-not-allowed'
+                                      : ''
+                                  } ${
+                                    theme === 'dark'
+                                      ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
+                                      : 'bg-green-50 text-green-600 hover:bg-green-100'
+                                  }`}
+                                  title="Approve"
+                                >
+                                  {actionLoading === leave.leaveId ? (
+                                    <FaSpinner className="w-3 h-3 animate-spin" />
+                                  ) : (
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                  )}
                                 </button>
                                 <button
                                   onClick={() => {
+                                    if (actionLoading) return;
                                     setRejectLeaveId(leave.leaveId);
                                     setRejectModalOpen(true);
                                   }}
-                                    className={`p-1 rounded transition-colors ${
-                                      theme === 'dark'
-                                        ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
-                                        : 'bg-red-50 text-red-600 hover:bg-red-100'
-                                    }`}
-                                    title="Reject"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                  disabled={!!actionLoading}
+                                  className={`p-1 rounded transition-colors ${
+                                    actionLoading
+                                      ? 'opacity-50 cursor-not-allowed'
+                                      : ''
+                                  } ${
+                                    theme === 'dark'
+                                      ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
+                                      : 'bg-red-50 text-red-600 hover:bg-red-100'
+                                  }`}
+                                  title="Reject"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                               </>
                             )}
                           </div>
                         </td>
                       </tr>
-                    ))
+                        );
+                      })
                   )}
                 </tbody>
               </table>
             </div>
           </div>
         </div>
+        
+        {/* Pagination for Pending Tab */}
+        {activeTab === "Pending" && pendingLeavesData && pendingLeavesData.pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+              Showing page {pendingLeavesData.pagination.page} of {pendingLeavesData.pagination.totalPages} 
+              ({pendingLeavesData.pagination.totalCount} total)
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  currentPage === 1
+                    ? 'opacity-50 cursor-not-allowed'
+                    : ''
+                } ${
+                  theme === 'dark'
+                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(pendingLeavesData.pagination.totalPages, prev + 1))}
+                disabled={currentPage === pendingLeavesData.pagination.totalPages}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  currentPage === pendingLeavesData.pagination.totalPages
+                    ? 'opacity-50 cursor-not-allowed'
+                    : ''
+                } ${
+                  theme === 'dark'
+                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
           </div>
       </div>
     </AdminDashboardLayout>

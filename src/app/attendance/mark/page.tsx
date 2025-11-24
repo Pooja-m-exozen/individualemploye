@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { useTheme } from "@/context/ThemeContext";
 import { matchFace, detectFaces, verifyFaceQuality, markAttendanceWithFace, enrollFace } from '@/services/facialRecognition';
 import { scanForDevices, markAttendanceWithFingerprint, BiometricDevice } from '@/services/biometricDevice';
+import SecureyeConnectionHelper from '@/components/biometric/SecureyeConnectionHelper';
 
 // Update office location with more precise radius
 const OFFICE_LOCATION = {
@@ -299,6 +300,20 @@ function MarkAttendanceContent() {
     
     scanDevices();
   }, [router]);
+
+  // Scan devices function (can be called from UI)
+  const handleScanDevices = async (useWebSerial: boolean = false) => {
+    try {
+      const devices = await scanForDevices(useWebSerial);
+      setAvailableBiometricDevices(devices);
+      if (devices.length > 0 && !selectedBiometricDevice) {
+        setSelectedBiometricDevice(devices[0].id);
+      }
+    } catch (error) {
+      console.error('Device scan error:', error);
+      setMarkAttendanceError('Failed to scan for devices. Please try again.');
+    }
+  };
 
 
   const handlePhotoCapture = async (photoData: string) => {
@@ -945,6 +960,14 @@ function MarkAttendanceContent() {
                 </div>
               )}
               
+              {/* Secureye Connection Helper */}
+              <SecureyeConnectionHelper
+                onScanDevices={() => handleScanDevices(false)}
+                isScanning={false}
+                deviceConnected={!!selectedBiometricDevice && biometricVerificationStatus === 'verified'}
+                selectedDevice={selectedBiometricDevice}
+              />
+
               {/* Biometric Device Selection */}
               {availableBiometricDevices.length > 0 && (
                 <div className={`p-3 rounded-lg border ${
@@ -983,6 +1006,7 @@ function MarkAttendanceContent() {
                       {availableBiometricDevices.map((device) => (
                         <option key={device.id} value={device.id}>
                           {device.name} ({device.type})
+                          {device.manufacturer && device.manufacturer !== 'Unknown' && ` - ${device.manufacturer}`}
                         </option>
                       ))}
                     </select>
@@ -1005,9 +1029,48 @@ function MarkAttendanceContent() {
                       ) : (
                         <>
                           <FaFingerprint className="inline mr-2" />
-                          Verify Biometric
+                          Verify with Secureye Device
                         </>
                       )}
+                    </button>
+                  )}
+                </div>
+              )}
+              
+              {/* Show scan button if no devices found */}
+              {availableBiometricDevices.length === 0 && (
+                <div className={`p-3 rounded-lg border ${
+                  theme === 'dark'
+                    ? 'bg-gray-700 border-gray-600'
+                    : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <p className={`text-sm mb-2 ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    No biometric devices found. Click below to scan for your Secureye device.
+                  </p>
+                  <button
+                    onClick={() => handleScanDevices(false)}
+                    className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      theme === 'dark'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                  >
+                    <FaFingerprint className="inline mr-2" />
+                    Scan for Devices
+                  </button>
+                  {typeof window !== 'undefined' && 'serial' in navigator && (
+                    <button
+                      onClick={() => handleScanDevices(true)}
+                      className={`w-full mt-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        theme === 'dark'
+                          ? 'bg-green-600 hover:bg-green-700 text-white'
+                          : 'bg-green-600 hover:bg-green-700 text-white'
+                      }`}
+                    >
+                      <FaFingerprint className="inline mr-2" />
+                      Scan Serial Port (Chrome/Edge)
                     </button>
                   )}
                 </div>

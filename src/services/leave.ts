@@ -103,3 +103,54 @@ export const getAllEmployeesLeaveHistory = async (): Promise<EmployeeWithLeaveHi
 export const clearLeaveHistoryCache = () => {
   leaveHistoryCache.clear();
 };
+
+// New optimized endpoint for pending leaves
+export interface PendingLeaveItem {
+  leaveId: string;
+  employeeId: string;
+  employeeName: string;
+  employeeImage?: string;
+  designation?: string;
+  projectName?: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  numberOfDays: number;
+  reason: string;
+  appliedOn: string;
+  daysPending: number;
+  status: "Pending";
+}
+
+export interface PendingLeavesResponse {
+  totalPending: number;
+  pendingLeaves: PendingLeaveItem[];
+  summary: {
+    byLeaveType: Record<string, number>;
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    totalPages: number;
+    totalCount: number;
+  };
+}
+
+export const getPendingLeaves = async (
+  page: number = 1,
+  limit: number = 50,
+  projectName?: string
+): Promise<PendingLeavesResponse> => {
+  const params: Record<string, string> = {
+    page: page.toString(),
+    limit: limit.toString(),
+  };
+  
+  if (projectName) {
+    params.projectName = projectName;
+  }
+  
+  const queryString = new URLSearchParams(params).toString();
+  const response = await api.get(`/leave/pending?${queryString}`);
+  return response.data;
+};
