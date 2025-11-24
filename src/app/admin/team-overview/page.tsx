@@ -158,6 +158,9 @@ interface EmployeeWithSummary extends Employee {
 
 // Removed unused workflowSteps array
 
+// Cache duration constant (5 minutes)
+const CACHE_DURATION = 5 * 60 * 1000;
+
 export default function EmployeeManagementPage() {
   const { theme } = useTheme();
   const [search, setSearch] = useState("");
@@ -170,7 +173,6 @@ export default function EmployeeManagementPage() {
   
   // Cache for employee summaries to prevent re-fetching (using ref to avoid dependency issues)
   const summaryCacheRef = React.useRef(new Map<string, { data: EmployeeSummary; timestamp: number }>());
-  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   // Excel-like full-screen grid (no pagination)
   const [designationFilter, setDesignationFilter] = useState("All Designations");
   const [projectFilter, setProjectFilter] = useState("All Projects");

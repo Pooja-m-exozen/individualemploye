@@ -79,7 +79,7 @@ export default function LeaveManagementViewPage() {
             setAllLeavesData(data);
             setLoading(false);
             return;
-          } catch (optimizedError) {
+          } catch (_optimizedError) {
             // If optimized endpoint doesn't exist, fall back to old method
             console.warn("Optimized endpoint not available, using fallback method");
             setUseOptimizedEndpoint(false);
@@ -104,7 +104,7 @@ export default function LeaveManagementViewPage() {
         }));
         setAllLeaveData(initialData);
         
-        const sessionCache = new Map<string, { data: any; timestamp: number }>();
+        const sessionCache = new Map<string, { data: import("@/services/leave").LeaveHistoryResponse | null; timestamp: number }>();
         const CACHE_DURATION = 5 * 60 * 1000;
         const BATCH_SIZE = 15;
         const DELAY_BETWEEN_BATCHES = 30;
@@ -162,7 +162,7 @@ export default function LeaveManagementViewPage() {
         
         setLoading(false);
         setLoadingProgress({ current: 0, total: 0 });
-      } catch (err) {
+      } catch {
         setError("Failed to fetch leave history for all employees");
         setLoading(false);
         setLoadingProgress({ current: 0, total: 0 });
