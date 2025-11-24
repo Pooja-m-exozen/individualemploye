@@ -1,301 +1,106 @@
 "use client";
-import React, { useState, useMemo } from "react";
+
+import React, { useState } from "react";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
-import { FaSearch, FaEye, FaSpinner } from "react-icons/fa";
+import { FaSearch } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-import { getPendingLeaves, PendingLeavesResponse, getAllLeaves, AllLeavesResponse } from "@/services/leave";
+import { getAllEmployeesLeaveHistory, EmployeeWithLeaveHistory } from "@/services/leave";
 import { showToast, ToastStyles } from "@/components/Toast";
 import { api } from "@/services/api";
 import Image from "next/image";
-import { useProjectFilter } from "@/hooks/useProjectFilter";
 
 export default function LeaveManagementViewPage() {
   const { theme } = useTheme();
-  const { projectName, isProjectWiseAdmin, filterByProject } = useProjectFilter();
-  const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterLeaveType, setFilterLeaveType] = useState("All");
-  const [allLeavesData, setAllLeavesData] = useState<AllLeavesResponse | null>(null);
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterEmpId, setFilterEmpId] = useState("");
+  const [filterName, setFilterName] = useState("");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [allLeaveData, setAllLeaveData] = useState<EmployeeWithLeaveHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
+  const [viewRecord, setViewRecord] = useState<typeof allLeaves[0] | null>(null);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
-  const [rejectLeaveId, setRejectLeaveId] = useState<string | null>(null);
+  const [rejectLeave, setRejectLeave] = useState<typeof allLeaves[0] | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [rejectionError, setRejectionError] = useState("");
-  type LeaveRecord = {
-    leaveId: string;
-    employeeName: string;
-    employeeId: string;
-    employeeImage?: string;
-    leaveType: string;
-    numberOfDays: number;
-    startDate: string;
-    endDate: string;
-    status: string;
-    reason: string;
-    appliedOn?: string;
-    lastUpdated?: string;
-    emergencyContact?: string;
-    approvedBy?: string;
-    rejectionReason?: string;
-    daysPending?: number;
-  };
-  const [viewRecord, setViewRecord] = useState<LeaveRecord | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  // Pagination and pending leaves state
-  const [pendingLeavesData, setPendingLeavesData] = useState<PendingLeavesResponse | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageLimit] = useState(50);
-  const [pendingLoading, setPendingLoading] = useState(false);
 
-  // Fetch all leaves (for All, Approved, Rejected tabs)
   React.useEffect(() => {
-    if (activeTab === "Pending") {
-      // Don't fetch all data when Pending tab is active
-      return;
-    }
-    
     setLoading(true);
-    setError(null);
-    setAllLeavesData(null);
-    
-    const fetchLeaves = async () => {
-      try {
-        // Use optimized endpoint - returns ONLY leaves, no need to fetch all employees
-        const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
-        const data = await getAllLeaves(
-          status,
-          1,
-          500, // Large limit for initial load
-          isProjectWiseAdmin && projectName ? projectName : undefined,
-          filterLeaveType !== "All" ? filterLeaveType : undefined
-        );
-        setAllLeavesData(data);
+    getAllEmployeesLeaveHistory()
+      .then((data) => {
+        setAllLeaveData(data);
         setLoading(false);
-      } catch (error: unknown) {
-        // Log detailed error for debugging
-        const axiosError = error as { response?: { status?: number; data?: unknown }; message?: string };
-        console.error("Failed to fetch leaves from optimized endpoint:", {
-          status: axiosError?.response?.status,
-          data: axiosError?.response?.data,
-          message: axiosError?.message || axiosError
-        });
-        
-        const errorMessage = axiosError?.response?.status === 404
-          ? "Leave endpoint not found. Please ensure /api/leave/all is implemented on the backend."
-          : axiosError?.response?.status === 500
-          ? "Server error. Please try again later."
-          : `Failed to fetch leave data (Status: ${axiosError?.response?.status || 'Unknown'}). Please check the backend endpoint.`;
-        
-        setError(errorMessage);
+      })
+      .catch(() => {
+        setError("Failed to fetch leave history for all employees");
         setLoading(false);
-        setLoadingProgress({ current: 0, total: 0 });
-      }
-    };
-    
-    fetchLeaves();
-  }, [isProjectWiseAdmin, projectName, filterByProject, activeTab, filterLeaveType]);
-
-  // Fetch pending leaves using optimized endpoint
-  React.useEffect(() => {
-    if (activeTab !== "Pending") {
-      setPendingLeavesData(null);
-      return;
-    }
-
-    const fetchPendingLeaves = async () => {
-      setPendingLoading(true);
-      try {
-        const data = await getPendingLeaves(
-          currentPage,
-          pageLimit,
-          isProjectWiseAdmin && projectName ? projectName : undefined
-        );
-        setPendingLeavesData(data);
-        setError(null);
-      } catch {
-        setError("Failed to fetch pending leaves");
-        setPendingLeavesData(null);
-      } finally {
-        setPendingLoading(false);
-      }
-    };
-
-    fetchPendingLeaves();
-  }, [activeTab, currentPage, pageLimit, isProjectWiseAdmin, projectName]);
-
-  // Flatten all leave records with employee info - ONLY from optimized endpoint
-  const allLeaves = useMemo(() => {
-    if (!allLeavesData || !allLeavesData.leaves) {
-      return [];
-    }
-    
-    // Use optimized endpoint data - already includes all employee details
-    return allLeavesData.leaves.map((leave) => ({
-      ...leave,
-      employeeName: leave.employeeName,
-      employeeId: leave.employeeId,
-      designation: leave.designation || "",
-      employeeImage: leave.employeeImage,
-    }));
-  }, [allLeavesData]);
-
-  // Memoize filtered and sorted data for better performance
-  const sortedData = useMemo(() => {
-    if (activeTab === "Pending" && pendingLeavesData) {
-      // Use pending leaves data when Pending tab is active
-      let filtered = pendingLeavesData.pendingLeaves;
-      
-      // Apply search and filter
-      filtered = filtered.filter(
-        (leave) =>
-          (filterLeaveType === "All" || leave.leaveType === filterLeaveType) &&
-          (leave.leaveType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            leave.startDate.includes(searchQuery) ||
-            leave.endDate.includes(searchQuery) ||
-            leave.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            leave.employeeId.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-
-      // Sort by daysPending descending (oldest pending first) or by startDate
-      return [...filtered].sort((a, b) => {
-        // Sort by daysPending first (most urgent first), then by startDate
-        if (a.daysPending !== undefined && b.daysPending !== undefined && a.daysPending !== b.daysPending) {
-          return b.daysPending - a.daysPending;
-        }
-        const dateA = new Date(a.startDate).getTime();
-        const dateB = new Date(b.startDate).getTime();
-        return dateB - dateA;
       });
-    }
+  }, []);
 
-    // For other tabs, use optimized endpoint data if available, otherwise use old method
-    let filteredLeaveData = allLeaves;
+  // Initialize date filters as empty to show all data by default
+  React.useEffect(() => {
+    setFromDate("");
+    setToDate("");
+  }, []);
+
+  const allLeaves = allLeaveData.flatMap((emp) =>
+    (emp.leaveHistory?.leaveHistory || []).map((leave) => ({
+      ...leave,
+      employeeName: emp.kyc.personalDetails.fullName,
+      employeeId: emp.kyc.personalDetails.employeeId,
+      designation: emp.kyc.personalDetails.designation,
+      employeeImage: emp.kyc.personalDetails.employeeImage,
+    }))
+  );
+
+  // Enhanced filtering with date range
+  const filteredLeaves = allLeaves.filter((leave) => {
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = 
+      leave.employeeId.toLowerCase().includes(searchLower) ||
+      leave.employeeName.toLowerCase().includes(searchLower) ||
+      (leave.designation && leave.designation.toLowerCase().includes(searchLower)) ||
+      (leave.leaveType && leave.leaveType.toLowerCase().includes(searchLower)) ||
+      (leave.reason && leave.reason.toLowerCase().includes(searchLower));
+
+    const matchesEmpId = filterEmpId === "" || leave.employeeId.toLowerCase().includes(filterEmpId.toLowerCase());
+    const matchesName = filterName === "" || leave.employeeName.toLowerCase().includes(filterName.toLowerCase());
+    const matchesLeaveType = filterLeaveType === "All" || leave.leaveType === filterLeaveType;
+    const matchesStatus = filterStatus === "All" || leave.status === filterStatus;
+    const matchesStartDate = filterStartDate === "" || (leave.startDate && leave.startDate.slice(0, 10) === filterStartDate);
     
-    // Apply status filter if not "All"
-    if (activeTab !== "All") {
-      filteredLeaveData = filteredLeaveData.filter((leave) => leave.status === activeTab);
+    // Date range filtering
+    let matchesFromDate = true;
+    let matchesToDate = true;
+    if (fromDate && leave.startDate) {
+      matchesFromDate = leave.startDate.slice(0, 10) >= fromDate;
     }
-
-    // Apply search and leave type filters
-    const filteredSearchData = filteredLeaveData.filter(
-      (leave) =>
-        (filterLeaveType === "All" || leave.leaveType === filterLeaveType) &&
-        (leave.leaveType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          leave.startDate.includes(searchQuery) ||
-          leave.endDate.includes(searchQuery) ||
-          leave.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          leave.employeeId.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-
-    // Sort filteredSearchData by startDate descending (most recent first)
-    // For pending leaves, also consider daysPending if available
-    return [...filteredSearchData].sort((a, b) => {
-      // If both have daysPending, sort by that first
-      if ('daysPending' in a && 'daysPending' in b && a.daysPending !== undefined && b.daysPending !== undefined) {
-        if (a.daysPending !== b.daysPending) {
-          return b.daysPending - a.daysPending;
-        }
-      }
-      const dateA = new Date(a.startDate).getTime();
-      const dateB = new Date(b.startDate).getTime();
-      return dateB - dateA;
-    });
-  }, [allLeaves, activeTab, filterLeaveType, searchQuery, pendingLeavesData]);
-
-
-  const updateLeaveStatus = async (
-    leaveId: string,
-    status: "Approved" | "Rejected",
-    rejectionReason?: string
-  ) => {
-    const payload: { status: "Approved" | "Rejected"; rejectionReason?: string } = { status };
-    if (status === "Rejected" && rejectionReason) {
-      payload.rejectionReason = rejectionReason;
+    if (toDate && leave.startDate) {
+      matchesToDate = leave.startDate.slice(0, 10) <= toDate;
     }
-    const response = await api.put(`/leave/update/${leaveId}`, payload);
-    return response.data;
-  };
+    
+    return matchesSearch && matchesEmpId && matchesName && matchesLeaveType && matchesStatus && matchesStartDate && matchesFromDate && matchesToDate;
+  });
 
-  const refreshLeaveData = async () => {
-    if (activeTab === "Pending") {
-      // Refresh pending leaves
-      setPendingLoading(true);
-      try {
-        const data = await getPendingLeaves(
-          currentPage,
-          pageLimit,
-          isProjectWiseAdmin && projectName ? projectName : undefined
-        );
-        setPendingLeavesData(data);
-      } finally {
-        setPendingLoading(false);
-      }
-    } else {
-      // Refresh all leaves using optimized endpoint
-      setLoading(true);
-      try {
-        // Use optimized endpoint - ONLY leaves, no KYC fetching
-        const status = activeTab === "All" ? "All" : activeTab as "Approved" | "Rejected";
-        const data = await getAllLeaves(
-          status,
-          1,
-          500,
-          isProjectWiseAdmin && projectName ? projectName : undefined,
-          filterLeaveType !== "All" ? filterLeaveType : undefined
-        );
-        setAllLeavesData(data);
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
+  // Get unique values for dropdowns
+  const uniqueLeaveTypes = Array.from(new Set(allLeaves.map(l => l.leaveType).filter(Boolean)));
+  const uniqueStatuses = Array.from(new Set(allLeaves.map(l => l.status).filter(Boolean)));
 
-
-  const handleRejectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rejectionReason.trim()) {
-      setRejectionError("Rejection reason is required.");
-      return;
-    }
-    if (!rejectLeaveId) return;
-    setActionLoading(rejectLeaveId);
-    setRejectModalOpen(false);
+  const updateLeaveStatus = async (leaveId: string, status: string, reason?: string) => {
     try {
-      await updateLeaveStatus(rejectLeaveId, "Rejected", rejectionReason.trim());
-      showToast({ message: "Leave rejected successfully!", type: "success" });
-      await refreshLeaveData();
-    } catch {
-      showToast({ message: "Failed to reject leave", type: "error" });
-    } finally {
-      setRejectLeaveId(null);
-      setRejectionReason("");
-      setRejectionError("");
-      setActionLoading(null);
+      const response = await api.put(`/api/leave/update-status/${leaveId}`, { status, reason });
+      if (response.data) {
+        showToast({ message: "Leave status updated successfully.", type: "success" });
+        // Optionally refresh data here
+      }
+    } catch (error) {
+      showToast({ message: "Failed to update leave status.", type: "error" });
+      console.error("Error updating leave status:", error);
     }
   };
-
-  const closeRejectModal = () => {
-    setRejectModalOpen(false);
-    setRejectLeaveId(null);
-    setRejectionReason("");
-    setRejectionError("");
-  };
-
-  function getApprovedBy(record: Record<string, unknown>): string {
-    if (typeof record === 'object' && record && 'approvedBy' in record) {
-      return (record as Record<string, unknown>).approvedBy as string || 'N/A';
-    }
-    return 'N/A';
-  }
-
-  function getRejectionReason(record: Record<string, unknown>): string {
-    if (typeof record === 'object' && record && 'rejectionReason' in record) {
-      return (record as Record<string, unknown>).rejectionReason as string || '-';
-    }
-    return '-';
-  }
 
   return (
     <AdminDashboardLayout>
@@ -311,452 +116,430 @@ export default function LeaveManagementViewPage() {
           gap: 0.75rem;
         }
       `}</style>
-      {/* Move toast container to top right */}
-      {rejectModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="rounded-xl shadow-lg p-8 max-w-2xl w-full relative animate-fade-in overflow-y-auto max-h-[90vh] bg-white dark:bg-gray-800">
-            <button
-              onClick={closeRejectModal}
-              className="absolute top-2 right-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-2xl font-bold"
-              aria-label="Close"
-            >
-              &times;
-            </button>
-            <h2 className="text-2xl font-bold mb-6 text-center text-red-600 dark:text-red-400">Reject Leave Request</h2>
-            <form onSubmit={handleRejectSubmit}>
-              <label className="block mb-2 font-semibold">Reason for rejection:</label>
-              <textarea
-                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-                placeholder="Enter reason for rejection..."
-                value={rejectionReason}
-                onChange={e => setRejectionReason(e.target.value)}
+      <div className={`min-h-screen font-sans transition-colors duration-300 flex flex-col ${
+        theme === "dark"
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
+          : "bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900"
+      }`}>
+        {/* Filters and Search */}
+        <div className="sticky top-[64px] z-30 backdrop-blur-sm px-4 py-2 mb-3 md:mb-4">
+          <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
+            {/* Leave Type Dropdown */}
+            <div className="flex-1 min-w-[180px] max-w-xs">
+              <select
+                value={filterLeaveType}
+                onChange={e => setFilterLeaveType(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              >
+                <option value="All">All Leave Types</option>
+                {uniqueLeaveTypes.map((type: string) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            {/* Status Dropdown */}
+            <div className="relative w-44 min-w-[130px]">
+              <select
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+              >
+                <option value="All">All Status</option>
+                {uniqueStatuses.map((status: string) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+            {/* Search Bar */}
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-400"}`} />
+              <input
+                type="text"
+                placeholder="Search employee name, ID, or reason..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
               />
-              {rejectionError && <div className="text-red-500 text-sm mb-2">{rejectionError}</div>}
-              <div className="flex justify-end gap-2 mt-4">
-                <button type="button" onClick={closeRejectModal} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700" disabled={!rejectionReason.trim()}>Reject</button>
-              </div>
-            </form>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <input
+                type="date"
+                value={fromDate}
+                onChange={e => setFromDate(e.target.value)}
+                className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+                title="From Date"
+              />
+              <input
+                type="date"
+                value={toDate}
+                onChange={e => setToDate(e.target.value)}
+                className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  theme === "dark"
+                    ? "bg-gray-800 border-blue-900 text-white"
+                    : "bg-white border-gray-200 text-black"
+                }`}
+                title="To Date"
+              />
+              <button
+                className={`px-3 py-2 rounded-lg font-semibold border text-sm ${theme === 'dark' ? 'bg-blue-700 text-white hover:bg-blue-800 border-blue-900' : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-200'}`}
+                onClick={() => {
+                  setLoading(true);
+                  getAllEmployeesLeaveHistory()
+                    .then((data) => {
+                      setAllLeaveData(data);
+                      setLoading(false);
+                    })
+                    .catch(() => {
+                      setError("Failed to fetch leave history for all employees");
+                      setLoading(false);
+                    });
+                }}
+                disabled={loading}
+              >
+                {loading ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
           </div>
         </div>
-      )}
+
       {viewRecord && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="rounded-xl shadow-lg p-8 max-w-2xl w-full relative animate-fade-in overflow-y-auto max-h-[90vh] bg-white dark:bg-gray-800">
-            <button
-              onClick={() => setViewRecord(null)}
-              className="absolute top-2 right-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-2xl font-bold"
-              aria-label="Close"
-            >
-              &times;
-            </button>
-            <h2 className="text-2xl font-bold mb-6 text-center text-blue-700 dark:text-blue-400">Leave Details</h2>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 border-b pb-2">
-                <Image src={viewRecord.employeeImage || "/placeholder-user.jpg"} alt={viewRecord.employeeName} width={40} height={40} className="rounded-full border border-blue-200 dark:border-blue-800" />
-                <span className="font-medium text-lg text-gray-900 dark:text-gray-100">{viewRecord.employeeName}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-300">({viewRecord.employeeId})</span>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div
+            className={`rounded-xl shadow-2xl p-6 w-full max-w-md ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Leave Details</h2>
+              <button
+                onClick={() => setViewRecord(null)}
+                className="text-2xl font-bold hover:text-red-500"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <span className="font-semibold">Employee Name:</span>{" "}
+                {viewRecord.employeeName}
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="font-medium text-gray-500 dark:text-gray-300">Leave Type:</span>
-                <span className="text-gray-900 dark:text-gray-100">{viewRecord.leaveType}</span>
+              <div>
+                <span className="font-semibold">Employee ID:</span>{" "}
+                {viewRecord.employeeId}
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="font-medium text-gray-500 dark:text-gray-300">No of Days:</span>
-                <span className="text-gray-900 dark:text-gray-100">{viewRecord.numberOfDays}</span>
+              <div>
+                <span className="font-semibold">Leave Type:</span>{" "}
+                {viewRecord.leaveType}
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="font-medium text-gray-500 dark:text-gray-300">Date:</span>
-                <span className="text-gray-900 dark:text-gray-100">{viewRecord.startDate ? new Date(viewRecord.startDate).toISOString().split('T')[0] : 'N/A'}</span>
+              <div>
+                <span className="font-semibold">No of Days:</span>{" "}
+                {viewRecord.numberOfDays}
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="font-medium text-gray-500 dark:text-gray-300">End Date:</span>
-                <span className="text-gray-900 dark:text-gray-100">{viewRecord.endDate ? new Date(viewRecord.endDate).toISOString().split('T')[0] : 'N/A'}</span>
+              <div>
+                <span className="font-semibold">Date:</span>{" "}
+                {viewRecord.startDate
+                  ? new Date(viewRecord.startDate).toISOString().split("T")[0]
+                  : "N/A"}
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="font-medium text-gray-500 dark:text-gray-300">Status:</span>
-                <span className="text-gray-900 dark:text-gray-100">{viewRecord.status}</span>
+              <div>
+                <span className="font-semibold">End Date:</span>{" "}
+                {viewRecord.endDate
+                  ? new Date(viewRecord.endDate).toISOString().split("T")[0]
+                  : "N/A"}
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="font-medium text-gray-500 dark:text-gray-300">Reason:</span>
-                <span className="text-gray-900 dark:text-gray-100">{viewRecord.reason}</span>
+              <div>
+                <span className="font-semibold">Status:</span> {viewRecord.status}
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="font-medium text-gray-500 dark:text-gray-300">Approved By:</span>
-                <span className="text-gray-900 dark:text-gray-100">{viewRecord ? String(getApprovedBy(viewRecord)) : "N/A"}</span>
+              <div>
+                <span className="font-semibold">Reason:</span> {viewRecord.reason}
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="font-medium text-gray-500 dark:text-gray-300">Applied On:</span>
-                <span className="text-gray-900 dark:text-gray-100">{viewRecord.appliedOn ? new Date(viewRecord.appliedOn).toISOString().split('T')[0] : 'N/A'}</span>
+              <div>
+                <span className="font-semibold">Applied On:</span>{" "}
+                {viewRecord.appliedOn
+                  ? new Date(viewRecord.appliedOn).toISOString().split("T")[0]
+                  : "N/A"}
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="font-medium text-gray-500 dark:text-gray-300">Last Updated:</span>
-                <span className="text-gray-900 dark:text-gray-100">{viewRecord.lastUpdated ? new Date(viewRecord.lastUpdated).toISOString().split('T')[0] : 'N/A'}</span>
+              <div>
+                <span className="font-semibold">Last Updated:</span>{" "}
+                {viewRecord.lastUpdated
+                  ? new Date(viewRecord.lastUpdated).toISOString().split("T")[0]
+                  : "N/A"}
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="font-medium text-gray-500 dark:text-gray-300">Emergency Contact:</span>
-                <span className="text-gray-900 dark:text-gray-100">{viewRecord.emergencyContact || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="font-medium text-gray-500 dark:text-gray-300">Rejection Reason:</span>
-                <span className="text-gray-900 dark:text-gray-100">{viewRecord ? String(getRejectionReason(viewRecord)) : "-"}</span>
+              <div>
+                <span className="font-semibold">Emergency Contact:</span>{" "}
+                {viewRecord.emergencyContact || "N/A"}
               </div>
             </div>
             <div className="flex justify-end mt-6">
-              <button onClick={() => setViewRecord(null)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Close</button>
+              <button
+                onClick={() => setViewRecord(null)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
       )}
-      {/* Loading Overlay */}
-      {(loading || pendingLoading) && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-40">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4 shadow-xl min-w-[300px]">
-            <FaSpinner className="animate-spin text-4xl text-blue-600 dark:text-blue-400" />
-            <p className={`text-lg font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
-              {activeTab === "Pending" ? "Loading pending leaves..." : "Loading leave data..."}
-            </p>
-            {loadingProgress.total > 0 && activeTab !== "Pending" && (
-              <>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                  <div 
-                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                    style={{ width: `${(loadingProgress.current / loadingProgress.total) * 100}%` }}
-                  />
-                </div>
-                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {loadingProgress.current} of {loadingProgress.total} employees loaded
-                </p>
-              </>
-            )}
-            {activeTab === "Pending" && (
-              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                Please wait while we fetch the data...
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-      <div className={`flex flex-col gap-4 p-2 lg:p-4 w-full font-sans h-screen overflow-y-auto ${
-        theme === 'dark'
-          ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950 text-white'
-          : 'bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-900'
-      }`}>
-        {/* Summary Statistics for Pending Tab */}
-        {activeTab === "Pending" && pendingLeavesData && (
-          <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 p-4 rounded-lg ${
-            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-          } shadow-sm`}>
-            <div className={`text-center p-3 rounded-lg ${
-              theme === 'dark' ? 'bg-blue-900/50' : 'bg-blue-50'
-            }`}>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}>
-                {pendingLeavesData.totalPending}
-              </p>
-              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                Total Pending
-              </p>
-            </div>
-            {Object.entries(pendingLeavesData.summary.byLeaveType).map(([type, count]) => (
-              <div key={type} className={`text-center p-3 rounded-lg ${
-                theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
-              }`}>
-                <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {count}
-                </p>
-                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {type}
-                </p>
+        {rejectModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-md relative">
+              <button
+                onClick={() => { setRejectModalOpen(false); setRejectLeave(null); setRejectionReason(""); }}
+                className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl font-bold"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+              <h2 className="text-xl font-bold mb-4 text-red-600 dark:text-red-400">Reject Leave</h2>
+              <textarea
+                className={`w-full border rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                  theme === "dark" 
+                    ? "bg-gray-800 border-gray-600 text-white" 
+                    : "bg-white border-gray-300 text-black"
+                }`}
+                rows={4}
+                placeholder="Enter rejection reason..."
+                value={rejectionReason}
+                onChange={e => setRejectionReason(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => { setRejectModalOpen(false); setRejectLeave(null); setRejectionReason(""); }}
+                  className={`px-4 py-2 rounded-lg font-semibold border transition ${
+                    theme === 'dark' 
+                      ? 'border-gray-600 text-gray-300 bg-gray-800 hover:bg-gray-700' 
+                      : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (rejectLeave) {
+                      await updateLeaveStatus(rejectLeave.leaveId, "Rejected", rejectionReason);
+                      setRejectModalOpen(false);
+                      setRejectLeave(null);
+                      setRejectionReason("");
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition"
+                >
+                  Reject
+                </button>
               </div>
-            ))}
+            </div>
           </div>
         )}
-
-        {/* Tabs and Filters */}
-        <div className="flex flex-col lg:flex-row gap-4 mb-4">
-          {/* Tabs */}
-          <div className="flex gap-2">
-            {['All', 'Approved', 'Rejected', 'Pending'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => {
-                  setActiveTab(tab);
-                  setCurrentPage(1); // Reset to first page when switching tabs
-                }}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === tab
-                    ? theme === 'dark'
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-blue-600 text-white'
-                    : theme === 'dark'
-                      ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                  {tab}
-                  {tab === "Pending" && pendingLeavesData && (
-                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                      theme === 'dark' ? 'bg-blue-500' : 'bg-blue-700'
-                    }`}>
-                      {pendingLeavesData.totalPending}
-                    </span>
-                  )}
-              </button>
-            ))}
-          </div>
-          
-          {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-center flex-1">
-            {/* Search Bar */}
-            <div className="relative w-full sm:w-64">
-              <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-              }`} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search employees..."
-                className={`pl-10 pr-4 py-2 rounded-lg border-none shadow-sm focus:outline-none focus:ring-2 w-full ${theme === 'dark' ? 'bg-gray-800 text-gray-100 placeholder-gray-400 focus:ring-blue-300' : 'bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500'}`}
-              />
-            </div>
-            {/* Leave Type Filter */}
-            <select
-              value={filterLeaveType}
-              onChange={e => setFilterLeaveType(e.target.value)}
-              className={`px-4 py-2 rounded-lg border-none shadow-sm focus:outline-none focus:ring-2 w-full sm:w-auto ${theme === 'dark' ? 'bg-gray-800 text-gray-100 focus:ring-blue-300' : 'bg-white text-gray-900 focus:ring-blue-500'}`}
-            >
-              <option value="All">All Leave Types</option>
-              <option value="EL">EL</option>
-              <option value="CL">CL</option>
-              <option value="SL">SL</option>
-            </select>
-          </div>
-        </div>
-        {/* Excel-style Table */}
-        <div className="w-full">
-          <div className="overflow-x-auto w-full custom-scrollbar">
-            <div className="min-w-full inline-block align-middle">
-              <div className="overflow-hidden">
-                <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
-                  <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
-                    <tr>
-                      <th className={`px-2 py-3 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border w-12 ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
-                      <th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee</th>
-                      <th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Date</th>
-                      <th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Leave Type</th>
-                      <th className={`px-2 py-3 text-center font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Days</th>
-                      <th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
-                      {activeTab === "Pending" && (
-                        <th className={`px-2 py-3 text-center font-bold uppercase whitespace-nowrap border w-24 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Days Pending</th>
-                      )}
-                      <th className={`px-2 py-3 text-left font-bold uppercase whitespace-nowrap border w-32 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Reason</th>
-                      <th className={`px-2 py-3 text-center font-bold uppercase whitespace-nowrap border w-20 ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
+        {/* Table - Excel-like compact grid full screen */}
+        <div className={`flex-1 overflow-auto px-3 md:px-4 pb-4`}>        
+          <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+            {loading ? (
+              <div className="py-12 text-center text-lg font-semibold">Loading leave records...</div>
+            ) : error ? (
+              <div className="py-12 text-center text-red-500 font-semibold">{error}</div>
+            ) : (
+              <>
+              <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+                  <tr>
+                    <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Photo</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee ID</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Employee Name</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Designation</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Leave Type</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Start Date</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>End Date</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Status</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-32 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Reason</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-20 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
                   </tr>
-                </thead>
-                  <tbody>
-                  {error ? (
-                      <tr>
-                        <td colSpan={activeTab === "Pending" ? 9 : 8} className={`text-center py-8 ${theme === 'dark' ? 'text-red-400' : 'text-red-500'}`}>
-                          {error}
-                        </td>
-                      </tr>
-                  ) : sortedData.length === 0 ? (
-                      <tr>
-                        <td colSpan={activeTab === "Pending" ? 9 : 8} className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                          No records found.
-                        </td>
-                      </tr>
-                    ) : (
-                      sortedData.map((leave, index) => {
-                        // Calculate row number accounting for pagination
-                        const rowNumber = activeTab === "Pending" && pendingLeavesData
-                          ? (pendingLeavesData.pagination.page - 1) * pendingLeavesData.pagination.limit + index + 1
-                          : index + 1;
-                        
-                        return (
-                        <tr key={leave.leaveId} className={`${
-                          index % 2 === 0 
-                            ? (theme === 'dark' ? 'bg-gray-800' : 'bg-white') 
-                            : (theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50')
-                        } hover:${theme === 'dark' ? 'bg-gray-600' : 'bg-blue-50'} transition-colors`}>
-                          <td className={`px-2 py-2 text-center font-medium border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
-                            {rowNumber}
-                          </td>
-                          <td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
-                            <div className="flex items-center gap-2">
-                              <Image 
-                                src={leave.employeeImage || "/placeholder-user.jpg"} 
-                                alt={leave.employeeName} 
-                                width={24} 
-                                height={24} 
-                                className="rounded-full border border-blue-200 dark:border-blue-800" 
-                              />
-                              <span>{leave.employeeName}</span>
-                            </div>
-                          </td>
-                          <td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
-                            {leave.startDate ? new Date(leave.startDate).toLocaleDateString() : 'N/A'}
-                          </td>
-                          <td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
-                            {leave.leaveType}
-                          </td>
-                          <td className={`px-2 py-2 text-center border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
-                            {leave.numberOfDays}
-                          </td>
-                          <td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              leave.status === "Approved" 
-                                ? (theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800') 
-                                : leave.status === "Rejected" 
-                                ? (theme === 'dark' ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800') 
-                                : (theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800')
-                            }`}>
-                              {leave.status}
-                            </span>
-                          </td>
-                          {activeTab === "Pending" && 'daysPending' in leave && leave.daysPending !== undefined && (
-                            <td className={`px-2 py-2 text-center border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                leave.daysPending > 7
-                                  ? (theme === 'dark' ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800')
-                                  : leave.daysPending > 3
-                                  ? (theme === 'dark' ? 'bg-orange-900 text-orange-200' : 'bg-orange-100 text-orange-800')
-                                  : (theme === 'dark' ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800')
-                              }`}>
-                                {leave.daysPending} days
-                              </span>
-                            </td>
-                          )}
-                          <td className={`px-2 py-2 border ${theme === "dark" ? "text-gray-200 border-gray-600" : "text-gray-700 border-gray-200"}`}>
-                            <div className="max-w-[120px] truncate">
-                              {leave.reason}
-                            </div>
-                          </td>
-                          <td className={`px-2 py-2 text-center border ${theme === "dark" ? "border-gray-600" : "border-gray-200"}`}>
-                            <div className="flex gap-1 justify-center">
+                  {/* Inline header filters */}
+                  <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
+                    <th className={`px-2 py-1 sticky left-0 z-20 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 w-16 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <input 
+                        value={filterEmpId} 
+                        onChange={e => setFilterEmpId(e.target.value)} 
+                        placeholder="Filter ID" 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                      />
+                    </th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <input 
+                        value={filterName} 
+                        onChange={e => setFilterName(e.target.value)} 
+                        placeholder="Filter Name" 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                      />
+                    </th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <select 
+                        value={filterLeaveType} 
+                        onChange={e => setFilterLeaveType(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      >
+                        <option value="All">All</option>
+                        {uniqueLeaveTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                    </th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <input 
+                        type="date"
+                        value={filterStartDate} 
+                        onChange={e => setFilterStartDate(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
+                      />
+                    </th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                      <select 
+                        value={filterStatus} 
+                        onChange={e => setFilterStatus(e.target.value)} 
+                        className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`}
+                      >
+                        <option value="All">All</option>
+                        {uniqueStatuses.map(status => <option key={status} value={status}>{status}</option>)}
+                      </select>
+                    </th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                  </tr>
+              </thead>
+                <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                  {filteredLeaves.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className={`px-4 py-12 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>No leave records found</td>
+                    </tr>
+                  ) : filteredLeaves.map((leave, index) => (
+                    <tr key={leave.leaveId} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                      <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{index + 1}</td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                        <Image
+                          src={leave.employeeImage || "/placeholder-user.jpg"}
+                          alt={leave.employeeName}
+                          width={32}
+                          height={32}
+                          className={`rounded object-cover border ${theme === 'dark' ? 'border-blue-900' : 'border-blue-200'}`}
+                        />
+                      </td>
+                      <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>{leave.employeeId}</td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={leave.employeeName || "-"}>{leave.employeeName || "-"}</div></td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={leave.designation || "-"}>{leave.designation || "-"}</div></td>
+                      <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={leave.leaveType}>{leave.leaveType}</div></td>
+                      <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{leave.startDate ? new Date(leave.startDate).toLocaleDateString() : "N/A"}</td>
+                      <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{leave.endDate ? new Date(leave.endDate).toLocaleDateString() : "N/A"}</td>
+                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                        <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
+                          leave.status === 'Approved' 
+                            ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
+                            : leave.status === 'Rejected'
+                            ? theme === 'dark' ? 'bg-red-800 text-red-200' : 'bg-red-100 text-red-700'
+                            : theme === 'dark' ? 'bg-yellow-800 text-yellow-200' : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {leave.status || "N/A"}
+                        </span>
+                      </td>
+                      <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}><div className="truncate" title={leave.reason || "-"}>{leave.reason || "-"}</div></td>
+                      <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                        {leave.status === "Pending" ? (
+                          <div className="flex gap-1">
                             <button
-                                onClick={() => setViewRecord(leave)}
-                                className={`p-1 rounded transition-colors ${
-                                  theme === 'dark'
-                                    ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
-                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                                }`}
-                              title="View Details"
+                              className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                theme === 'dark' 
+                                  ? 'border-green-500 text-green-400 bg-gray-800 hover:bg-gray-700 focus:ring-green-400' 
+                                  : 'border-green-500 text-green-600 bg-white hover:bg-green-50 focus:ring-green-400'
+                              }`}
+                              onClick={async () => {
+                                await updateLeaveStatus(leave.leaveId, "Approved");
+                              }}
                             >
-                                <FaEye className="w-3 h-3" />
+                              Approve
                             </button>
-                            {leave.status === "Pending" && (
-                              <>
-                                <button
-                                  onClick={async () => {
-                                    if (actionLoading) return;
-                                    setActionLoading(leave.leaveId);
-                                    try {
-                                      await updateLeaveStatus(leave.leaveId, "Approved");
-                                      showToast({ message: "Leave approved successfully!", type: "success" });
-                                      await refreshLeaveData();
-                                    } catch {
-                                      showToast({ message: "Failed to approve leave", type: "error" });
-                                    } finally {
-                                      setActionLoading(null);
-                                    }
-                                  }}
-                                  disabled={actionLoading === leave.leaveId}
-                                  className={`p-1 rounded transition-colors ${
-                                    actionLoading === leave.leaveId
-                                      ? 'opacity-50 cursor-not-allowed'
-                                      : ''
-                                  } ${
-                                    theme === 'dark'
-                                      ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
-                                      : 'bg-green-50 text-green-600 hover:bg-green-100'
-                                  }`}
-                                  title="Approve"
-                                >
-                                  {actionLoading === leave.leaveId ? (
-                                    <FaSpinner className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                  )}
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    if (actionLoading) return;
-                                    setRejectLeaveId(leave.leaveId);
-                                    setRejectModalOpen(true);
-                                  }}
-                                  disabled={!!actionLoading}
-                                  className={`p-1 rounded transition-colors ${
-                                    actionLoading
-                                      ? 'opacity-50 cursor-not-allowed'
-                                      : ''
-                                  } ${
-                                    theme === 'dark'
-                                      ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
-                                      : 'bg-red-50 text-red-600 hover:bg-red-100'
-                                  }`}
-                                  title="Reject"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                              </>
-                            )}
+                            <button
+                              className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                theme === 'dark' 
+                                  ? 'border-red-500 text-red-400 bg-gray-800 hover:bg-gray-700 focus:ring-red-400' 
+                                  : 'border-red-500 text-red-600 bg-white hover:bg-red-50 focus:ring-red-400'
+                              }`}
+                              onClick={() => { setRejectLeave(leave); setRejectModalOpen(true); }}
+                            >
+                              Reject
+                            </button>
                           </div>
-                        </td>
-                      </tr>
-                        );
-                      })
-                  )}
+                        ) : (
+                          <button
+                            className={`px-2 py-1 rounded font-semibold text-xs border transition focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                              theme === 'dark' 
+                                ? 'border-blue-500 text-blue-400 bg-gray-800 hover:bg-gray-700 focus:ring-blue-400' 
+                                : 'border-blue-500 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-400'
+                            }`}
+                            onClick={() => setViewRecord(leave)}
+                          >
+                            View
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-            </div>
+              </>
+            )}
           </div>
         </div>
-        
-        {/* Pagination for Pending Tab */}
-        {activeTab === "Pending" && pendingLeavesData && pendingLeavesData.pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4">
-            <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              Showing page {pendingLeavesData.pagination.page} of {pendingLeavesData.pagination.totalPages} 
-              ({pendingLeavesData.pagination.totalCount} total)
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentPage === 1
-                    ? 'opacity-50 cursor-not-allowed'
-                    : ''
-                } ${
-                  theme === 'dark'
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(pendingLeavesData.pagination.totalPages, prev + 1))}
-                disabled={currentPage === pendingLeavesData.pagination.totalPages}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentPage === pendingLeavesData.pagination.totalPages
-                    ? 'opacity-50 cursor-not-allowed'
-                    : ''
-                } ${
-                  theme === 'dark'
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                Next
-              </button>
+
+        {/* Leave Detail Modal */}
+        {viewRecord && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-2xl relative overflow-y-auto max-h-[90vh]">
+              <button className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl font-bold" onClick={() => setViewRecord(null)}>✕</button>
+              <h2 className="text-2xl font-bold mb-4 text-center">Leave Record Details</h2>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <Image src={viewRecord.employeeImage || "/placeholder-user.jpg"} alt="Employee" width={64} height={64} className="w-16 h-16 rounded-full object-cover border" />
+                  <div>
+                    <div className="font-bold text-lg">{viewRecord.employeeName || viewRecord.employeeId}</div>
+                    <div className="text-xs text-gray-500">{viewRecord.employeeId}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><b>Designation:</b> {viewRecord.designation || '-'}</div>
+                  <div><b>Leave Type:</b> {viewRecord.leaveType || '-'}</div>
+                  <div><b>Start Date:</b> {viewRecord.startDate ? new Date(viewRecord.startDate).toLocaleDateString() : '-'}</div>
+                  <div><b>End Date:</b> {viewRecord.endDate ? new Date(viewRecord.endDate).toLocaleDateString() : '-'}</div>
+                  <div><b>Status:</b> {viewRecord.status || '-'}</div>
+                  <div><b>Applied On:</b> {viewRecord.appliedOn ? new Date(viewRecord.appliedOn).toLocaleDateString() : '-'}</div>
+                  <div className="col-span-2">
+                    <b>Reason:</b> 
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">{viewRecord.reason || 'No reason provided'}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <b>Emergency Contact:</b> 
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">{viewRecord.emergencyContact || 'Not provided'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
-          </div>
       </div>
     </AdminDashboardLayout>
   );
