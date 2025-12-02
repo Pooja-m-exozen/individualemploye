@@ -1122,17 +1122,18 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           doc.setTextColor(0, 0, 0);
           doc.setFont('helvetica', 'normal');
          
-          // Calculate Total Payable Days: Present + Half Days + (Weekoffs - Weekoffs Worked) + Holidays + Leaves + Comp Off Leave
+          // Calculate Total Payable Days: Present + Half Days + Weekoffs + Week Offs Worked + Holidays + Leaves + Comp Off Leave
           // Note: 
-          // - weekOffsWorked days are already included in presentDays, so we subtract them from weekOffs to avoid double counting
+          // - weekOffs are payable days (paid weekly offs)
+          // - weekOffsWorked are additional payable days (working on weekly offs)
           // - compOffEarned should not be included in payable days (it's earned, not taken as leave)
           // - partiallyAbsentDays should not be included as they are not fully payable
           // - regularizedPresentDays should not be included
-          const netWeekOffs = monthlySummary.weekOffs - (monthlySummary.weekOffsWorked || 0);
           const totalPayableDays = 
             monthlySummary.presentDays +
             monthlySummary.halfDays +
-            (netWeekOffs > 0 ? netWeekOffs : 0) +
+            monthlySummary.weekOffs +
+            (monthlySummary.weekOffsWorked || 0) +
             monthlySummary.holidays +
             monthlySummary.el +
             monthlySummary.cl +
@@ -1308,16 +1309,17 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
           // LOP: add Partially Absent as LOP if required
           lop += partiallyAbsentDays;
 
-          // Calculate Total Payable Days: presentDays + halfDays + (weekOffs - weekOffsWorked) + holidays + el + cl + sl + compOffLeave
+          // Calculate Total Payable Days: presentDays + halfDays + weekOffs + weekOffsWorked + holidays + el + cl + sl + compOffLeave
           // Note: 
-          // - weekOffsWorked is already included in presentDays, so subtract it from weekOffs to avoid double counting
+          // - weekOffs are payable days (paid weekly offs)
+          // - weekOffsWorked are additional payable days (working on weekly offs)
           // - compOffGained should not be included in payable days
           // - partiallyAbsentDays should not be included as they are not fully payable
-          const netWeekOffs = weekOffsWithoutHolidays - weekOffsWorked;
           let totalPayableDays = 
             presentDays +
             halfDays + // Half days count as 0.5
-            (netWeekOffs > 0 ? netWeekOffs : 0) + // Net week offs (excluding worked ones)
+            weekOffsWithoutHolidays + // All week offs are payable
+            weekOffsWorked + // Week offs worked are additional payable days
             holidays + // Holidays
             el + // Earned Leave
             cl + // Casual Leave
