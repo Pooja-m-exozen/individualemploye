@@ -8,6 +8,22 @@ export interface CreatePayrollPayload {
   amount: number;
   payableDays: number;
   status: string;
+  projectId?: string;
+  basicSalary?: number;
+  hrAllowance?: number;
+  conveyanceAllowance?: number;
+  specialAllowance?: number;
+  otherAllowance?: number;
+  washingAllowance?: number;
+  pf?: number;
+  esi?: number;
+  pt?: number;
+  medicalInsurance?: number;
+  uniformDeduction?: number;
+  roomRent?: number;
+  totalEarnings?: number;
+  totalDeductions?: number;
+  netPay?: number;
 }
 
 export interface PayrollResponse {

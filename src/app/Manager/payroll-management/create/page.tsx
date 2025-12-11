@@ -12,7 +12,10 @@ import {
   FaInfoCircle,
   FaPlus,
   FaExclamationCircle,
+  FaFileInvoiceDollar,
+  FaEye,
 } from "react-icons/fa";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
@@ -42,8 +45,14 @@ const guidelines = [
   "Review and confirm payroll before finishing.",
 ];
 
+const monthOptions = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
 export default function PayrollCreatePage() {
   const { theme } = useTheme();
+  const router = useRouter();
   const [activeStep, setActiveStep] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -58,6 +67,7 @@ export default function PayrollCreatePage() {
   const [monthFilter, setMonthFilter] = useState("");
   const [payableDays, setPayableDays] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [createdPayrollId, setCreatedPayrollId] = useState<string | null>(null);
   const [kycRecords, setKycRecords] = useState<KYCRecord[]>([]);
   const [projectOptions, setProjectOptions] = useState<string[]>([]);
   const [designationOptions, setDesignationOptions] = useState<string[]>([]);
@@ -126,7 +136,7 @@ export default function PayrollCreatePage() {
       return;
     }
     try {
-      const monthIndex = projectOptions.findIndex((m) => m === payrollForm.month) + 1;
+      const monthIndex = monthOptions.findIndex((m) => m === payrollForm.month) + 1;
       const monthStr = monthIndex < 10 ? `0${monthIndex}` : `${monthIndex}`;
       const monthValue = payrollForm.year && payrollForm.month ? `${payrollForm.year}-${monthStr}` : "";
       const payload = {
@@ -137,7 +147,8 @@ export default function PayrollCreatePage() {
         payableDays: payableDays || 0,
         status: "Pending",
       };
-      await createPayroll(payload);
+      const response = await createPayroll(payload);
+      setCreatedPayrollId(response.data._id || null);
       setActiveStep(3);
       setSuccess("Payroll record created successfully.");
     } catch (err: unknown) {
@@ -164,13 +175,20 @@ export default function PayrollCreatePage() {
   const handleFinish = () => {
     setSuccess("Payroll created and confirmed successfully!");
     setConfirmed(true);
-    setTimeout(() => {
-      setActiveStep(1);
-      setSelectedEmployee(null);
-      setPayrollForm({ month: "", year: "", amount: "" });
-      setSuccess(null);
-      setConfirmed(false);
-    }, 2000);
+  };
+
+  const handleViewPayroll = () => {
+    router.push("/Manager/payroll-management/view");
+  };
+
+  const handleCreateAnother = () => {
+    setActiveStep(1);
+    setSelectedEmployee(null);
+    setPayrollForm({ month: "", year: "", amount: "" });
+    setSuccess(null);
+    setConfirmed(false);
+    setCreatedPayrollId(null);
+    setPayableDays(0);
   };
 
   return (
@@ -546,7 +564,7 @@ export default function PayrollCreatePage() {
                                   }`}
                               >
                                 <option value="">All Months</option>
-                                {projectOptions.map((m) => (
+                                {monthOptions.map((m) => (
                                   <option key={m} value={m}>
                                     {m}
                                   </option>
@@ -760,7 +778,7 @@ export default function PayrollCreatePage() {
                                 required
                               >
                                 <option value="">Select Month</option>
-                                {projectOptions.map((m) => (
+                                {monthOptions.map((m) => (
                                   <option key={m} value={m}>
                                     {m}
                                   </option>
@@ -1014,16 +1032,63 @@ export default function PayrollCreatePage() {
                               </div>
                             </div>
                           </div>
-                          <button
-                            className={`w-full mt-4 px-4 py-2 rounded-lg font-semibold text-base transition ${theme === "dark"
-                              ? "bg-green-800 text-white hover:bg-green-900"
-                              : "bg-green-600 text-white hover:bg-green-700"
-                              }`}
-                            onClick={handleFinish}
-                            disabled={confirmed}
-                          >
-                            {confirmed ? "Finished" : "Finish & Confirm"}
-                          </button>
+                          {!confirmed ? (
+                            <button
+                              className={`w-full mt-4 px-4 py-2 rounded-lg font-semibold text-base transition ${theme === "dark"
+                                ? "bg-green-800 text-white hover:bg-green-900"
+                                : "bg-green-600 text-white hover:bg-green-700"
+                                }`}
+                              onClick={handleFinish}
+                            >
+                              Finish & Confirm
+                            </button>
+                          ) : (
+                            <div className="mt-6 space-y-3">
+                              <div className={`p-4 rounded-lg ${theme === "dark" ? "bg-green-950 border border-green-800" : "bg-green-50 border border-green-200"}`}>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <FaCheckCircle className={`w-5 h-5 ${theme === "dark" ? "text-green-400" : "text-green-600"}`} />
+                                  <span className={`font-semibold ${theme === "dark" ? "text-green-300" : "text-green-700"}`}>
+                                    Payroll Created Successfully!
+                                  </span>
+                                </div>
+                                <p className={`text-sm ${theme === "dark" ? "text-green-200" : "text-green-600"}`}>
+                                  The payroll record has been created and is now available in the payroll view.
+                                </p>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <button
+                                  onClick={handleViewPayroll}
+                                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold text-base transition ${theme === "dark"
+                                    ? "bg-blue-800 text-white hover:bg-blue-900"
+                                    : "bg-blue-600 text-white hover:bg-blue-700"
+                                    }`}
+                                >
+                                  <FaEye className="w-5 h-5" />
+                                  View Payroll
+                                </button>
+                                <button
+                                  onClick={handleCreateAnother}
+                                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold text-base transition border ${theme === "dark"
+                                    ? "bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700"
+                                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                                    }`}
+                                >
+                                  <FaPlus className="w-5 h-5" />
+                                  Create Another
+                                </button>
+                              </div>
+                              <button
+                                onClick={() => router.push(`/Manager/payroll-management/view`)}
+                                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold text-base transition ${theme === "dark"
+                                  ? "bg-indigo-800 text-white hover:bg-indigo-900"
+                                  : "bg-indigo-600 text-white hover:bg-indigo-700"
+                                  }`}
+                              >
+                                <FaFileInvoiceDollar className="w-5 h-5" />
+                                View Payslip
+                              </button>
+                            </div>
+                          )}
                         </motion.div>
                       )}
                     </AnimatePresence>
