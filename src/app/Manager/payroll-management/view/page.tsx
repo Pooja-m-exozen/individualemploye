@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaSearch, FaChevronLeft, FaChevronRight, FaFileInvoiceDollar, FaTimes, FaPrint, FaDownload, FaPlus, FaUser, FaCheckCircle } from "react-icons/fa";
+import { FaSearch, FaChevronLeft, FaChevronRight, FaFileInvoiceDollar, FaTimes, FaPrint, FaDownload, FaPlus, FaUser, FaCheckCircle, FaEye } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 import domtoimage from "dom-to-image";
@@ -762,7 +762,7 @@ export default function PayrollViewPage() {
   // Monthly Payslip Generation State (for each master)
   const [selectedMasterForMonth, setSelectedMasterForMonth] = useState<Record<string, { month: string; year: string; payableDays: number; amount: number; loading: boolean }>>({});
   // Note: generatedPayslips setter is used but value is not currently read
-  const [, setGeneratedPayslips] = useState<Set<string>>(new Set()); // Track employeeId-month-year combinations
+  const [generatedPayslips, setGeneratedPayslips] = useState<Set<string>>(new Set()); // Track employeeId-month-year combinations
   
   // Create Payroll Modal State (keeping for backward compatibility)
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -1462,7 +1462,25 @@ export default function PayrollViewPage() {
       const netSalary = master.netSalary || (grossSalary - totalDeductions);
       
       const standardWorkingDays = 30; // Standard working days for full month
-      const amount = payableDays > 0 ? (payableDays / standardWorkingDays) * netSalary : 0;
+      // For 30 days, amount should equal netSalary exactly (no calculation needed)
+      // For other days, calculate proportionally
+      let amount = 0;
+      if (payableDays === standardWorkingDays) {
+        // For exactly 30 days, use netSalary directly to avoid any rounding issues
+        amount = netSalary;
+      } else if (payableDays > 0) {
+        // For other days, calculate proportionally
+        amount = (payableDays / standardWorkingDays) * netSalary;
+      }
+      
+      console.log("Amount calculation:", {
+        payableDays,
+        netSalary,
+        standardWorkingDays,
+        calculatedAmount: amount,
+        expectedFor30Days: netSalary,
+        is30Days: payableDays === standardWorkingDays
+      });
 
       setSelectedMasterForMonth(prev => ({
         ...prev,
@@ -1748,6 +1766,94 @@ export default function PayrollViewPage() {
       if (!payslipLoading) {
         setPayslipLoading(false);
       }
+    }
+  };
+
+  // View existing payroll record
+  const handleViewPayroll = async (master: PayrollMaster) => {
+    const key = master.employeeId;
+    const monthData = selectedMasterForMonth[key];
+    if (!monthData || !monthData.month || !monthData.year) {
+      alert("Please select a month first");
+      return;
+    }
+
+    setPayslipLoading(true);
+    setPayslipError(null);
+
+    try {
+      const monthIndex = monthOptionsForCreate.findIndex((m) => m === monthData.month) + 1;
+      const monthStr = monthIndex < 10 ? `0${monthIndex}` : `${monthIndex}`;
+      const monthValue = `${monthData.year}-${monthStr}`;
+
+      // Fetch existing payroll record
+      const response = await fetch(
+        `https://cafm.zenapi.co.in/api/salary-disbursement/payrolls?employeeId=${master.employeeId}&month=${monthValue}&year=${monthData.year}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch payroll record");
+      }
+
+      const result = await response.json();
+      const payrollRecord = Array.isArray(result.data) 
+        ? result.data.find((p: PayrollRecord) => 
+            p.employeeId === master.employeeId && 
+            p.month === monthValue && 
+            p.year === monthData.year
+          )
+        : (Array.isArray(result) ? result.find((p: PayrollRecord) => 
+            p.employeeId === master.employeeId && 
+            p.month === monthValue && 
+            p.year === monthData.year
+          ) : result);
+
+      if (!payrollRecord) {
+        throw new Error("No payroll record found for this month");
+      }
+
+      // Convert payroll record to payslip data format
+      const payslipDataToSet: PayslipData = {
+        employeeId: payrollRecord.employeeId || master.employeeId,
+        employeeName: payrollRecord.employeeName || master.employeeName || "",
+        designation: payrollRecord.designation || master.designation || "",
+        project: payrollRecord.project || master.project || "",
+        month: monthData.month,
+        year: payrollRecord.year || monthData.year,
+        basicSalary: payrollRecord.basicSalary || master.basicSalary || 0,
+        hrAllowance: payrollRecord.hrAllowance || master.hrAllowance || 0,
+        conveyanceAllowance: payrollRecord.conveyanceAllowance || master.conveyanceAllowance || 0,
+        specialAllowance: payrollRecord.specialAllowance || master.specialAllowance || 0,
+        otherAllowance: payrollRecord.otherAllowance || master.otherAllowance || 0,
+        washingAllowance: payrollRecord.washingAllowance || master.washingAllowance || 0,
+        totalEarnings: payrollRecord.totalEarnings || master.grossSalary || 0,
+        pf: payrollRecord.pf || master.pf || 0,
+        esi: payrollRecord.esi || master.esi || 0,
+        pt: payrollRecord.pt || master.pt || 0,
+        medicalInsurance: payrollRecord.medicalInsurance || master.medicalInsurance || 0,
+        uniformDeduction: payrollRecord.uniformDeduction || master.uniformDeduction || 0,
+        roomRent: payrollRecord.roomRent || master.roomRent || 0,
+        totalDeductions: payrollRecord.totalDeductions || 0,
+        netPay: payrollRecord.amount || payrollRecord.netPay || master.netSalary || 0,
+        payableDays: payrollRecord.payableDays || monthData.payableDays || 0,
+      };
+
+      setPayslipData(payslipDataToSet);
+      setSelectedPayslip({
+        employeeId: payrollRecord.employeeId || master.employeeId,
+        employeeName: payrollRecord.employeeName || master.employeeName || "",
+        month: monthValue,
+        year: payrollRecord.year || monthData.year,
+        amount: payrollRecord.amount || 0,
+        status: payrollRecord.status || "Pending",
+      });
+
+      setPayslipLoading(false);
+    } catch (err: unknown) {
+      console.error("Error viewing payroll:", err);
+      setPayslipError(err instanceof Error ? err.message : "Failed to load payroll record");
+      setPayslipLoading(false);
+      alert(err instanceof Error ? err.message : "Failed to load payroll record");
     }
   };
 
@@ -2708,7 +2814,7 @@ export default function PayrollViewPage() {
                     <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Select Month</th>
                     <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Payable Days</th>
                     <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Amount</th>
-                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-24 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Generate</th>
+                    <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-32 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>Actions</th>
                   </tr>
                   {/* Inline header filters */}
                   <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
@@ -2861,17 +2967,43 @@ export default function PayrollViewPage() {
                         </td>
                         <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-blue-800' : 'border-blue-200'}`}>
                           {monthData.month && monthData.payableDays > 0 ? (
-                            <button
-                              onClick={() => handleGenerateMonthlyPayslip(master)}
-                              className={`px-2 py-1 rounded text-xs font-semibold transition ${
-                                theme === 'dark'
-                                  ? 'bg-green-800 text-green-200 hover:bg-green-700'
-                                  : 'bg-green-600 text-white hover:bg-green-700'
-                              }`}
-                              title="Generate Payslip"
-                            >
-                              <FaFileInvoiceDollar className="inline w-3 h-3" />
-                            </button>
+                            <div className="flex items-center justify-center gap-2">
+                              {/* View Button - Check if payroll record exists */}
+                              {(() => {
+                                const monthIndex = monthOptionsForCreate.findIndex((m) => m === monthData.month) + 1;
+                                const monthStr = monthIndex < 10 ? `0${monthIndex}` : `${monthIndex}`;
+                                const monthValue = `${monthData.year}-${monthStr}`;
+                                const payrollKey = `${master.employeeId}-${monthValue}-${monthData.year}`;
+                                const hasPayroll = generatedPayslips.has(payrollKey);
+                                
+                                return hasPayroll ? (
+                                  <button
+                                    onClick={() => handleViewPayroll(master)}
+                                    className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                                      theme === 'dark'
+                                        ? 'bg-blue-800 text-blue-200 hover:bg-blue-700'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    }`}
+                                    title="View Payslip"
+                                  >
+                                    <FaEye className="inline w-3 h-3" />
+                                  </button>
+                                ) : null;
+                              })()}
+                              
+                              {/* Generate Button */}
+                              <button
+                                onClick={() => handleGenerateMonthlyPayslip(master)}
+                                className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                                  theme === 'dark'
+                                    ? 'bg-green-800 text-green-200 hover:bg-green-700'
+                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                }`}
+                                title="Generate Payslip"
+                              >
+                                <FaFileInvoiceDollar className="inline w-3 h-3" />
+                              </button>
+                            </div>
                           ) : (
                             <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
