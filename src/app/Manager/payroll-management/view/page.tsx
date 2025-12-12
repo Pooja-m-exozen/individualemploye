@@ -5636,14 +5636,21 @@ export default function PayrollViewPage() {
                             (Number(masterForm.leaveTravelAllowance) || 0) +
                             (Number(masterForm.medicalAllowance) || 0) +
                             (Number(masterForm.specialAllowance) || 0) +
-                            (Number(masterForm.otherAllowance) || 0) -
+                            (Number(masterForm.otherAllowance) || 0) +
+                            (Number(masterForm.washingAllowance) || 0) +
+                            (Number(masterForm.leaveWithWages) || 0) +
+                            (Number(masterForm.bonus) || 0) +
+                            (Number(masterForm.nationalFestivalHolidays) || 0) +
+                            (Number(masterForm.wagesAdditionalHours) || 0) +
+                            (Number(masterForm.relieverCharges) || 0) -
                             (Number(masterForm.employeePf) || 0) -
                             (Number(masterForm.employeeEsi) || 0) -
                             (Number(masterForm.pt) || 0) -
                             (Number(masterForm.uniformDeduction) || 0) -
                             (Number(masterForm.medicalInsurance) || 0) -
                             (Number(masterForm.trainingCost) || 0) -
-                            (Number(masterForm.labourWelfareFundEmployee) || 0)
+                            (Number(masterForm.labourWelfareFundEmployee) || 0) -
+                            (Number(masterForm.roomRent) || 0)
                           ).toLocaleString('en-IN')}
                         </td>
                       </tr>
