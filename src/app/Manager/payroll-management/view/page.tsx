@@ -1452,33 +1452,11 @@ export default function PayrollViewPage() {
         console.error("Error fetching monthly summary for payable days:", error);
       }
 
-      // Calculate amount payable based on payable days (same calculation as netPay)
-      const totalDaysInMonth = new Date(Number(year), monthIndex, 0).getDate();
-      const workingDays = totalDaysInMonth - Math.floor(totalDaysInMonth / 7); // Approximate working days
-      const ratio = payableDays / workingDays;
-
-      // Calculate pro-rated salary components (same as in handleGenerateMonthlyPayslip)
-      const basic = master.basicSalary * ratio;
-      const hra = master.hrAllowance * ratio;
-      const da = master.conveyanceAllowance * ratio;
-      const special = master.specialAllowance * ratio;
-      const other = master.otherAllowance * ratio;
-      const washing = (master.washingAllowance || 0) * ratio;
-      
-      // Calculate Total Earnings
-      const totalEarnings = basic + hra + da + special + other + washing;
-      
-      // Calculate Total Employee Deductions
-      const pf = master.pf;
-      const pt = master.pt;
-      const esi = master.esi || 0;
-      const medical = master.medicalInsurance || 0;
-      const uniform = master.uniformDeduction || 0;
-      const roomRent = master.roomRent || 0;
-      const totalDeductions = pf + pt + esi + medical + uniform + roomRent;
-      
-      // Calculate Net Pay (amount should match this)
-      const amount = totalEarnings - totalDeductions;
+      // Calculate amount payable based on payable days
+      // Formula: amount = (payableDays / 30) * netSalary
+      // If 30 days = full netSalary, if 29 days = (29/30) * netSalary
+      const standardWorkingDays = 30; // Standard working days for full month
+      const amount = (payableDays / standardWorkingDays) * master.netSalary;
 
       setSelectedMasterForMonth(prev => ({
         ...prev,
@@ -1511,9 +1489,9 @@ export default function PayrollViewPage() {
       const monthValue = `${monthData.year}-${monthStr}`;
 
       // Calculate pro-rated salary components based on payable days
-      const totalDaysInMonth = new Date(Number(monthData.year), monthIndex, 0).getDate();
-      const workingDays = totalDaysInMonth - Math.floor(totalDaysInMonth / 7);
-      const ratio = monthData.payableDays / workingDays;
+      // Use standard 30 days as base for calculation to match amount calculation
+      const standardWorkingDays = 30;
+      const ratio = monthData.payableDays / standardWorkingDays;
 
       const basic = master.basicSalary * ratio;
       const hra = master.hrAllowance * ratio;
