@@ -155,6 +155,18 @@ export default function PayrollViewPage() {
   const [payslipLoading, setPayslipLoading] = useState(false);
   const [payslipError, setPayslipError] = useState<string | null>(null);
   
+  // Payroll Master Detail View State
+  const [selectedPayrollMaster, setSelectedPayrollMaster] = useState<PayrollMaster | null>(null);
+  const [payrollMasterDetails, setPayrollMasterDetails] = useState<ExtendedPayrollMaster | null>(null);
+  const [payrollMasterLoading, setPayrollMasterLoading] = useState(false);
+  const [payrollMasterError, setPayrollMasterError] = useState<string | null>(null);
+  const [payrollMasterMonthData, setPayrollMasterMonthData] = useState<{ month: string; year: string; payableDays: number; amount: number } | null>(null);
+  
+  // Extended Payroll Master type for detailed view
+  type ExtendedPayrollMaster = PayrollMaster & {
+    [key: string]: unknown;
+  };
+  
   // Create Payroll Master Modal State
   const [showCreateMasterModal, setShowCreateMasterModal] = useState(false);
   const [masterForm, setMasterForm] = useState<{
@@ -1832,6 +1844,57 @@ export default function PayrollViewPage() {
     }
   };
 
+  // View Payroll Master Details (not payslip)
+  const handleViewPayrollMaster = async (master: PayrollMaster) => {
+    const key = master.employeeId;
+    const monthData = selectedMasterForMonth[key];
+    if (!monthData || !monthData.month || !monthData.year) {
+      alert("Please select a month first");
+      return;
+    }
+
+    setPayrollMasterLoading(true);
+    setPayrollMasterError(null);
+    setSelectedPayrollMaster(master);
+    setPayrollMasterMonthData(monthData);
+
+    try {
+      // Fetch the full master record to get all details
+      const masterResponse = await fetch(
+        `https://cafm.zenapi.co.in/api/salary-disbursement/payroll-masters?employeeId=${master.employeeId}&year=${monthData.year}`
+      );
+
+      let fullMasterData: ExtendedPayrollMaster = master as ExtendedPayrollMaster;
+      if (masterResponse.ok) {
+        const masterResult = await masterResponse.json();
+        const masters = Array.isArray(masterResult.data) ? masterResult.data : (Array.isArray(masterResult) ? masterResult : [masterResult]);
+        const foundMaster = masters.find((m: ExtendedPayrollMaster) => 
+          m.employeeId === master.employeeId && m.year === monthData.year
+        );
+        if (foundMaster) {
+          fullMasterData = foundMaster as ExtendedPayrollMaster;
+        }
+      }
+
+      // Helper function to safely get numeric value
+      const getNumericValue = (value: unknown): number => {
+        if (typeof value === 'number') return value;
+        if (typeof value === 'string') {
+          const parsed = parseFloat(value);
+          return isNaN(parsed) ? 0 : parsed;
+        }
+        return 0;
+      };
+
+      setPayrollMasterDetails(fullMasterData);
+      setPayrollMasterLoading(false);
+    } catch (err: unknown) {
+      console.error("Error viewing payroll master:", err);
+      setPayrollMasterError(err instanceof Error ? err.message : "Failed to load payroll master");
+      setPayrollMasterLoading(false);
+    }
+  };
+
   // View existing payroll record - Fetch all details from master
   const handleViewPayroll = async (master: PayrollMaster) => {
     const key = master.employeeId;
@@ -1854,8 +1917,7 @@ export default function PayrollViewPage() {
         `https://cafm.zenapi.co.in/api/salary-disbursement/payroll-masters?employeeId=${master.employeeId}&year=${monthData.year}`
       );
 
-      // Use a more flexible type to handle additional fields from API
-      type ExtendedPayrollMaster = PayrollMaster & { [key: string]: unknown };
+      // Use the ExtendedPayrollMaster type defined at the top
       let fullMasterData: ExtendedPayrollMaster = master as ExtendedPayrollMaster;
       if (masterResponse.ok) {
         const masterResult = await masterResponse.json();
@@ -3190,17 +3252,30 @@ export default function PayrollViewPage() {
                                 const hasPayroll = generatedPayslips.has(payrollKey);
                                 
                                 return hasPayroll ? (
-                                  <button
-                                    onClick={() => handleViewPayroll(master)}
-                                    className={`px-2 py-1 rounded text-xs font-semibold transition ${
-                                      theme === 'dark'
-                                        ? 'bg-blue-800 text-blue-200 hover:bg-blue-700'
-                                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                                    }`}
-                                    title="View Payslip"
-                                  >
-                                    <FaEye className="inline w-3 h-3" />
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => handleViewPayrollMaster(master)}
+                                      className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                                        theme === 'dark'
+                                          ? 'bg-blue-800 text-blue-200 hover:bg-blue-700'
+                                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                                      }`}
+                                      title="View Payroll Master Details"
+                                    >
+                                      <FaEye className="inline w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleViewPayroll(master)}
+                                      className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                                        theme === 'dark'
+                                          ? 'bg-purple-800 text-purple-200 hover:bg-purple-700'
+                                          : 'bg-purple-600 text-white hover:bg-purple-700'
+                                      }`}
+                                      title="View Payslip"
+                                    >
+                                      <FaFileInvoiceDollar className="inline w-3 h-3" />
+                                    </button>
+                                  </>
                                 ) : null;
                               })()}
                               
@@ -4032,6 +4107,257 @@ export default function PayrollViewPage() {
             }
           }
         `}</style>
+
+        {/* Payroll Master Details Modal */}
+        {selectedPayrollMaster && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
+            <div className={`rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col ${
+              theme === "dark" ? "bg-gray-900" : "bg-white"
+            }`}>
+              {/* Modal Header */}
+              <div className={`flex items-center justify-between p-6 border-b ${
+                theme === "dark" ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"
+              }`}>
+                <div className="flex items-center gap-3">
+                  <FaEye className={`w-6 h-6 ${theme === "dark" ? "text-blue-400" : "text-blue-600"}`} />
+                  <h2 className={`text-2xl font-bold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                    Payroll Master Details
+                  </h2>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedPayrollMaster(null);
+                    setPayrollMasterDetails(null);
+                    setPayrollMasterError(null);
+                    setPayrollMasterMonthData(null);
+                  }}
+                  className={`p-2 rounded-lg transition ${
+                    theme === "dark"
+                      ? "text-gray-400 hover:bg-gray-800 hover:text-red-400"
+                      : "text-gray-500 hover:bg-gray-100 hover:text-red-600"
+                  }`}
+                >
+                  <FaTimes className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-auto p-6">
+                {payrollMasterLoading ? (
+                  <div className="py-12 text-center">
+                    <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                    <p className={`mt-4 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Loading payroll master details...</p>
+                  </div>
+                ) : payrollMasterError ? (
+                  <div className={`py-12 text-center ${theme === "dark" ? "text-red-400" : "text-red-600"}`}>
+                    <p>{payrollMasterError}</p>
+                  </div>
+                ) : payrollMasterDetails ? (
+                  <div className="space-y-6">
+                    {(() => {
+                      // Helper function to safely get numeric value from ExtendedPayrollMaster
+                      const getNumericValue = (value: unknown): number => {
+                        if (typeof value === 'number') return value;
+                        if (typeof value === 'string') {
+                          const parsed = parseFloat(value);
+                          return isNaN(parsed) ? 0 : parsed;
+                        }
+                        return 0;
+                      };
+
+                      return (
+                        <>
+                    {/* Employee Information */}
+                    <div className={`p-4 rounded-lg border ${
+                      theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 ${
+                        theme === "dark" ? "text-gray-200" : "text-gray-900"
+                      }`}>Employee Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Employee ID:</span>
+                          <p className={`mt-1 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>{payrollMasterDetails.employeeId}</p>
+                        </div>
+                        <div>
+                          <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Employee Name:</span>
+                          <p className={`mt-1 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>{payrollMasterDetails.employeeName || "-"}</p>
+                        </div>
+                        <div>
+                          <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Designation:</span>
+                          <p className={`mt-1 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>{payrollMasterDetails.designation || "-"}</p>
+                        </div>
+                        <div>
+                          <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Project:</span>
+                          <p className={`mt-1 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>{payrollMasterDetails.project || "-"}</p>
+                        </div>
+                        <div>
+                          <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Year:</span>
+                          <p className={`mt-1 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>{payrollMasterDetails.year}</p>
+                        </div>
+                        {payrollMasterMonthData && (
+                          <>
+                            <div>
+                              <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Month:</span>
+                              <p className={`mt-1 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>{payrollMasterMonthData.month}</p>
+                            </div>
+                            <div>
+                              <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Payable Days:</span>
+                              <p className={`mt-1 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>{payrollMasterMonthData.payableDays}</p>
+                            </div>
+                            <div>
+                              <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Amount:</span>
+                              <p className={`mt-1 font-semibold ${theme === "dark" ? "text-green-400" : "text-green-700"}`}>
+                                ₹{payrollMasterMonthData.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Earnings */}
+                    <div className={`p-4 rounded-lg border ${
+                      theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 ${
+                        theme === "dark" ? "text-gray-200" : "text-gray-900"
+                      }`}>Earnings</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className={`border-b ${theme === "dark" ? "border-gray-700" : "border-gray-300"}`}>
+                              <th className={`text-left py-2 px-4 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Component</th>
+                              <th className={`text-right py-2 px-4 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Amount (₹)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              { label: "Basic Salary", value: payrollMasterDetails.basicSalary },
+                              { label: "DA/VDA", value: payrollMasterDetails.daVda },
+                              { label: "HR Allowance", value: payrollMasterDetails.hrAllowance },
+                              { label: "Conveyance Allowance", value: payrollMasterDetails.conveyanceAllowance },
+                              { label: "Leave Travel Allowance", value: payrollMasterDetails.leaveTravelAllowance },
+                              { label: "Medical Allowance", value: payrollMasterDetails.medicalAllowance },
+                              { label: "Special Allowance", value: payrollMasterDetails.specialAllowance },
+                              { label: "Other Allowance", value: payrollMasterDetails.otherAllowance },
+                              { label: "Washing Allowance", value: payrollMasterDetails.washingAllowance },
+                              { label: "Leave With Wages", value: payrollMasterDetails.leaveWithWages },
+                              { label: "Bonus", value: payrollMasterDetails.bonus },
+                              { label: "National Festival Holidays", value: payrollMasterDetails.nationalFestivalHolidays },
+                              { label: "Wages Additional Hours", value: payrollMasterDetails.wagesAdditionalHours },
+                              { label: "Reliever Charges", value: payrollMasterDetails.relieverCharges },
+                            ].filter(item => item.value && Number(item.value) > 0).map((item, idx) => (
+                              <tr key={idx} className={`border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                                <td className={`py-2 px-4 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>{item.label}</td>
+                                <td className={`py-2 px-4 text-right font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                                  ₹{Number(item.value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className={`border-t-2 ${theme === "dark" ? "border-gray-600" : "border-gray-400"}`}>
+                              <td className={`py-2 px-4 font-semibold ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>Total Earnings</td>
+                              <td className={`py-2 px-4 text-right font-semibold ${theme === "dark" ? "text-blue-400" : "text-blue-700"}`}>
+                                ₹{(getNumericValue(payrollMasterDetails.grossSalary) || 
+                                  (getNumericValue(payrollMasterDetails.basicSalary) + 
+                                   getNumericValue(payrollMasterDetails.hrAllowance) + 
+                                   getNumericValue(payrollMasterDetails.daVda) + 
+                                   getNumericValue(payrollMasterDetails.conveyanceAllowance) + 
+                                   getNumericValue(payrollMasterDetails.specialAllowance) + 
+                                   getNumericValue(payrollMasterDetails.otherAllowance) + 
+                                   getNumericValue(payrollMasterDetails.washingAllowance))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Deductions */}
+                    <div className={`p-4 rounded-lg border ${
+                      theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 ${
+                        theme === "dark" ? "text-gray-200" : "text-gray-900"
+                      }`}>Deductions</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className={`border-b ${theme === "dark" ? "border-gray-700" : "border-gray-300"}`}>
+                              <th className={`text-left py-2 px-4 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Component</th>
+                              <th className={`text-right py-2 px-4 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Amount (₹)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              { label: "PF (Employee)", value: payrollMasterDetails.employeePf || payrollMasterDetails.pf },
+                              { label: "ESI (Employee)", value: payrollMasterDetails.employeeEsi || payrollMasterDetails.esi },
+                              { label: "PT", value: payrollMasterDetails.pt },
+                              { label: "Medical Insurance", value: payrollMasterDetails.medicalInsurance },
+                              { label: "Uniform Deduction", value: payrollMasterDetails.uniformDeduction },
+                              { label: "Training Cost", value: payrollMasterDetails.trainingCost },
+                              { label: "Labour Welfare Fund (Employee)", value: payrollMasterDetails.labourWelfareFundEmployee },
+                              { label: "Room Rent", value: payrollMasterDetails.roomRent },
+                            ].filter(item => item.value && Number(item.value) > 0).map((item, idx) => (
+                              <tr key={idx} className={`border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                                <td className={`py-2 px-4 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>{item.label}</td>
+                                <td className={`py-2 px-4 text-right font-medium ${theme === "dark" ? "text-red-300" : "text-red-700"}`}>
+                                  ₹{Number(item.value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className={`border-t-2 ${theme === "dark" ? "border-gray-600" : "border-gray-400"}`}>
+                              <td className={`py-2 px-4 font-semibold ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>Total Deductions</td>
+                              <td className={`py-2 px-4 text-right font-semibold ${theme === "dark" ? "text-red-400" : "text-red-700"}`}>
+                                ₹{(getNumericValue(payrollMasterDetails.pf) + 
+                                  getNumericValue(payrollMasterDetails.pt) + 
+                                  getNumericValue(payrollMasterDetails.esi) + 
+                                  getNumericValue(payrollMasterDetails.medicalInsurance) + 
+                                  getNumericValue(payrollMasterDetails.uniformDeduction) + 
+                                  getNumericValue(payrollMasterDetails.roomRent) +
+                                  getNumericValue(payrollMasterDetails.trainingCost) +
+                                  getNumericValue(payrollMasterDetails.labourWelfareFundEmployee)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Net Salary */}
+                    <div className={`p-4 rounded-lg border-2 ${
+                      theme === "dark" ? "bg-gray-800 border-green-600" : "bg-green-50 border-green-300"
+                    }`}>
+                      <div className="flex justify-between items-center">
+                        <span className={`text-xl font-semibold ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>Net Salary:</span>
+                        <span className={`text-2xl font-bold ${theme === "dark" ? "text-green-400" : "text-green-700"}`}>
+                          ₹{(getNumericValue(payrollMasterDetails.netSalary) || 
+                            (getNumericValue(payrollMasterDetails.grossSalary) - 
+                             (getNumericValue(payrollMasterDetails.pf) + 
+                              getNumericValue(payrollMasterDetails.pt) + 
+                              getNumericValue(payrollMasterDetails.esi) + 
+                              getNumericValue(payrollMasterDetails.medicalInsurance) + 
+                              getNumericValue(payrollMasterDetails.uniformDeduction) + 
+                              getNumericValue(payrollMasterDetails.roomRent)))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      {payrollMasterMonthData && payrollMasterMonthData.payableDays === 30 && (
+                        <div className="mt-2">
+                          <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                            For 30 payable days, Amount matches Net Salary
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Create Payroll Modal - Table Format */}
         {showCreateModal && (
