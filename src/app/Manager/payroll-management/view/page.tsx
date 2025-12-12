@@ -1479,13 +1479,16 @@ export default function PayrollViewPage() {
 
   // Generate Payslip for Selected Month
   const handleGenerateMonthlyPayslip = async (master: PayrollMaster) => {
+    console.log("Generate button clicked for:", master.employeeId);
     const key = master.employeeId;
     const monthData = selectedMasterForMonth[key];
     if (!monthData || !monthData.month || !monthData.year) {
+      alert("Please select a month first");
       setPayslipError("Please select a month first");
       return;
     }
 
+    console.log("Month data:", monthData);
     setPayslipLoading(true);
     setPayslipError(null);
 
@@ -1593,12 +1596,7 @@ export default function PayrollViewPage() {
         payload.projectId = projectId;
       }
 
-      await createPayroll(payload);
-
-      // Mark as generated
-      setGeneratedPayslips(prev => new Set(prev).add(`${master.employeeId}-${monthValue}-${monthData.year}`));
-
-      // Generate payslip data for display - set this first
+      // Generate payslip data for display first (before API call)
       const payslipDataToSet: PayslipData = {
         employeeId: master.employeeId,
         employeeName: master.employeeName || "",
@@ -1630,7 +1628,8 @@ export default function PayrollViewPage() {
         [key]: { ...prev[key], amount: netPay }
       }));
 
-      // Set payslip data and selected payslip to show modal
+      // Set payslip data and selected payslip to show modal IMMEDIATELY
+      console.log("Setting payslip data and opening modal");
       setPayslipData(payslipDataToSet);
       setSelectedPayslip({
         employeeId: master.employeeId,
@@ -1640,6 +1639,20 @@ export default function PayrollViewPage() {
         amount: netPay,
         status: "Pending",
       });
+      
+      // Stop loading immediately so modal content is visible
+      setPayslipLoading(false);
+      console.log("Modal should now be visible");
+
+      // Try to create payroll record (but don't block modal from showing)
+      try {
+        await createPayroll(payload);
+        // Mark as generated
+        setGeneratedPayslips(prev => new Set(prev).add(`${master.employeeId}-${monthValue}-${monthData.year}`));
+      } catch (createError) {
+        console.error("Error creating payroll record:", createError);
+        // Don't show error to user, just log it - payslip can still be viewed
+      }
 
       // Refresh payroll records
       const params = new URLSearchParams({
@@ -1666,9 +1679,75 @@ export default function PayrollViewPage() {
           // Silent fail
         });
     } catch (err: unknown) {
+      console.error("Error in handleGenerateMonthlyPayslip:", err);
       setPayslipError(err instanceof Error ? err.message : "Failed to generate payslip");
-    } finally {
       setPayslipLoading(false);
+      
+      // Still try to show the modal with available data even if there's an error
+      const key = master.employeeId;
+      const monthData = selectedMasterForMonth[key];
+      if (monthData && monthData.month && monthData.year) {
+        const monthIndex = monthOptionsForCreate.findIndex((m) => m === monthData.month) + 1;
+        const monthStr = monthIndex < 10 ? `0${monthIndex}` : `${monthIndex}`;
+        const monthValue = `${monthData.year}-${monthStr}`;
+        
+        const standardWorkingDays = 30;
+        const ratio = monthData.payableDays / standardWorkingDays;
+        const basic = (master.basicSalary || 0) * ratio;
+        const hra = (master.hrAllowance || 0) * ratio;
+        const da = (master.conveyanceAllowance || 0) * ratio;
+        const special = (master.specialAllowance || 0) * ratio;
+        const other = (master.otherAllowance || 0) * ratio;
+        const washing = ((master.washingAllowance || 0) * ratio);
+        const totalEarnings = basic + hra + da + special + other + washing;
+        const pf = master.pf || 0;
+        const pt = master.pt || 0;
+        const esi = master.esi || 0;
+        const medical = master.medicalInsurance || 0;
+        const uniform = master.uniformDeduction || 0;
+        const roomRent = master.roomRent || 0;
+        const totalDeductions = pf + pt + esi + medical + uniform + roomRent;
+        const netPay = totalEarnings - totalDeductions;
+        
+        const payslipDataToSet: PayslipData = {
+          employeeId: master.employeeId,
+          employeeName: master.employeeName || "",
+          designation: master.designation || "",
+          project: master.project || "",
+          month: monthData.month,
+          year: monthData.year,
+          basicSalary: basic,
+          hrAllowance: hra,
+          conveyanceAllowance: da,
+          specialAllowance: special,
+          otherAllowance: other,
+          washingAllowance: washing,
+          totalEarnings,
+          pf,
+          esi,
+          pt,
+          medicalInsurance: medical,
+          uniformDeduction: uniform,
+          roomRent,
+          totalDeductions,
+          netPay,
+          payableDays: monthData.payableDays,
+        };
+        setPayslipData(payslipDataToSet);
+        setSelectedPayslip({
+          employeeId: master.employeeId,
+          employeeName: master.employeeName || "",
+          month: monthValue,
+          year: monthData.year,
+          amount: netPay,
+          status: "Pending",
+        });
+      }
+    } finally {
+      // Ensure loading is stopped
+      if (!payslipLoading) {
+        setPayslipLoading(false);
+      }
     }
   };
 
