@@ -1854,13 +1854,17 @@ export default function PayrollViewPage() {
         `https://cafm.zenapi.co.in/api/salary-disbursement/payroll-masters?employeeId=${master.employeeId}&year=${monthData.year}`
       );
 
-      let fullMasterData: any = master;
+      // Use a more flexible type to handle additional fields from API
+      type ExtendedPayrollMaster = PayrollMaster & { [key: string]: unknown };
+      let fullMasterData: ExtendedPayrollMaster = master as ExtendedPayrollMaster;
       if (masterResponse.ok) {
         const masterResult = await masterResponse.json();
         const masters = Array.isArray(masterResult.data) ? masterResult.data : (Array.isArray(masterResult) ? masterResult : [masterResult]);
-        const foundMaster = masters.find((m: any) => m.employeeId === master.employeeId && m.year === monthData.year);
+        const foundMaster = masters.find((m: ExtendedPayrollMaster) => 
+          m.employeeId === master.employeeId && m.year === monthData.year
+        );
         if (foundMaster) {
-          fullMasterData = foundMaster;
+          fullMasterData = foundMaster as ExtendedPayrollMaster;
         }
       }
 
@@ -1885,12 +1889,12 @@ export default function PayrollViewPage() {
                 p.year === monthData.year
               ) || null : result || null);
         }
-      } catch (err) {
+      } catch {
         console.log("No payroll record found, using master data only");
       }
 
       // Helper function to get numeric value
-      const getNumericValue = (value: any): number => {
+      const getNumericValue = (value: unknown): number => {
         if (typeof value === 'number') return value;
         if (typeof value === 'string') {
           const parsed = parseFloat(value);
