@@ -1455,8 +1455,14 @@ export default function PayrollViewPage() {
       // Calculate amount payable based on payable days
       // Formula: amount = (payableDays / 30) * netSalary
       // If 30 days = full netSalary, if 29 days = (29/30) * netSalary
+      // Calculate netSalary the same way as displayed in table
+      const baseGross = (master.basicSalary || 0) + (master.hrAllowance || 0) + (master.daVda || 0) + (master.conveyanceAllowance || 0) + (master.specialAllowance || 0) + (master.otherAllowance || 0) + (master.washingAllowance || 0);
+      const grossSalary = master.grossSalary || baseGross;
+      const totalDeductions = (master.pf || 0) + (master.pt || 0) + (master.esi || 0) + (master.medicalInsurance || 0) + (master.uniformDeduction || 0) + (master.roomRent || 0);
+      const netSalary = master.netSalary || (grossSalary - totalDeductions);
+      
       const standardWorkingDays = 30; // Standard working days for full month
-      const amount = (payableDays / standardWorkingDays) * master.netSalary;
+      const amount = payableDays > 0 ? (payableDays / standardWorkingDays) * netSalary : 0;
 
       setSelectedMasterForMonth(prev => ({
         ...prev,
@@ -1592,8 +1598,8 @@ export default function PayrollViewPage() {
       // Mark as generated
       setGeneratedPayslips(prev => new Set(prev).add(`${master.employeeId}-${monthValue}-${monthData.year}`));
 
-      // Generate payslip data for display
-      setPayslipData({
+      // Generate payslip data for display - set this first
+      const payslipDataToSet: PayslipData = {
         employeeId: master.employeeId,
         employeeName: master.employeeName || "",
         designation: master.designation || "",
@@ -1616,7 +1622,7 @@ export default function PayrollViewPage() {
         totalDeductions,
         netPay,
         payableDays: monthData.payableDays,
-      });
+      };
 
       // Update the amount in selectedMasterForMonth to match netPay
       setSelectedMasterForMonth(prev => ({
@@ -1624,9 +1630,11 @@ export default function PayrollViewPage() {
         [key]: { ...prev[key], amount: netPay }
       }));
 
+      // Set payslip data and selected payslip to show modal
+      setPayslipData(payslipDataToSet);
       setSelectedPayslip({
         employeeId: master.employeeId,
-        employeeName: master.employeeName,
+        employeeName: master.employeeName || "",
         month: monthValue,
         year: monthData.year,
         amount: netPay,
