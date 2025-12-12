@@ -1452,11 +1452,33 @@ export default function PayrollViewPage() {
         console.error("Error fetching monthly summary for payable days:", error);
       }
 
-      // Calculate amount payable based on payable days
+      // Calculate amount payable based on payable days (same calculation as netPay)
       const totalDaysInMonth = new Date(Number(year), monthIndex, 0).getDate();
       const workingDays = totalDaysInMonth - Math.floor(totalDaysInMonth / 7); // Approximate working days
-      const dailyRate = master.grossSalary / workingDays;
-      const amount = dailyRate * payableDays;
+      const ratio = payableDays / workingDays;
+
+      // Calculate pro-rated salary components (same as in handleGenerateMonthlyPayslip)
+      const basic = master.basicSalary * ratio;
+      const hra = master.hrAllowance * ratio;
+      const da = master.conveyanceAllowance * ratio;
+      const special = master.specialAllowance * ratio;
+      const other = master.otherAllowance * ratio;
+      const washing = (master.washingAllowance || 0) * ratio;
+      
+      // Calculate Total Earnings
+      const totalEarnings = basic + hra + da + special + other + washing;
+      
+      // Calculate Total Employee Deductions
+      const pf = master.pf;
+      const pt = master.pt;
+      const esi = master.esi || 0;
+      const medical = master.medicalInsurance || 0;
+      const uniform = master.uniformDeduction || 0;
+      const roomRent = master.roomRent || 0;
+      const totalDeductions = pf + pt + esi + medical + uniform + roomRent;
+      
+      // Calculate Net Pay (amount should match this)
+      const amount = totalEarnings - totalDeductions;
 
       setSelectedMasterForMonth(prev => ({
         ...prev,
@@ -1617,6 +1639,12 @@ export default function PayrollViewPage() {
         netPay,
         payableDays: monthData.payableDays,
       });
+
+      // Update the amount in selectedMasterForMonth to match netPay
+      setSelectedMasterForMonth(prev => ({
+        ...prev,
+        [key]: { ...prev[key], amount: netPay }
+      }));
 
       setSelectedPayslip({
         employeeId: master.employeeId,
