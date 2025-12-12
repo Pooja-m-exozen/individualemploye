@@ -1904,10 +1904,12 @@ export default function PayrollViewPage() {
       };
 
       // Calculate pro-rated values based on payable days (if payroll record exists, use those; otherwise calculate from master)
+      // For 30 days, use full master values to match the amount calculation
       const standardWorkingDays = 30;
-      const ratio = monthData.payableDays > 0 ? (monthData.payableDays / standardWorkingDays) : 1;
+      const ratio = monthData.payableDays === standardWorkingDays ? 1 : (monthData.payableDays > 0 ? (monthData.payableDays / standardWorkingDays) : 1);
       
       // Use payroll record values if available, otherwise calculate from master
+      // For 30 days, always use full master values to ensure consistency with amount calculation
       const basicSalary = payrollRecord?.basicSalary ?? (getNumericValue(fullMasterData.basicSalary) * ratio);
       const daVda = getNumericValue(fullMasterData.daVda) * ratio;
       const hrAllowance = payrollRecord?.hrAllowance ?? (getNumericValue(fullMasterData.hrAllowance) * ratio);
@@ -1950,7 +1952,36 @@ export default function PayrollViewPage() {
       const totalDeductions = employeePf + employeeEsi + pt + uniformDeduction + medicalInsurance + 
                               trainingCost + labourWelfareFundEmployee + roomRent;
       
-      const netPay = payrollRecord?.amount ?? payrollRecord?.netPay ?? (totalEarnings - totalDeductions);
+      // For 30 days, use the amount from monthData (which should equal netSalary) to ensure consistency
+      // For other days, calculate proportionally or use payrollRecord amount if available
+      let netPay = 0;
+      if (monthData.payableDays === 30) {
+        // For 30 days, prioritize monthData.amount to ensure it matches the AMOUNT column in the table
+        // This ensures NET and AMOUNT are the same for 30 days
+        // Calculate netSalary the same way as in handleMasterMonthSelect for fallback
+        const baseGross = (getNumericValue(fullMasterData.basicSalary) || 0) + 
+                         (getNumericValue(fullMasterData.hrAllowance) || 0) + 
+                         (getNumericValue(fullMasterData.daVda) || 0) + 
+                         (getNumericValue(fullMasterData.conveyanceAllowance) || 0) + 
+                         (getNumericValue(fullMasterData.specialAllowance) || 0) + 
+                         (getNumericValue(fullMasterData.otherAllowance) || 0) + 
+                         (getNumericValue(fullMasterData.washingAllowance) || 0);
+        const grossSalary = getNumericValue(fullMasterData.grossSalary) || baseGross;
+        const masterTotalDeductions = (getNumericValue(fullMasterData.pf) || 0) + 
+                                     (getNumericValue(fullMasterData.pt) || 0) + 
+                                     (getNumericValue(fullMasterData.esi) || 0) + 
+                                     (getNumericValue(fullMasterData.medicalInsurance) || 0) + 
+                                     (getNumericValue(fullMasterData.uniformDeduction) || 0) + 
+                                     (getNumericValue(fullMasterData.roomRent) || 0);
+        const netSalary = getNumericValue(fullMasterData.netSalary) || (grossSalary - masterTotalDeductions);
+        
+        // For 30 days, prioritize monthData.amount (which equals netSalary) to match table display
+        // Use payrollRecord amount only if it exists and monthData.amount is not available
+        netPay = monthData.amount > 0 ? monthData.amount : (payrollRecord?.amount ?? payrollRecord?.netPay ?? netSalary);
+      } else {
+        // For non-30 days, use payrollRecord amount if available, otherwise calculate from pro-rated values
+        netPay = payrollRecord?.amount ?? payrollRecord?.netPay ?? monthData.amount ?? (totalEarnings - totalDeductions);
+      }
 
       // Convert to payslip data format with ALL details
       const payslipDataToSet: PayslipData = {
@@ -3556,14 +3587,14 @@ export default function PayrollViewPage() {
                                 ? "border-gray-700 text-gray-200"
                                 : "border-gray-300 text-black"
                             }`}>
-                              Conveyance Allowance
+                              DA/VDA
                             </td>
                             <td className={`border p-2 font-medium ${
                               theme === "dark"
                                 ? "border-gray-700 text-gray-200"
                                 : "border-gray-300 text-black"
                             }`}>
-                              ₹{payslipData.conveyanceAllowance.toFixed(2)}
+                              ₹{payslipData.daVda.toFixed(2)}
                             </td>
                             <td className={`border p-2 font-medium ${
                               theme === "dark"
@@ -3580,6 +3611,240 @@ export default function PayrollViewPage() {
                               ₹{payslipData.pt.toFixed(2)}
                             </td>
                           </tr>
+                          <tr>
+                            <td className={`border p-2 font-medium ${
+                              theme === "dark"
+                                ? "border-gray-700 text-gray-200"
+                                : "border-gray-300 text-black"
+                            }`}>
+                              Conveyance Allowance
+                            </td>
+                            <td className={`border p-2 font-medium ${
+                              theme === "dark"
+                                ? "border-gray-700 text-gray-200"
+                                : "border-gray-300 text-black"
+                            }`}>
+                              ₹{payslipData.conveyanceAllowance.toFixed(2)}
+                            </td>
+                            <td className={`border p-2 font-medium ${
+                              theme === "dark"
+                                ? "border-gray-700 text-gray-200"
+                                : "border-gray-300 text-black"
+                            }`}>
+                              Training Cost
+                            </td>
+                            <td className={`border p-2 font-medium ${
+                              theme === "dark"
+                                ? "border-gray-700 text-gray-200"
+                                : "border-gray-300 text-black"
+                            }`}>
+                              ₹{payslipData.trainingCost.toFixed(2)}
+                            </td>
+                          </tr>
+                          {(payslipData.leaveTravelAllowance > 0 || payslipData.medicalAllowance > 0 || payslipData.leaveWithWages > 0 || payslipData.bonus > 0 || payslipData.nationalFestivalHolidays > 0 || payslipData.wagesAdditionalHours > 0 || payslipData.relieverCharges > 0 || payslipData.labourWelfareFundEmployee > 0) && (
+                            <>
+                              {payslipData.leaveTravelAllowance > 0 && (
+                                <tr>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    Leave Travel Allowance
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    ₹{payslipData.leaveTravelAllowance.toFixed(2)}
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    Labour Welfare Fund (Employee)
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    ₹{payslipData.labourWelfareFundEmployee.toFixed(2)}
+                                  </td>
+                                </tr>
+                              )}
+                              {payslipData.medicalAllowance > 0 && (
+                                <tr>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    Medical Allowance
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    ₹{payslipData.medicalAllowance.toFixed(2)}
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                </tr>
+                              )}
+                              {payslipData.leaveWithWages > 0 && (
+                                <tr>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    Leave With Wages
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    ₹{payslipData.leaveWithWages.toFixed(2)}
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                </tr>
+                              )}
+                              {payslipData.bonus > 0 && (
+                                <tr>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    Bonus
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    ₹{payslipData.bonus.toFixed(2)}
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                </tr>
+                              )}
+                              {payslipData.nationalFestivalHolidays > 0 && (
+                                <tr>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    National Festival Holidays
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    ₹{payslipData.nationalFestivalHolidays.toFixed(2)}
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                </tr>
+                              )}
+                              {payslipData.wagesAdditionalHours > 0 && (
+                                <tr>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    Wages Additional Hours
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    ₹{payslipData.wagesAdditionalHours.toFixed(2)}
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                </tr>
+                              )}
+                              {payslipData.relieverCharges > 0 && (
+                                <tr>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    Reliever Charges
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}>
+                                    ₹{payslipData.relieverCharges.toFixed(2)}
+                                  </td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                  <td className={`border p-2 font-medium ${
+                                    theme === "dark"
+                                      ? "border-gray-700 text-gray-200"
+                                      : "border-gray-300 text-black"
+                                  }`}></td>
+                                </tr>
+                              )}
+                            </>
+                          )}
                           <tr>
                             <td className={`border p-2 font-medium ${
                               theme === "dark"
