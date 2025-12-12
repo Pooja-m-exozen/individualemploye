@@ -122,9 +122,10 @@ export default function PayrollViewPage() {
   // Monthly Payroll Records (for tracking generated payslips)
   const [payrollData, setPayrollData] = useState<PayrollRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [totalRecords, setTotalRecords] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  // Note: error, totalRecords, totalPages setters are used but values are not currently displayed
+  const [, setError] = useState<string | null>(null);
+  const [, setTotalRecords] = useState(0);
+  const [, setTotalPages] = useState(1);
 
   const [projectOptions, setProjectOptions] = useState<string[]>(["All Projects"]);
   const [designationOptions, setDesignationOptions] = useState<string[]>(["All Designations"]);
@@ -709,8 +710,6 @@ export default function PayrollViewPage() {
     masterForm.employeeEsiPercentage,
     masterForm.nationalFestivalHolidays,
     masterForm.ptType,
-    masterForm.basicSalary,
-    masterForm.daVda,
     masterForm.hrAllowance,
     masterForm.conveyanceAllowance,
     masterForm.leaveTravelAllowance,
@@ -762,7 +761,8 @@ export default function PayrollViewPage() {
   
   // Monthly Payslip Generation State (for each master)
   const [selectedMasterForMonth, setSelectedMasterForMonth] = useState<Record<string, { month: string; year: string; payableDays: number; amount: number; loading: boolean }>>({});
-  const [generatedPayslips, setGeneratedPayslips] = useState<Set<string>>(new Set()); // Track employeeId-month-year combinations
+  // Note: generatedPayslips setter is used but value is not currently read
+  const [, setGeneratedPayslips] = useState<Set<string>>(new Set()); // Track employeeId-month-year combinations
   
   // Create Payroll Modal State (keeping for backward compatibility)
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -791,7 +791,8 @@ export default function PayrollViewPage() {
     uniformDeduction: string;
     roomRent: string;
   }>>({});
-  const [employeeSalaryDetails, setEmployeeSalaryDetails] = useState<Record<string, { basicSalary: number; hrAllowance: number; conveyanceAllowance: number; specialAllowance: number; otherAllowance: number; washingAllowance: number; pf: number; esi: number; pt: number; medicalInsurance: number; uniformDeduction: number; roomRent: number; totalEarnings: number; totalDeductions: number }>>({});
+  // Note: employeeSalaryDetails setter is used but value is not currently read
+  const [, setEmployeeSalaryDetails] = useState<Record<string, { basicSalary: number; hrAllowance: number; conveyanceAllowance: number; specialAllowance: number; otherAllowance: number; washingAllowance: number; pf: number; esi: number; pt: number; medicalInsurance: number; uniformDeduction: number; roomRent: number; totalEarnings: number; totalDeductions: number }>>({});
   const [employeeAttendance, setEmployeeAttendance] = useState<Record<string, { payableDays: number; loading: boolean }>>({});
 
   // Fetch Payroll Masters
@@ -957,8 +958,9 @@ export default function PayrollViewPage() {
   const mastersTotalRecords = useMemo(() => filteredMasters.length, [filteredMasters]);
   const mastersTotalPages = useMemo(() => Math.ceil(mastersTotalRecords / recordsPerPage), [mastersTotalRecords, recordsPerPage]);
 
-  // Filter Payroll Records
-  const filteredPayroll = useMemo(() => {
+  // Filter Payroll Records (currently unused, kept for potential future use)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _filteredPayroll = useMemo(() => {
     return payrollData.filter((pay) => {
       // Search filter (employee name)
       const matchesSearch =
@@ -1061,7 +1063,7 @@ export default function PayrollViewPage() {
       // Calculate Total Employee Deductions: PF + PT + ESI + Medical Insurance + Uniform + Room Rent + Training Cost + Labour Welfare Fund Employee
       const deductions = pf + pt + esi + medical + uniform + roomRent + trainingCost + labourWelfareFundEmployee;
       // Calculate Take Home Salary: Total Earnings - Total Employee Deductions
-      const netSalary = gross - deductions;
+      const calculatedNetSalary = gross - deductions;
 
       // Prepare payload with all fields
       const payload = {
@@ -1128,6 +1130,8 @@ export default function PayrollViewPage() {
         labourLicenseApplicable: masterForm.labourLicenseApplicable,
         labourWelfareFundEmployerApplicable: masterForm.labourWelfareFundEmployerApplicable,
         gratuityApplicable: masterForm.gratuityApplicable,
+        grossSalary: gross,
+        netSalary: calculatedNetSalary,
         // Fixed/Variable types
         basicSalaryType: masterForm.basicSalaryType,
         daVdaType: masterForm.daVdaType,
