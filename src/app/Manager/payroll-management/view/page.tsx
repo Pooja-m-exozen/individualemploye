@@ -24,7 +24,8 @@ interface PayrollMaster {
   year: string;
   basicSalary: number;
   hrAllowance: number;
-  conveyanceAllowance: number; // DA
+  daVda?: number; // DA/VDA
+  conveyanceAllowance: number; // Conveyance Allowance (separate from DA)
   specialAllowance: number;
   otherAllowance: number;
   pf: number;
@@ -800,7 +801,8 @@ export default function PayrollViewPage() {
               if (details && details.basicSalary !== undefined) {
                 const basic = details.basicSalary || 0;
                 const hra = details.hrAllowance || 0;
-                const da = details.conveyanceAllowance || 0;
+                const daVda = details.daVda || 0; // DA/VDA
+                const conveyance = details.conveyanceAllowance || 0; // Conveyance Allowance
                 const special = details.specialAllowance || 0;
                 const other = details.otherAllowance || 0;
                 const pf = details.pf || 0;
@@ -810,9 +812,19 @@ export default function PayrollViewPage() {
                 const uniform = details.uniformDeduction || 0;
                 const roomRent = details.roomRent || 0;
                 const washing = details.washingAllowance || 0;
+                const leaveWithWages = details.leaveWithWages || 0;
+                const bonus = details.bonus || 0;
+                const nationalFestivalHolidays = details.nationalFestivalHolidays || 0;
+                const wagesAdditionalHours = details.wagesAdditionalHours || 0;
+                const relieverCharges = details.relieverCharges || 0;
+                const trainingCost = details.trainingCost || 0;
+                const labourWelfareFundEmployee = details.labourWelfareFundEmployee || 0;
                 
-                const gross = basic + hra + da + special + other + washing;
-                const deductions = pf + pt + esi + medical + uniform + roomRent;
+                // Calculate Total Earnings: Basic + HRA + DA/VDA + Conveyance + Special + Other + Washing + Leave with Wages + Bonus + National Festival Holidays + Wages for additional Hours + Reliever Charges
+                const gross = basic + hra + daVda + conveyance + special + other + washing + leaveWithWages + bonus + nationalFestivalHolidays + wagesAdditionalHours + relieverCharges;
+                // Calculate Total Employee Deductions: PF + PT + ESI + Medical Insurance + Uniform + Room Rent + Training Cost + Labour Welfare Fund Employee
+                const deductions = pf + pt + esi + medical + uniform + roomRent + trainingCost + labourWelfareFundEmployee;
+                // Calculate Take Home Salary: Total Earnings - Total Employee Deductions
                 const net = gross - deductions;
                 
                 return {
@@ -822,7 +834,8 @@ export default function PayrollViewPage() {
                   year: new Date().getFullYear().toString(),
                   basicSalary: basic,
                   hrAllowance: hra,
-                  conveyanceAllowance: da,
+                  daVda: daVda,
+                  conveyanceAllowance: conveyance,
                   specialAllowance: special,
                   otherAllowance: other,
                   pf,
@@ -924,6 +937,10 @@ export default function PayrollViewPage() {
     return filteredMasters.slice(start, end);
   }, [filteredMasters, currentPage, recordsPerPage]);
 
+  // Update totalRecords and totalPages for masters
+  const mastersTotalRecords = useMemo(() => filteredMasters.length, [filteredMasters]);
+  const mastersTotalPages = useMemo(() => Math.ceil(mastersTotalRecords / recordsPerPage), [mastersTotalRecords, recordsPerPage]);
+
   // Filter Payroll Records
   const filteredPayroll = useMemo(() => {
     return payrollData.filter((pay) => {
@@ -1019,8 +1036,19 @@ export default function PayrollViewPage() {
       const roomRent = Number(masterForm.roomRent) || 0;
       const washing = Number(masterForm.washingAllowance) || 0;
 
-      const gross = basic + hra + da + special + other + washing;
-      const deductions = pf + pt + esi + medical + uniform + roomRent;
+      const leaveWithWages = Number(masterForm.leaveWithWages) || 0;
+      const bonus = Number(masterForm.bonus) || 0;
+      const nationalFestivalHolidays = Number(masterForm.nationalFestivalHolidays) || 0;
+      const wagesAdditionalHours = Number(masterForm.wagesAdditionalHours) || 0;
+      const relieverCharges = Number(masterForm.relieverCharges) || 0;
+      const trainingCost = Number(masterForm.trainingCost) || 0;
+      const labourWelfareFundEmployee = Number(masterForm.labourWelfareFundEmployee) || 0;
+      
+      // Calculate Total Earnings: Basic + HRA + DA/VDA + Conveyance + Special + Other + Washing + Leave with Wages + Bonus + National Festival Holidays + Wages for additional Hours + Reliever Charges
+      const gross = basic + hra + (Number(masterForm.daVda) || 0) + da + special + other + washing + leaveWithWages + bonus + nationalFestivalHolidays + wagesAdditionalHours + relieverCharges;
+      // Calculate Total Employee Deductions: PF + PT + ESI + Medical Insurance + Uniform + Room Rent + Training Cost + Labour Welfare Fund Employee
+      const deductions = pf + pt + esi + medical + uniform + roomRent + trainingCost + labourWelfareFundEmployee;
+      // Calculate Take Home Salary: Total Earnings - Total Employee Deductions
       const net = gross - deductions;
 
       // Prepare payload with all fields
@@ -1306,9 +1334,19 @@ export default function PayrollViewPage() {
                 const uniform = details.uniformDeduction || 0;
                 const roomRent = details.roomRent || 0;
                 const washing = details.washingAllowance || 0;
+                const leaveWithWages = details.leaveWithWages || 0;
+                const bonus = details.bonus || 0;
+                const nationalFestivalHolidays = details.nationalFestivalHolidays || 0;
+                const wagesAdditionalHours = details.wagesAdditionalHours || 0;
+                const relieverCharges = details.relieverCharges || 0;
+                const trainingCost = details.trainingCost || 0;
+                const labourWelfareFundEmployee = details.labourWelfareFundEmployee || 0;
                 
-                const gross = basic + hra + da + special + other + washing;
-                const deductions = pf + pt + esi + medical + uniform + roomRent;
+                // Calculate Total Earnings: Basic + HRA + DA/VDA + Conveyance + Special + Other + Washing + Leave with Wages + Bonus + National Festival Holidays + Wages for additional Hours + Reliever Charges
+                const gross = basic + hra + (details.daVda || 0) + da + special + other + washing + leaveWithWages + bonus + nationalFestivalHolidays + wagesAdditionalHours + relieverCharges;
+                // Calculate Total Employee Deductions: PF + PT + ESI + Medical Insurance + Uniform + Room Rent + Training Cost + Labour Welfare Fund Employee
+                const deductions = pf + pt + esi + medical + uniform + roomRent + trainingCost + labourWelfareFundEmployee;
+                // Calculate Take Home Salary: Total Earnings - Total Employee Deductions
                 const net = gross - deductions;
                 
                 return {
@@ -1367,75 +1405,35 @@ export default function PayrollViewPage() {
       const monthIndex = monthOptionsForCreate.findIndex((m) => m === month) + 1;
       if (monthIndex === 0) return;
 
-      // Fetch payable days from attendance
-      const attendanceRes = await fetch(
-        `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${master.employeeId}&month=${monthIndex}&year=${year}`
-      );
-
+      // Fetch payable days from monthly summary API
       let payableDays = 0;
-      if (attendanceRes.ok) {
-        const attendanceData = await attendanceRes.json();
-        const attendanceRecords = attendanceData.attendance || [];
-        const daysInMonth = new Date(Number(year), monthIndex, 0).getDate();
+      try {
+        const summaryRes = await fetch(
+          `https://cafm.zenapi.co.in/api/attendance/${master.employeeId}/monthly-summary?month=${monthIndex}&year=${year}`
+        );
 
-        // Fetch approved leaves
-        try {
-          const leaveRes = await fetch(`https://cafm.zenapi.co.in/api/leave/all`);
-          const leaveDates = new Set<string>();
+        if (summaryRes.ok) {
+          const summaryData = await summaryRes.json();
           
-          if (leaveRes.ok) {
-            const leaveData = await leaveRes.json();
-            const approvedLeaves = (leaveData.leaves || []).filter((leave: any) => {
-              if (!leave.startDate || !leave.employeeId) return false;
-              const leaveMonth = new Date(leave.startDate).getMonth() + 1;
-              const leaveYear = new Date(leave.startDate).getFullYear();
-              return leave.employeeId === master.employeeId && 
-                     leaveMonth === monthIndex && 
-                     leaveYear === Number(year) && 
-                     leave.status === "Approved";
-            });
-
-            approvedLeaves.forEach((leave: any) => {
-              const start = new Date(leave.startDate);
-              const end = new Date(leave.endDate);
-              for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                leaveDates.add(d.toISOString().split('T')[0]);
-              }
-            });
+          if (summaryData.success && summaryData.data?.summary) {
+            const summary = summaryData.data.summary;
+            
+            // Calculate payable days: presentDays + weekOffs + holidays + el + cl + sl + compOff
+            const presentDays = Number(summary.presentDays) || 0;
+            const weekOffs = Number(summary.weekOffs) || 0;
+            const holidays = Number(summary.holidays) || 0;
+            const el = Number(summary.el) || 0;
+            const cl = Number(summary.cl) || 0;
+            const sl = Number(summary.sl) || 0;
+            const compOff = Number(summary.compOff) || 0;
+            
+            payableDays = presentDays + weekOffs + holidays + el + cl + sl + compOff;
+            
+            console.log('handleMasterMonthSelect - Payable Days:', payableDays, `(${presentDays} + ${weekOffs} + ${holidays} + ${el} + ${cl} + ${sl} + ${compOff})`);
           }
-
-          // Count payable days
-          for (let i = 1; i <= daysInMonth; i++) {
-            const dateObj = new Date(Number(year), monthIndex - 1, i);
-            const dayOfWeek = dateObj.getDay();
-            const dateStr = dateObj.toISOString().split('T')[0];
-            
-            if (dayOfWeek === 0) continue; // Skip Sundays
-            
-            if (dayOfWeek === 6) {
-              let saturdayCount = 0;
-              for (let d = 1; d <= i; d++) {
-                const tempDate = new Date(Number(year), monthIndex - 1, d);
-                if (tempDate.getDay() === 6) saturdayCount++;
-              }
-              if (saturdayCount === 4) continue; // 4th Saturday
-            }
-            
-            const isPresent = attendanceRecords.some((att: any) => {
-              if (!att.date) return false;
-              const attDate = new Date(att.date).toISOString().split('T')[0];
-              return attDate === dateStr && (att.status === "Present" || att.status === "P");
-            });
-            
-            if (isPresent || leaveDates.has(dateStr)) {
-              payableDays++;
-            }
-          }
-        } catch {
-          payableDays = attendanceRecords.filter((att: any) => 
-            att.status === "Present" || att.status === "P"
-          ).length;
         }
+      } catch (error) {
+        console.error("Error fetching monthly summary for payable days:", error);
       }
 
       // Calculate amount payable based on payable days
@@ -1487,9 +1485,10 @@ export default function PayrollViewPage() {
       const other = master.otherAllowance * ratio;
       const washing = (master.washingAllowance || 0) * ratio;
       
+      // Calculate Total Earnings: Sum of all earnings components
       const totalEarnings = basic + hra + da + special + other + washing;
       
-      // Deductions are usually fixed, but can be pro-rated if needed
+      // Calculate Total Employee Deductions: Sum of all deduction components
       const pf = master.pf;
       const pt = master.pt;
       const esi = master.esi || 0;
@@ -1498,6 +1497,7 @@ export default function PayrollViewPage() {
       const roomRent = master.roomRent || 0;
       
       const totalDeductions = pf + pt + esi + medical + uniform + roomRent;
+      // Calculate Take Home Salary (Net Pay): Total Earnings - Total Employee Deductions
       const netPay = totalEarnings - totalDeductions;
 
       // Create payroll record
@@ -1670,9 +1670,11 @@ export default function PayrollViewPage() {
       const uniformDeduction = payroll.uniformDeduction || 0;
       const roomRent = payroll.roomRent || 0;
       
-      // Calculate totals from payroll record
+      // Calculate Total Earnings: Sum of all earnings components
       const totalEarnings = payroll.totalEarnings || (basicSalary + hrAllowance + conveyanceAllowance + specialAllowance + otherAllowance + washingAllowance);
+      // Calculate Total Employee Deductions: Sum of all deduction components
       const totalDeductions = payroll.totalDeductions || (pf + esi + pt + medicalInsurance + uniformDeduction + roomRent);
+      // Calculate Take Home Salary (Net Pay): Total Earnings - Total Employee Deductions
       const netPay = payroll.netPay || (totalEarnings - totalDeductions);
 
       // Fetch payable days from attendance (including weekoffs, holidays, and leaves)
@@ -1957,107 +1959,64 @@ export default function PayrollViewPage() {
       const monthIndex = monthOptionsForCreate.findIndex((m) => m === month) + 1;
       if (monthIndex === 0) return null;
       
-      // Fetch attendance data
-      const attendanceRes = await fetch(
-        `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${employeeId}&month=${monthIndex}&year=${year}`
+      // Fetch monthly summary from API
+      const summaryRes = await fetch(
+        `https://cafm.zenapi.co.in/api/attendance/${employeeId}/monthly-summary?month=${monthIndex}&year=${year}`
       );
       
-      if (!attendanceRes.ok) {
-        console.error("Failed to fetch attendance");
+      if (!summaryRes.ok) {
+        console.error("Failed to fetch monthly summary");
         return null;
       }
 
-      const attendanceData = await attendanceRes.json();
-      const attendanceRecords = attendanceData.attendance || [];
+      const summaryData = await summaryRes.json();
       
-      // Count present days
-      let presentDays = 0;
-      const daysInMonth = new Date(Number(year), monthIndex, 0).getDate();
-      
-      // Check for leaves
-      try {
-        const leaveRes = await fetch(`https://cafm.zenapi.co.in/api/leave/all`);
-        if (leaveRes.ok) {
-          const leaveData = await leaveRes.json();
-          const approvedLeaves = (leaveData.leaves || []).filter((leave: any) => {
-            if (!leave.startDate || !leave.employeeId) return false;
-            const leaveMonth = new Date(leave.startDate).getMonth() + 1;
-            const leaveYear = new Date(leave.startDate).getFullYear();
-            return leave.employeeId === employeeId && 
-                   leaveMonth === monthIndex && 
-                   leaveYear === Number(year) && 
-                   leave.status === "Approved";
-          });
-
-          // Create a set of leave dates
-          const leaveDates = new Set<string>();
-          approvedLeaves.forEach((leave: any) => {
-            const start = new Date(leave.startDate);
-            const end = new Date(leave.endDate);
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-              leaveDates.add(d.toISOString().split('T')[0]);
-            }
-          });
-
-          // Count payable days (present + approved leaves)
-          for (let i = 1; i <= daysInMonth; i++) {
-            const dateObj = new Date(Number(year), monthIndex - 1, i);
-            const dayOfWeek = dateObj.getDay();
-            const dateStr = dateObj.toISOString().split('T')[0];
-            
-            // Skip Sundays
-            if (dayOfWeek === 0) continue;
-            
-            // Check if it's a holiday (4th Saturday)
-            if (dayOfWeek === 6) {
-              let saturdayCount = 0;
-              for (let d = 1; d <= i; d++) {
-                const tempDate = new Date(Number(year), monthIndex - 1, d);
-                if (tempDate.getDay() === 6) saturdayCount++;
-              }
-              if (saturdayCount === 4) continue; // 4th Saturday is holiday
-            }
-            
-            // Check if present or on approved leave
-            const isPresent = attendanceRecords.some((att: any) => {
-              if (!att.date) return false;
-              const attDate = new Date(att.date).toISOString().split('T')[0];
-              return attDate === dateStr && (att.status === "Present" || att.status === "P");
-            });
-            
-            if (isPresent || leaveDates.has(dateStr)) {
-              presentDays++;
-            }
-          }
-        } else {
-          // Fallback: count present days from attendance only
-          presentDays = attendanceRecords.filter((att: any) => 
-            att.status === "Present" || att.status === "P"
-          ).length;
-        }
-      } catch (leaveError) {
-        // Fallback: count present days from attendance only
-        presentDays = attendanceRecords.filter((att: any) => 
-          att.status === "Present" || att.status === "P"
-        ).length;
+      if (!summaryData.success || !summaryData.data?.summary) {
+        console.error("Invalid summary data received");
+        return null;
       }
+
+      const summary = summaryData.data.summary;
+      
+      // Debug: Log the summary data
+      console.log('Monthly Summary Data:', summary);
+      console.log('Present Days:', summary.presentDays);
+      console.log('Week Offs:', summary.weekOffs);
+      console.log('Holidays:', summary.holidays);
+      console.log('EL:', summary.el);
+      console.log('CL:', summary.cl);
+      console.log('SL:', summary.sl);
+      console.log('Comp Off:', summary.compOff);
+      
+      // Calculate payable days: presentDays + weekOffs + holidays + el + cl + sl + compOff
+      const presentDays = Number(summary.presentDays) || 0;
+      const weekOffs = Number(summary.weekOffs) || 0;
+      const holidays = Number(summary.holidays) || 0;
+      const el = Number(summary.el) || 0;
+      const cl = Number(summary.cl) || 0;
+      const sl = Number(summary.sl) || 0;
+      const compOff = Number(summary.compOff) || 0;
+      
+      const payableDays = presentDays + weekOffs + holidays + el + cl + sl + compOff;
+      
+      console.log('Calculated Payable Days:', payableDays, `(${presentDays} + ${weekOffs} + ${holidays} + ${el} + ${cl} + ${sl} + ${compOff})`);
 
       // Update form with payable days
       setCreateForms(prev => ({
         ...prev,
         [employeeId]: {
           ...prev[employeeId],
-          payableDays: presentDays.toString(),
+          payableDays: payableDays.toString(),
         }
       }));
 
       // Update attendance state
       setEmployeeAttendance(prev => ({
         ...prev,
-        [employeeId]: { payableDays: presentDays, loading: false }
+        [employeeId]: { payableDays: payableDays, loading: false }
       }));
 
-      return presentDays;
+      return payableDays;
     } catch (error) {
       console.error("Error fetching payable days:", error);
       setEmployeeAttendance(prev => ({
@@ -2106,10 +2065,12 @@ export default function PayrollViewPage() {
       const uniformDeduction = details.uniformDeduction || 0;
       const roomRent = details.roomRent || 0;
       
-      // Calculate total earnings: Basic + HRA + DA (Conveyance) + Special + Other + Washing
+      // Calculate Total Earnings: Sum of all earnings components
+      // Total Earnings = Basic Salary + HRA + Conveyance Allowance + Special Allowance + Other Allowance + Washing Allowance
       const totalEarnings = basicSalary + hrAllowance + conveyanceAllowance + specialAllowance + otherAllowance + washingAllowance;
       
-      // Calculate total deductions
+      // Calculate Total Employee Deductions: Sum of all deduction components
+      // Total Deductions = PF + ESI + Professional Tax + Medical Insurance + Uniform Deduction + Room Rent
       const totalDeductions = pf + esi + pt + medicalInsurance + uniformDeduction + roomRent;
       
       // Get total working days in the month (excluding Sundays and 4th Saturday)
@@ -2268,9 +2229,11 @@ export default function PayrollViewPage() {
       const uniformDeduction = Number(form.uniformDeduction) || 0;
       const roomRent = Number(form.roomRent) || 0;
       
-      // Calculate totals
+      // Calculate Total Earnings: Sum of all earnings components
       const totalEarnings = basicSalary + hrAllowance + conveyanceAllowance + specialAllowance + otherAllowance + washingAllowance;
+      // Calculate Total Employee Deductions: Sum of all deduction components
       const totalDeductions = pf + esi + pt + medicalInsurance + uniformDeduction + roomRent;
+      // Calculate Take Home Salary (Net Pay): Total Earnings - Total Employee Deductions
       const netPay = totalEarnings - totalDeductions;
       
       // Use KYC _id (ObjectId) for employeeId as the API expects ObjectId
@@ -2593,8 +2556,8 @@ export default function PayrollViewPage() {
                   </tr>
                   {/* Inline header filters */}
                   <tr className={theme === "dark" ? "bg-gray-800/40" : "bg-white"}>
-                    <th className="px-2 py-1 sticky left-0 z-20"></th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 sticky left-0 z-20 border ${theme === "dark" ? "border-blue-800 bg-gray-800/40" : "border-blue-200 bg-white"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <input 
                         value={search} 
                         onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} 
@@ -2602,7 +2565,7 @@ export default function PayrollViewPage() {
                         className={`w-full border rounded px-2 py-1 ${theme === "dark" ? "bg-gray-800 border-blue-900 text-white" : "border-gray-300"}`} 
                       />
                     </th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select 
                         value={monthFilter} 
                         onChange={e => { setMonthFilter(e.target.value); setCurrentPage(1); }} 
@@ -2611,14 +2574,14 @@ export default function PayrollViewPage() {
                         {monthOptions.map(month => <option key={month} value={month}>{month}</option>)}
                       </select>
                     </th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1"></th>
-                    <th className="px-2 py-1">
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                       <select 
                         value={statusFilter} 
                         onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }} 
@@ -2628,53 +2591,134 @@ export default function PayrollViewPage() {
                       </select>
                     </th>
                     <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
+                    <th className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></th>
                   </tr>
                 </thead>
                 <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
-                  {paginatedPayroll.length === 0 ? (
+                  {paginatedMasters.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className={`px-4 py-12 text-center border ${theme === "dark" ? "text-gray-400 border-blue-800" : "text-gray-500 border-blue-200"}`}>No payroll records found</td>
+                      <td colSpan={16} className={`px-4 py-12 text-center border ${theme === "dark" ? "text-gray-400 border-blue-800" : "text-gray-500 border-blue-200"}`}>No payroll masters found</td>
                     </tr>
-                  ) : paginatedPayroll.map((pay: PayrollRecord, idx: number) => {
-                    let monthIdx = 0;
-                    if (typeof pay.month === "string" && pay.month.includes("-")) {
-                      const idxVal = parseInt(pay.month.split("-")[1], 10);
-                      if (!isNaN(idxVal) && idxVal >= 1 && idxVal <= 12) monthIdx = idxVal;
-                    }
-                    const monthStr = monthOptions[monthIdx] || "";
+                  ) : paginatedMasters.map((master: PayrollMaster, idx: number) => {
+                    const key = master.employeeId;
+                    const monthData = selectedMasterForMonth[key] || { month: "", year: master.year, payableDays: 0, amount: 0, loading: false };
+                    // Fetch additional earnings and deductions from API if not in master
+                    // Note: These fields may not be in PayrollMaster interface, so we need to fetch them
+                    // For now, we'll use the stored grossSalary and netSalary if available, otherwise calculate
+                    // Calculate Total Earnings (Gross Salary): Sum of all earnings components including additional benefits
+                    // If master has grossSalary, use it (it should already include all components)
+                    // Otherwise calculate: Basic + HRA + DA/VDA + Conveyance + Special + Other + Washing
+                    const baseGross = (master.basicSalary || 0) + (master.hrAllowance || 0) + (master.daVda || 0) + (master.conveyanceAllowance || 0) + (master.specialAllowance || 0) + (master.otherAllowance || 0) + (master.washingAllowance || 0);
+                    const grossSalary = master.grossSalary || baseGross;
+                    // Calculate Total Employee Deductions: Sum of all deduction components
+                    // Note: Additional deductions like trainingCost and labourWelfareFundEmployee may need to be fetched from API
+                    const totalDeductions = (master.pf || 0) + (master.pt || 0) + (master.esi || 0) + (master.medicalInsurance || 0) + (master.uniformDeduction || 0) + (master.roomRent || 0);
+                    // Calculate Take Home Salary (Net Pay): Total Earnings - Total Employee Deductions
+                    // Use stored netSalary if available (it should already include all deductions), otherwise calculate
+                    const netSalary = master.netSalary || (grossSalary - totalDeductions);
+                    
                     return (
-                      <tr key={pay._id || idx} className={`${theme === "dark" ? "hover:bg-blue-900" : "hover:bg-blue-50"} transition even:bg-gray-50 dark:even:bg-gray-900`}>
-                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
-                        <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}><div className="truncate" title={pay.employeeName || "-"}>{pay.employeeName || "-"}</div></td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-600 border-blue-200'}`}><div className="truncate" title={monthStr}>{monthStr}</div></td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>{pay.year || "-"}</td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>₹{typeof pay.basicSalary === "number" ? pay.basicSalary.toLocaleString() : "-"}</td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>₹{typeof pay.hrAllowance === "number" ? pay.hrAllowance.toLocaleString() : "-"}</td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>₹{typeof pay.conveyanceAllowance === "number" ? pay.conveyanceAllowance.toLocaleString() : "-"}</td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-red-300 border-blue-800' : 'text-red-700 border-blue-200'}`}>₹{typeof pay.pf === "number" ? pay.pf.toLocaleString() : "-"}</td>
-                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-red-300 border-blue-800' : 'text-red-700 border-blue-200'}`}>₹{typeof pay.esi === "number" ? pay.esi.toLocaleString() : "-"}</td>
-                        <td className={`px-2 py-1 font-semibold border ${theme === 'dark' ? 'text-green-300 border-blue-800' : 'text-green-700 border-blue-200'}`}>₹{typeof pay.netPay === "number" ? pay.netPay.toLocaleString() : (typeof pay.amount === "number" ? pay.amount.toLocaleString() : "-")}</td>
-                        <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-blue-800' : 'border-blue-200'}`}>
-                          <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${
-                            pay.status === 'Paid' 
-                              ? theme === 'dark' ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700'
-                              : theme === 'dark' ? 'bg-yellow-800 text-yellow-200' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {pay.status || "N/A"}
-                          </span>
+                      <tr key={master._id || master.employeeId || idx} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{((currentPage - 1) * recordsPerPage) + idx + 1}</td>
+                        <td className={`px-2 py-1 font-semibold whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>
+                          <div className="truncate" title={master.employeeName || master.employeeId}>
+                            {master.employeeName || master.employeeId || "-"}
+                          </div>
+                        </td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          {master.year || "-"}
+                        </td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          ₹{typeof master.basicSalary === "number" ? master.basicSalary.toLocaleString('en-IN') : "-"}
+                        </td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          ₹{typeof master.hrAllowance === "number" ? master.hrAllowance.toLocaleString('en-IN') : "-"}
+                        </td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          ₹{typeof master.daVda === "number" ? master.daVda.toLocaleString('en-IN') : (typeof master.conveyanceAllowance === "number" ? master.conveyanceAllowance.toLocaleString('en-IN') : "-")}
+                        </td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-gray-300 border-blue-800' : 'text-gray-700 border-blue-200'}`}>
+                          ₹{typeof master.specialAllowance === "number" ? master.specialAllowance.toLocaleString('en-IN') : "-"}
+                        </td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-red-300 border-blue-800' : 'text-red-700 border-blue-200'}`}>
+                          ₹{typeof master.otherAllowance === "number" ? master.otherAllowance.toLocaleString('en-IN') : "-"}
+                        </td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-red-300 border-blue-800' : 'text-red-700 border-blue-200'}`}>
+                          ₹{typeof master.pf === "number" ? master.pf.toLocaleString('en-IN') : "-"}
+                        </td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'text-green-300 border-blue-800' : 'text-green-700 border-blue-200'}`}>
+                          ₹{typeof master.pt === "number" ? master.pt.toLocaleString('en-IN') : "-"}
+                        </td>
+                        <td className={`px-2 py-1 font-semibold border ${theme === 'dark' ? 'text-blue-300 border-blue-800' : 'text-blue-700 border-blue-200'}`}>
+                          ₹{grossSalary.toLocaleString('en-IN')}
+                        </td>
+                        <td className={`px-2 py-1 font-semibold border ${theme === 'dark' ? 'text-green-300 border-blue-800' : 'text-green-700 border-blue-200'}`}>
+                          ₹{netSalary.toLocaleString('en-IN')}
                         </td>
                         <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-blue-800' : 'border-blue-200'}`}>
-                          <button
-                            onClick={() => handleGeneratePayslip(pay)}
-                            className={`px-2 py-1 rounded text-xs font-semibold transition ${
-                              theme === 'dark'
-                                ? 'bg-green-800 text-green-200 hover:bg-green-700'
-                                : 'bg-green-600 text-white hover:bg-green-700'
+                          <select
+                            value={monthData.month}
+                            onChange={(e) => {
+                              const selectedMonth = e.target.value;
+                              if (selectedMonth) {
+                                handleMasterMonthSelect(master, selectedMonth, master.year);
+                              } else {
+                                setSelectedMasterForMonth(prev => ({
+                                  ...prev,
+                                  [key]: { month: "", year: master.year, payableDays: 0, amount: 0, loading: false }
+                                }));
+                              }
+                            }}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
                             }`}
-                            title="Generate Payslip"
                           >
-                            <FaFileInvoiceDollar className="inline w-3 h-3" />
-                          </button>
+                            <option value="">Select Month</option>
+                            {monthOptionsForCreate.map((month) => (
+                              <option key={month} value={month}>{month}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-blue-800' : 'border-blue-200'}`}>
+                          {monthData.loading ? (
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Loading...</span>
+                          ) : monthData.month ? (
+                            <span className={`text-xs font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                              {monthData.payableDays || 0}
+                            </span>
+                          ) : (
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                          )}
+                        </td>
+                        <td className={`px-2 py-1 border ${theme === 'dark' ? 'border-blue-800' : 'border-blue-200'}`}>
+                          {monthData.month ? (
+                            <span className={`text-xs font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                              ₹{monthData.amount ? monthData.amount.toLocaleString('en-IN') : "0"}
+                            </span>
+                          ) : (
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                          )}
+                        </td>
+                        <td className={`px-2 py-1 text-center border ${theme === 'dark' ? 'border-blue-800' : 'border-blue-200'}`}>
+                          {monthData.month && monthData.payableDays > 0 ? (
+                            <button
+                              onClick={() => handleGenerateMonthlyPayslip(master)}
+                              className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                                theme === 'dark'
+                                  ? 'bg-green-800 text-green-200 hover:bg-green-700'
+                                  : 'bg-green-600 text-white hover:bg-green-700'
+                              }`}
+                              title="Generate Payslip"
+                            >
+                              <FaFileInvoiceDollar className="inline w-3 h-3" />
+                            </button>
+                          ) : (
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -2687,10 +2731,10 @@ export default function PayrollViewPage() {
         </div>
 
         {/* Pagination Section */}
-        {totalPages > 1 && (
+        {mastersTotalPages > 1 && (
           <div className={`flex items-center justify-between px-6 py-4 border-t ${theme === "dark" ? "border-blue-900" : "border-blue-100"}`}>
             <div className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-              Showing {((currentPage - 1) * recordsPerPage) + 1} to {Math.min(currentPage * recordsPerPage, totalRecords)} of {totalRecords} records
+              Showing {((currentPage - 1) * recordsPerPage) + 1} to {Math.min(currentPage * recordsPerPage, mastersTotalRecords)} of {mastersTotalRecords} records
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -2703,7 +2747,7 @@ export default function PayrollViewPage() {
               >
                 <FaChevronLeft className="w-4 h-4" />
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+              {Array.from({ length: mastersTotalPages }, (_, i) => i + 1).map(
                 (page) => (
                   <button
                     key={page}
@@ -2723,7 +2767,7 @@ export default function PayrollViewPage() {
               )}
               <button
                 onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                disabled={currentPage === mastersTotalPages}
                 className={`p-2 transition-colors ${theme === "dark"
                   ? "text-gray-400 hover:text-blue-300 disabled:text-gray-700"
                   : "text-gray-600 hover:text-blue-600 disabled:text-gray-300"
@@ -3344,63 +3388,64 @@ export default function PayrollViewPage() {
 
               {/* Table Content */}
               <div className="flex-1 overflow-auto p-6">
-                <div className={`overflow-auto rounded-lg border ${theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"}`}>
-                  <table className="w-full text-sm">
-                    <thead className={`sticky top-0 ${theme === "dark" ? "bg-gray-800" : "bg-gray-50"}`}>
+                <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+                  <table className="w-full text-sm table-auto border-separate min-w-[1200px]" style={{ borderSpacing: 0 }}>
+                    <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                       <tr>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-48 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           Employee
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           Month
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           Year
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           Basic
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           HRA
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           DA
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           Special
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           Other
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           PF
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           ESI
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           PT
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           Amount (₹)
                         </th>
-                        <th className={`px-3 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           Payable Days
                         </th>
-                        <th className={`px-3 py-2 text-center font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                        <th className={`px-2 py-2 text-center font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           Action
                         </th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
                       {filteredEmployees.length === 0 ? (
                         <tr>
-                          <td colSpan={13} className={`px-4 py-8 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                          <td colSpan={14} className={`px-4 py-12 text-center border ${theme === "dark" ? "text-gray-400 border-blue-800" : "text-gray-500 border-blue-200"}`}>
                             No employees found
                           </td>
                         </tr>
                       ) : (
-                        filteredEmployees.map((emp) => {
+                        filteredEmployees.map((emp, idx) => {
                           const form = createForms[emp.personalDetails.employeeId] || { 
                             month: "", 
                             year: "", 
@@ -3420,42 +3465,38 @@ export default function PayrollViewPage() {
                             roomRent: ""
                           };
                           return (
-                            <tr key={emp.personalDetails.employeeId} className={`border-b ${theme === "dark" ? "border-gray-700 hover:bg-gray-800" : "border-gray-200 hover:bg-gray-50"}`}>
-                              <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 ${
-                                    theme === "dark" ? "bg-gray-700" : "bg-gray-200"
-                                  }`}>
+                            <tr key={emp.personalDetails.employeeId} className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                              <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>{idx + 1}</td>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0 border ${theme === "dark" ? "bg-gray-700 border-blue-900" : "bg-gray-200 border-blue-200"}`}>
                                     {emp.personalDetails.employeeImage ? (
                                       <Image
                                         src={emp.personalDetails.employeeImage}
                                         alt={emp.personalDetails.fullName}
-                                        width={40}
-                                        height={40}
+                                        width={32}
+                                        height={32}
                                         className="object-cover w-full h-full"
                                       />
                                     ) : (
-                                      <FaUser className="w-5 h-5 text-blue-500" />
+                                      <FaUser className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`} />
                                     )}
                                   </div>
-                                  <div>
-                                    <div className={`font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
-                                      {emp.personalDetails.fullName}
+                                  <div className="min-w-0">
+                                    <div className={`font-semibold whitespace-nowrap ${theme === "dark" ? "text-blue-200" : "text-blue-800"}`}>
+                                      <div className="truncate" title={emp.personalDetails.fullName}>{emp.personalDetails.fullName}</div>
                                     </div>
-                                    <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                                      {emp.personalDetails.employeeId}
-                                    </div>
-                                    <div className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-                                      {emp.personalDetails.designation} • {emp.personalDetails.projectName}
+                                    <div className={`text-xs whitespace-nowrap ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                      <div className="truncate" title={emp.personalDetails.employeeId}>{emp.personalDetails.employeeId}</div>
                                     </div>
                                   </div>
                                 </div>
                               </td>
-                              <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 <select
                                   value={form.month}
                                   onChange={(e) => handleFormChange(emp.personalDetails.employeeId, "month", e.target.value)}
-                                  className={`w-full px-2 py-1.5 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                  className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                     theme === "dark"
                                       ? "bg-gray-800 border-gray-600 text-white"
                                       : "bg-white border-gray-300 text-black"
@@ -3467,20 +3508,20 @@ export default function PayrollViewPage() {
                                   ))}
                                 </select>
                               </td>
-                              <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 <input
                                   type="number"
                                   value={form.year}
                                   onChange={(e) => handleFormChange(emp.personalDetails.employeeId, "year", e.target.value)}
                                   placeholder="2025"
-                                  className={`w-full px-2 py-1.5 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                  className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                     theme === "dark"
                                       ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
                                       : "bg-white border-gray-300 text-black placeholder-gray-400"
                                   }`}
                                 />
                               </td>
-                              <td className={`px-3 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 <input
                                   type="number"
                                   value={form.basicSalary}
@@ -3493,7 +3534,7 @@ export default function PayrollViewPage() {
                                   }`}
                                 />
                               </td>
-                              <td className={`px-3 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 <input
                                   type="number"
                                   value={form.hrAllowance}
@@ -3506,7 +3547,7 @@ export default function PayrollViewPage() {
                                   }`}
                                 />
                               </td>
-                              <td className={`px-3 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 <input
                                   type="number"
                                   value={form.conveyanceAllowance}
@@ -3519,7 +3560,7 @@ export default function PayrollViewPage() {
                                   }`}
                                 />
                               </td>
-                              <td className={`px-3 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 <input
                                   type="number"
                                   value={form.specialAllowance}
@@ -3532,7 +3573,7 @@ export default function PayrollViewPage() {
                                   }`}
                                 />
                               </td>
-                              <td className={`px-3 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 <input
                                   type="number"
                                   value={form.otherAllowance}
@@ -3545,7 +3586,7 @@ export default function PayrollViewPage() {
                                   }`}
                                 />
                               </td>
-                              <td className={`px-3 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 <input
                                   type="number"
                                   value={form.pf}
@@ -3558,7 +3599,7 @@ export default function PayrollViewPage() {
                                   }`}
                                 />
                               </td>
-                              <td className={`px-3 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 <input
                                   type="number"
                                   value={form.esi}
@@ -3571,7 +3612,7 @@ export default function PayrollViewPage() {
                                   }`}
                                 />
                               </td>
-                              <td className={`px-3 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 <input
                                   type="number"
                                   value={form.pt}
@@ -3584,7 +3625,7 @@ export default function PayrollViewPage() {
                                   }`}
                                 />
                               </td>
-                              <td className={`px-3 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 {employeeAttendance[emp.personalDetails.employeeId]?.loading ? (
                                   <div className="flex items-center gap-1">
                                     <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -3605,7 +3646,7 @@ export default function PayrollViewPage() {
                                   />
                                 )}
                               </td>
-                              <td className={`px-3 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 {employeeAttendance[emp.personalDetails.employeeId]?.loading ? (
                                   <div className="flex items-center gap-1">
                                     <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -3626,7 +3667,7 @@ export default function PayrollViewPage() {
                                   />
                                 )}
                               </td>
-                              <td className={`px-4 py-3 text-center ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+                              <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                                 <button
                                   onClick={() => handleCreatePayroll(emp.personalDetails.employeeId, emp.personalDetails.fullName)}
                                   disabled={createLoading || !form.month || !form.year || !form.amount}
@@ -3895,11 +3936,11 @@ export default function PayrollViewPage() {
                         {masterModalEmployeeSearch ? "No employees found matching your search" : "No employees found for this project"}
                       </div>
                     ) : (
-                      <div className={`overflow-auto rounded-lg border max-h-64 ${theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"}`}>
-                        <table className="w-full text-sm">
-                          <thead className={`sticky top-0 ${theme === "dark" ? "bg-gray-800" : "bg-gray-50"}`}>
+                      <div className={`overflow-auto rounded-none border max-h-64 ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+                        <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                          <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
                             <tr>
-                              <th className={`px-4 py-2 text-center font-bold uppercase border-b text-xs w-12 ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                              <th className={`px-2 py-2 text-center font-bold uppercase sticky left-0 z-20 whitespace-nowrap border w-12 ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>
                                 <input
                                   type="checkbox"
                                   checked={false}
@@ -3908,39 +3949,35 @@ export default function PayrollViewPage() {
                                   title="Select all"
                                 />
                               </th>
-                              <th className={`px-4 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                              <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap w-16 border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                                 Photo
                               </th>
-                              <th className={`px-4 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                              <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                                 Name
                               </th>
-                              <th className={`px-4 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                              <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                                 Employee ID
                               </th>
-                              <th className={`px-4 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                              <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                                 Designation
                               </th>
-                              <th className={`px-4 py-2 text-left font-bold uppercase border-b text-xs ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
+                              <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                                 Date of Joining
                               </th>
                             </tr>
                           </thead>
-                          <tbody>
-                            {masterModalFilteredEmployees.map((emp) => (
+                          <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
+                            {masterModalFilteredEmployees.map((emp, idx) => (
                               <tr
                                 key={emp.personalDetails.employeeId}
                                 onClick={() => setMasterForm(prev => ({ ...prev, employeeId: emp.personalDetails.employeeId }))}
-                                className={`border-b cursor-pointer transition ${
-                                  theme === "dark" 
-                                    ? "border-gray-700 hover:bg-gray-700" 
-                                    : "border-gray-200 hover:bg-gray-50"
-                                } ${
+                                className={`cursor-pointer ${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"} ${
                                   masterForm.employeeId === emp.personalDetails.employeeId
                                     ? theme === "dark" ? "bg-blue-900" : "bg-blue-50"
                                     : ""
                                 }`}
                               >
-                                <td className={`px-4 py-3 text-center ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`} onClick={(e) => e.stopPropagation()}>
+                                <td className={`px-2 py-1 text-center sticky left-0 z-10 border ${theme === "dark" ? "text-gray-200 bg-gray-800 border-blue-800" : "text-gray-900 bg-white border-blue-200"}`} onClick={(e) => e.stopPropagation()}>
                                   <input
                                     type="checkbox"
                                     checked={masterForm.employeeId === emp.personalDetails.employeeId}
@@ -3951,33 +3988,31 @@ export default function PayrollViewPage() {
                                     className="cursor-pointer w-4 h-4"
                                   />
                                 </td>
-                                <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
-                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 ${
-                                    theme === "dark" ? "bg-gray-700" : "bg-gray-200"
-                                  }`}>
+                                <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                                  <div className={`w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0 border ${theme === "dark" ? "bg-gray-700 border-blue-900" : "bg-gray-200 border-blue-200"}`}>
                                     {emp.personalDetails.employeeImage ? (
                                       <Image
                                         src={emp.personalDetails.employeeImage}
                                         alt={emp.personalDetails.fullName}
-                                        width={40}
-                                        height={40}
+                                        width={32}
+                                        height={32}
                                         className="object-cover w-full h-full"
                                       />
                                     ) : (
-                                      <FaUser className="w-5 h-5 text-blue-500" />
+                                      <FaUser className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-200' : 'text-gray-500'}`} />
                                     )}
                                   </div>
                                 </td>
-                                <td className={`px-4 py-3 font-semibold ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
-                                  {emp.personalDetails.fullName}
+                                <td className={`px-2 py-1 font-semibold border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-800 border-blue-200"}`}>
+                                  <div className="truncate" title={emp.personalDetails.fullName}>{emp.personalDetails.fullName}</div>
                                 </td>
-                                <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                                  {emp.personalDetails.employeeId}
+                                <td className={`px-2 py-1 border ${theme === "dark" ? "text-gray-300 border-blue-800" : "text-gray-700 border-blue-200"}`}>
+                                  <div className="truncate" title={emp.personalDetails.employeeId}>{emp.personalDetails.employeeId}</div>
                                 </td>
-                                <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                                  {emp.personalDetails.designation}
+                                <td className={`px-2 py-1 border ${theme === "dark" ? "text-gray-300 border-blue-800" : "text-gray-700 border-blue-200"}`}>
+                                  <div className="truncate" title={emp.personalDetails.designation}>{emp.personalDetails.designation}</div>
                                 </td>
-                                <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                                <td className={`px-2 py-1 border ${theme === "dark" ? "text-gray-300 border-blue-800" : "text-gray-700 border-blue-200"}`}>
                                   {emp.personalDetails.dateOfJoining 
                                     ? new Date(emp.personalDetails.dateOfJoining).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
                                     : "-"}
@@ -4084,833 +4119,597 @@ export default function PayrollViewPage() {
                   />
                 </div>
 
-                {/* Salary Details Form - Table Format */}
-                <div className={`overflow-auto rounded-xl border-2 shadow-xl ${theme === "dark" ? "border-gray-700 bg-gray-900" : "border-gray-300 bg-white shadow-gray-200"}`}>
-                  <table className="w-full text-sm border-collapse">
-                    <thead className="sticky top-0 z-20">
-                      <tr className={`${theme === "dark" ? "bg-gradient-to-r from-gray-800 to-gray-900" : "bg-gradient-to-r from-blue-50 to-indigo-50"}`}>
-                        <th className={`px-6 py-5 text-left font-extrabold uppercase text-xs tracking-wider border-b-2 sticky left-0 z-30 shadow-lg ${theme === "dark" ? "bg-gradient-to-r from-gray-800 to-gray-900 text-blue-300 border-blue-700" : "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-800 border-blue-300"}`} style={{ width: '180px', minWidth: '180px' }}>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${theme === "dark" ? "bg-blue-400" : "bg-blue-600"}`}></div>
-                            Category
-                          </div>
+                {/* Salary Details Form - Simple Table Format */}
+                <div className={`overflow-auto rounded-none border ${theme === "dark" ? "border-blue-900 bg-gray-800" : "border-blue-100 bg-white"}`}>
+                  <table className="w-full text-sm table-auto border-separate" style={{ borderSpacing: 0 }}>
+                    <thead className={theme === "dark" ? "bg-blue-900 sticky top-0 z-10" : "bg-blue-50 sticky top-0 z-10"}>
+                      <tr>
+                        <th className={`px-2 py-2 text-left font-bold uppercase sticky left-0 z-20 whitespace-nowrap border ${theme === "dark" ? "text-blue-200 bg-blue-900 border-blue-800" : "text-blue-700 bg-blue-50 border-blue-200"}`}>#</th>
+                        <th className={`px-2 py-2 text-left font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`}>
+                          Description
                         </th>
-                        <th className={`px-6 py-5 text-left font-extrabold uppercase text-xs tracking-wider border-b-2 ${theme === "dark" ? "text-blue-300 border-blue-700" : "text-blue-800 border-blue-300"}`}>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${theme === "dark" ? "bg-blue-400" : "bg-blue-600"}`}></div>
-                            Description
-                          </div>
+                        <th className={`px-2 py-2 text-center font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '100px' }}>
+                          Applicable
                         </th>
-                        <th className={`px-6 py-5 text-center font-extrabold uppercase text-xs tracking-wider border-b-2 ${theme === "dark" ? "text-blue-300 border-blue-700" : "text-blue-800 border-blue-300"}`} style={{ width: '120px', minWidth: '120px' }}>
-                          <div className="flex items-center justify-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${theme === "dark" ? "bg-green-400" : "bg-green-600"}`}></div>
-                            Applicable
-                          </div>
+                        <th className={`px-2 py-2 text-center font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '120px' }}>
+                          Type
                         </th>
-                        <th className={`px-6 py-5 text-center font-extrabold uppercase text-xs tracking-wider border-b-2 ${theme === "dark" ? "text-blue-300 border-blue-700" : "text-blue-800 border-blue-300"}`} style={{ width: '140px', minWidth: '140px' }}>
-                          <div className="flex items-center justify-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${theme === "dark" ? "bg-purple-400" : "bg-purple-600"}`}></div>
-                            Fixed/Variable
-                          </div>
+                        <th className={`px-2 py-2 text-center font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '100px' }}>
+                          Percentage (%)
                         </th>
-                        <th className={`px-6 py-5 text-center font-extrabold uppercase text-xs tracking-wider border-b-2 ${theme === "dark" ? "text-blue-300 border-blue-700" : "text-blue-800 border-blue-300"}`} style={{ width: '150px', minWidth: '150px' }}>
-                          <div className="flex items-center justify-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${theme === "dark" ? "bg-yellow-400" : "bg-yellow-600"}`}></div>
-                            Percentage/Calculation
-                          </div>
+                        <th className={`px-2 py-2 text-center font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '200px' }}>
+                          Formula
                         </th>
-                        <th className={`px-6 py-5 text-center font-extrabold uppercase text-xs tracking-wider border-b-2 ${theme === "dark" ? "text-blue-300 border-blue-700" : "text-blue-800 border-blue-300"}`} style={{ width: '250px', minWidth: '250px' }}>
-                          <div className="flex items-center justify-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${theme === "dark" ? "bg-indigo-400" : "bg-indigo-600"}`}></div>
-                            How Calculated
-                          </div>
-                        </th>
-                        <th className={`px-6 py-5 text-right font-extrabold uppercase text-xs tracking-wider border-b-2 ${theme === "dark" ? "text-blue-300 border-blue-700" : "text-blue-800 border-blue-300"}`} style={{ width: '220px', minWidth: '220px' }}>
-                          <div className="flex items-center justify-end gap-2">
-                            <div className={`w-2 h-2 rounded-full ${theme === "dark" ? "bg-emerald-400" : "bg-emerald-600"}`}></div>
-                            Amount (₹)
-                          </div>
+                        <th className={`px-2 py-2 text-right font-bold uppercase whitespace-nowrap border ${theme === "dark" ? "text-blue-200 border-blue-800" : "text-blue-700 border-blue-200"}`} style={{ width: '180px' }}>
+                          Amount (₹)
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-opacity-50">
+                    <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
 
                       {/* Salary Components Section */}
-                      <tr className={`group ${theme === "dark" ? "hover:bg-gray-800/50 bg-gray-900/30" : "hover:bg-blue-50/50 bg-white"} transition-all duration-200 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                        <td rowSpan={9} className={`px-6 py-4 align-top border-r-2 font-extrabold text-sm sticky left-0 z-20 shadow-lg ${theme === "dark" ? "bg-gradient-to-b from-gray-800 to-gray-900 text-blue-300 border-blue-700" : "bg-gradient-to-b from-blue-50 to-indigo-50 text-blue-800 border-blue-300"}`}>
-                          <div className="transform -rotate-90 origin-center whitespace-nowrap font-bold" style={{ width: '120px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <div className="flex items-center gap-2">
-                              <div className={`w-3 h-3 rounded-full ${theme === "dark" ? "bg-blue-400" : "bg-blue-600"}`}></div>
-                              Salary Components
-                            </div>
-                          </div>
-                        </td>
-                        <td className={`px-6 py-4 border-b font-semibold ${theme === "dark" ? "text-gray-100 border-gray-800" : "text-gray-800 border-gray-100"}`}>
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>1</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold">Basic Salary</span>
+                            <span className="font-semibold">Basic Salary</span>
                             <span className="text-red-500 font-bold">*</span>
                           </div>
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={masterForm.basicSalaryApplicable}
-                              onChange={(e) => setMasterForm(prev => ({ ...prev, basicSalaryApplicable: e.target.checked }))}
-                              className={`sr-only peer`}
-                            />
-                            <div className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
-                              masterForm.basicSalaryApplicable 
-                                ? theme === "dark" ? "bg-green-600" : "bg-green-500"
-                                : theme === "dark" ? "bg-gray-700" : "bg-gray-300"
-                            }`}>
-                              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 ${
-                                masterForm.basicSalaryApplicable ? "translate-x-5" : ""
-                              }`}></div>
-                            </div>
-                          </label>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <input
+                            type="checkbox"
+                            checked={masterForm.basicSalaryApplicable}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, basicSalaryApplicable: e.target.checked }))}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
+                          />
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          {masterForm.basicSalaryType && editingTypeField !== "basicSalaryType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("basicSalaryType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.basicSalaryType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.basicSalaryType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.basicSalaryType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, basicSalaryType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "basicSalaryType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.basicSalaryType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, basicSalaryType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          {masterForm.basicSalaryType === "Variable" ? (
-                            <input
-                              type="number"
-                              value={masterForm.basicSalaryPercentage}
-                              onChange={(e) => setMasterForm(prev => ({ ...prev, basicSalaryPercentage: e.target.value }))}
-                              placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
-                              }`}
-                            />
-                          ) : (
-                            <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          {masterForm.basicSalaryType === "Variable" && masterForm.basicSalaryPercentage ? (
-                            <span className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium ${
-                              theme === "dark" ? "bg-indigo-900/30 text-indigo-300 border border-indigo-700" : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                            }`}>
-                              Base Component
-                            </span>
-                          ) : (
-                            <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                         </td>
-                        <td className={`px-6 py-4 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          <div className="flex items-center justify-end gap-2">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.basicSalary}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, basicSalary: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`group ${theme === "dark" ? "hover:bg-gray-800/50 bg-gray-900/30" : "hover:bg-blue-50/50 bg-white"} transition-all duration-200 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                        <td className={`px-6 py-4 border-b font-semibold ${theme === "dark" ? "text-gray-100 border-gray-800" : "text-gray-800 border-gray-100"}`}>
-                          <span className="font-bold">DA/VDA</span>
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>2</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">DA/VDA</span>
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={masterForm.daVdaApplicable}
-                              onChange={(e) => setMasterForm(prev => ({ ...prev, daVdaApplicable: e.target.checked }))}
-                              className={`sr-only peer`}
-                            />
-                            <div className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
-                              masterForm.daVdaApplicable 
-                                ? theme === "dark" ? "bg-green-600" : "bg-green-500"
-                                : theme === "dark" ? "bg-gray-700" : "bg-gray-300"
-                            }`}>
-                              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 ${
-                                masterForm.daVdaApplicable ? "translate-x-5" : ""
-                              }`}></div>
-                            </div>
-                          </label>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <input
+                            type="checkbox"
+                            checked={masterForm.daVdaApplicable}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, daVdaApplicable: e.target.checked }))}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
+                          />
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          {masterForm.daVdaType && editingTypeField !== "daVdaType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("daVdaType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.daVdaType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.daVdaType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.daVdaType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, daVdaType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "daVdaType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.daVdaType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, daVdaType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.daVdaType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.daVdaPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, daVdaPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.daVdaType === "Variable" && masterForm.daVdaPercentage ? (
-                            <span className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium ${
-                              theme === "dark" ? "bg-indigo-900/30 text-indigo-300 border border-indigo-700" : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                            }`} title={`ROUNDUP(Basic Salary*${masterForm.daVdaPercentage}%)`}>
-                              ROUNDUP(Basic Salary*{masterForm.daVdaPercentage}%)
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(Basic Salary * ${masterForm.daVdaPercentage}%)`}>
+                              ROUNDUP(Basic Salary * {masterForm.daVdaPercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-4 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          <div className="flex items-center justify-end gap-2">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.daVda}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, daVda: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`group ${theme === "dark" ? "hover:bg-gray-800/50 bg-gray-900/30" : "hover:bg-blue-50/50 bg-white"} transition-all duration-200 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                        <td className={`px-6 py-4 border-b font-semibold ${theme === "dark" ? "text-gray-100 border-gray-800" : "text-gray-800 border-gray-100"}`}>
-                          <span className="font-bold">House Rent Allowance</span>
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>3</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">House Rent Allowance</span>
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={masterForm.hrAllowanceApplicable}
-                              onChange={(e) => setMasterForm(prev => ({ ...prev, hrAllowanceApplicable: e.target.checked }))}
-                              className={`sr-only peer`}
-                            />
-                            <div className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
-                              masterForm.hrAllowanceApplicable 
-                                ? theme === "dark" ? "bg-green-600" : "bg-green-500"
-                                : theme === "dark" ? "bg-gray-700" : "bg-gray-300"
-                            }`}>
-                              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 ${
-                                masterForm.hrAllowanceApplicable ? "translate-x-5" : ""
-                              }`}></div>
-                            </div>
-                          </label>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <input
+                            type="checkbox"
+                            checked={masterForm.hrAllowanceApplicable}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, hrAllowanceApplicable: e.target.checked }))}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
+                          />
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          {masterForm.hrAllowanceType && editingTypeField !== "hrAllowanceType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("hrAllowanceType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.hrAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.hrAllowanceType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.hrAllowanceType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, hrAllowanceType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "hrAllowanceType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.hrAllowanceType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, hrAllowanceType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.hrAllowanceType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.hrAllowancePercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, hrAllowancePercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.hrAllowanceType === "Variable" && masterForm.hrAllowancePercentage ? (
-                            <span className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium ${
-                              theme === "dark" ? "bg-indigo-900/30 text-indigo-300 border border-indigo-700" : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                            }`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.hrAllowancePercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.hrAllowancePercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.hrAllowancePercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-4 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          <div className="flex items-center justify-end gap-2">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.hrAllowance}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, hrAllowance: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`group ${theme === "dark" ? "hover:bg-gray-800/50 bg-gray-900/30" : "hover:bg-blue-50/50 bg-white"} transition-all duration-200 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                        <td className={`px-6 py-4 border-b font-semibold ${theme === "dark" ? "text-gray-100 border-gray-800" : "text-gray-800 border-gray-100"}`}>
-                          <span className="font-bold">Conveyance Allowance (Fixed)</span>
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>4</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Conveyance Allowance</span>
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={masterForm.conveyanceAllowanceApplicable}
-                              onChange={(e) => setMasterForm(prev => ({ ...prev, conveyanceAllowanceApplicable: e.target.checked }))}
-                              className={`sr-only peer`}
-                            />
-                            <div className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
-                              masterForm.conveyanceAllowanceApplicable 
-                                ? theme === "dark" ? "bg-green-600" : "bg-green-500"
-                                : theme === "dark" ? "bg-gray-700" : "bg-gray-300"
-                            }`}>
-                              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 ${
-                                masterForm.conveyanceAllowanceApplicable ? "translate-x-5" : ""
-                              }`}></div>
-                            </div>
-                          </label>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <input
+                            type="checkbox"
+                            checked={masterForm.conveyanceAllowanceApplicable}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, conveyanceAllowanceApplicable: e.target.checked }))}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
+                          />
                         </td>
-                        <td className={`px-6 py-4 border-b text-center ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
-                          {masterForm.conveyanceAllowanceType && editingTypeField !== "conveyanceAllowanceType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("conveyanceAllowanceType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.conveyanceAllowanceType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.conveyanceAllowanceType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, conveyanceAllowanceType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "conveyanceAllowanceType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.conveyanceAllowanceType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, conveyanceAllowanceType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.conveyanceAllowanceType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.conveyanceAllowancePercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, conveyanceAllowancePercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.conveyanceAllowanceType === "Variable" && masterForm.conveyanceAllowancePercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.conveyanceAllowancePercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.conveyanceAllowancePercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.conveyanceAllowancePercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
-                            type="number"
-                            value={masterForm.conveyanceAllowance}
-                            onChange={(e) => setMasterForm(prev => ({ ...prev, conveyanceAllowance: e.target.value }))}
-                            placeholder="0"
-                            className={`w-full max-w-[180px] px-3 py-2 border rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                              theme === "dark"
-                                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
-                                : "bg-white border-gray-300 text-black placeholder-gray-400"
-                            }`}
-                          />
+                              type="number"
+                              value={masterForm.conveyanceAllowance}
+                              onChange={(e) => setMasterForm(prev => ({ ...prev, conveyanceAllowance: e.target.value }))}
+                              placeholder="0"
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                theme === "dark"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
+                              }`}
+                            />
                           </div>
                         </td>
                       </tr>
-                      <tr>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Leave Travel Allowance
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>5</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Leave Travel Allowance</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.leaveTravelAllowanceApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, leaveTravelAllowanceApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.leaveTravelAllowanceApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.leaveTravelAllowanceType && editingTypeField !== "leaveTravelAllowanceType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("leaveTravelAllowanceType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.leaveTravelAllowanceType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.leaveTravelAllowanceType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, leaveTravelAllowanceType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "leaveTravelAllowanceType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.leaveTravelAllowanceType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, leaveTravelAllowanceType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.leaveTravelAllowanceType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.leaveTravelAllowancePercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, leaveTravelAllowancePercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.leaveTravelAllowanceType === "Variable" && masterForm.leaveTravelAllowancePercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.leaveTravelAllowancePercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.leaveTravelAllowancePercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.leaveTravelAllowancePercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
-                          <input
-                            type="number"
-                            value={masterForm.leaveTravelAllowance}
-                            onChange={(e) => setMasterForm(prev => ({ ...prev, leaveTravelAllowance: e.target.value }))}
-                            placeholder="0"
-                            className={`w-full max-w-[180px] px-3 py-2 border rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                              theme === "dark"
-                                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
-                                : "bg-white border-gray-300 text-black placeholder-gray-400"
-                            }`}
-                          />
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
+                            <input
+                              type="number"
+                              value={masterForm.leaveTravelAllowance}
+                              onChange={(e) => setMasterForm(prev => ({ ...prev, leaveTravelAllowance: e.target.value }))}
+                              placeholder="0"
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                theme === "dark"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
+                              }`}
+                            />
                           </div>
                         </td>
                       </tr>
-                      <tr>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Medical Allowance (Fixed)
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>6</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Medical Allowance</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.medicalAllowanceApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, medicalAllowanceApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.medicalAllowanceApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.medicalAllowanceType && editingTypeField !== "medicalAllowanceType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("medicalAllowanceType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.medicalAllowanceType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.medicalAllowanceType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, medicalAllowanceType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "medicalAllowanceType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.medicalAllowanceType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, medicalAllowanceType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.medicalAllowanceType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.medicalAllowancePercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, medicalAllowancePercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.medicalAllowanceType === "Variable" && masterForm.medicalAllowancePercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.medicalAllowancePercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.medicalAllowancePercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.medicalAllowancePercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
-                          <input
-                            type="number"
-                            value={masterForm.medicalAllowance}
-                            onChange={(e) => setMasterForm(prev => ({ ...prev, medicalAllowance: e.target.value }))}
-                            placeholder="0"
-                            className={`w-full max-w-[180px] px-3 py-2 border rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                              theme === "dark"
-                                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
-                                : "bg-white border-gray-300 text-black placeholder-gray-400"
-                            }`}
-                          />
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
+                            <input
+                              type="number"
+                              value={masterForm.medicalAllowance}
+                              onChange={(e) => setMasterForm(prev => ({ ...prev, medicalAllowance: e.target.value }))}
+                              placeholder="0"
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                theme === "dark"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
+                              }`}
+                            />
                           </div>
                         </td>
                       </tr>
-                      <tr>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Special Allowance
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>7</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Special Allowance</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.specialAllowanceApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, specialAllowanceApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.specialAllowanceApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.specialAllowanceType && editingTypeField !== "specialAllowanceType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("specialAllowanceType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.specialAllowanceType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.specialAllowanceType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, specialAllowanceType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "specialAllowanceType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.specialAllowanceType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, specialAllowanceType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.specialAllowanceType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.specialAllowancePercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, specialAllowancePercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.specialAllowanceType === "Variable" && masterForm.specialAllowancePercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.specialAllowancePercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.specialAllowancePercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.specialAllowancePercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
-                          <input
-                            type="number"
-                            value={masterForm.specialAllowance}
-                            onChange={(e) => setMasterForm(prev => ({ ...prev, specialAllowance: e.target.value }))}
-                            placeholder="0"
-                            className={`w-full max-w-[180px] px-3 py-2 border rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                              theme === "dark"
-                                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
-                                : "bg-white border-gray-300 text-black placeholder-gray-400"
-                            }`}
-                          />
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
+                            <input
+                              type="number"
+                              value={masterForm.specialAllowance}
+                              onChange={(e) => setMasterForm(prev => ({ ...prev, specialAllowance: e.target.value }))}
+                              placeholder="0"
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                theme === "dark"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
+                              }`}
+                            />
                           </div>
                         </td>
                       </tr>
-                      <tr>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Other Allowances
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>8</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Other Allowances</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.otherAllowanceApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, otherAllowanceApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.otherAllowanceApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.otherAllowanceType && editingTypeField !== "otherAllowanceType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("otherAllowanceType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.otherAllowanceType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.otherAllowanceType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, otherAllowanceType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "otherAllowanceType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.otherAllowanceType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, otherAllowanceType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.otherAllowanceType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.otherAllowancePercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, otherAllowancePercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.otherAllowanceType === "Variable" && masterForm.otherAllowancePercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.otherAllowancePercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.otherAllowancePercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.otherAllowancePercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
-                          <input
-                            type="number"
-                            value={masterForm.otherAllowance}
-                            onChange={(e) => setMasterForm(prev => ({ ...prev, otherAllowance: e.target.value }))}
-                            placeholder="0"
-                            className={`w-full max-w-[180px] px-3 py-2 border rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                              theme === "dark"
-                                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
-                                : "bg-white border-gray-300 text-black placeholder-gray-400"
-                            }`}
-                          />
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
+                            <input
+                              type="number"
+                              value={masterForm.otherAllowance}
+                              onChange={(e) => setMasterForm(prev => ({ ...prev, otherAllowance: e.target.value }))}
+                              placeholder="0"
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                theme === "dark"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
+                              }`}
+                            />
                           </div>
                         </td>
                       </tr>
-                      <tr className={theme === "dark" ? "bg-blue-900/30" : "bg-blue-50"}>
-                        <td className={`px-6 py-3 font-bold border-b ${theme === "dark" ? "text-blue-300 border-gray-700" : "text-blue-700 border-gray-200"}`}>
+                      <tr className={`${theme === "dark" ? "bg-blue-900/30" : "bg-blue-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>-</td>
+                        <td className={`px-2 py-1 border font-semibold ${theme === "dark" ? "text-blue-300 border-blue-800" : "text-blue-700 border-blue-200"}`}>
                           Gross Salary
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}></td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}></td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}></td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}></td>
-                        <td className={`px-6 py-3 border-b font-bold ${theme === "dark" ? "text-blue-300 border-gray-700" : "text-blue-700 border-gray-200"}`}>
-                          {(
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border font-bold ${theme === "dark" ? "text-blue-300 border-blue-800" : "text-blue-700 border-blue-200"}`}>
+                          ₹{(
                             (Number(masterForm.basicSalary) || 0) +
                             (Number(masterForm.daVda) || 0) +
                             (Number(masterForm.hrAllowance) || 0) +
@@ -4924,534 +4723,407 @@ export default function PayrollViewPage() {
                       </tr>
 
                       {/* Other Benefits Section */}
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td rowSpan={6} className={`px-6 py-4 align-top border-r font-bold text-sm sticky left-0 z-10 ${theme === "dark" ? "bg-gray-700 text-blue-300 border-gray-600" : "bg-blue-50 text-blue-700 border-gray-300"}`}>
-                          <div className="transform -rotate-90 origin-center whitespace-nowrap" style={{ width: '120px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            Other Benefits
-                          </div>
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>9</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Washing Allowance</span>
                         </td>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Washing Allowance (Fixed)
-                        </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.washingAllowanceApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, washingAllowanceApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.washingAllowanceApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.washingAllowanceType && editingTypeField !== "washingAllowanceType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("washingAllowanceType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.washingAllowanceType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.washingAllowanceType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, washingAllowanceType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "washingAllowanceType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.washingAllowanceType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, washingAllowanceType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.washingAllowanceType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.washingAllowancePercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, washingAllowancePercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.washingAllowanceType === "Variable" && masterForm.washingAllowancePercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.washingAllowancePercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.washingAllowancePercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.washingAllowancePercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.washingAllowance}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, washingAllowance: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Leave with Wages (EL+SL (1.5+1) 30 Days Pa)
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>10</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Leave with Wages</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.leaveWithWagesApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, leaveWithWagesApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.leaveWithWagesApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.leaveWithWagesType && editingTypeField !== "leaveWithWagesType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("leaveWithWagesType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.leaveWithWagesType}
-                            </span>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.leaveWithWagesType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, leaveWithWagesType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
+                        </td>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          {masterForm.leaveWithWagesType === "Variable" ? (
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           ) : (
-                            <select
-                              value={masterForm.leaveWithWagesType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, leaveWithWagesType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "leaveWithWagesType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.leaveWithWagesType === "Variable" ? (
-                            <input
-                              type="number"
-                              value={masterForm.leaveWithWagesPercentage}
-                              onChange={(e) => setMasterForm(prev => ({ ...prev, leaveWithWagesPercentage: e.target.value }))}
-                              placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
-                              }`}
-                            />
-                          ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
-                          )}
-                        </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.leaveWithWagesType === "Variable" ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title="ROUNDUP(SUM((Basic+VDA/DA)/26*30/12),0)">
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title="ROUNDUP(SUM((Basic+VDA/DA)/26*30/12),0)">
                               ROUNDUP(SUM((Basic+VDA/DA)/26*30/12),0)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.leaveWithWages}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, leaveWithWages: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Bonus
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>11</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Bonus</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.bonusApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, bonusApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.bonusApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.bonusType && editingTypeField !== "bonusType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("bonusType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.bonusType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.bonusType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, bonusType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "bonusType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.bonusType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, bonusType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.bonusType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.bonusPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, bonusPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.bonusType === "Variable" && masterForm.bonusPercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.bonusPercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.bonusPercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.bonusPercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.bonus}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, bonus: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          National Festival Holidays (10 Days PA)
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>12</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">National Festival Holidays</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.nationalFestivalHolidaysApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, nationalFestivalHolidaysApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.nationalFestivalHolidaysApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.nationalFestivalHolidaysType && editingTypeField !== "nationalFestivalHolidaysType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("nationalFestivalHolidaysType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.nationalFestivalHolidaysType}
-                            </span>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.nationalFestivalHolidaysType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, nationalFestivalHolidaysType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
+                        </td>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          {masterForm.nationalFestivalHolidaysType === "Variable" ? (
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           ) : (
-                            <select
-                              value={masterForm.nationalFestivalHolidaysType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, nationalFestivalHolidaysType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "nationalFestivalHolidaysType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.nationalFestivalHolidaysType === "Variable" ? (
-                            <input
-                              type="number"
-                              value={masterForm.nationalFestivalHolidaysPercentage}
-                              onChange={(e) => setMasterForm(prev => ({ ...prev, nationalFestivalHolidaysPercentage: e.target.value }))}
-                              placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
-                              }`}
-                            />
-                          ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
-                          )}
-                        </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.nationalFestivalHolidaysType === "Variable" ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title="ROUNDUP(SUM((Basic+VDA/DA)/26*10/12),0)">
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title="ROUNDUP(SUM((Basic+VDA/DA)/26*10/12),0)">
                               ROUNDUP(SUM((Basic+VDA/DA)/26*10/12),0)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.nationalFestivalHolidays}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, nationalFestivalHolidays: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Wages for additional Hours
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>13</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Wages for additional Hours</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.wagesAdditionalHoursApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, wagesAdditionalHoursApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.wagesAdditionalHoursApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.wagesAdditionalHoursType && editingTypeField !== "wagesAdditionalHoursType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("wagesAdditionalHoursType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.wagesAdditionalHoursType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.wagesAdditionalHoursType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, wagesAdditionalHoursType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "wagesAdditionalHoursType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.wagesAdditionalHoursType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, wagesAdditionalHoursType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.wagesAdditionalHoursType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.wagesAdditionalHoursPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, wagesAdditionalHoursPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.wagesAdditionalHoursType === "Variable" && masterForm.wagesAdditionalHoursPercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.wagesAdditionalHoursPercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.wagesAdditionalHoursPercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.wagesAdditionalHoursPercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.wagesAdditionalHours}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, wagesAdditionalHours: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Reliever Charges
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>14</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Reliever Charges</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.relieverChargesApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, relieverChargesApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.relieverChargesApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.relieverChargesType && editingTypeField !== "relieverChargesType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("relieverChargesType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.relieverChargesType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.relieverChargesType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, relieverChargesType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "relieverChargesType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.relieverChargesType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, relieverChargesType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.relieverChargesType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.relieverChargesPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, relieverChargesPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.relieverChargesType === "Variable" && masterForm.relieverChargesPercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.relieverChargesPercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.relieverChargesPercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.relieverChargesPercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.relieverCharges}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, relieverCharges: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
@@ -5459,636 +5131,504 @@ export default function PayrollViewPage() {
                       </tr>
 
                       {/* Employee Deductions Section */}
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td rowSpan={7} className={`px-6 py-4 align-top border-r font-bold text-sm sticky left-0 z-10 ${theme === "dark" ? "bg-gray-700 text-blue-300 border-gray-600" : "bg-blue-50 text-blue-700 border-gray-300"}`}>
-                          <div className="transform -rotate-90 origin-center whitespace-nowrap" style={{ width: '120px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            Employee Deductions
-                          </div>
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>15</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Employee Share PF@12%</span>
                         </td>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Employee Share PF@12%
-                        </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.employeePfApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, employeePfApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.employeePfApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.employeePfType && editingTypeField !== "employeePfType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("employeePfType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.employeePfType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.employeePfType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, employeePfType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "employeePfType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.employeePfType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, employeePfType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.employeePfType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.employeePfPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, employeePfPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.employeePfType === "Variable" && masterForm.employeePfPercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(+IF((Basic+VDA/DA)>15000,(15000*${masterForm.employeePfPercentage}%),(Basic+VDA/DA)*${masterForm.employeePfPercentage}%),0)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(+IF((Basic+VDA/DA)>15000,(15000*${masterForm.employeePfPercentage}%),(Basic+VDA/DA)*${masterForm.employeePfPercentage}%),0)`}>
                               ROUNDUP(+IF((Basic+VDA/DA){'>'}15000,(15000*{masterForm.employeePfPercentage}%),(Basic+VDA/DA)*{masterForm.employeePfPercentage}%),0)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.employeePf}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, employeePf: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Employee Share ESI@0.75%
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>16</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Employee Share ESI@0.75%</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.employeeEsiApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, employeeEsiApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.employeeEsiApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.employeeEsiType && editingTypeField !== "employeeEsiType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("employeeEsiType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.employeeEsiType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.employeeEsiType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, employeeEsiType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "employeeEsiType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.employeeEsiType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, employeeEsiType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.employeeEsiType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.employeeEsiPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, employeeEsiPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.employeeEsiType === "Variable" && masterForm.employeeEsiPercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`+ROUND(IF(Gross salary+National festival holiday)>21000,0,((Gross salary+National festival holiday)*${masterForm.employeeEsiPercentage}%),0)`}>
-                              +ROUND(IF(Gross salary+National festival holiday){'>'}21000,0,((Gross salary+National festival holiday)*{masterForm.employeeEsiPercentage}%),0)
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`+ROUND(IF((Gross salary+National festival holiday)>21000,0,((Gross salary+National festival holiday)*${masterForm.employeeEsiPercentage}%),0)`}>
+                              +ROUND(IF((Gross salary+National festival holiday){'>'}21000,0,((Gross salary+National festival holiday)*{masterForm.employeeEsiPercentage}%),0)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.employeeEsi}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, employeeEsi: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Professional Tax
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>17</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Professional Tax</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.ptApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, ptApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.ptApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.ptType && editingTypeField !== "ptType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("ptType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.ptType}
-                            </span>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.ptType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, ptType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
+                        </td>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          {masterForm.ptType === "Variable" ? (
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           ) : (
-                            <select
-                              value={masterForm.ptType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, ptType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "ptType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.ptType === "Variable" ? (
-                            <input
-                              type="number"
-                              value={masterForm.ptPercentage}
-                              onChange={(e) => setMasterForm(prev => ({ ...prev, ptPercentage: e.target.value }))}
-                              placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
-                              }`}
-                            />
-                          ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
-                          )}
-                        </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.ptType === "Variable" ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title="+IF((Gross Salary)<25000,0,200)">
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title="+IF((Gross Salary)<25000,0,200)">
                               +IF((Gross Salary){'<'}25000,0,200)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.pt}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, pt: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Uniform & Shoes
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>18</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Uniform & Shoes</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.uniformDeductionApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, uniformDeductionApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.uniformDeductionApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.uniformDeductionType && editingTypeField !== "uniformDeductionType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("uniformDeductionType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.uniformDeductionType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.uniformDeductionType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, uniformDeductionType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "uniformDeductionType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.uniformDeductionType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, uniformDeductionType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.uniformDeductionType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.uniformDeductionPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, uniformDeductionPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.uniformDeductionType === "Variable" && masterForm.uniformDeductionPercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.uniformDeductionPercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.uniformDeductionPercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.uniformDeductionPercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.uniformDeduction}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, uniformDeduction: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Medical Insurance - Individual
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>19</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Medical Insurance - Individual</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.medicalInsuranceApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, medicalInsuranceApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.medicalInsuranceApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.medicalInsuranceType && editingTypeField !== "medicalInsuranceType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("medicalInsuranceType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.medicalInsuranceType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.medicalInsuranceType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, medicalInsuranceType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "medicalInsuranceType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.medicalInsuranceType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, medicalInsuranceType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.medicalInsuranceType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.medicalInsurancePercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, medicalInsurancePercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.medicalInsuranceType === "Variable" ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title="IF(SUM(Gross salary )>21000,700,0)">
-                              IF(SUM(Gross salary ){'>'}21000,700,0)
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          {masterForm.medicalInsuranceType === "Variable" && masterForm.medicalInsurancePercentage ? (
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.medicalInsurancePercentage}%)`}>
+                              ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.medicalInsurancePercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.medicalInsurance}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, medicalInsurance: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Training Cost
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>20</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Training Cost</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.trainingCostApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, trainingCostApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.trainingCostApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.trainingCostType && editingTypeField !== "trainingCostType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("trainingCostType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.trainingCostType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.trainingCostType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, trainingCostType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "trainingCostType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.trainingCostType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, trainingCostType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.trainingCostType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.trainingCostPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, trainingCostPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.trainingCostType === "Variable" && masterForm.trainingCostPercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.trainingCostPercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.trainingCostPercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.trainingCostPercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.trainingCost}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, trainingCost: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Labour welfare fund (Rs.20 PA)
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>21</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Labour welfare fund</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.labourWelfareFundEmployeeApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, labourWelfareFundEmployeeApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.labourWelfareFundEmployeeApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.labourWelfareFundEmployeeType && editingTypeField !== "labourWelfareFundEmployeeType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("labourWelfareFundEmployeeType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.labourWelfareFundEmployeeType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.labourWelfareFundEmployeeType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, labourWelfareFundEmployeeType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "labourWelfareFundEmployeeType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.labourWelfareFundEmployeeType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, labourWelfareFundEmployeeType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.labourWelfareFundEmployeeType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.labourWelfareFundEmployeePercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, labourWelfareFundEmployeePercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.labourWelfareFundEmployeeType === "Variable" && masterForm.labourWelfareFundEmployeePercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.labourWelfareFundEmployeePercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.labourWelfareFundEmployeePercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.labourWelfareFundEmployeePercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
                             <input
                               type="number"
                               value={masterForm.labourWelfareFundEmployee}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, labourWelfareFundEmployee: e.target.value }))}
                               placeholder="0"
-                              className={`w-full max-w-[180px] px-4 py-2.5 border-2 rounded-lg text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           </div>
                         </td>
                       </tr>
                       <tr className={theme === "dark" ? "bg-green-900/30" : "bg-green-50"}>
-                        <td className={`px-6 py-3 font-bold border-b ${theme === "dark" ? "text-green-300 border-gray-700" : "text-green-700 border-gray-200"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>-</td>
+                        <td className={`px-2 py-1 border font-bold ${theme === "dark" ? "text-green-300 border-blue-800" : "text-green-700 border-blue-200"}`}>
                           Take Home Salary
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}></td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}></td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}></td>
-                        <td className={`px-6 py-3 border-b font-bold ${theme === "dark" ? "text-green-300 border-gray-700" : "text-green-700 border-gray-200"}`}>
-                          {(
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border font-bold ${theme === "dark" ? "text-green-300 border-blue-800" : "text-green-700 border-blue-200"}`}>
+                          ₹{(
                             (Number(masterForm.basicSalary) || 0) +
                             (Number(masterForm.daVda) || 0) +
                             (Number(masterForm.hrAllowance) || 0) +
@@ -6109,461 +5649,372 @@ export default function PayrollViewPage() {
                       </tr>
 
                       {/* Employer Deductions Section */}
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td rowSpan={5} className={`px-6 py-4 align-top border-r font-bold text-sm sticky left-0 z-10 ${theme === "dark" ? "bg-gray-700 text-blue-300 border-gray-600" : "bg-blue-50 text-blue-700 border-gray-300"}`}>
-                          <div className="transform -rotate-90 origin-center whitespace-nowrap" style={{ width: '120px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          Employer Deductions
-                          </div>
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>22</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Employer Share PF@13%</span>
                         </td>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Employer Share PF@13%
-                        </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.employerPfApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, employerPfApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.employerPfApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.employerPfType && editingTypeField !== "employerPfType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("employerPfType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.employerPfType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.employerPfType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, employerPfType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "employerPfType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.employerPfType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, employerPfType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.employerPfType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.employerPfPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, employerPfPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.employerPfType === "Variable" && masterForm.employerPfPercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`+IF((Basic+VDA/DA)>15000,(15000*${masterForm.employerPfPercentage}%),(Basic+VDA/DA)*${masterForm.employerPfPercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`+IF((Basic+VDA/DA)>15000,(15000*${masterForm.employerPfPercentage}%),(Basic+VDA/DA)*${masterForm.employerPfPercentage}%)`}>
                               +IF((Basic+VDA/DA){'>'}15000,(15000*{masterForm.employerPfPercentage}%),(Basic+VDA/DA)*{masterForm.employerPfPercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
-                          <input
-                            type="number"
-                            value={masterForm.employerPf}
-                            onChange={(e) => setMasterForm(prev => ({ ...prev, employerPf: e.target.value }))}
-                            placeholder="0"
-                            className={`w-full max-w-[180px] px-3 py-2 border rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                              theme === "dark"
-                                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
-                                : "bg-white border-gray-300 text-black placeholder-gray-400"
-                            }`}
-                          />
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
+                            <input
+                              type="number"
+                              value={masterForm.employerPf}
+                              onChange={(e) => setMasterForm(prev => ({ ...prev, employerPf: e.target.value }))}
+                              placeholder="0"
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                theme === "dark"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
+                              }`}
+                            />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Employee Share ESI@3.75%
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>23</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Employer Share ESI@3.75%</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.employerEsiApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, employerEsiApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.employerEsiApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.employerEsiType && editingTypeField !== "employerEsiType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("employerEsiType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.employerEsiType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.employerEsiType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, employerEsiType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "employerEsiType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.employerEsiType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, employerEsiType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.employerEsiType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.employerEsiPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, employerEsiPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.employerEsiType === "Variable" && masterForm.employerEsiPercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`+ROUND(IF((Gross salary+National festival holidays)>21000,0,((Gross salary+National festival holidays)*${masterForm.employerEsiPercentage}%),0)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`+ROUND(IF((Gross salary+National festival holidays)>21000,0,((Gross salary+National festival holidays)*${masterForm.employerEsiPercentage}%),0)`}>
                               +ROUND(IF((Gross salary+National festival holidays){'>'}21000,0,((Gross salary+National festival holidays)*{masterForm.employerEsiPercentage}%),0)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
-                          <input
-                            type="number"
-                            value={masterForm.employerEsi}
-                            onChange={(e) => setMasterForm(prev => ({ ...prev, employerEsi: e.target.value }))}
-                            placeholder="0"
-                            className={`w-full max-w-[180px] px-3 py-2 border rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                              theme === "dark"
-                                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
-                                : "bg-white border-gray-300 text-black placeholder-gray-400"
-                            }`}
-                          />
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
+                            <input
+                              type="number"
+                              value={masterForm.employerEsi}
+                              onChange={(e) => setMasterForm(prev => ({ ...prev, employerEsi: e.target.value }))}
+                              placeholder="0"
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                theme === "dark"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
+                              }`}
+                            />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Labour License(CLRA)
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>24</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Labour License(CLRA)</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.labourLicenseApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, labourLicenseApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.labourLicenseApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.labourLicenseType && editingTypeField !== "labourLicenseType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("labourLicenseType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.labourLicenseType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.labourLicenseType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, labourLicenseType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "labourLicenseType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.labourLicenseType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, labourLicenseType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.labourLicenseType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.labourLicensePercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, labourLicensePercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.labourLicenseType === "Variable" && masterForm.labourLicensePercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.labourLicensePercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.labourLicensePercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.labourLicensePercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
-                          <input
-                            type="number"
-                            value={masterForm.labourLicense}
-                            onChange={(e) => setMasterForm(prev => ({ ...prev, labourLicense: e.target.value }))}
-                            placeholder="0"
-                            className={`w-full max-w-[180px] px-3 py-2 border rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                              theme === "dark"
-                                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
-                                : "bg-white border-gray-300 text-black placeholder-gray-400"
-                            }`}
-                          />
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
+                            <input
+                              type="number"
+                              value={masterForm.labourLicense}
+                              onChange={(e) => setMasterForm(prev => ({ ...prev, labourLicense: e.target.value }))}
+                              placeholder="0"
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                theme === "dark"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
+                              }`}
+                            />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Labour welfare fund (Rs.40 PA)
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>25</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Labour welfare fund (Rs.40 PA)</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.labourWelfareFundEmployerApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, labourWelfareFundEmployerApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.labourWelfareFundEmployerApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.labourWelfareFundEmployerType && editingTypeField !== "labourWelfareFundEmployerType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("labourWelfareFundEmployerType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.labourWelfareFundEmployerType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.labourWelfareFundEmployerType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, labourWelfareFundEmployerType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "labourWelfareFundEmployerType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.labourWelfareFundEmployerType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, labourWelfareFundEmployerType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.labourWelfareFundEmployerType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.labourWelfareFundEmployerPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, labourWelfareFundEmployerPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.labourWelfareFundEmployerType === "Variable" && masterForm.labourWelfareFundEmployerPercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.labourWelfareFundEmployerPercentage}%)`}>
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.labourWelfareFundEmployerPercentage}%)`}>
                               ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.labourWelfareFundEmployerPercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
-                          <input
-                            type="number"
-                            value={masterForm.labourWelfareFundEmployer}
-                            onChange={(e) => setMasterForm(prev => ({ ...prev, labourWelfareFundEmployer: e.target.value }))}
-                            placeholder="0"
-                            className={`w-full max-w-[180px] px-3 py-2 border rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                              theme === "dark"
-                                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
-                                : "bg-white border-gray-300 text-black placeholder-gray-400"
-                            }`}
-                          />
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
+                            <input
+                              type="number"
+                              value={masterForm.labourWelfareFundEmployer}
+                              onChange={(e) => setMasterForm(prev => ({ ...prev, labourWelfareFundEmployer: e.target.value }))}
+                              placeholder="0"
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                theme === "dark"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
+                              }`}
+                            />
                           </div>
                         </td>
                       </tr>
-                      <tr className={`${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-50"} transition-colors`}>
-                        <td className={`px-6 py-3 border-b font-medium ${theme === "dark" ? "text-gray-200 border-gray-700" : "text-gray-700 border-gray-200"}`}>
-                          Gratuity
+                      <tr className={`${theme === "dark" ? "hover:bg-blue-900 transition even:bg-gray-900" : "hover:bg-blue-50 transition even:bg-gray-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>26</td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <span className="font-semibold">Gratuity</span>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           <input
                             type="checkbox"
                             checked={masterForm.gratuityApplicable}
                             onChange={(e) => setMasterForm(prev => ({ ...prev, gratuityApplicable: e.target.checked }))}
-                            className={`w-5 h-5 rounded cursor-pointer accent-green-500 ${masterForm.gratuityApplicable ? "checked:bg-green-500" : ""}`}
+                            className={`w-4 h-4 cursor-pointer ${theme === "dark" ? "accent-green-500" : "accent-green-600"}`}
                           />
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          {masterForm.gratuityType && editingTypeField !== "gratuityType" ? (
-                            <span 
-                              onClick={() => setEditingTypeField("gratuityType")}
-                              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${
-                                masterForm.conveyanceAllowanceType === "Fixed"
-                                  ? theme === "dark" ? "bg-purple-700/50 text-purple-300 hover:bg-purple-700 border border-purple-600" : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
-                                  : theme === "dark" ? "bg-blue-700/50 text-blue-300 hover:bg-blue-700 border border-blue-600" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"
-                              }`}
-                            >
-                              {masterForm.gratuityType}
-                            </span>
-                          ) : (
-                            <select
-                              value={masterForm.gratuityType}
-                              onChange={(e) => {
-                                setMasterForm(prev => ({ ...prev, gratuityType: e.target.value }));
-                                setEditingTypeField(null);
-                              }}
-                              onBlur={() => setEditingTypeField(null)}
-                              autoFocus={editingTypeField === "gratuityType"}
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${
-                                theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black hover:border-gray-400"
-                              }`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Fixed">Fixed</option>
-                              <option value="Variable">Variable</option>
-                            </select>
-                          )}
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <select
+                            value={masterForm.gratuityType}
+                            onChange={(e) => setMasterForm(prev => ({ ...prev, gratuityType: e.target.value }))}
+                            className={`w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              theme === "dark"
+                                ? "bg-gray-800 border-gray-600 text-white"
+                                : "bg-white border-gray-300 text-black"
+                            }`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Variable">Variable</option>
+                          </select>
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.gratuityType === "Variable" ? (
                             <input
                               type="number"
                               value={masterForm.gratuityPercentage}
                               onChange={(e) => setMasterForm(prev => ({ ...prev, gratuityPercentage: e.target.value }))}
                               placeholder="%"
-                              className={`w-full max-w-[120px] px-3 py-2 border-2 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm ${
+                              className={`w-full px-2 py-1 border rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                                 theme === "dark"
-                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500 hover:border-gray-500"
-                                  : "bg-white border-gray-300 text-black placeholder-gray-400 hover:border-gray-400"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
                               }`}
                             />
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b text-center ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <td className={`px-2 py-1 text-center border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
                           {masterForm.gratuityType === "Variable" && masterForm.gratuityPercentage ? (
-                            <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic:VDA)*${masterForm.gratuityPercentage}%,0)`}>
-                              ROUNDUP(SUM(Basic:VDA)*{masterForm.gratuityPercentage}%,0)
+                            <span className={`text-[10px] ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`} title={`ROUNDUP(SUM(Basic Salary:DA/VDA)*${masterForm.gratuityPercentage}%)`}>
+                              ROUNDUP(SUM(Basic Salary:DA/VDA)*{masterForm.gratuityPercentage}%)
                             </span>
                           ) : (
-                            <span className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
+                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>-</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                          <div className="flex items-center justify-end">
-                            <span className={`text-lg font-bold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>₹</span>
-                          <input
-                            type="number"
-                            value={masterForm.gratuity}
-                            onChange={(e) => setMasterForm(prev => ({ ...prev, gratuity: e.target.value }))}
-                            placeholder="0"
-                            className={`w-full max-w-[180px] px-3 py-2 border rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                              theme === "dark"
-                                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
-                                : "bg-white border-gray-300 text-black placeholder-gray-400"
-                            }`}
-                          />
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`text-sm font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₹</span>
+                            <input
+                              type="number"
+                              value={masterForm.gratuity}
+                              onChange={(e) => setMasterForm(prev => ({ ...prev, gratuity: e.target.value }))}
+                              placeholder="0"
+                              className={`w-full px-2 py-1 border rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                theme === "dark"
+                                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                                  : "bg-white border-gray-300 text-black placeholder-gray-400"
+                              }`}
+                            />
                           </div>
                         </td>
                       </tr>
-                      <tr className={theme === "dark" ? "bg-purple-900/30" : "bg-purple-50"}>
-                        <td className={`px-6 py-3 font-bold border-b ${theme === "dark" ? "text-purple-300 border-gray-700" : "text-purple-700 border-gray-200"}`}>
+                      <tr className={`${theme === "dark" ? "bg-purple-900/30" : "bg-purple-50"}`}>
+                        <td className={`px-2 py-1 sticky left-0 z-10 font-mono text-[10px] border ${theme === 'dark' ? 'bg-gray-800 text-gray-300 border-blue-800' : 'bg-white text-gray-600 border-blue-200'}`}>-</td>
+                        <td className={`px-2 py-1 border font-semibold ${theme === "dark" ? "text-purple-300 border-blue-800" : "text-purple-700 border-blue-200"}`}>
                           CTC
                         </td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}></td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}></td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}></td>
-                        <td className={`px-6 py-3 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}></td>
-                        <td className={`px-6 py-3 border-b font-bold ${theme === "dark" ? "text-purple-300 border-gray-700" : "text-purple-700 border-gray-200"}`}>
-                          {(
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border ${theme === "dark" ? "border-blue-800" : "border-blue-200"}`}></td>
+                        <td className={`px-2 py-1 border font-bold ${theme === "dark" ? "text-purple-300 border-blue-800" : "text-purple-700 border-blue-200"}`}>
+                          ₹{(
                             (Number(masterForm.basicSalary) || 0) +
                             (Number(masterForm.daVda) || 0) +
                             (Number(masterForm.hrAllowance) || 0) +
