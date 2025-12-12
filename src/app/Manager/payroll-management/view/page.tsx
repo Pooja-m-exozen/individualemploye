@@ -78,19 +78,40 @@ interface PayslipData {
   project: string;
   month: string;
   year: string;
+  // Earnings
   basicSalary: number;
+  daVda: number;
   hrAllowance: number;
   conveyanceAllowance: number;
+  leaveTravelAllowance: number;
+  medicalAllowance: number;
   specialAllowance: number;
   otherAllowance: number;
   washingAllowance: number;
+  leaveWithWages: number;
+  bonus: number;
+  nationalFestivalHolidays: number;
+  wagesAdditionalHours: number;
+  relieverCharges: number;
   totalEarnings: number;
+  // Employee Deductions
+  employeePf: number;
+  employeeEsi: number;
+  pt: number;
+  uniformDeduction: number;
+  medicalInsurance: number;
+  trainingCost: number;
+  labourWelfareFundEmployee: number;
+  // Legacy deductions (for backward compatibility)
   pf: number;
   esi: number;
-  pt: number;
-  medicalInsurance: number;
-  uniformDeduction: number;
   roomRent: number;
+  // Employer Contributions
+  employerPf: number;
+  employerEsi: number;
+  labourLicense: number;
+  labourWelfareFundEmployer: number;
+  gratuity: number;
   totalDeductions: number;
   netPay: number;
   payableDays: number;
@@ -1622,19 +1643,40 @@ export default function PayrollViewPage() {
         project: master.project || "",
         month: monthData.month,
         year: monthData.year,
+        // Earnings
         basicSalary: basic,
+        daVda: (master.daVda || 0) * ratio,
         hrAllowance: hra,
         conveyanceAllowance: da,
+        leaveTravelAllowance: 0,
+        medicalAllowance: 0,
         specialAllowance: special,
         otherAllowance: other,
         washingAllowance: washing,
+        leaveWithWages: 0,
+        bonus: 0,
+        nationalFestivalHolidays: 0,
+        wagesAdditionalHours: 0,
+        relieverCharges: 0,
         totalEarnings,
+        // Employee Deductions
+        employeePf: pf,
+        employeeEsi: esi,
+        pt,
+        uniformDeduction: uniform,
+        medicalInsurance: medical,
+        trainingCost: 0,
+        labourWelfareFundEmployee: 0,
+        // Legacy
         pf,
         esi,
-        pt,
-        medicalInsurance: medical,
-        uniformDeduction: uniform,
         roomRent,
+        // Employer Contributions
+        employerPf: 0,
+        employerEsi: 0,
+        labourLicense: 0,
+        labourWelfareFundEmployer: 0,
+        gratuity: 0,
         totalDeductions,
         netPay,
         payableDays: monthData.payableDays,
@@ -1734,19 +1776,40 @@ export default function PayrollViewPage() {
           project: master.project || "",
           month: monthData.month,
           year: monthData.year,
+          // Earnings
           basicSalary: basic,
+          daVda: (master.daVda || 0) * ratio,
           hrAllowance: hra,
           conveyanceAllowance: da,
+          leaveTravelAllowance: 0,
+          medicalAllowance: 0,
           specialAllowance: special,
           otherAllowance: other,
           washingAllowance: washing,
+          leaveWithWages: 0,
+          bonus: 0,
+          nationalFestivalHolidays: 0,
+          wagesAdditionalHours: 0,
+          relieverCharges: 0,
           totalEarnings,
+          // Employee Deductions
+          employeePf: pf,
+          employeeEsi: esi,
+          pt,
+          uniformDeduction: uniform,
+          medicalInsurance: medical,
+          trainingCost: 0,
+          labourWelfareFundEmployee: 0,
+          // Legacy
           pf,
           esi,
-          pt,
-          medicalInsurance: medical,
-          uniformDeduction: uniform,
           roomRent,
+          // Employer Contributions
+          employerPf: 0,
+          employerEsi: 0,
+          labourLicense: 0,
+          labourWelfareFundEmployer: 0,
+          gratuity: 0,
           totalDeductions,
           netPay,
           payableDays: monthData.payableDays,
@@ -1769,7 +1832,7 @@ export default function PayrollViewPage() {
     }
   };
 
-  // View existing payroll record
+  // View existing payroll record - Fetch all details from master
   const handleViewPayroll = async (master: PayrollMaster) => {
     const key = master.employeeId;
     const monthData = selectedMasterForMonth[key];
@@ -1786,66 +1849,160 @@ export default function PayrollViewPage() {
       const monthStr = monthIndex < 10 ? `0${monthIndex}` : `${monthIndex}`;
       const monthValue = `${monthData.year}-${monthStr}`;
 
-      // Fetch existing payroll record
-      const response = await fetch(
-        `https://cafm.zenapi.co.in/api/salary-disbursement/payrolls?employeeId=${master.employeeId}&month=${monthValue}&year=${monthData.year}`
+      // Fetch the full master record to get all details
+      const masterResponse = await fetch(
+        `https://cafm.zenapi.co.in/api/salary-disbursement/payroll-masters?employeeId=${master.employeeId}&year=${monthData.year}`
       );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch payroll record");
+      let fullMasterData: any = master;
+      if (masterResponse.ok) {
+        const masterResult = await masterResponse.json();
+        const masters = Array.isArray(masterResult.data) ? masterResult.data : (Array.isArray(masterResult) ? masterResult : [masterResult]);
+        const foundMaster = masters.find((m: any) => m.employeeId === master.employeeId && m.year === monthData.year);
+        if (foundMaster) {
+          fullMasterData = foundMaster;
+        }
       }
 
-      const result = await response.json();
-      const payrollRecord = Array.isArray(result.data) 
-        ? result.data.find((p: PayrollRecord) => 
-            p.employeeId === master.employeeId && 
-            p.month === monthValue && 
-            p.year === monthData.year
-          )
-        : (Array.isArray(result) ? result.find((p: PayrollRecord) => 
-            p.employeeId === master.employeeId && 
-            p.month === monthValue && 
-            p.year === monthData.year
-          ) : result);
+      // Fetch existing payroll record if available
+      let payrollRecord: PayrollRecord | null = null;
+      try {
+        const response = await fetch(
+          `https://cafm.zenapi.co.in/api/salary-disbursement/payrolls?employeeId=${master.employeeId}&month=${monthValue}&year=${monthData.year}`
+        );
 
-      if (!payrollRecord) {
-        throw new Error("No payroll record found for this month");
+        if (response.ok) {
+          const result = await response.json();
+          payrollRecord = Array.isArray(result.data) 
+            ? result.data.find((p: PayrollRecord) => 
+                p.employeeId === master.employeeId && 
+                p.month === monthValue && 
+                p.year === monthData.year
+              ) || null
+            : (Array.isArray(result) ? result.find((p: PayrollRecord) => 
+                p.employeeId === master.employeeId && 
+                p.month === monthValue && 
+                p.year === monthData.year
+              ) || null : result || null);
+        }
+      } catch (err) {
+        console.log("No payroll record found, using master data only");
       }
 
-      // Convert payroll record to payslip data format
+      // Helper function to get numeric value
+      const getNumericValue = (value: any): number => {
+        if (typeof value === 'number') return value;
+        if (typeof value === 'string') {
+          const parsed = parseFloat(value);
+          return isNaN(parsed) ? 0 : parsed;
+        }
+        return 0;
+      };
+
+      // Calculate pro-rated values based on payable days (if payroll record exists, use those; otherwise calculate from master)
+      const standardWorkingDays = 30;
+      const ratio = monthData.payableDays > 0 ? (monthData.payableDays / standardWorkingDays) : 1;
+      
+      // Use payroll record values if available, otherwise calculate from master
+      const basicSalary = payrollRecord?.basicSalary ?? (getNumericValue(fullMasterData.basicSalary) * ratio);
+      const daVda = getNumericValue(fullMasterData.daVda) * ratio;
+      const hrAllowance = payrollRecord?.hrAllowance ?? (getNumericValue(fullMasterData.hrAllowance) * ratio);
+      const conveyanceAllowance = payrollRecord?.conveyanceAllowance ?? (getNumericValue(fullMasterData.conveyanceAllowance) * ratio);
+      const leaveTravelAllowance = getNumericValue(fullMasterData.leaveTravelAllowance) * ratio;
+      const medicalAllowance = getNumericValue(fullMasterData.medicalAllowance) * ratio;
+      const specialAllowance = payrollRecord?.specialAllowance ?? (getNumericValue(fullMasterData.specialAllowance) * ratio);
+      const otherAllowance = payrollRecord?.otherAllowance ?? (getNumericValue(fullMasterData.otherAllowance) * ratio);
+      const washingAllowance = payrollRecord?.washingAllowance ?? (getNumericValue(fullMasterData.washingAllowance) * ratio);
+      const leaveWithWages = getNumericValue(fullMasterData.leaveWithWages) * ratio;
+      const bonus = getNumericValue(fullMasterData.bonus) * ratio;
+      const nationalFestivalHolidays = getNumericValue(fullMasterData.nationalFestivalHolidays) * ratio;
+      const wagesAdditionalHours = getNumericValue(fullMasterData.wagesAdditionalHours) * ratio;
+      const relieverCharges = getNumericValue(fullMasterData.relieverCharges) * ratio;
+
+      // Deductions (usually not pro-rated)
+      const employeePf = getNumericValue(fullMasterData.employeePf) || getNumericValue(fullMasterData.pf);
+      const employeeEsi = getNumericValue(fullMasterData.employeeEsi) || getNumericValue(fullMasterData.esi);
+      const pt = payrollRecord?.pt ?? getNumericValue(fullMasterData.pt);
+      const uniformDeduction = payrollRecord?.uniformDeduction ?? getNumericValue(fullMasterData.uniformDeduction);
+      const medicalInsurance = payrollRecord?.medicalInsurance ?? getNumericValue(fullMasterData.medicalInsurance);
+      const trainingCost = getNumericValue(fullMasterData.trainingCost);
+      const labourWelfareFundEmployee = getNumericValue(fullMasterData.labourWelfareFundEmployee);
+      const pf = employeePf; // Legacy
+      const esi = employeeEsi; // Legacy
+      const roomRent = getNumericValue(fullMasterData.roomRent);
+
+      // Employer contributions
+      const employerPf = getNumericValue(fullMasterData.employerPf);
+      const employerEsi = getNumericValue(fullMasterData.employerEsi);
+      const labourLicense = getNumericValue(fullMasterData.labourLicense);
+      const labourWelfareFundEmployer = getNumericValue(fullMasterData.labourWelfareFundEmployer);
+      const gratuity = getNumericValue(fullMasterData.gratuity);
+
+      // Calculate totals
+      const totalEarnings = basicSalary + daVda + hrAllowance + conveyanceAllowance + leaveTravelAllowance + 
+                           medicalAllowance + specialAllowance + otherAllowance + washingAllowance + 
+                           leaveWithWages + bonus + nationalFestivalHolidays + wagesAdditionalHours + relieverCharges;
+      
+      const totalDeductions = employeePf + employeeEsi + pt + uniformDeduction + medicalInsurance + 
+                              trainingCost + labourWelfareFundEmployee + roomRent;
+      
+      const netPay = payrollRecord?.amount ?? payrollRecord?.netPay ?? (totalEarnings - totalDeductions);
+
+      // Convert to payslip data format with ALL details
       const payslipDataToSet: PayslipData = {
-        employeeId: payrollRecord.employeeId || master.employeeId,
-        employeeName: payrollRecord.employeeName || master.employeeName || "",
-        designation: payrollRecord.designation || master.designation || "",
-        project: payrollRecord.project || master.project || "",
+        employeeId: payrollRecord?.employeeId || master.employeeId,
+        employeeName: payrollRecord?.employeeName || master.employeeName || "",
+        designation: payrollRecord?.designation || master.designation || "",
+        project: payrollRecord?.project || master.project || "",
         month: monthData.month,
-        year: payrollRecord.year || monthData.year,
-        basicSalary: payrollRecord.basicSalary || master.basicSalary || 0,
-        hrAllowance: payrollRecord.hrAllowance || master.hrAllowance || 0,
-        conveyanceAllowance: payrollRecord.conveyanceAllowance || master.conveyanceAllowance || 0,
-        specialAllowance: payrollRecord.specialAllowance || master.specialAllowance || 0,
-        otherAllowance: payrollRecord.otherAllowance || master.otherAllowance || 0,
-        washingAllowance: payrollRecord.washingAllowance || master.washingAllowance || 0,
-        totalEarnings: payrollRecord.totalEarnings || master.grossSalary || 0,
-        pf: payrollRecord.pf || master.pf || 0,
-        esi: payrollRecord.esi || master.esi || 0,
-        pt: payrollRecord.pt || master.pt || 0,
-        medicalInsurance: payrollRecord.medicalInsurance || master.medicalInsurance || 0,
-        uniformDeduction: payrollRecord.uniformDeduction || master.uniformDeduction || 0,
-        roomRent: payrollRecord.roomRent || master.roomRent || 0,
-        totalDeductions: payrollRecord.totalDeductions || 0,
-        netPay: payrollRecord.amount || payrollRecord.netPay || master.netSalary || 0,
-        payableDays: payrollRecord.payableDays || monthData.payableDays || 0,
+        year: payrollRecord?.year || monthData.year,
+        // Earnings
+        basicSalary,
+        daVda,
+        hrAllowance,
+        conveyanceAllowance,
+        leaveTravelAllowance,
+        medicalAllowance,
+        specialAllowance,
+        otherAllowance,
+        washingAllowance,
+        leaveWithWages,
+        bonus,
+        nationalFestivalHolidays,
+        wagesAdditionalHours,
+        relieverCharges,
+        totalEarnings: payrollRecord?.totalEarnings ?? totalEarnings,
+        // Employee Deductions
+        employeePf,
+        employeeEsi,
+        pt,
+        uniformDeduction,
+        medicalInsurance,
+        trainingCost,
+        labourWelfareFundEmployee,
+        // Legacy
+        pf,
+        esi,
+        roomRent,
+        // Employer Contributions
+        employerPf,
+        employerEsi,
+        labourLicense,
+        labourWelfareFundEmployer,
+        gratuity,
+        totalDeductions: payrollRecord?.totalDeductions ?? totalDeductions,
+        netPay,
+        payableDays: payrollRecord?.payableDays || monthData.payableDays || 0,
       };
 
       setPayslipData(payslipDataToSet);
       setSelectedPayslip({
-        employeeId: payrollRecord.employeeId || master.employeeId,
-        employeeName: payrollRecord.employeeName || master.employeeName || "",
+        employeeId: payrollRecord?.employeeId || master.employeeId,
+        employeeName: payrollRecord?.employeeName || master.employeeName || "",
         month: monthValue,
-        year: payrollRecord.year || monthData.year,
-        amount: payrollRecord.amount || 0,
-        status: payrollRecord.status || "Pending",
+        year: payrollRecord?.year || monthData.year,
+        amount: netPay,
+        status: payrollRecord?.status || "Pending",
       });
 
       setPayslipLoading(false);
@@ -2008,19 +2165,40 @@ export default function PayrollViewPage() {
         project: payroll.project || personalDetails.projectName || "",
         month: payroll.month || "",
         year: payroll.year || "",
+        // Earnings
         basicSalary,
+        daVda: 0,
         hrAllowance,
         conveyanceAllowance,
+        leaveTravelAllowance: 0,
+        medicalAllowance: 0,
         specialAllowance,
         otherAllowance,
         washingAllowance,
+        leaveWithWages: 0,
+        bonus: 0,
+        nationalFestivalHolidays: 0,
+        wagesAdditionalHours: 0,
+        relieverCharges: 0,
         totalEarnings,
+        // Employee Deductions
+        employeePf: pf,
+        employeeEsi: esi,
+        pt,
+        uniformDeduction,
+        medicalInsurance,
+        trainingCost: 0,
+        labourWelfareFundEmployee: 0,
+        // Legacy
         pf,
         esi,
-        pt,
-        medicalInsurance,
-        uniformDeduction,
         roomRent,
+        // Employer Contributions
+        employerPf: 0,
+        employerEsi: 0,
+        labourLicense: 0,
+        labourWelfareFundEmployer: 0,
+        gratuity: 0,
         totalDeductions,
         netPay,
         payableDays,
