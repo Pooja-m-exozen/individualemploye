@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import ManagerDashboardLayout from "@/components/dashboard/ManagerDashboardLayout";
-import { FaSearch, FaChevronLeft, FaChevronRight, FaFileInvoiceDollar, FaTimes, FaPrint, FaDownload, FaPlus, FaUser, FaBuilding, FaBriefcase, FaCheckCircle } from "react-icons/fa";
+import { FaSearch, FaChevronLeft, FaChevronRight, FaFileInvoiceDollar, FaTimes, FaPrint, FaDownload, FaPlus, FaUser, FaCheckCircle } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 import domtoimage from "dom-to-image";
@@ -135,7 +135,6 @@ export default function PayrollViewPage() {
   
   // Create Payroll Master Modal State
   const [showCreateMasterModal, setShowCreateMasterModal] = useState(false);
-  const [editingTypeField, setEditingTypeField] = useState<string | null>(null);
   const [masterForm, setMasterForm] = useState<{
     employeeId: string;
     year: string;
@@ -735,6 +734,23 @@ export default function PayrollViewPage() {
     masterForm.labourWelfareFundEmployerPercentage,
     masterForm.gratuityType,
     masterForm.gratuityPercentage,
+    masterForm.bonus,
+    masterForm.employeeEsi,
+    masterForm.employeePf,
+    masterForm.employerEsi,
+    masterForm.employerPf,
+    masterForm.gratuity,
+    masterForm.labourLicense,
+    masterForm.labourWelfareFundEmployee,
+    masterForm.labourWelfareFundEmployer,
+    masterForm.leaveWithWages,
+    masterForm.medicalInsurance,
+    masterForm.pt,
+    masterForm.relieverCharges,
+    masterForm.trainingCost,
+    masterForm.uniformDeduction,
+    masterForm.wagesAdditionalHours,
+    masterForm.washingAllowance,
   ]);
   
   // Master Modal Employee Selection State
@@ -791,7 +807,7 @@ export default function PayrollViewPage() {
         const employees = employeesData.data || employeesData.employees || [];
         
         // Fetch payroll details for each employee
-        const mastersPromises = employees.map(async (emp: any) => {
+        const mastersPromises = employees.map(async (emp: { employeeId?: string; _id?: string; fullName?: string; employeeName?: string; projectName?: string; designation?: string }) => {
           try {
             const detailsRes = await fetch(
               `https://cafm.zenapi.co.in/api/salary-disbursement/employees/${emp.employeeId || emp._id}/payroll-details`
@@ -1005,11 +1021,7 @@ export default function PayrollViewPage() {
     });
   }, [payrollData, search, monthFilter, statusFilter, fromDate, toDate, projectFilter]);
 
-  const paginatedPayroll = useMemo(() => {
-    const start = (currentPage - 1) * recordsPerPage;
-    const end = start + recordsPerPage;
-    return filteredPayroll.slice(start, end);
-  }, [filteredPayroll, currentPage, recordsPerPage]);
+  // Paginated payroll is computed inline where needed
 
   // Create Payroll Master
   const handleCreatePayrollMaster = async () => {
@@ -1049,7 +1061,7 @@ export default function PayrollViewPage() {
       // Calculate Total Employee Deductions: PF + PT + ESI + Medical Insurance + Uniform + Room Rent + Training Cost + Labour Welfare Fund Employee
       const deductions = pf + pt + esi + medical + uniform + roomRent + trainingCost + labourWelfareFundEmployee;
       // Calculate Take Home Salary: Total Earnings - Total Employee Deductions
-      const net = gross - deductions;
+      const netSalary = gross - deductions;
 
       // Prepare payload with all fields
       const payload = {
@@ -1314,7 +1326,7 @@ export default function PayrollViewPage() {
       if (refreshResponse.ok) {
         const employeesData = await refreshResponse.json();
         const employees = employeesData.data || employeesData.employees || [];
-        const mastersPromises = employees.map(async (emp: any) => {
+        const mastersPromises = employees.map(async (emp: { employeeId?: string; _id?: string; fullName?: string; employeeName?: string; projectName?: string; designation?: string }) => {
           try {
             const detailsRes = await fetch(
               `https://cafm.zenapi.co.in/api/salary-disbursement/employees/${emp.employeeId || emp._id}/payroll-details`
@@ -1386,8 +1398,8 @@ export default function PayrollViewPage() {
         setMasterCreateSuccess(null);
         setShowCreateMasterModal(false);
       }, 2000);
-    } catch (err: any) {
-      setMasterCreateError(err.message || "Failed to create payroll master");
+    } catch (err: unknown) {
+      setMasterCreateError(err instanceof Error ? err.message : "Failed to create payroll master");
     } finally {
       setMasterCreateLoading(false);
     }
@@ -1475,7 +1487,6 @@ export default function PayrollViewPage() {
       // Calculate pro-rated salary components based on payable days
       const totalDaysInMonth = new Date(Number(monthData.year), monthIndex, 0).getDate();
       const workingDays = totalDaysInMonth - Math.floor(totalDaysInMonth / 7);
-      const dailyRate = master.grossSalary / workingDays;
       const ratio = monthData.payableDays / workingDays;
 
       const basic = master.basicSalary * ratio;
@@ -1510,7 +1521,7 @@ export default function PayrollViewPage() {
           if (projectsRes.ok) {
             const projectsData = await projectsRes.json();
             const project = Array.isArray(projectsData)
-              ? projectsData.find((p: any) => p.projectName === projectName)
+              ? projectsData.find((p: { projectName?: string; _id?: string }) => p.projectName === projectName)
               : null;
             if (project && project._id) {
               projectId = project._id;
@@ -1521,7 +1532,30 @@ export default function PayrollViewPage() {
         }
       }
 
-      const payload: any = {
+      const payload: {
+        employeeId: string;
+        month: string;
+        year: string;
+        amount: number;
+        payableDays: number;
+        status: string;
+        basicSalary: number;
+        hrAllowance: number;
+        conveyanceAllowance: number;
+        specialAllowance: number;
+        otherAllowance: number;
+        washingAllowance: number;
+        pf: number;
+        esi: number;
+        pt: number;
+        medicalInsurance: number;
+        uniformDeduction: number;
+        roomRent: number;
+        totalEarnings: number;
+        totalDeductions: number;
+        netPay: number;
+        projectId?: string;
+      } = {
         employeeId: master.employeeId,
         month: monthValue,
         year: monthData.year,
@@ -1613,14 +1647,16 @@ export default function PayrollViewPage() {
         .catch(() => {
           // Silent fail
         });
-    } catch (err: any) {
-      setPayslipError(err.message || "Failed to generate payslip");
+    } catch (err: unknown) {
+      setPayslipError(err instanceof Error ? err.message : "Failed to generate payslip");
     } finally {
       setPayslipLoading(false);
     }
   };
 
-  const handleGeneratePayslip = async (payroll: PayrollRecord) => {
+  // Unused function - kept for potential future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleGeneratePayslip = async (payroll: PayrollRecord) => {
     setSelectedPayslip(payroll);
     setPayslipLoading(true);
     setPayslipError(null);
@@ -1702,7 +1738,7 @@ export default function PayrollViewPage() {
               
               if (leaveRes.ok) {
                 const leaveData = await leaveRes.json();
-                const approvedLeaves = (leaveData.leaves || []).filter((leave: any) => {
+                const approvedLeaves = (leaveData.leaves || []).filter((leave: { startDate?: string; employeeId?: string; status?: string; endDate?: string }) => {
                   if (!leave.startDate || !leave.employeeId) return false;
                   const leaveMonth = new Date(leave.startDate).getMonth() + 1;
                   const leaveYear = new Date(leave.startDate).getFullYear();
@@ -1712,7 +1748,7 @@ export default function PayrollViewPage() {
                          leave.status === "Approved";
                 });
 
-                approvedLeaves.forEach((leave: any) => {
+                approvedLeaves.forEach((leave: { startDate: string; endDate: string }) => {
                   const start = new Date(leave.startDate);
                   const end = new Date(leave.endDate);
                   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -1742,7 +1778,7 @@ export default function PayrollViewPage() {
                 }
                 
                 // Check if present or on approved leave
-                const isPresent = attendanceRecords.some((att: any) => {
+                const isPresent = attendanceRecords.some((att: { date?: string; status?: string }) => {
                   if (!att.date) return false;
                   const attDate = new Date(att.date).toISOString().split('T')[0];
                   return attDate === dateStr && (att.status === "Present" || att.status === "P");
@@ -2104,7 +2140,7 @@ export default function PayrollViewPage() {
         : totalEarnings;
 
       // Store salary details for reference (all components)
-      setEmployeeSalaryDetails(prev => ({
+      setEmployeeSalaryDetails((prev: Record<string, { basicSalary: number; hrAllowance: number; conveyanceAllowance: number; specialAllowance: number; otherAllowance: number; washingAllowance: number; pf: number; esi: number; pt: number; medicalInsurance: number; uniformDeduction: number; roomRent: number; totalEarnings: number; totalDeductions: number }>) => ({
         ...prev,
         [employeeId]: {
           basicSalary,
@@ -2199,7 +2235,7 @@ export default function PayrollViewPage() {
           if (projectsRes.ok) {
             const projectsData = await projectsRes.json();
             const project = Array.isArray(projectsData)
-              ? projectsData.find((p: any) => p.projectName === projectName)
+              ? projectsData.find((p: { projectName?: string; _id?: string }) => p.projectName === projectName)
               : null;
             if (project && project._id) {
               projectId = project._id;
@@ -2237,7 +2273,30 @@ export default function PayrollViewPage() {
       const netPay = totalEarnings - totalDeductions;
       
       // Use KYC _id (ObjectId) for employeeId as the API expects ObjectId
-      const payload: any = {
+      const payload: {
+        employeeId: string;
+        month: string;
+        year: string;
+        amount: number;
+        payableDays: number;
+        status: string;
+        basicSalary: number;
+        hrAllowance: number;
+        conveyanceAllowance: number;
+        specialAllowance: number;
+        otherAllowance: number;
+        washingAllowance: number;
+        pf: number;
+        esi: number;
+        pt: number;
+        medicalInsurance: number;
+        uniformDeduction: number;
+        roomRent: number;
+        totalEarnings: number;
+        totalDeductions: number;
+        netPay: number;
+        projectId?: string;
+      } = {
         employeeId: employeeKyc._id || employeeId, // Use KYC ObjectId if available
         month: monthValue,
         year: form.year,
@@ -3967,7 +4026,7 @@ export default function PayrollViewPage() {
                             </tr>
                           </thead>
                           <tbody className={theme === "dark" ? "divide-y divide-blue-900" : "divide-y divide-blue-50"}>
-                            {masterModalFilteredEmployees.map((emp, idx) => (
+                            {masterModalFilteredEmployees.map((emp) => (
                               <tr
                                 key={emp.personalDetails.employeeId}
                                 onClick={() => setMasterForm(prev => ({ ...prev, employeeId: emp.personalDetails.employeeId }))}

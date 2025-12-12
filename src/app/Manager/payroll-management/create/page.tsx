@@ -67,7 +67,6 @@ export default function PayrollCreatePage() {
   const [monthFilter, setMonthFilter] = useState("");
   const [payableDays, setPayableDays] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [createdPayrollId, setCreatedPayrollId] = useState<string | null>(null);
   const [kycRecords, setKycRecords] = useState<KYCRecord[]>([]);
   const [projectOptions, setProjectOptions] = useState<string[]>([]);
   const [designationOptions, setDesignationOptions] = useState<string[]>([]);
@@ -147,8 +146,7 @@ export default function PayrollCreatePage() {
         payableDays: payableDays || 0,
         status: "Pending",
       };
-      const response = await createPayroll(payload);
-      setCreatedPayrollId(response.data._id || null);
+      await createPayroll(payload);
       setActiveStep(3);
       setSuccess("Payroll record created successfully.");
     } catch (err: unknown) {
@@ -187,7 +185,6 @@ export default function PayrollCreatePage() {
     setPayrollForm({ month: "", year: "", amount: "" });
     setSuccess(null);
     setConfirmed(false);
-    setCreatedPayrollId(null);
     setPayableDays(0);
   };
 
