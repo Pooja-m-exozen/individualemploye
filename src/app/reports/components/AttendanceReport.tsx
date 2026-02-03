@@ -152,6 +152,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         '2024-11-14': 'Diwali',
         '2024-12-25': 'Christmas',
         '2025-05-01': 'Labor Day',
+        '2026-01-01': 'New Year',
+        '2026-01-15': 'Makara Sankranti'
     };
 
     const governmentHolidays = Object.keys(governmentHolidayMap);
