@@ -183,6 +183,8 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({
         '2025-12-25': 'Christmas',
        
         // 2026 Holidays
+        '2026-01-01': 'New year',
+        '2026-01-15': 'Makara Sankranti',
         '2026-01-26': 'Republic Day',
         '2026-03-03': 'Holi',
         '2026-03-29': 'Ram Navami',
