@@ -1876,16 +1876,6 @@ export default function PayrollViewPage() {
         }
       }
 
-      // Helper function to safely get numeric value
-      const getNumericValue = (value: unknown): number => {
-        if (typeof value === 'number') return value;
-        if (typeof value === 'string') {
-          const parsed = parseFloat(value);
-          return isNaN(parsed) ? 0 : parsed;
-        }
-        return 0;
-      };
-
       setPayrollMasterDetails(fullMasterData);
       setPayrollMasterLoading(false);
     } catch (err: unknown) {
