@@ -25,7 +25,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Handle unauthorized access
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      window.location.href = '/v1/employee/login'; // Use full path since window.location.href doesn't add basePath
     }
     return Promise.reject(error);
   }

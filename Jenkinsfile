@@ -7,7 +7,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 // Use the correct repository URL and credentials
-                git branch: 'main', url: 'https://github.com/Pooja-m-exozen/individualemploye.git', credentialsId: 'GithubPAT'
+                git branch: 'manager-ops-integration', url: 'https://github.com/Pooja-m-exozen/individualemploye.git', credentialsId: 'GithubPAT'
             }
         }
 

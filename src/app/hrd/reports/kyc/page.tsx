@@ -1,0 +1,261 @@
+"use client";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import React, { useState, useMemo, useEffect } from "react";
+import { FaSearch, FaIdCard, FaFileExport } from "react-icons/fa";
+import { useTheme } from "@/context/ThemeContext";
+
+// Types for API response
+interface PersonalDetails {
+  workType?: string;
+  employeeId?: string;
+  projectName?: string;
+  fullName?: string;
+  fathersName?: string;
+  mothersName?: string;
+  gender?: string;
+  dob?: string;
+  phoneNumber?: string;
+  designation?: string;
+  dateOfJoining?: string;
+  nationality?: string;
+  religion?: string;
+  maritalStatus?: string;
+  bloodGroup?: string;
+  uanNumber?: string;
+  esicNumber?: string;
+  experience?: string;
+  educationalQualification?: string;
+  languages?: string[];
+  employeeImage?: string;
+}
+interface KYCForm {
+  personalDetails?: PersonalDetails;
+  // ...other fields not used in table
+}
+
+function downloadExcel(records: KYCForm[]) {
+  const data = records.map((rec) => {
+    const pd = rec.personalDetails || {};
+    return {
+      "Employee ID": pd.employeeId || "-",
+      "Name": pd.fullName || "-",
+      "Project": pd.projectName || "-",
+      "Designation": pd.designation || "-",
+    };
+  });
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "KYC Report");
+  XLSX.writeFile(workbook, "kyc_report.xlsx");
+}
+
+function downloadPDF(records: KYCForm[]) {
+  const doc = new jsPDF();
+  const tableData = records.map((rec) => {
+    const pd = rec.personalDetails || {};
+    return [
+      pd.employeeId || "-",
+      pd.fullName || "-",
+      pd.projectName || "-",
+      pd.designation || "-",
+    ];
+  });
+  autoTable(doc, {
+    head: [["Employee ID", "Name", "Project", "Designation"]],
+    body: tableData,
+    startY: 20,
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [41, 128, 185] },
+  });
+  doc.save("kyc_report.pdf");
+}
+
+export default function KYCReportPage() {
+  const { theme } = useTheme();
+  const [search, setSearch] = useState("");
+  const [projectFilter, setProjectFilter] = useState("All Projects");
+  const [designationFilter, setDesignationFilter] = useState("All Designations");
+  const [kycRecords, setKycRecords] = useState<KYCForm[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [projectOptions, setProjectOptions] = useState<string[]>(["All Projects"]);
+  const [designationOptions, setDesignationOptions] = useState<string[]>(["All Designations"]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 15;
+
+  useEffect(() => {
+    setLoading(true);
+    fetch("https://cafm.zenapi.co.in/api/kyc")
+      .then(res => res.json())
+      .then(data => {
+        if (data.kycForms) {
+          setKycRecords(data.kycForms);
+          // Populate filter options dynamically
+          const projects = Array.from(new Set<string>(data.kycForms.map((f: KYCForm) => f.personalDetails?.projectName).filter(Boolean)));
+          const designations = Array.from(new Set<string>(data.kycForms.map((f: KYCForm) => f.personalDetails?.designation).filter(Boolean)));
+          setProjectOptions(["All Projects", ...projects]);
+          setDesignationOptions(["All Designations", ...designations]);
+        } else {
+          setKycRecords([]);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Failed to fetch KYC data.");
+        setLoading(false);
+      });
+  }, []);
+
+  const filteredRecords = useMemo(() => {
+    return kycRecords.filter((rec) => {
+      const pd = rec.personalDetails || {};
+      const matchesSearch =
+        search === "" ||
+        (pd.fullName && pd.fullName.toLowerCase().includes(search.toLowerCase())) ||
+        (pd.employeeId && pd.employeeId.toLowerCase().includes(search.toLowerCase()));
+      const matchesProject =
+        projectFilter === "All Projects" || pd.projectName === projectFilter;
+      const matchesDesignation =
+        designationFilter === "All Designations" || pd.designation === designationFilter;
+      return matchesSearch && matchesProject && matchesDesignation;
+    });
+  }, [search, projectFilter, designationFilter, kycRecords]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);
+  const paginatedRecords = filteredRecords.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+  // Reset to first page if filters/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, projectFilter, designationFilter]);
+
+  return (
+    <div className={`min-h-screen font-sans ${theme === 'dark' ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950' : 'bg-gradient-to-br from-indigo-50 via-white to-blue-50'}`}>
+      <div className="p-6">
+        {/* Header */}
+        <div className={`rounded-2xl mb-8 p-6 flex items-center gap-5 shadow-lg ${theme === 'dark' ? 'bg-gradient-to-r from-blue-900 to-blue-800' : 'bg-gradient-to-r from-blue-500 to-blue-800'}`}>
+          <div className={`${theme === 'dark' ? 'bg-blue-900' : 'bg-blue-600 bg-opacity-30'} rounded-xl p-4 flex items-center justify-center`}>
+            <FaIdCard className="w-10 h-10 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-1">KYC Report</h1>
+            <p className="text-white text-base opacity-90">View and export KYC details for employees.</p>
+          </div>
+        </div>
+        {/* Filters, Search, Export */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto">
+            <div className="relative w-40 min-w-[140px]">
+              <select
+                value={projectFilter}
+                onChange={e => setProjectFilter(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
+              >
+                {projectOptions.map((project) => (
+                  <option key={project} value={project}>{project}</option>
+                ))}
+              </select>
+            </div>
+            <div className="relative w-44 min-w-[130px]">
+              <select
+                value={designationFilter}
+                onChange={e => setDesignationFilter(e.target.value)}
+                className={`w-full appearance-none pl-4 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
+              >
+                {designationOptions.map((designation) => (
+                  <option key={designation} value={designation}>{designation}</option>
+                ))}
+              </select>
+            </div>
+            {/* Status filter is not used as API does not provide status */}
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search employee name or ID..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-black'}`}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => downloadExcel(filteredRecords)}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${theme === 'dark' ? 'bg-green-700 text-white hover:bg-green-800' : 'bg-green-500 text-white hover:bg-green-600'}`}
+            >
+              <FaFileExport /> Export Excel
+            </button>
+            <button
+              onClick={() => downloadPDF(filteredRecords)}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${theme === 'dark' ? 'bg-red-700 text-white hover:bg-red-800' : 'bg-red-500 text-white hover:bg-red-600'}`}
+            >
+              <FaFileExport /> Export PDF
+            </button>
+          </div>
+        </div>
+        {/* Table */}
+        <div className={`overflow-x-auto rounded-xl border shadow-xl ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-blue-100 bg-white'}`}>
+          {loading ? (
+            <div className="p-8 text-center text-lg text-blue-600">Loading...</div>
+          ) : error ? (
+            <div className="p-8 text-center text-lg text-red-600">{error}</div>
+          ) : (
+            <>
+            <table className={`min-w-full divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-blue-100'}`}>
+              <thead className={theme === 'dark' ? 'bg-blue-950 sticky top-0 z-10' : 'bg-blue-50 sticky top-0 z-10'}>
+                <tr>
+                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Employee ID</th>
+                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Name</th>
+                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Project</th>
+                  <th className={`px-4 py-3 text-left text-xs font-bold uppercase ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>Designation</th>
+                </tr>
+              </thead>
+              <tbody className={theme === 'dark' ? 'divide-y divide-gray-800' : 'divide-y divide-blue-50'}>
+                {paginatedRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className={`px-4 py-12 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>No records found</td>
+                  </tr>
+                ) : paginatedRecords.map((rec, idx) => {
+                  const pd = rec.personalDetails || {};
+                  return (
+                    <tr key={idx} className={theme === 'dark' ? 'hover:bg-blue-950 transition' : 'hover:bg-blue-50 transition'}>
+                      <td className={`px-4 py-3 font-bold ${theme === 'dark' ? 'text-blue-200' : 'text-blue-800'}`}>{pd.employeeId || '-'}</td>
+                      <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>{pd.fullName || '-'}</td>
+                      <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>{pd.projectName || '-'}</td>
+                      <td className={theme === 'dark' ? 'px-4 py-3 text-gray-100' : 'px-4 py-3 text-black'}>{pd.designation || '-'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-4">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : theme === 'dark' ? 'bg-blue-900 text-white hover:bg-blue-800' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                >
+                  Prev
+                </button>
+                <span className="px-2 text-sm font-medium">Page {currentPage} of {totalPages}</span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-1 rounded ${currentPage === totalPages ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : theme === 'dark' ? 'bg-blue-900 text-white hover:bg-blue-800' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { login, isAuthenticated, } from '@/services/auth';
+import { login, isAuthenticated, getUserRole } from '@/services/auth';
 import { FaUser, FaLock, FaEye, FaEyeSlash, FaArrowRight, FaSun, FaMoon } from 'react-icons/fa';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,7 +35,12 @@ export default function LoginPage() {
   // Check if already authenticated
   useEffect(() => {
     if (isAuthenticated()) {
-      router.push('/dashboard');
+      const role = getUserRole();
+      if (role === 'Admin') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     }
   }, [router]);
 
@@ -97,9 +102,13 @@ export default function LoginPage() {
             fontWeight: 500,
           },
         });
-        
-        // Navigate to dashboard immediately
-        router.push('/dashboard');
+        // Navigate to dashboard based on role
+        const role = getUserRole();
+        if (role === 'Admin') {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         toast.error(response.message || 'Login failed. Please check your credentials.', {
           duration: 3000,

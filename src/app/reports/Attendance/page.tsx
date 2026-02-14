@@ -5,35 +5,20 @@ import AttendanceReport from '../components/AttendanceReport';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { getEmployeeId, isAuthenticated } from '@/services/auth';
 import { useTheme } from "@/context/ThemeContext";
-
-interface AttendanceRecord {
-  _id: string;
-  employeeId: string;
-  projectName: string | null;
-  designation: string | null;
-  date: string;
-  punchInTime: string | null;
-  punchOutTime: string | null;
-  punchInPhoto: string | null;
-  punchOutPhoto: string | null;
-  punchInUtc?: string;
-  punchOutUtc?: string;
-  status?: string;
-  isLate?: boolean;
-  remarks?: string;
-}
+import { RawAttendanceRecord } from '@/app/types/attendance';
+import { MonthSummaryResponse } from '@/app/types/attendance';
 
 const AttendancePage = () => {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
+  const [attendanceData, setAttendanceData] = useState<RawAttendanceRecord[]>([]);
+  const [summaryData, setSummaryData] = useState<MonthSummaryResponse['data'] | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [employeeId, setEmployeeId] = useState<string>('');
   const { theme } = useTheme();
 
+
   const fetchAttendanceData = useCallback(async () => {
-    setLoading(true);
     try {
       const id = getEmployeeId();
       if (!id) {
@@ -42,21 +27,41 @@ const AttendancePage = () => {
       }
       setEmployeeId(id);
       
-      const response = await fetch(
-        `https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${id}&month=${selectedMonth}&year=${selectedYear}`
-      );
-      const data = await response.json();
+      // Fetch both attendance data and summary data in parallel
+      const [attendanceResponse, summaryResponse] = await Promise.all([
+        fetch(`https://cafm.zenapi.co.in/api/attendance/report/monthly/employee?employeeId=${id}&month=${selectedMonth}&year=${selectedYear}`),
+        fetch(`https://cafm.zenapi.co.in/api/attendance/${id}/monthly-summary?month=${selectedMonth}&year=${selectedYear}`)
+      ]);
       
-      if (data.attendance) {
-        setAttendanceData(data.attendance);
+      const attendanceData = await attendanceResponse.json();
+      const summaryData = await summaryResponse.json();
+      
+      if (attendanceData.attendance) {
+        // Debug logging for August 15 records
+        const august15Records = attendanceData.attendance.filter((rec: RawAttendanceRecord) => 
+          rec.date.includes('08-15') || rec.date.includes('2025-08-15')
+        );
+        if (august15Records.length > 0) {
+          console.log('Found August 15 records from API:', august15Records);
+        }
+        
+        // Pass the raw data to AttendanceReport, which will handle transformation
+        setAttendanceData(attendanceData.attendance);
       } else {
         setAttendanceData([]);
       }
+      
+      if (summaryData.success && summaryData.data) {
+        console.log('Monthly summary data fetched:', summaryData.data);
+        setSummaryData(summaryData.data);
+      } else {
+        console.log('No summary data available');
+        setSummaryData(null);
+      }
     } catch (error) {
-      console.error('Error fetching attendance data:', error);
+      console.error('Error fetching data:', error);
       setAttendanceData([]);
-    } finally {
-      setLoading(false);
+      setSummaryData(null);
     }
   }, [selectedMonth, selectedYear, router]);
 
@@ -76,10 +81,6 @@ const AttendancePage = () => {
     setSelectedYear(year);
   };
 
-  const handleViewRecord = (record: AttendanceRecord) => {
-    // Implement view record functionality
-    console.log('Viewing record:', record);
-  };
 
   const handleBack = () => {
     router.back();
@@ -107,18 +108,16 @@ const AttendancePage = () => {
   return (
     <DashboardLayout>
       <AttendanceReport
-        loading={loading}
         attendanceData={attendanceData}
         selectedMonth={selectedMonth}
         selectedYear={selectedYear}
         handleMonthChange={handleMonthChange}
         handleYearChange={handleYearChange}
-        handleViewRecord={handleViewRecord}
         handleBack={handleBack}
-        fetchReportData={fetchAttendanceData}
         formatDate={formatDate}
         employeeId={employeeId}
         theme={theme}
+        summary={summaryData} // Pass the summary data
       />
     </DashboardLayout>
   );

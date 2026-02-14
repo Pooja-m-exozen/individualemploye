@@ -2,17 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { 
-
   FaCheckCircle, 
   FaExclamationCircle, 
   FaCalendarAlt, 
   FaFileAlt,
-  // FaCheck,
-  FaPlus,
   FaInfoCircle,
   FaUpload,
   FaTrash,
-  FaClock
+  FaClock,
+  FaArrowLeft
 } from 'react-icons/fa';
 import { isAuthenticated, getEmployeeId } from '@/services/auth';
 import { useRouter } from 'next/navigation';
@@ -54,7 +52,7 @@ function RequestLeaveContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance | null>(null);
+  const [, setLeaveBalances] = useState<LeaveBalance | null>(null);
   const [leaveRequest, setLeaveRequest] = useState<LeaveRequest>({
     startDate: '',
     endDate: '',
@@ -186,70 +184,46 @@ function RequestLeaveContent() {
   return (
     <div className="max-w-7xl mx-auto space-y-8 py-8">
       {/* Header */}
-      <div className={`rounded-xl shadow-lg ${
-        theme === 'dark'
-          ? 'bg-gradient-to-r from-gray-800 to-gray-700'
-          : 'bg-gradient-to-r from-blue-600 to-blue-800'
-      } p-8`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-              <FaPlus className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">Request Leave</h1>
-              <p className="text-blue-100 mt-1">Submit and track your leave applications</p>
-            </div>
+      <div className={`flex items-center justify-between mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/leave-management/history')}
+            className={`p-2 rounded-lg border transition-colors ${
+              theme === 'dark' 
+                ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' 
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <FaArrowLeft className="w-4 h-4" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-semibold">Request Leave</h1>
+            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Submit and track your leave applications</p>
           </div>
         </div>
+        <button
+          onClick={() => router.push('/leave-management/history')}
+          className={`px-4 py-2 rounded-lg font-semibold border text-sm transition-colors ${
+            theme === 'dark' 
+              ? 'bg-white border-blue-200 text-blue-700 hover:bg-blue-50' 
+              : 'bg-white border-blue-200 text-blue-700 hover:bg-blue-50'
+          }`}
+        >
+          Close Leave Request
+        </button>
       </div>
 
-      {/* Leave Balance Cards */}
-      {leaveBalances && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {Object.entries(leaveBalances).map(([type, balance]) => (
-            <div key={type} className={`rounded-xl shadow-sm p-6 border ${
-              theme === 'dark'
-                ? 'bg-gray-800 border-gray-700'
-                : 'bg-white border-gray-200'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm font-medium ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
-                    {type === 'EL' ? 'Earned Leave' :
-                     type === 'SL' ? 'Sick Leave' :
-                     type === 'CL' ? 'Casual Leave' :
-                     'Comp Off'}
-                  </p>
-                  <p className={`text-2xl font-bold mt-1 ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>{balance}</p>
-                </div>
-                <div className={`p-3 rounded-lg ${
-                  theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
-                }`}>
-                  <FaCalendarAlt className={
-                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                  } />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Form Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <div className={`rounded-xl shadow-sm p-6 border ${
+          <div className={`rounded-lg p-4 border ${
             theme === 'dark'
               ? 'bg-gray-800 border-gray-700'
               : 'bg-white border-gray-200'
           }`}>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
                     theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
@@ -299,16 +273,16 @@ function RequestLeaveContent() {
                 </div>
 
                 {daysCount > 0 && (
-                  <div className={`rounded-lg p-4 flex items-center gap-3 ${
+                  <div className={`rounded-lg p-3 flex items-center gap-2 ${
                     theme === 'dark' 
-                      ? 'bg-blue-900/20 text-blue-300'
-                      : 'bg-blue-50 text-blue-700'
+                      ? 'bg-gray-700 text-gray-300'
+                      : 'bg-gray-50 text-gray-700'
                   }`}>
                     <FaInfoCircle className={
-                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                     } />
                     <p className="text-sm">
-                      Duration: <span className="font-semibold">{daysCount} day{daysCount > 1 ? 's' : ''}</span>
+                      Duration: <span className="font-medium">{daysCount} day{daysCount > 1 ? 's' : ''}</span>
                     </p>
                   </div>
                 )}
@@ -350,7 +324,7 @@ function RequestLeaveContent() {
                     className={`w-full border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       theme === 'dark'
                         ? 'bg-gray-700 border-gray-600 text-gray-200'
-                        : 'bg-white border-gray-200 text-gray-900'
+                        : 'bg-white border-gray-200 text-black'
                     }`}
                     placeholder="Please provide a detailed reason for your leave request..."
                   />
@@ -414,22 +388,22 @@ function RequestLeaveContent() {
                 </div>
 
                 {/* File upload section */}
-                <div className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
+                <div className={`flex justify-center px-4 py-6 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
                   theme === 'dark'
-                    ? 'border-gray-600 hover:border-blue-400'
-                    : 'border-gray-300 hover:border-blue-500'
+                    ? 'border-gray-600 hover:border-gray-500'
+                    : 'border-gray-300 hover:border-gray-400'
                 }`}>
-                  <div className="space-y-1 text-center">
-                    <FaUpload className={`mx-auto h-12 w-12 ${
+                  <div className="space-y-2 text-center">
+                    <FaUpload className={`mx-auto h-8 w-8 ${
                       theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
                     }`} />
-                    <div className={`flex text-sm ${
+                    <div className={`text-sm ${
                       theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                     }`}>
-                      <label htmlFor="attachments" className={`relative cursor-pointer rounded-md font-medium ${
-                        theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-500'
+                      <label htmlFor="attachments" className={`cursor-pointer font-medium ${
+                        theme === 'dark' ? 'text-gray-300 hover:text-gray-200' : 'text-gray-700 hover:text-gray-800'
                       }`}>
-                        <span>Upload files</span>
+                        Upload files
                         <input
                           id="attachments"
                           name="attachments"
@@ -439,7 +413,6 @@ function RequestLeaveContent() {
                           className="sr-only"
                         />
                       </label>
-                      <p className="pl-1">or drag and drop</p>
                     </div>
                     <p className={`text-xs ${
                       theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
@@ -450,10 +423,12 @@ function RequestLeaveContent() {
                 {selectedFiles.length > 0 && (
                   <div className="space-y-2">
                     {selectedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${
+                        theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
+                      }`}>
                         <div className="flex items-center gap-2">
-                          <FaFileAlt className="text-gray-400" />
-                          <span className="text-sm text-gray-600">{file.name}</span>
+                          <FaFileAlt className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} />
+                          <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{file.name}</span>
                         </div>
                         <button
                           type="button"
@@ -474,7 +449,11 @@ function RequestLeaveContent() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all duration-200 flex items-center gap-1.5 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={`px-3 py-0.5 text-xs rounded-md font-medium transition-colors flex items-center gap-1 ${
+                        theme === 'dark'
+                          ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                      }`}
                     >
                       {loading ? (
                         <span>Submitting...</span>
@@ -490,7 +469,7 @@ function RequestLeaveContent() {
 
         {/* Info Panel */}
         <div className="lg:col-span-1">
-          <div className={`rounded-xl shadow-sm p-6 border space-y-6 ${
+          <div className={`rounded-lg p-4 border space-y-4 ${
             theme === 'dark'
               ? 'bg-gray-800 border-gray-700'
               : 'bg-white border-gray-200'

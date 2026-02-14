@@ -1,9 +1,9 @@
 "use client";
 
-import React, { ReactNode, useState, useEffect } from 'react';
+import React, { ReactNode, useState, useEffect, useMemo, useCallback } from 'react';
 import type { JSX } from 'react';
 import Image from 'next/image';
-import {  FaFileAlt, FaTachometerAlt, FaSignOutAlt, FaChevronRight, FaPlus, FaChevronLeft,  FaUser, FaCalendarAlt, FaMoneyBillWave, FaTasks,  FaHeadset,  FaBell,  FaIdCard,  FaTimes, FaBars, FaCog, FaEdit, FaUserCheck, FaCalendarCheck, FaClipboardCheck, FaHistory, FaSun, FaMoon } from 'react-icons/fa';
+import { FaSignOutAlt, FaPlus, FaUser, FaTasks, FaTimes, FaSun, FaMoon, FaEye, FaEyeSlash, FaUserPlus } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { logout, isAuthenticated, getUserRole, getEmployeeId } from '@/services/auth';
@@ -15,20 +15,6 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-// Add new interfaces
-interface RolePrompt {
-  show: boolean;
-  message: string[];
-  type: 'info' | 'success' | 'warning';
-}
-
-interface MenuItem {
-  icon: JSX.Element;
-  label: string;
-  href?: string;
-  subItems?: MenuItem[];
-}
-
 interface UserDetails {
   fullName: string;
   employeeId: string;
@@ -37,18 +23,9 @@ interface UserDetails {
   designation: string;
 }
 
-interface RoleOption {
-  value: string;
-  label: string;
-  menuAccess: string[];
-}
-
 const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const router = useRouter();
   const pathname = usePathname();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-  const [isSidebarExpanded, setSidebarExpanded] = useState(true);
-  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentDateTime, setCurrentDateTime] = useState<string>("");
@@ -57,36 +34,62 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [rolePrompt, setRolePrompt] = useState<RolePrompt>({
-    show: false,
-    message: [],
-    type: 'info'
-  });
-  const { theme, toggleTheme } = useTheme();
-  const [selectedRole, setSelectedRole] = useState<string>('employee');
-
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [pendingRole, setPendingRole] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  const [showManagerPasswordModal, setShowManagerPasswordModal] = useState(false);
+  const [ManagerPassword, setManagerPassword] = useState('');
+  const [ManagerPasswordError, setManagerPasswordError] = useState(false);
+  const [showHRPasswordModal, setShowHRPasswordModal] = useState(false);
+  const [HRPassword, setHRPassword] = useState('');
+  const [HRPasswordError, setHRPasswordError] = useState(false);
+  const [showCoordinatorPasswordModal, setShowCoordinatorPasswordModal] = useState(false);
+  const [coordinatorPassword, setCoordinatorPassword] = useState("");
+  const [coordinatorPasswordError, setCoordinatorPasswordError] = useState(false);
+  const [showCoordinatorPassword, setShowCoordinatorPassword] = useState(false);
+  const [showOpsPassword, setShowOpsPassword] = useState(false);
+  const [showManagerPassword, setShowManagerPassword] = useState(false);
+  const [showHRPassword, setShowHRPassword] = useState(false);
+  const [showUserTaskPasswordModal, setShowUserTaskPasswordModal] = useState(false);
+  const [userTaskPassword, setUserTaskPassword] = useState("");
+  const [userTaskPasswordError, setUserTaskPasswordError] = useState(false);
+  const [showUserTaskPassword, setShowUserTaskPassword] = useState(false);
+  const [showProjectSelectionModal, setShowProjectSelectionModal] = useState(false);
+  const [projectList, setProjectList] = useState<{ _id: string; projectName: string }[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [projectLoading, setProjectLoading] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState<string>("");
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("Dashboard");
+  
+  // Authentication states for protective routes
+  const [isManagerAuthenticated, setIsManagerAuthenticated] = useState(false);
+  const [isCoordinatorAuthenticated, setIsCoordinatorAuthenticated] = useState(false);
+  const [isHRAuthenticated, setIsHRAuthenticated] = useState(false);
+  const [isOpsAuthenticated, setIsOpsAuthenticated] = useState(false);
+  const [isTaskAuthenticated, setIsTaskAuthenticated] = useState(false);
+  
+  const { theme, toggleTheme } = useTheme();
 
-  const roleOptions: RoleOption[] = [
-    {
-      value: 'employee',
-      label: 'Employee',
-      menuAccess: ['Dashboard', 'KYC', 'Attendance', 'Leave Management', 'Payslip', 'Reports', 'Helpdesk']
+  // Top navigation configuration
+  const topNav: Array<{ label: string; href?: string; subItems?: Array<{ label: string; href: string }>; }> = useMemo(() => [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "KYC", href: "/kyc" },
+    { 
+      label: "Attendance", 
+      href: "/attendance/view",
+      subItems: [
+        { label: "View Attendance", href: "/attendance/view" },
+        { label: "Mark Attendance", href: "/attendance/mark" },
+        { label: "Face Enrollment", href: "/attendance/face-enrollment" },
+      ]
     },
-    {
-      value: 'manager',
-      label: 'Manager',
-      menuAccess: ['Dashboard', 'KYC', 'Attendance']
-    },
-    {
-      value: 'admin',
-      label: 'Admin',
-      menuAccess: ['Dashboard', 'KYC', 'Attendance', 'Leave Management', 'Payslip', 'Reports', 'Helpdesk']
-    }
-  ];
+    //{ label: "Door Attendance", href: "/attendance/door" },
+    { label: "Leave Management", href: "/leave-management/history" },
+    { label: "Payslip", href: "/payslip" },
+    { label: "Reports", href: "/reports/Attendance" },
+    { label: "Helpdesk", href: "/helpdesk" },
+  ], []);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -105,6 +108,84 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
 
     checkAuth();
   }, [router]);
+
+  // Protective route function
+  const checkRouteAccess = useCallback((targetPath: string | null): boolean => {
+    if (!targetPath) return true;
+    
+    // Check if trying to access protected routes
+    if (targetPath.startsWith('/Manager/') && !isManagerAuthenticated) {
+      return false;
+    }
+    if (targetPath.startsWith('/coordinator/') && !isCoordinatorAuthenticated) {
+      return false;
+    }
+    if (targetPath.startsWith('/hrd/') && !isHRAuthenticated) {
+      return false;
+    }
+    if (targetPath.startsWith('/Manager-Ops/') && !isOpsAuthenticated) {
+      return false;
+    }
+    if (targetPath.startsWith('/task/') && !isTaskAuthenticated) {
+      return false;
+    }
+    
+    return true;
+  }, [isManagerAuthenticated, isCoordinatorAuthenticated, isHRAuthenticated, isOpsAuthenticated, isTaskAuthenticated]);
+
+  // Intercept navigation attempts
+  const handleNavigation = (href: string) => {
+    if (!checkRouteAccess(href)) {
+      // Show appropriate password modal based on the route
+      if (href.startsWith('/Manager/')) {
+        setShowManagerPasswordModal(true);
+      } else if (href.startsWith('/coordinator/')) {
+        setShowCoordinatorPasswordModal(true);
+      } else if (href.startsWith('/hrd/')) {
+        setShowHRPasswordModal(true);
+      } else if (href.startsWith('/Manager-Ops/')) {
+        setShowPasswordModal(true);
+      } else if (href.startsWith('/task/')) {
+        setShowUserTaskPasswordModal(true);
+      }
+      return;
+    }
+    
+    // If access is granted, navigate
+    router.push(href);
+  };
+
+  // Update active tab based on current pathname and check route access
+  useEffect(() => {
+    const currentPath = pathname;
+    
+    // Check if current path requires authentication
+    if (currentPath && !checkRouteAccess(currentPath)) {
+      // Redirect to dashboard if trying to access protected route without authentication
+      router.replace('/dashboard');
+      return;
+    }
+    
+    // Find the matching navigation item
+    const findActiveTab = (items: typeof topNav): string => {
+      for (const item of items) {
+        if (item.href && currentPath === item.href) {
+          return item.label;
+        }
+        if (item.subItems) {
+          for (const subItem of item.subItems) {
+            if (currentPath === subItem.href) {
+              return item.label;
+            }
+          }
+        }
+      }
+      return "Dashboard"; // Default fallback
+    };
+    
+    const newActiveTab = findActiveTab(topNav);
+    setActiveTab(newActiveTab);
+  }, [pathname, topNav, router, checkRouteAccess]);
 
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -137,6 +218,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
     fetchUserDetails();
   }, []);
 
+
+
   useEffect(() => {
     const updateDateTime = () => {
       const now = new Date();
@@ -152,223 +235,24 @@ const DashboardLayout = ({ children }: DashboardLayoutProps): JSX.Element => {
   }, []);
 
 const handleLogout = () => {
+  // Clear all authentication states
+  setIsManagerAuthenticated(false);
+  setIsCoordinatorAuthenticated(false);
+  setIsHRAuthenticated(false);
+  setIsOpsAuthenticated(false);
+  setIsTaskAuthenticated(false);
+  
+  // Clear sessionStorage authentication flags
+  sessionStorage.removeItem('isManagerAuthenticated');
+  sessionStorage.removeItem('isCoordinatorAuthenticated');
+  sessionStorage.removeItem('isHRAuthenticated');
+  sessionStorage.removeItem('isOpsAuthenticated');
+  sessionStorage.removeItem('isTaskAuthenticated');
+  
   logout(); // your logout function (e.g., clearing tokens or session)
   router.replace('/login'); // navigate to login screen
 };
 
-
-  const toggleMenu = (label: string) => {
-    setExpandedMenus(prev => 
-      prev.includes(label) 
-        ? prev.filter(item => item !== label)
-        : [...prev, label]
-    );
-  };
-
-  const toggleSidebar = () => {
-    setSidebarExpanded(!isSidebarExpanded);
-  };
-
-  const getMenuItemsByRole = (): MenuItem[] => {
-    const currentRole = roleOptions.find(role => role.value === selectedRole);
-    const allMenuItems = [
-      {
-        icon: <FaTachometerAlt />,
-        label: 'Dashboard',
-        href: '/dashboard'
-      },
-      {
-        icon: <FaUser />,
-        label: 'KYC',
-        subItems: [
-          {
-            icon: <FaIdCard />,
-            label: 'View KYC',
-            href: '/kyc'
-          },
-          {
-            icon: <FaFileAlt />,
-            label: 'Upload Documents',
-            href: '/kyc/upload'
-          },
-          {
-            icon: <FaEdit />,
-            label: 'Edit KYC',
-            href: '/kyc/edit'
-          }
-        ]
-      },
-      {
-        icon: <FaCalendarAlt />,
-        label: 'Attendance',
-        subItems: [
-          {
-            icon: <FaUserCheck />,
-            label: 'Mark Attendance',
-            href: '/attendance/mark'
-          },
-          {
-            icon: <FaCalendarCheck />,
-            label: 'View Attendance',
-            href: '/attendance/view'
-          },
-          {
-            icon: <FaClipboardCheck />,
-            label: 'Regularization',
-            href: '/attendance/regularization'
-          }
-        ]
-      },
-      {
-        icon: <FaFileAlt />,
-        label: 'Leave Management',
-        subItems: [
-          {
-            icon: <FaPlus />,
-            label: 'Request Leave',
-            href: '/leave-management/request'
-          },
-          {
-            icon: <FaHistory />,
-            label: 'Leave History',
-            href: '/leave-management/history'
-          },
-          {
-            icon: <FaCalendarCheck />,
-            label: 'View Leave',
-            href: '/leave-management/view'
-          }
-        ]
-      },
-      {
-        icon: <FaMoneyBillWave />,
-        label: 'Payslip',
-        href: '/payslip'
-      },
-      {
-        icon: <FaTasks />,
-        label: 'Reports',
-        subItems: [
-          {
-            icon: <FaCalendarAlt />,
-            label: 'Attendance Report',
-            href: '/reports/Attendance'
-          },
-          {
-            icon: <FaFileAlt />,
-            label: 'Leave Report',
-            href: '/reports/leave'
-          }
-        ]
-      },
-      {
-        icon: <FaHeadset />,
-        label: 'Helpdesk',
-        href: '/helpdesk'
-      }
-    ];
-    
-    if (!currentRole) return allMenuItems;
-    
-    return allMenuItems.filter(item => 
-      currentRole.menuAccess.includes(item.label)
-    );
-  };
-
-  const menuItems: MenuItem[] = getMenuItemsByRole();
-
-  const renderMenuItem = (item: MenuItem): JSX.Element => {
-    const isExpanded = expandedMenus.includes(item.label);
-    const isActive = pathname === item.href;
-    
-    return (
-      <li key={item.label}>
-        {item.subItems ? (
-          <div className="space-y-1">
-            <button
-              onClick={() => toggleMenu(item.label)}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 ${
-                theme === 'dark'
-                  ? `${isExpanded 
-                      ? 'bg-gray-700 text-white' 
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`
-                  : `${isExpanded
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`
-              }`}
-            >
-              <div className="flex items-center min-w-0">
-                <span className={`text-xl w-8 transition-colors ${
-                  theme === 'dark'
-                    ? `${isExpanded ? 'text-blue-400' : 'text-gray-400'}`
-                    : `${isExpanded ? 'text-blue-700' : 'text-gray-500'}`
-                }`}>{item.icon}</span>
-                {isSidebarExpanded && (
-                  <span className="font-medium truncate">{item.label}</span>
-                )}
-              </div>
-              {isSidebarExpanded && (
-                <span className="ml-2 flex-shrink-0">
-                  <FaChevronRight className={`w-4 h-4 transition-transform duration-200 ${
-                    isExpanded 
-                      ? `transform rotate-90 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'}` 
-                      : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                  }`} />
-                </span>
-              )}
-            </button>
-            {expandedMenus.includes(item.label) && isSidebarExpanded && item.subItems && (
-              <ul className="pl-6 space-y-1 animate-fadeIn">
-                {item.subItems.map(subItem => (
-                  <li key={subItem.label}>
-                    <Link
-                      href={subItem.href || '#'}
-                      className={`w-full flex items-center px-4 py-2.5 text-sm rounded-xl transition-all duration-200 ${
-                        theme === 'dark'
-                          ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                          : 'text-gray-500 hover:bg-blue-50 hover:text-blue-700'
-                      }`}
-                    >
-                      <span className={`text-sm w-8 ${
-                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                      }`}>{subItem.icon}</span>
-                      <span className="font-medium truncate">{subItem.label}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : (
-          <Link
-            href={item.href || '#'}
-            className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
-              theme === 'dark'
-                ? `${isActive 
-                    ? 'bg-gray-700 text-white' 
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`
-                : `${isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`
-            }`}
-          >
-            <span className={`text-xl w-8 transition-colors ${
-              theme === 'dark'
-                ? `${isActive ? 'text-blue-400' : 'text-gray-400'}`
-                : `${isActive ? 'text-blue-700' : 'text-gray-500'}`
-            }`}>{item.icon}</span>
-            {isSidebarExpanded && (
-              <span className="font-medium truncate">{item.label}</span>
-            )}
-          </Link>
-        )}
-      </li>
-    );
-  };
-
-  const handleProfileImageClick = () => {
-    setShowProfileDropdown((prev) => !prev);
-  };
 
   const handleEditProfile = () => {
     setShowProfileDropdown(false);
@@ -412,339 +296,350 @@ const handleLogout = () => {
     }
   };
 
-  const handleRoleChange = (newRole: string) => {
-    setPendingRole(newRole);
-    setPasswordInput('');
-    setPasswordError('');
-    setShowPasswordModal(true);
+  const handleOpsManagerView = () => {
     setShowProfileDropdown(false);
+    setShowPasswordModal(true);
   };
 
   const handlePasswordSubmit = () => {
-    if (passwordInput === 'Qwerty123' && pendingRole) {
-      setSelectedRole(pendingRole);
-      const roleDetails = roleOptions.find(role => role.value === pendingRole);
-      if (roleDetails) {
-        showRolePrompt(roleDetails.label);
-      }
+    if (password === 'Opsexo2025!') {
+      setPasswordError(false);
+      setIsOpsAuthenticated(true);
+      sessionStorage.setItem('isOpsAuthenticated', 'true');
       setShowPasswordModal(false);
-      setPendingRole(null);
-      setPasswordInput('');
+      setPassword('');
+      router.push('/Manager-Ops/dashboard');
     } else {
-      setPasswordError('Invalid password. Please try again.');
+      setPasswordError(true);
     }
   };
 
-  const showRolePrompt = (role: string) => {
-    const messages = [
-      `Switching to ${role} role`,
-      'Enter password to confirm access'
-    ];
-    
-    setRolePrompt({
-      show: true,
-      message: messages,
-      type: 'info'
-    });
-
-    // Auto-hide after 5 seconds
-    setTimeout(() => {
-      setRolePrompt(prev => ({ ...prev, show: false }));
-    }, 5000);
+  const handleManagerView = () => {
+    setShowProfileDropdown(false);
+    setShowManagerPasswordModal(true);
   };
 
-  const renderRolePrompt = () => {
-    if (!rolePrompt.show) return null;
+  const handleManagerPasswordSubmit = () => {
+    if (ManagerPassword === 'Manager@2025exo!') {
+      setManagerPasswordError(false);
+      setIsManagerAuthenticated(true);
+      sessionStorage.setItem('isManagerAuthenticated', 'true');
+      setShowManagerPasswordModal(false);
+      setManagerPassword('');
+      router.push('/Manager/dashboard');
+    } else {
+      setManagerPasswordError(true);
+    }
+  };
 
-    const bgColor = theme === 'dark' 
-      ? 'bg-gray-800 border-gray-700' 
-      : 'bg-blue-50 border-blue-100';
-    
-    const textColor = theme === 'dark'
-      ? 'text-white'
-      : 'text-blue-700';
+  const handleHRPasswordSubmit = () => {
+    if (HRPassword === 'Hrd@exozen2025!') {
+      setHRPasswordError(false);
+      setIsHRAuthenticated(true);
+      sessionStorage.setItem('isHRAuthenticated', 'true');
+      setShowHRPasswordModal(false);
+      setHRPassword('');
+      router.push('/hrd/dashboard');
+    } else {
+      setHRPasswordError(true);
+    }
+  };
 
-    return (
-      <div className={`fixed top-20 right-4 z-50 p-4 rounded-xl border ${bgColor} shadow-lg max-w-md animate-fade-in`}>
-        <div className="flex flex-col space-y-1">
-          {rolePrompt.message.map((msg, idx) => (
-            <p key={idx} className={`text-sm ${textColor}`}>{msg}</p>
-          ))}
-        </div>
-        <button 
-          onClick={() => setRolePrompt(prev => ({ ...prev, show: false }))}
-          className={`absolute top-2 right-2 ${textColor} hover:opacity-75`}
-        >
-          <FaTimes className="w-4 h-4" />
-        </button>
-      </div>
-    );
+  const handleCoordinatorView = () => {
+    setShowProfileDropdown(false);
+    setShowCoordinatorPasswordModal(true);
+  };
+
+  const handleCoordinatorPasswordSubmit = () => {
+    if (coordinatorPassword === 'coordinator@exozen2025!') {
+      setCoordinatorPasswordError(false);
+      setIsCoordinatorAuthenticated(true);
+      sessionStorage.setItem('isCoordinatorAuthenticated', 'true');
+      setShowCoordinatorPasswordModal(false);
+      setCoordinatorPassword("");
+      router.push('/coordinator/dashboard');
+    } else {
+      setCoordinatorPasswordError(true);
+    }
+  };
+
+  const handleCreateLink = () => {
+    setShowProfileDropdown(false);
+    setShowProjectSelectionModal(true);
+    setGeneratedLink("");
+    setLinkCopied(false);
+    // Always fetch projects when opening the modal
+    fetchProjects();
+  };
+
+  const fetchProjects = async () => {
+    setProjectLoading(true);
+    try {
+      const response = await fetch("https://cafm.zenapi.co.in/api/project/projects");
+      const data = await response.json();
+      const allProjects = Array.isArray(data) ? data : [];
+      
+      // Show all projects in the dropdown
+      setProjectList(allProjects);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setProjectList([]);
+    } finally {
+      setProjectLoading(false);
+    }
+  };
+
+  const handleProjectSelection = () => {
+    if (selectedProject) {
+      // Generate shareable link with project parameter
+      const baseUrl = window.location.origin;
+      const link = `${baseUrl}/v1/employee/kyc-standalone?project=${encodeURIComponent(selectedProject)}&frozen=true`;
+      setGeneratedLink(link);
+    }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
+
+  const resetModal = () => {
+    setShowProjectSelectionModal(false);
+    setSelectedProject("");
+    setGeneratedLink("");
+    setLinkCopied(false);
   };
 
   return (
     <UserContext.Provider value={userDetails}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-        {/* Add the role prompt render */}
-        {renderRolePrompt()}
-        {/* Overlay for mobile */}
-        {isMobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm lg:hidden z-40"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-        )}
-
-        {/* Sidebar with integrated header */}
-        <aside
-          className={`fixed inset-y-0 left-0 flex flex-col
-            ${isSidebarExpanded ? 'w-72' : 'w-20'}
-            ${theme === 'dark' ? 'bg-gray-800/95 backdrop-blur-sm border-gray-700' : 'bg-white/95 backdrop-blur-sm border-gray-200'}
-            border-r shadow-lg
-            transition-all duration-300 ease-in-out z-30
-            hover:shadow-xl`}
-          aria-label="Sidebar navigation"
-        >
-          {/* Logo and Toggle */}
-          <div className={`flex items-center justify-between p-5 border-b 
-            ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-100'} 
-            h-[65px] backdrop-blur-sm`}>
-            <div className={`flex items-center ${isSidebarExpanded ? 'justify-start' : 'justify-center'} w-full`}>
-              <div className="relative group">
-                <Image
-                  src="/v1/employee/logo-exo .png"
-                  alt="Exozen Logo"
-                  width={40}
-                  height={40}
-                  className="rounded-xl shadow-sm transform transition-all duration-300 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 rounded-xl bg-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </div>
-              {isSidebarExpanded && (
-                <span className={`ml-3 font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} text-2xl tracking-wide
-                  transition-all duration-300 ease-in-out transform`}>
-                  Exozen
-                </span>
-              )}
+      <div className={`min-h-screen flex flex-col ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"} transition-colors duration-200 overflow-x-hidden`}>
+        <style jsx>{`
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
+        {/* Header (no sidebar) */}
+        <header className={`${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"} border-b shadow-lg sticky top-0 left-0 w-screen z-50 h-[64px] flex items-center px-4 transition-colors duration-200`}>
+          <div className="flex items-center justify-between w-full">
+            {/* Left: Brand & Title */}
+            <div className="flex items-center gap-3">
+              <Image src="/v1/employee/logo-exo .png" alt="Exozen Logo" width={32} height={32} className="rounded" />
+              <h1 className={`text-xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Employee</h1>
             </div>
-            <button
-              onClick={toggleSidebar}
-              className={`p-2 rounded-xl 
-                ${theme === 'dark' 
-                  ? 'text-gray-400 hover:bg-gray-700/70 hover:text-white' 
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'} 
-                transition-all duration-200 ml-auto flex-shrink-0
-                focus:outline-none focus:ring-2 focus:ring-blue-500/50
-                active:scale-95`}
-              title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
-              aria-label={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              {isSidebarExpanded 
-                ? <FaChevronLeft className="w-5 h-5 transform transition-transform duration-200 hover:scale-110"/> 
-                : <FaChevronRight className="w-5 h-5 transform transition-transform duration-200 hover:scale-110"/>}
-            </button>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
-            <ul className="p-4 space-y-1.5">
-              {menuItems.map(renderMenuItem)}
-            </ul>
-          </nav>
-        </aside>
-
-        {/* Main Content with Header */}
-        <div className={`flex-1 flex flex-col min-w-0 
-          transition-all duration-300 ease-in-out 
-          ${isSidebarExpanded ? 'ml-72' : 'ml-20'}`}>
-          {/* Header */}
-          <header className={`${theme === 'dark' 
-            ? 'bg-gray-800/95 border-gray-700' 
-            : 'bg-white/95 border-gray-200'} 
-            border-b shadow-md z-20 sticky top-0 h-[64px] flex items-center
-            transition-colors duration-200 backdrop-blur-sm`}>
-            <div className="flex items-center justify-between px-4 w-full h-full">
-              {/* Left: Menu Icon & Page Title */}
-              <div className="flex items-center gap-3 min-w-0">
-                <button
-                  onClick={toggleSidebar}
-                  className={`p-2 rounded-lg
-                    ${theme === 'dark' 
-                      ? 'text-gray-400 hover:text-white hover:bg-gray-700/70' 
-                      : 'text-gray-500 hover:text-blue-700 hover:bg-gray-100'} 
-                    transition-all duration-200 
-                    focus:outline-none focus:ring-2 focus:ring-blue-500/50
-                    active:scale-95`}
-                  title={isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-                >
-                  <FaBars className="w-5 h-5" />
-                </button>
-                <h1 className={`text-xl font-bold 
-                  ${theme === 'dark' ? 'text-white' : 'text-gray-900'} 
-                  tracking-tight truncate transition-colors duration-200`}>
-                  {(() => {
-                    const current = menuItems.find(item => item.href === pathname);
-                    return current ? current.label : '';
-                  })()}
-                </h1>
+            {/* Right: Top navigation like Excel tabs */}
+            <nav className="hidden md:flex items-end mr-4">
+              <div className="flex items-end border-b-2 border-transparent">
+                {topNav.map((item) => (
+                  <div
+                    key={item.label}
+                    className="relative group"
+                  >
+                    {item.href ? (
+                      <Link
+                        href={item.href}
+                        prefetch={true}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setActiveTab(item.label);
+                          handleNavigation(item.href!);
+                        }}
+                        className={`
+                          relative block px-4 py-2 text-sm font-medium whitespace-nowrap
+                          transition-all duration-100 ease-out cursor-pointer
+                          ${activeTab === item.label 
+                            ? theme === "dark"
+                              ? "text-white bg-gray-700/30 border-b-2 border-blue-400"
+                              : "text-blue-700 bg-blue-50 border-b-2 border-blue-500"
+                            : theme === "dark" 
+                              ? "text-gray-300 hover:text-white hover:bg-gray-700/50" 
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                          }
+                          before:absolute before:inset-x-0 before:bottom-0 before:h-0.5 
+                          before:bg-blue-500 before:scale-x-0 before:transition-transform 
+                          before:duration-100 hover:before:scale-x-100
+                          after:absolute after:inset-x-0 after:bottom-0 after:h-0.5
+                          after:bg-gradient-to-r after:from-transparent after:via-blue-400 after:to-transparent
+                          after:opacity-0 after:transition-opacity after:duration-100 hover:after:opacity-100
+                          ${activeTab === item.label ? "before:scale-x-100 after:opacity-100" : ""}
+                        `}
+                      >
+                        {item.label}
+                      </Link>
+                    ) : (
+                      <span
+                        className={`
+                          relative block px-4 py-2 text-sm font-medium whitespace-nowrap cursor-default select-none
+                          transition-all duration-100 ease-out
+                          ${activeTab === item.label 
+                            ? theme === "dark"
+                              ? "text-white bg-gray-700/30 border-b-2 border-blue-400"
+                              : "text-blue-700 bg-blue-50 border-b-2 border-blue-500"
+                            : theme === "dark" 
+                              ? "text-gray-300 hover:text-white hover:bg-gray-700/50" 
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                          }
+                          before:absolute before:inset-x-0 before:bottom-0 before:h-0.5 
+                          before:bg-blue-500 before:scale-x-0 before:transition-transform 
+                          before:duration-100 hover:before:scale-x-100
+                          after:absolute after:inset-x-0 after:bottom-0 after:h-0.5
+                          after:bg-gradient-to-r after:from-transparent after:via-blue-400 after:to-transparent
+                          after:opacity-0 after:transition-opacity after:duration-100 hover:after:opacity-100
+                          ${activeTab === item.label ? "before:scale-x-100 after:opacity-100" : ""}
+                        `}
+                      >
+                        {item.label}
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
-
-              {/* Right: Actions */}
-              <div className="flex items-center gap-3 ml-auto">
-                {/* Theme Toggle */}
-                <button
-                  onClick={toggleTheme}
-                  className={`p-2 rounded-full 
-                    ${theme === 'dark' 
-                      ? 'text-yellow-400 hover:bg-gray-700/70' 
-                      : 'text-gray-500 hover:bg-gray-100'} 
-                    transition-all duration-200
-                    focus:outline-none focus:ring-2 focus:ring-blue-500/50
-                    active:scale-95`}
-                  title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-                >
-                  {theme === 'dark' 
-                    ? <FaSun className="w-5 h-5 transform hover:rotate-12 transition-transform duration-200" /> 
-                    : <FaMoon className="w-5 h-5 transform hover:-rotate-12 transition-transform duration-200" />}
-                </button>
-
-                {/* Date and Time */}
-                <div className={`${theme === 'dark' 
-                  ? 'bg-gray-700/70 text-gray-200 border-gray-600' 
-                  : 'bg-blue-50 text-blue-700 border-blue-100'} 
-                  font-medium text-sm px-4 py-1.5 rounded-full border 
-                  min-w-fit shadow-sm transition-all duration-200`}>
-                  {currentDateTime}
-                </div>
-
-                {/* Settings Icon */}
-                <button className={`p-2 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-blue-700'} transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200`}>
-                  <FaCog className="w-5 h-5" />
-                </button>
-
-                {/* Notifications */}
-                <button className={`relative p-2 ${theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'} transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200`}>
-                  <FaBell className="w-5 h-5" />
-                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 rounded-full text-[11px] font-bold text-white flex items-center justify-center ring-2 ring-white">3</span>
-                </button>
-
-                {/* User Profile */}
-                <div className="flex items-center relative">
-                  {loading ? (
-                    <div className="animate-pulse flex items-center">
-                      <div className={`w-10 h-10 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+            </nav>
+            {/* Right: Date/Time, Theme Toggle, Profile */}
+            <div className="flex items-center gap-4">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-full ${theme === 'dark' ? 'text-yellow-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'} transition-all duration-200`}
+                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              >
+                {theme === 'dark' ? <FaSun className="w-5 h-5" /> : <FaMoon className="w-5 h-5" />}
+              </button>
+              {/* Date and Time */}
+              <div className={`font-medium text-sm px-4 py-1.5 rounded-full border ${theme === "dark" ? "bg-gray-700 text-gray-200 border-gray-600" : "bg-blue-50 text-blue-700 border-blue-100"}`}>{currentDateTime}</div>
+              {/* User Profile */}
+              <div className="flex items-center relative">
+                {loading ? (
+                  <div className="animate-pulse flex items-center">
+                    <div className={`w-10 h-10 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                  </div>
+                ) : (
+                  <div className="relative group flex-shrink-0">
+                    <div className="relative cursor-pointer" onClick={() => setShowProfileDropdown(!showProfileDropdown)}>
+                      <Image src={userDetails?.employeeImage || "/placeholder-user.jpg"} alt={userDetails?.fullName || "User"} width={40} height={40} className="relative w-10 h-10 rounded-full object-cover border-2 border-white shadow" />
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                     </div>
-                  ) : (
-                    <div className="relative group flex-shrink-0">
-                      <div className="relative cursor-pointer" onClick={handleProfileImageClick}>
-                        <Image
-                          src={userDetails?.employeeImage || '/placeholder-user.jpg'}
-                          alt={userDetails?.fullName || 'User'}
-                          width={40}
-                          height={40}
-                          className="relative w-10 h-10 rounded-full object-cover border-2 border-white shadow transition-transform duration-200 group-hover:scale-105"
-                        />
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                    {showProfileDropdown && (
+                      <div className={`${theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"} absolute right-0 top-full mt-2 w-56 rounded-xl shadow-xl border py-2 z-50`}>
+                        {/* Add Ops-Manager View option if the role is Manager-Ops */}
+                        {getUserRole() === 'Manager-Ops' && (
+                          <button
+                            onClick={() => {
+                              if (isOpsAuthenticated) {
+                                router.push('/Manager-Ops/dashboard');
+                              } else {
+                                handleOpsManagerView();
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                          >
+                            <FaTasks className="text-blue-500 w-5 h-5" /> Ops-Manager View
+                          </button>
+                        )}
+                        {/* Add Manager option if the role is Manager */}
+                        {getUserRole() === 'Manager' && (
+                          <button
+                            onClick={() => {
+                              if (isManagerAuthenticated) {
+                                router.push('/Manager/dashboard');
+                              } else {
+                                handleManagerView();
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-green-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                          >
+                            <FaTasks className="text-green-500 w-5 h-5" /> Manager
+                          </button>
+                        )}
+                        {/* Add HR View option if the role is HR */}
+                        {getUserRole() === 'HR' && (
+                          <button
+                            onClick={() => {
+                              if (isHRAuthenticated) {
+                                router.push('/hrd/dashboard');
+                              } else {
+                                setShowProfileDropdown(false);
+                                setShowHRPasswordModal(true);
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-purple-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                          >
+                            <FaTasks className="text-purple-500 w-5 h-5" /> HR View
+                          </button>
+                        )}
+                        {/* Add Coordinator View option if the role is coordinator */}
+                        {getUserRole() === 'Coordinator' && (
+                          <button
+                            onClick={() => {
+                              if (isCoordinatorAuthenticated) {
+                                router.push('/coordinator/dashboard');
+                              } else {
+                                handleCoordinatorView();
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-orange-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                          >
+                            <FaUser className="text-orange-500 w-5 h-5" /> Coordinator View
+                          </button>
+                        )}
+                        {/* Add + Task option if the role is user */}
+                        {getUserRole() === 'User' && (
+                          <button
+                            onClick={() => {
+                              if (isTaskAuthenticated) {
+                                router.push('/task/dashboard');
+                              } else {
+                                setShowProfileDropdown(false);
+                                setShowUserTaskPasswordModal(true);
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                          >
+                            <FaPlus className="text-blue-500 w-5 h-5" /> + Task
+                          </button>
+                        )}
+                        <button
+                          onClick={handleEditProfile}
+                          className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-blue-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                        >
+                          <FaUser className="text-blue-500 w-5 h-5" /> Edit Profile
+                        </button>
+                        {/* Add Create Link option for Manager role */}
+                        {getUserRole() === 'Manager' && (
+                          <button
+                            onClick={handleCreateLink}
+                            className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-green-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                          >
+                            <FaUserPlus className="text-green-500 w-5 h-5" /> Create Link
+                          </button>
+                        )}
+                        <button
+                          onClick={handleLogout}
+                          className={`w-full text-left px-4 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-base`}
+                        >
+                          <FaSignOutAlt className="text-red-500 w-5 h-5" /> Logout
+                        </button>
                       </div>
-                      {/* Profile Dropdown */}
-                      {showProfileDropdown && (
-                        <div className={`absolute right-0 top-full mt-2 w-72 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-xl border py-2 z-50 transform transition-all duration-200 origin-top-right`}>
-                          {/* User Info Section */}
-                          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                            <div className="flex items-center gap-3">
-                              <Image
-                                src={userDetails?.employeeImage || '/placeholder-user.jpg'}
-                                alt={userDetails?.fullName || 'User'}
-                                width={40}
-                                height={40}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-white shadow"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} truncate`}>
-                                  {userDetails?.fullName}
-                                </p>
-                                <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} truncate`}>
-                                  {userDetails?.email}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Role Selection Section */}
-                          <div className="px-4 py-3">
-                            <label className={`block text-xs font-medium mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                              Switch Role
-                            </label>
-                            <div className="relative">
-                              <select
-                                value={selectedRole}
-                                onChange={(e) => handleRoleChange(e.target.value)}
-                                className={`w-full px-3 py-2 appearance-none rounded-lg border ${
-                                  theme === 'dark'
-                                    ? 'bg-gray-700 border-gray-600 text-white'
-                                    : 'bg-white border-gray-200 text-gray-900'
-                                } pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                              >
-                                {roleOptions.map(role => (
-                                  <option key={role.value} value={role.value}>
-                                    {role.label}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                                <FaChevronRight className={`w-4 h-4 transform rotate-90 ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                                }`} />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className={`h-px mx-4 my-2 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`} />
-
-                          {/* Actions Section */}
-                          <div className="px-2 py-2">
-                            <button
-                              onClick={handleEditProfile}
-                              className={`w-full text-left px-3 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'} flex items-center gap-2 rounded-lg text-sm`}
-                            >
-                              <FaEdit className="text-blue-500 w-4 h-4" /> Edit Profile
-                            </button>
-                            <button
-                              onClick={handleLogout}
-                              className={`w-full text-left px-3 py-2 ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-red-50 text-gray-700'} flex items-center gap-2 rounded-lg text-sm`}
-                            >
-                              <FaSignOutAlt className="text-red-500 w-4 h-4" /> Logout
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {isSidebarExpanded && !loading && userDetails && (
-                    <div className="hidden md:block min-w-0 ml-2">
-                      <p className={`text-base font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} truncate`}>{userDetails.fullName}</p>
-                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} truncate`}>{userDetails.designation}</p>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-          </header>
+          </div>
+        </header>
 
-          {/* Main Content */}
-          <main className={`p-4 md:p-8 min-h-screen overflow-y-auto overflow-x-hidden h-[calc(100vh-64px)] ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
-            {children}
-          </main>
-        </div>
-
-        {/* Mobile Menu Toggle */}
-        <button
-          onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
-          className={`fixed bottom-6 right-6 lg:hidden ${theme === 'dark' ? 'bg-gray-800 text-blue-400 border-gray-700' : 'bg-white text-blue-600 border-gray-200'} p-4 rounded-full 
-            shadow-lg border hover:bg-blue-50 transition-all duration-200 z-50`}
-          title="Toggle menu"
-        >
-          {isMobileMenuOpen ? <FaTimes className="w-6 h-6"/> : <FaBars className="w-6 h-6"/>}
-        </button>
+        {/* Full-width Content Container (edge-to-edge) */}
+        <main className={`flex-1 min-h-screen p-0 ${theme === "dark" ? "bg-gray-900" : "bg-gray-50"}`}>
+          {children}
+        </main>
 
         {/* Edit Profile Modal */}
         {showEditProfileModal && (
@@ -784,53 +679,337 @@ const handleLogout = () => {
           </div>
         )}
 
-        {/* Password Confirmation Modal */}
+        {/* Password Modal */}
         {showPasswordModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl max-w-sm w-full mx-auto shadow-xl p-6`}>
-              <div className="text-center mb-4">
-                <div className={`w-12 h-12 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-blue-50'} mx-auto flex items-center justify-center mb-3`}>
-                  <FaUser className={`w-6 h-6 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <input
+                    type={showOpsPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter Ops Manager Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOpsPassword(!showOpsPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showOpsPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
                 </div>
-                <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  Confirm Role Change
-                </h2>
-                <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Enter password to switch to {pendingRole} role
-                </p>
-              </div>
-              <input
-                type="password"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className={`w-full px-4 py-2.5 rounded-lg border text-sm ${
-                  theme === 'dark'
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2`}
-                placeholder="Enter your password"
-              />
-              {passwordError && (
-                <p className="text-red-500 text-xs mb-2">{passwordError}</p>
-              )}
-              <div className="flex gap-2 mt-4">
-                <button
-                  onClick={() => setShowPasswordModal(false)}
-                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg ${
-                    theme === 'dark'
-                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Cancel
-                </button>
+                {passwordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
                 <button
                   onClick={handlePasswordSubmit}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                  className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
                 >
-                  Confirm
+                  Submit
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        {/* Manager Ops-Manager Password Modal */}
+        {showManagerPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowManagerPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <input
+                    type={showManagerPassword ? 'text' : 'password'}
+                    value={ManagerPassword}
+                    onChange={(e) => setManagerPassword(e.target.value)}
+                    placeholder="Enter Ops-Manager Manager Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-green-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowManagerPassword(!showManagerPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showManagerPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {ManagerPasswordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
+                <button
+                  onClick={handleManagerPasswordSubmit}
+                  className="px-8 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* HR Password Modal */}
+        {showHRPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowHRPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <input
+                    type={showHRPassword ? 'text' : 'password'}
+                    value={HRPassword}
+                    onChange={(e) => setHRPassword(e.target.value)}
+                    placeholder="Enter HR Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowHRPassword(!showHRPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showHRPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {HRPasswordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
+                <button
+                  onClick={handleHRPasswordSubmit}
+                  className="px-8 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Coordinator Password Modal */}
+        {showCoordinatorPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowCoordinatorPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <input
+                    type={showCoordinatorPassword ? 'text' : 'password'}
+                    value={coordinatorPassword}
+                    onChange={(e) => setCoordinatorPassword(e.target.value)}
+                    placeholder="Enter Coordinator Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-orange-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCoordinatorPassword(!showCoordinatorPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showCoordinatorPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {coordinatorPasswordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
+                <button
+                  onClick={handleCoordinatorPasswordSubmit}
+                  className="px-8 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* User Task Password Modal */}
+        {showUserTaskPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-md w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={() => setShowUserTaskPasswordModal(false)}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Enter Password</h2>
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <input
+                    type={showUserTaskPassword ? 'text' : 'password'}
+                    value={userTaskPassword}
+                    onChange={(e) => setUserTaskPassword(e.target.value)}
+                    placeholder="Enter Task Password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowUserTaskPassword(!showUserTaskPassword)}
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {showUserTaskPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {userTaskPasswordError && (
+                  <div className="text-red-500 text-sm mt-2 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                    Incorrect password. Please try again.
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    if (userTaskPassword === 'Taskexozen@2025!') {
+                      setUserTaskPasswordError(false);
+                      setIsTaskAuthenticated(true);
+                      sessionStorage.setItem('isTaskAuthenticated', 'true');
+                      setShowUserTaskPasswordModal(false);
+                      setUserTaskPassword("");
+                      router.push('/task/dashboard');
+                    } else {
+                      setUserTaskPasswordError(true);
+                    }
+                  }}
+                  className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Project Selection Modal for Create Link */}
+        {showProjectSelectionModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-2xl max-w-lg w-full mx-auto shadow-2xl p-8 relative`}>
+              <button
+                onClick={resetModal}
+                className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors duration-200 rounded-full p-2 hover:bg-gray-100`}
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>Create Shareable KYC Link</h2>
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>
+                Select a project to generate a shareable link. The project will be frozen in the KYC form.
+              </p>
+              
+              {!generatedLink ? (
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                      Choose Project
+                    </label>
+                    <select
+                      value={selectedProject}
+                      onChange={(e) => setSelectedProject(e.target.value)}
+                      className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'} focus:outline-none focus:ring-2 focus:ring-green-500`}
+                      disabled={projectLoading}
+                    >
+                      <option value="">
+                        {projectLoading ? "Loading projects..." : projectList.length === 0 ? "No projects available" : "Select a project..."}
+                      </option>
+                      {projectList.map((project) => (
+                        <option key={project._id} value={project.projectName}>
+                          {project.projectName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={resetModal}
+                      className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-all duration-300 font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleProjectSelection}
+                      disabled={!selectedProject}
+                      className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <FaUserPlus className="w-4 h-4" />
+                      Generate Link
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-green-50 border-green-200'}`}>
+                    <h3 className={`text-lg font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      Generated Link for: {selectedProject}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={generatedLink}
+                        readOnly
+                        className={`flex-1 px-3 py-2 text-sm rounded-lg border ${theme === 'dark' ? 'bg-gray-600 text-gray-200 border-gray-500' : 'bg-white text-gray-900 border-gray-300'} focus:outline-none`}
+                      />
+                      <button
+                        onClick={copyToClipboard}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                          linkCopied 
+                            ? 'bg-green-600 text-white' 
+                            : theme === 'dark' 
+                              ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                              : 'bg-blue-500 text-white hover:bg-blue-600'
+                        }`}
+                      >
+                        {linkCopied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Share this link with others. When opened, the KYC form will have the project &quot;{selectedProject}&quot; pre-selected and frozen.
+                    </p>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={resetModal}
+                      className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-all duration-300 font-medium"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => {
+                        setGeneratedLink("");
+                        setSelectedProject("");
+                      }}
+                      className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 font-medium flex items-center justify-center gap-2"
+                    >
+                      <FaUserPlus className="w-4 h-4" />
+                      Create Another
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
